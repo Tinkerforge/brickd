@@ -35,7 +35,7 @@ def build_windows_pkg():
                 else:
                     data_files.append((os.path.join(dirname) , [os.path.join(dirname, n)]))
     
-    os.path.walk("_build_data\Windows\\", visitor, ('y',"_build_data\Windows\\"))
+    os.path.walk("..\\build_data\Windows\\", visitor, ('y',"..\\build_data\Windows\\"))
         
     #print data_files
     
