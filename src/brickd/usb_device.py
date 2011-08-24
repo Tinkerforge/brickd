@@ -1,0 +1,306 @@
+# -*- coding: utf-8 -*-  
+"""
+brickd (Brick Daemon)
+Copyright (C) 2009-2010 Olaf Lüke <olaf@tinkerforge.com>
+
+usb_device.py: Implementation of USB communication
+
+This program is free software; you can redistribute it and/or
+modify it under the terms of the GNU General Public License 
+as published by the Free Software Foundation; either version 2 
+of the License, or (at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+General Public License for more details.
+
+You should have received a copy of the GNU General Public
+License along with this program; if not, write to the
+Free Software Foundation, Inc., 59 Temple Place - Suite 330,
+Boston, MA 02111-1307, USA.
+"""
+
+import logging
+import struct
+from libusb import libusb1
+
+from threading import Thread
+
+# Queue for python 2, queue for python 3
+try:
+    from Queue import Queue
+except ImportError:
+    from queue import Queue
+
+import brick_protocol
+
+import twisted
+import time
+
+class USBDevice:
+    USB_ENDPOINT_SIZE = 64
+    USB_BUFFER_SIZE = 4096
+    
+    USB_CONFIGURATION = 1
+    USB_INTERFACE = 0
+    USB_ENDPOINT_IN = 4
+    USB_ENDPOINT_OUT = 5
+    
+    NUM_READ_TRANSFER = 5
+    NUM_WRITE_TRANSFER = 5
+    
+    def __init__(self, usb_device, context):
+        self.usb_device = usb_device
+        self.context = context
+
+        try:
+            # open the device for communication
+            self.usb_handle = self.usb_device.open()
+            self.usb_handle.resetDevice()
+            
+            # claim configuration and interface
+            self.usb_handle.setConfiguration(USBDevice.USB_CONFIGURATION)
+            self.usb_handle.claimInterface(USBDevice.USB_INTERFACE)
+
+            self.data_callback = {}
+            
+            self.routing_table_in = []
+            self.routing_table_out = []
+            for i in range(256):
+                self.routing_table_in.append(chr(i))
+                self.routing_table_out.append(chr(i))
+            
+            self.xml_queue = Queue()
+            
+            self.write_data_queue = Queue()
+            self.write_transfer_queue = Queue(USBDevice.NUM_WRITE_TRANSFER)
+            
+            for i in xrange(USBDevice.NUM_READ_TRANSFER):
+                self.add_read_transfer()
+            for i in xrange(USBDevice.NUM_WRITE_TRANSFER):
+                self.add_write_transfer()
+                
+            self.alive = True
+            self.deleted = False
+            self.write_loop_thread = Thread(target=self.write_loop)
+            self.write_loop_thread.daemon = True
+            self.write_loop_thread.start()
+            
+            self.event_loop_thread = Thread(target=self.event_loop)
+            self.event_loop_thread.daemon = True
+            self.event_loop_thread.start()
+            
+            self.t = time.time()
+            self.t_sum = 0
+            self.i = 0
+            
+            self.get_devices()
+        except:
+            self.alive = False
+            return
+        
+    def add_read_transfer(self):
+        logging.info("Adding read transfer")
+        transfer = self.usb_handle.getTransfer()
+        transfer.setBulk(USBDevice.USB_ENDPOINT_IN + 0x80, 
+                         4096, 
+                         self.read_callback)
+        transfer.submit()
+        
+    def add_write_transfer(self):
+        logging.info("Adding write transfer")
+        self.write_transfer_queue.put(self.usb_handle.getTransfer())
+        
+    def delete(self):
+        if not self.deleted:
+            logging.info("Deleting USB device")
+            for item in brick_protocol.device_dict.items():
+                if item[1][0] != self:
+                    continue
+                for cb in item[1][3]:
+                    data =  chr(0)                   # Stack ID (broadcast)
+                    data += chr(253)                 # Enumerate Type
+                    data += struct.pack('<H', 54)    # Length
+                    data += item[1][1]               # UID 
+                    data += item[1][2]               # Name
+                    data += chr(item[0])             # Device Stack ID
+                    data += struct.pack('<?', False) # Denumerate
+                               
+                    cb(data)
+                    
+        self.alive = False
+        self.deleted = True
+        
+    def add_read_callback(self, key, callback):
+        if key in self.data_callback:
+            logging.info("Add callback for message: " + 
+                         str(brick_protocol.get_type_from_data(key)))
+            self.data_callback[key].put(callback)
+        else:
+            logging.info("Add queue and callback for message: " + 
+                         str(brick_protocol.get_type_from_data(key)))
+            q = Queue()
+            q.put(callback)
+            self.data_callback[key] = q
+    
+    def write_callback(self, transfer):
+        if not self.alive:
+            return
+        
+        status = transfer.getStatus()
+        if status == libusb1.LIBUSB_TRANSFER_COMPLETED:
+            logging.info("Write callback length: " + 
+                         str(transfer.getActualLength()))
+        else:
+            # TODO: Better error handling
+            logging.warn("Write callback not successful (status " + 
+                         str(status) + 
+                         "): Probably disconnect")
+            self.alive = False
+        self.write_transfer_queue.put(transfer)
+        
+    def extend_routing_table(self, old):
+        new = self.find_unused_stack_id()
+        if new != -1:
+            self.routing_table_in[old] = chr(new)
+            self.routing_table_out[new] = chr(old)
+        else:
+            logging.error("You are trying to use more then 255 " + \
+                          "devices, this is not possible.")   
+            
+    def apply_routing_table_out(self, data):
+        return self.apply_routing_table(self.routing_table_out, data)
+            
+    def apply_routing_table_in(self, data):
+        stack_id = brick_protocol.get_stack_id_from_data(data)
+        type = brick_protocol.get_type_from_data(data)
+        if stack_id == 0:
+            if type == 253:
+                old_stack_id = ord(self.routing_table_in[ord(data[52])])
+                if old_stack_id in brick_protocol.device_dict:
+                    uid = data[4:12]
+                    if brick_protocol.device_dict[old_stack_id][1] != uid:
+                        self.extend_routing_table(old_stack_id)
+                    
+                return data[0:52] + \
+                       self.routing_table_in[old_stack_id] + \
+                       data[53:]
+                       
+            elif type == 255:
+                old_stack_id = ord(data[12])
+                return data[0:12] + self.routing_table_in[old_stack_id]
+            else:
+                return data
+        else:
+            return self.apply_routing_table(self.routing_table_in, data)
+    
+    def apply_routing_table(self, rt, data):
+        return rt[ord(data[0])] + data[1:]
+        
+    def read_callback(self, transfer):
+        if not self.alive:
+            return
+        
+        status = transfer.getStatus()
+        if status == libusb1.LIBUSB_TRANSFER_COMPLETED:
+            data = transfer.getBuffer()
+            
+            # Apply routing table
+            data = self.apply_routing_table_in(data)
+            
+            stack_id = brick_protocol.get_stack_id_from_data(data)
+            type = brick_protocol.get_type_from_data(data)
+            if stack_id == 0 and type == 253:
+                self.new_device(data)
+                
+            key = brick_protocol.get_callback_key_from_data(data);
+            
+            # Data is return value of function call
+            if key in self.data_callback:
+                callback = self.data_callback[key].get()
+                twisted.internet.reactor.callFromThread(callback, data)
+            # Data is Signal or Broadcast Message
+            else:
+                # Stack ID = 0 -> Broadcast Message
+                if stack_id == 0:
+                    for bp in brick_protocol.brick_protocol_list:
+                        callback = bp.callback
+                        twisted.internet.reactor.callFromThread(callback, data)
+                elif stack_id in brick_protocol.device_dict:
+                    callbacks = brick_protocol.device_dict[stack_id][3]
+                    for callback in callbacks:
+                        twisted.internet.reactor.callFromThread(callback, data)
+                else:
+                    logging.warn("Read callback with unknown Stack ID: " + 
+                                 str(stack_id))
+            
+            logging.info("Read callback: " + str(type))
+        else:
+            # TODO: Better error handling
+            logging.warn("Read callback not successful (status " + 
+                         str(status) + 
+                         "): Probably disconnect")
+            self.alive = False
+            
+        try:
+            transfer.submit()
+        except libusb1.USBError:
+            logging.warn("Transfer exception: Probably disconnect")
+            self.alive = False
+    
+    def write_loop(self):
+        """
+        Write data from queue to usb device
+        """ 
+        try:
+            while self.alive:
+                transfer = self.write_transfer_queue.get()
+                data = self.write_data_queue.get()
+                
+                # Apply routing table
+                data = self.apply_routing_table_out(data)
+
+                logging.info("Write to device: " + 
+                             str(brick_protocol.get_type_from_data(data)))
+                
+                transfer.setBulk(USBDevice.USB_ENDPOINT_OUT, 
+                                 data,
+                                 self.write_callback)
+                transfer.submit()
+                
+                self.write_data_queue.task_done()
+                self.write_transfer_queue.task_done()
+        except:
+            self.alive = False
+    
+    def event_loop(self):
+        """
+        Triggers libusb events
+        """
+        
+        while self.alive:
+            self.context.handleEvents()
+
+    def get_devices(self):
+        logging.info("Calling get_devices on: " + str(self))
+        #data = ''.join(map(chr, [0, 0, 0, 0, 0, 0, 0, 0, 255, 11, 0]))
+        data = ''.join(map(chr, [0, 254, 4, 0]))
+        self.write_data_queue.put(data)
+        
+    def find_unused_stack_id(self):
+        for stack_id in range(1, 255):
+            if not stack_id in brick_protocol.device_dict:
+                return stack_id
+            
+        return -1
+
+    def new_device(self, data):
+        stack_id = ord(data[52])
+        if not stack_id in brick_protocol.device_dict:
+            name = data[12:52]
+            uid = data[4:12]
+            brick_protocol.device_dict[stack_id] = (self, uid, name, set())
+            logging.info("New device {0} with Stack ID {1} ".format(name, 
+                                                                    stack_id))
+            
