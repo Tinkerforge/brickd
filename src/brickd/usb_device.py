@@ -118,16 +118,17 @@ class USBDevice:
             for item in brick_protocol.device_dict.items():
                 if item[1][0] != self:
                     continue
-                for cb in item[1][3]:
-                    data =  chr(0)                   # Stack ID (broadcast)
-                    data += chr(253)                 # Enumerate Type
-                    data += struct.pack('<H', 54)    # Length
-                    data += item[1][1]               # UID 
-                    data += item[1][2]               # Name
-                    data += chr(item[0])             # Device Stack ID
-                    data += struct.pack('<?', False) # Denumerate
-                               
-                    cb(data)
+                
+                data =  chr(0)                   # Stack ID (broadcast)
+                data += chr(253)                 # Enumerate Type
+                data += struct.pack('<H', 54)    # Length
+                data += item[1][1]               # UID 
+                data += item[1][2]               # Name
+                data += chr(item[0])             # Device Stack ID
+                data += struct.pack('<?', False) # Denumerate
+                
+                for bp in brick_protocol.brick_protocol_list:      
+                    bp.callback(data)
                     
         self.alive = False
         self.deleted = True
