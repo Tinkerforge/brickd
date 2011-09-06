@@ -1,0 +1,6 @@
+#!/bin/sh
+set -e
+if [ -x /usr/sbin/update-rc.d ]
+then
+	/usr/sbin/update-rc.d brickd remove
+fi

@@ -15,7 +15,6 @@
 import sys  
 from distutils.core import setup
 import os
-import py2exe
 import glob
 import shutil
  
@@ -25,6 +24,7 @@ DESCRIPTION = 'WindowsBrickd'
 NAME = 'WindowsBrickd'
 
 def build_windows_pkg():
+    import py2exe
     data_files = []
     
     def visitor(arg, dirname, names):
@@ -73,9 +73,26 @@ def build_windows_pkg():
     print "data:", data
     os.system(run + data)
     
-# call python build_pkg.py win to build the windows package
+def build_linux_pkg():
+    import shutil
+    src_path = os.getcwd()
+    build_dir = 'build_data/linux/brickd/usr/share/brickd'
+    dest_path = os.path.join(os.path.split(src_path)[0], build_dir)
+    if os.path.isdir(dest_path):
+        shutil.rmtree(dest_path)
+
+    shutil.copytree(src_path, dest_path)
+    
+    build_data_path = os.path.join(os.path.split(src_path)[0], 'build_data/linux')
+    os.chdir(build_data_path)
+    os.system('dpkg -b brickd/ brickd-1.0_all.deb')
+
+
+# call python build_pkg.py win/linux to build the windows/linux package
     
 if __name__ == "__main__":
     if sys.argv[1] == "win":
         sys.argv[1] = "py2exe" # rewrite sys.argv[1] for setup(), want to call py2exe
         build_windows_pkg()
+    if sys.argv[1] == "linux":
+        build_linux_pkg()

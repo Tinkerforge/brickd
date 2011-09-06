@@ -1,0 +1,9 @@
+#!/bin/sh -e
+if [ "$1" = "configure" ]
+then
+    if [ -x /usr/sbin/update-rc.d ]
+    then
+        /usr/sbin/update-rc.d brickd defaults
+		/etc/init.d/brickd start
+    fi
+fi

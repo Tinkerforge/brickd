@@ -1,0 +1,9 @@
+Package: brickd
+Version: 1.0
+Section: electronics
+Maintainer: Olaf Lüke <olaf@tinkerforge.com>
+Architecture: all
+Depends: python
+Description: Brick Daemon
+ Brick Daemon is a small small bridge between the USB port of Bricks and
+ the tcp/ip socket connection to the language binding APIs.
