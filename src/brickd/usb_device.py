@@ -50,6 +50,13 @@ class USBDevice:
     NUM_READ_TRANSFER = 5
     NUM_WRITE_TRANSFER = 5
     
+    TYPE_GET_STACK_ID = 255
+    TYPE_ENUMERATE = 254
+    TYPE_ENUMERATE_CALLBACK = 253
+    TYPE_STACK_ENUMERATE = 252
+    TYPE_ADC_CALIBRATE = 251
+    TYPE_GET_ADC_CALIBRATION = 250
+    
     def __init__(self, usb_device, context):
         self.usb_device = usb_device
         self.context = context
@@ -177,7 +184,7 @@ class USBDevice:
         stack_id = brick_protocol.get_stack_id_from_data(data)
         type = brick_protocol.get_type_from_data(data)
         if stack_id == 0:
-            if type == 253:
+            if type == USBDevice.TYPE_ENUMERATE_CALLBACK:
                 old_stack_id = ord(self.routing_table_in[ord(data[52])])
                 if old_stack_id in brick_protocol.device_dict:
                     uid = data[4:12]
@@ -188,9 +195,9 @@ class USBDevice:
                        self.routing_table_in[old_stack_id] + \
                        data[53:]
                        
-            elif type == 255:
-                old_stack_id = ord(data[12])
-                return data[0:12] + self.routing_table_in[old_stack_id]
+            elif type == USBDevice.TYPE_GET_STACK_ID:
+                old_stack_id = ord(data[55])
+                return data[0:55] + self.routing_table_in[old_stack_id]
             else:
                 return data
         else:
@@ -212,7 +219,7 @@ class USBDevice:
             
             stack_id = brick_protocol.get_stack_id_from_data(data)
             type = brick_protocol.get_type_from_data(data)
-            if stack_id == 0 and type == 253:
+            if stack_id == 0 and type == USBDevice.TYPE_ENUMERATE_CALLBACK:
                 self.new_device(data)
                 
             key = brick_protocol.get_callback_key_from_data(data);
@@ -285,8 +292,7 @@ class USBDevice:
 
     def get_devices(self):
         logging.info("Calling get_devices on: " + str(self))
-        #data = ''.join(map(chr, [0, 0, 0, 0, 0, 0, 0, 0, 255, 11, 0]))
-        data = ''.join(map(chr, [0, 254, 4, 0]))
+        data = ''.join(map(chr, [0, USBDevice.TYPE_ENUMERATE, 4, 0]))
         self.write_data_queue.put(data)
         
     def find_unused_stack_id(self):
