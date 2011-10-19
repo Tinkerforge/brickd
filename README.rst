@@ -12,4 +12,9 @@ You should be able to start brickd from source with the
 
 The following libraries are required:
  * twisted
+ * libusb 1.0
+ * python-gudev (linux only)
  * pywin32 (windows only)
+
+On Debian based linux distributions try::
+ sudo apt-get install python-twisted python-gudev libusb-1.0-0
