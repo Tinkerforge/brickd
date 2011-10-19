@@ -214,6 +214,8 @@ class USBDevice:
         if status == libusb1.LIBUSB_TRANSFER_COMPLETED:
             data = transfer.getBuffer()
             
+            data = data[0:brick_protocol.get_length_from_data(data)]
+            
             # Apply routing table
             data = self.apply_routing_table_in(data)
             
