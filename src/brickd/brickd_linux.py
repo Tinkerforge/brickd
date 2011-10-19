@@ -140,7 +140,7 @@ class BrickdLinux:
         self.start()
         
 if __name__ == "__main__":
-    if os.environ.get("USERNAME") != "root":
+    if os.geteuid() != 0:
         sys.stderr.write("brickd has to be started as root, exiting")
     else:
         brickd = BrickdLinux()
