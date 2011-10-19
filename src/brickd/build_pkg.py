@@ -1,3 +1,27 @@
+# -*- coding: utf-8 -*-  
+"""
+brickd (Brick Daemon)
+Copyright (C) 2011 Olaf Lüke <olaf@tinkerforge.com>
+              2011 Bastian Nordmeyer <bastian@tinkerforge.com>
+
+brickd_pkg.py: Package builder for Brick Daemon
+
+This program is free software; you can redistribute it and/or
+modify it under the terms of the GNU General Public License 
+as published by the Free Software Foundation; either version 2 
+of the License, or (at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+General Public License for more details.
+
+You should have received a copy of the GNU General Public
+License along with this program; if not, write to the
+Free Software Foundation, Inc., 59 Temple Place - Suite 330,
+Boston, MA 02111-1307, USA.
+"""
+
 # package builder for brickd
 #
 # Windows:
@@ -12,6 +36,7 @@
 #     run: "python build_pkg.py win" to build windows installer
 #          installer is placed in "dist/nsis"
 
+import config
 import sys  
 from distutils.core import setup
 import os
@@ -49,7 +74,7 @@ def build_windows_pkg():
     setup(
           name = NAME,
           description = DESCRIPTION,
-          version = '1.00.00',
+          version = config.BRICKD_VERSION,
           service = [{
                     'modules':["brickd_windows"],
                     'cmdline':'pywin32',
@@ -85,7 +110,7 @@ def build_linux_pkg():
     
     build_data_path = os.path.join(os.path.split(src_path)[0], 'build_data/linux')
     os.chdir(build_data_path)
-    os.system('dpkg -b brickd/ brickd-1.0_all.deb')
+    os.system('dpkg -b brickd/ brickd-' + config.BRICKD_VERSION + '_all.deb')
 
 
 # call python build_pkg.py win/linux to build the windows/linux package

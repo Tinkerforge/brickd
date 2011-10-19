@@ -4,7 +4,9 @@
 
 import logging
 
-LOGGING_LEVEL = logging.INFO
+LOGGING_LEVEL = logging.ERROR
 LOGGING_FORMAT = "%(asctime)s <%(levelname)s> <%(filename)s:%(lineno)s> %(message)s"
 LOGGING_DATEFMT = "%H:%M:%S"
 PORT = 4223
+
+BRICKD_VERSION = "1.0.0"

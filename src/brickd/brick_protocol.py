@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-  
 """
 brickd (Brick Daemon)
-Copyright (C) 20011 Olaf Lüke <olaf@tinkerforge.com>
+Copyright (C) 2011 Olaf Lüke <olaf@tinkerforge.com>
 
 brick_protocol.py: Protocol implementation for bricks
 
