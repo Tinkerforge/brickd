@@ -1,6 +1,6 @@
 Name "Brickd Windows Installer"
 
-OutFile "brickd_installer_windows.exe"
+OutFile "brickd_windows.exe"
 
 ; The default installation directory
 InstallDir $PROGRAMFILES\Tinkerforge\Brickd
@@ -67,7 +67,7 @@ Section "Install Brickd Programm"
   ${VersionCompare} $0 ${BRICKD_VERSION} $1
   IntCmp $1 2 uninstall
     MessageBox MB_YESNO|MB_ICONQUESTION "Brickd version $0 seems to be already installed on your system.$\n\
-    Would you like to proceed with the installation of version ${BRICKD_VERSION}? \
+    Would you like to proceed with the installation of version ${BRICKD_VERSION}? $\n\
     Old Version will be first uninstalled." \
         IDYES uninstall IDNO quit
 
@@ -90,7 +90,7 @@ Section "Install Brickd Programm"
   WriteRegStr HKLM SOFTWARE\TINKERFORGE\BRICKD "Version" ${BRICKD_VERSION}
   
   ; Write the uninstall keys for Windows
-  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Tinkerforge\Brickd" "DisplayName" "Brickd Windows Deamon"
+  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Tinkerforge\Brickd" "DisplayName" "Brickd"
   WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Tinkerforge\Brickd" "Publisher" "Tinkerforge GmbH"
   WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Tinkerforge\Brickd" "UninstallString" '"$INSTDIR\uninstall.exe"'
   WriteRegDWORD HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Tinkerforge\Brickd" "NoModify" 1
@@ -106,7 +106,7 @@ Section "Install Brickd Service"
   ExecWait '"$INSTDIR\brickd_windows.exe" start' $1
   DetailPrint "$0 $1"
 
-  MessageBox MB_OK "A driver installation might be necessary when devices will be connected.\n Please choose the driver folder under your brickd installation manually to install the drivers"
+  MessageBox MB_OK "A driver installation might be necessary when devices will be connected.$\nPlease choose manually the driver folder in your brickd installation to install the drivers."
 
   MessageBox MB_YESNO "A reboot is required to finish the installation. Do you wish to reboot now?" IDNO quit
     Reboot
