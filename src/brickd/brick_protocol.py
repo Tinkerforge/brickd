@@ -107,7 +107,6 @@ class BrickProtocol(Protocol):
                 usb_devices.add(usb_device)
         
     def dataReceived(self, data):
-        logging.error("received: " + str(map(ord, data)))
         while len(data) != 0:
             length = get_length_from_data(data)
             msg = data[0:length]
