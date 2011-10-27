@@ -17,6 +17,7 @@ The following libraries are required:
  * pywin32 (windows only)
 
 On Debian based linux distributions try::
+
  sudo apt-get install python-twisted python-gudev libusb-1.0-0
 
 Building Packages
