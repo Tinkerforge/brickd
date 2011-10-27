@@ -18,3 +18,11 @@ The following libraries are required:
 
 On Debian based linux distributions try::
  sudo apt-get install python-twisted python-gudev libusb-1.0-0
+
+Building Packages
+-----------------
+The python script src/brickd/build_pkg.py can build a Debian package and a
+setup.exe for Windows. Try::
+ python build_pkg.py linux
+or::
+ python build_pkg.py windows
