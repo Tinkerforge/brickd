@@ -23,7 +23,9 @@ Building Packages
 -----------------
 The python script src/brickd/build_pkg.py can build a Debian package and a
 setup.exe for Windows. Try::
+
  python build_pkg.py linux
 
 or::
+
  python build_pkg.py windows
