@@ -228,8 +228,13 @@ class USBDevice:
             
             # Data is return value of function call
             if key in self.data_callback:
-                callback = self.data_callback[key].get()
-                twisted.internet.reactor.callFromThread(callback, data)
+                try:
+                    callback = self.data_callback[key].get(True, 0.1)
+                except:
+                    logging.warn("No callback for data. Latency too high?")
+                else:
+                    twisted.internet.reactor.callFromThread(callback, data)
+                    
             # Data is Signal or Broadcast Message
             else:
                 # Stack ID = 0 -> Broadcast Message
