@@ -14,7 +14,7 @@ RequestExecutionLevel admin
 
 ;--------------------------------
 
-!define BRICKD_VERSION "1.0.0"
+!define BRICKD_VERSION "1.0.1"
 
 ;--------------------------------
 
