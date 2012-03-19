@@ -119,7 +119,6 @@ def osx_notifier(brickd):
 
     # removed/added callback
     def callback(refcon, iterator, func):
-        print refcon, iterator, func
         func()
         usbDevice = c_void_p(IOIteratorNext(iterator))
         while usbDevice:
