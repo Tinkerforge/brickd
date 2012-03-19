@@ -105,7 +105,7 @@ class USBDevice:
             self.get_devices()
         except:
             self.alive = False
-            return
+            logging.warning("Could not create USB Device")
         
     def add_read_transfer(self):
         logging.info("Adding read transfer")
@@ -139,6 +139,15 @@ class USBDevice:
                     
         self.alive = False
         self.deleted = True
+                
+        # For some reason joining the thread here will not work in OS X here.
+        # Just closing the usb_handle will crash on OS X.
+        for i in range(20):
+            if self.write_loop_thread.is_alive() or self.event_loop_thread.is_alive():
+                time.sleep(0.1)
+            else:
+                break
+        self.usb_handle.close()
         
     def add_read_callback(self, key, callback):
         if key in self.data_callback:

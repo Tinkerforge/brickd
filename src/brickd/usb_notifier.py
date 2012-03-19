@@ -70,8 +70,6 @@ class USBNotifier():
                 if item[1][0].usb_device is device:
                     item[1][0].delete()
                     brick_protocol.device_dict.pop(item[0])
-                    
-        logging.info(str(brick_protocol.device_dict.items()))
 
     def find_all_devices(self):
         """ 
@@ -79,8 +77,8 @@ class USBNotifier():
         """
 
         tries = 2
-        devices = []
         while tries > 0:
+            devices = []
             try:
                 for device in self.context.getDeviceList():
                     if device.getVendorID() == USBNotifier.USB_VENDOR_ID and \
