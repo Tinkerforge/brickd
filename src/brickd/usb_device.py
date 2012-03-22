@@ -27,7 +27,6 @@ from libusb import libusb1
 
 from threading import Thread
 
-
 # Queue for python 2, queue for python 3
 try:
     from Queue import Queue
@@ -61,7 +60,6 @@ class USBDevice:
     def __init__(self, usb_device, context):
         self.usb_device = usb_device
         self.context = context
-        self.usb_handle_close_counter = 0
 
         try:
             # open the device for communication
@@ -141,19 +139,14 @@ class USBDevice:
                     
         self.alive = False
         self.deleted = True
-        twisted.internet.reactor.callLater(0.1, self.usb_handle_close)
                 
-
-    def usb_handle_close(self):
-        self.usb_handle_close_counter += 1
-
-        if self.usb_handle_close_counter == 20:
-            return
-
-        if self.write_loop_thread.is_alive() or self.event_loop_thread.is_alive():
-            twisted.internet.reactor.callLater(0.1, self.usb_handle_close)
-            return
-
+        # For some reason joining the thread here will not work in OS X here.
+        # Just closing the usb_handle will crash on OS X.
+        for i in range(20):
+            if self.write_loop_thread.is_alive() or self.event_loop_thread.is_alive():
+                time.sleep(0.1)
+            else:
+                break
         self.usb_handle.close()
         
     def add_read_callback(self, key, callback):
