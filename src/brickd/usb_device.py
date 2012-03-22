@@ -120,6 +120,9 @@ class USBDevice:
         self.write_transfer_queue.put(self.usb_handle.getTransfer())
         
     def delete(self):
+        self.write_data_queue.put(None, False)
+        self.write_transfer_queue.put(None, False)
+
         if not self.deleted:
             logging.info("Deleting USB device")
             for item in brick_protocol.device_dict.items():
@@ -134,21 +137,15 @@ class USBDevice:
                 data += chr(item[0])             # Device Stack ID
                 data += struct.pack('<?', False) # Denumerate
                 
-                for bp in brick_protocol.brick_protocol_list:      
-                    bp.callback(data)
+                for bp in brick_protocol.brick_protocol_list:
+                    twisted.internet.reactor.callFromThread(bp.callback, data)
                     
         self.alive = False
         self.deleted = True
-                
-        # For some reason joining the thread here will not work in OS X here.
-        # Just closing the usb_handle will crash on OS X.
-        for i in range(20):
-            if self.write_loop_thread.is_alive() or self.event_loop_thread.is_alive():
-                time.sleep(0.1)
-            else:
-                break
+        self.write_loop_thread.join()
+        self.event_loop_thread.join()
         self.usb_handle.close()
-        
+
     def add_read_callback(self, key, callback):
         if key in self.data_callback:
             logging.info("Add callback for message: " + 
@@ -277,14 +274,23 @@ class USBDevice:
         """
         Write data from queue to usb device
         """ 
+
         try:
             while self.alive:
                 transfer = self.write_transfer_queue.get()
+                if not transfer: 
+                    if not self.alive:
+                        return
+                    continue
+
                 data = self.write_data_queue.get()
-                
+                if not data:
+                    if not self.alive:
+                        return
+                    continue
+
                 # Apply routing table
                 data = self.apply_routing_table_out(data)
-
                 logging.info("Write to device: " + 
                              str(brick_protocol.get_type_from_data(data)))
                 
@@ -292,7 +298,6 @@ class USBDevice:
                                  data,
                                  self.write_callback)
                 transfer.submit()
-                
                 self.write_data_queue.task_done()
                 self.write_transfer_queue.task_done()
         except:
