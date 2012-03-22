@@ -120,8 +120,11 @@ class USBDevice:
         self.write_transfer_queue.put(self.usb_handle.getTransfer())
         
     def delete(self):
-        self.write_data_queue.put(None, False)
-        self.write_transfer_queue.put(None, False)
+        try:
+            self.write_data_queue.put(None, False)
+            self.write_transfer_queue.put(None, False)
+        except:
+            pass
 
         if not self.deleted:
             logging.info("Deleting USB device")
