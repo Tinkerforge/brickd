@@ -38,6 +38,7 @@ Boston, MA 02111-1307, USA.
 
 import config
 import sys  
+import distutils
 from distutils.core import setup
 import os
 import glob
@@ -48,20 +49,17 @@ def build_macos_pkg():
     from setuptools import setup, find_packages
 
     PWD = os.path.dirname(os.path.realpath(__file__))
-    APP_NAME = 'brickd_macosx'
-    MAIN_APP_NAME = '%s.py' % APP_NAME
-    RES_PATH = os.path.join(PWD, 'dist', '%s.app' % APP_NAME, 'Contents', 'Resources')
+    RES_PATH = os.path.join(PWD, 'dist', '%s.app' % 'brickd', 'Contents', 'Resources')
     data_files = [
         ("../build_data/macos/", glob.glob(os.path.join(PWD, "../build_data/macos/", "*.nib"))),
-        #('/usr/share/applications',['foo.desktop']),
     ]
     packages = find_packages()
 
     plist = dict(
-        CFBundleName = APP_NAME,
+        CFBundleName = 'brickd',
         CFBundleShortVersionString = '0.1',
-        CFBundleGetInfoString = ' '.join([APP_NAME, '0.1']),
-        CFBundleExecutable = APP_NAME,
+        CFBundleGetInfoString = ' '.join(['brickd', '0.1']),
+        CFBundleExecutable = 'brickd_macosx',
         CFBundleIdentifier = 'org.tinkerforge.brickd',
         # hide dock icon
     #    LSUIElement = True,
@@ -93,7 +91,7 @@ def build_macos_pkg():
     def create_app():
         apps = [
             {
-                "script" : MAIN_APP_NAME,
+                "script" : 'brickd_macosx.py',
                 "plist" : plist,
             }
         ]
@@ -103,7 +101,7 @@ def build_macos_pkg():
         data = data_files + additional_data_files
 
         setup(
-            name = APP_NAME,
+            name = 'brickd_macosx',
             version = '0.1',
             description = 'Brick Daemon Software',
             author = 'Tinkerforge',
@@ -111,7 +109,7 @@ def build_macos_pkg():
             platforms = ["Mac OSX"],
             license = "GPL V2",
             url = "http://www.tinkerforge.com",
-            scripts = [MAIN_APP_NAME],
+            scripts = ['brickd_macosx.py'],
 
             app = apps,
             options = {'py2app': OPTIONS},
@@ -153,11 +151,21 @@ os.environ['RESOURCEPATH'] = os.path.dirname(os.path.realpath(__file__))
 
     ACTION_CREATE = len(sys.argv) == 3 and sys.argv[-1] == "build"
 
+    def create_dmg():
+        if os.path.exists("macos_build"):
+            shutil.rmtree("macos_build")
+        os.mkdir("macos_build")
+        distutils.dir_util.copy_tree("../build_data/macos/", "macos_build")
+        distutils.dir_util.copy_tree("dist", "macos_build/data")
+
+#os.system('./_build_dmg.sh')
+
     if ACTION_CREATE:
         delete_old()
         create_app()
         run_in_term_patch()
         data_files_patch()
+        create_dmg()
     else:
         create_app()
         print "Usage: python setup.py py2app build"
