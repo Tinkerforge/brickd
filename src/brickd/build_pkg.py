@@ -43,6 +43,7 @@ from distutils.core import setup
 import os
 import glob
 import shutil
+import subprocess
  
 
 def build_macos_pkg():
@@ -57,8 +58,8 @@ def build_macos_pkg():
 
     plist = dict(
         CFBundleName = 'brickd',
-        CFBundleShortVersionString = '0.1',
-        CFBundleGetInfoString = ' '.join(['brickd', '0.1']),
+        CFBundleShortVersionString = config.BRICKD_VERSION,
+        CFBundleGetInfoString = ' '.join(['brickd', config.BRICKD_VERSION]),
         CFBundleExecutable = 'brickd_macosx',
         CFBundleIdentifier = 'org.tinkerforge.brickd',
         # hide dock icon
@@ -102,7 +103,7 @@ def build_macos_pkg():
 
         setup(
             name = 'brickd_macosx',
-            version = '0.1',
+            version = config.BRICKD_VERSION,
             description = 'Brick Daemon Software',
             author = 'Tinkerforge',
             author_email = 'info@tinkerforge.com',
@@ -157,8 +158,9 @@ os.environ['RESOURCEPATH'] = os.path.dirname(os.path.realpath(__file__))
         os.mkdir("macos_build")
         distutils.dir_util.copy_tree("../build_data/macos/", "macos_build")
         distutils.dir_util.copy_tree("dist", "macos_build/data")
+        distutils.dir_util.copy_tree("../build_data/macos/data/libusb/", "macos_build/data/brickd.app/Contents/Resources/")
 
-#os.system('./_build_dmg.sh')
+        subprocess.call('./_build_dmg.sh', shell=True)
 
     if ACTION_CREATE:
         delete_old()
@@ -197,6 +199,20 @@ def build_windows_pkg():
     
     #return
 
+    STEXT = '!define BRICKD_VERSION'
+    RTEXT = '!define BRICKD_VERSION ' + config.BRICKD_VERSION,
+    
+    f = open('../build_data/Windows/nsis/brickd_installer_windows.nsi', 'r')
+    lines = f.readlines()
+    f.close()
+
+    f = open('../build_data/Windows/nsis/brickd_installer_windows.nsi', 'w')
+    for line in lines:
+        if not line.find(STEXT) == -1:
+            line = RTEXT
+        f.write(line)
+    f.close()
+
     setup(
           name = NAME,
           description = DESCRIPTION,
@@ -225,7 +241,6 @@ def build_windows_pkg():
     os.system(run + data)
     
 def build_linux_pkg():
-    import shutil
     src_path = os.getcwd()
     build_dir = 'build_data/linux/brickd/usr/share/brickd'
     dest_path = os.path.join(os.path.split(src_path)[0], build_dir)
