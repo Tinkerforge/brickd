@@ -160,7 +160,7 @@ os.environ['RESOURCEPATH'] = os.path.dirname(os.path.realpath(__file__))
         distutils.dir_util.copy_tree("dist", "macos_build/data")
         distutils.dir_util.copy_tree("../build_data/macos/data/libusb/", "macos_build/data/brickd.app/Contents/Resources/")
 
-        subprocess.call('./_build_dmg.sh', shell=True)
+#        subprocess.call('./_build_dmg.sh', shell=True)
 
     if ACTION_CREATE:
         delete_old()
