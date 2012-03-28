@@ -7,3 +7,4 @@ ls > /tmp/lala
 cp com.tinkerforge.brickd.plist /System/Library/LaunchDaemons/
 cp -r brickd.app /usr/libexec/
 launchctl load /System/Library/LaunchDaemons/com.tinkerforge.brickd.plist
+launchctl start com.tinkerforge.brickd
