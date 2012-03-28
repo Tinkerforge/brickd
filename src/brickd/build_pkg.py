@@ -200,7 +200,7 @@ def build_windows_pkg():
     #return
 
     STEXT = '!define BRICKD_VERSION'
-    RTEXT = '!define BRICKD_VERSION ' + config.BRICKD_VERSION,
+    RTEXT = '!define BRICKD_VERSION ' + config.BRICKD_VERSION
     
     f = open('../build_data/Windows/nsis/brickd_installer_windows.nsi', 'r')
     lines = f.readlines()
