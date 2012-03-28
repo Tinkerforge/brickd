@@ -38,30 +38,29 @@ Boston, MA 02111-1307, USA.
 
 import config
 import sys  
+import distutils
 from distutils.core import setup
 import os
 import glob
 import shutil
+import subprocess
  
 
 def build_macos_pkg():
     from setuptools import setup, find_packages
 
     PWD = os.path.dirname(os.path.realpath(__file__))
-    APP_NAME = 'brickd_macosx'
-    MAIN_APP_NAME = '%s.py' % APP_NAME
-    RES_PATH = os.path.join(PWD, 'dist', '%s.app' % APP_NAME, 'Contents', 'Resources')
+    RES_PATH = os.path.join(PWD, 'dist', '%s.app' % 'brickd', 'Contents', 'Resources')
     data_files = [
         ("../build_data/macos/", glob.glob(os.path.join(PWD, "../build_data/macos/", "*.nib"))),
-        #('/usr/share/applications',['foo.desktop']),
     ]
     packages = find_packages()
 
     plist = dict(
-        CFBundleName = APP_NAME,
-        CFBundleShortVersionString = '0.1',
-        CFBundleGetInfoString = ' '.join([APP_NAME, '0.1']),
-        CFBundleExecutable = APP_NAME,
+        CFBundleName = 'brickd',
+        CFBundleShortVersionString = config.BRICKD_VERSION,
+        CFBundleGetInfoString = ' '.join(['brickd', config.BRICKD_VERSION]),
+        CFBundleExecutable = 'brickd_macosx',
         CFBundleIdentifier = 'org.tinkerforge.brickd',
         # hide dock icon
     #    LSUIElement = True,
@@ -93,7 +92,7 @@ def build_macos_pkg():
     def create_app():
         apps = [
             {
-                "script" : MAIN_APP_NAME,
+                "script" : 'brickd_macosx.py',
                 "plist" : plist,
             }
         ]
@@ -103,15 +102,15 @@ def build_macos_pkg():
         data = data_files + additional_data_files
 
         setup(
-            name = APP_NAME,
-            version = '0.1',
+            name = 'brickd_macosx',
+            version = config.BRICKD_VERSION,
             description = 'Brick Daemon Software',
             author = 'Tinkerforge',
             author_email = 'info@tinkerforge.com',
             platforms = ["Mac OSX"],
             license = "GPL V2",
             url = "http://www.tinkerforge.com",
-            scripts = [MAIN_APP_NAME],
+            scripts = ['brickd_macosx.py'],
 
             app = apps,
             options = {'py2app': OPTIONS},
@@ -153,11 +152,22 @@ os.environ['RESOURCEPATH'] = os.path.dirname(os.path.realpath(__file__))
 
     ACTION_CREATE = len(sys.argv) == 3 and sys.argv[-1] == "build"
 
+    def create_dmg():
+        if os.path.exists("macos_build"):
+            shutil.rmtree("macos_build")
+        os.mkdir("macos_build")
+        distutils.dir_util.copy_tree("../build_data/macos/", "macos_build")
+        distutils.dir_util.copy_tree("dist", "macos_build/data")
+        distutils.dir_util.copy_tree("../build_data/macos/data/libusb/", "macos_build/data/brickd.app/Contents/Resources/")
+
+#        subprocess.call('./_build_dmg.sh', shell=True)
+
     if ACTION_CREATE:
         delete_old()
         create_app()
         run_in_term_patch()
         data_files_patch()
+        create_dmg()
     else:
         create_app()
         print "Usage: python setup.py py2app build"
@@ -189,6 +199,20 @@ def build_windows_pkg():
     
     #return
 
+    STEXT = '!define BRICKD_VERSION'
+    RTEXT = '!define BRICKD_VERSION ' + config.BRICKD_VERSION,
+    
+    f = open('../build_data/Windows/nsis/brickd_installer_windows.nsi', 'r')
+    lines = f.readlines()
+    f.close()
+
+    f = open('../build_data/Windows/nsis/brickd_installer_windows.nsi', 'w')
+    for line in lines:
+        if not line.find(STEXT) == -1:
+            line = RTEXT
+        f.write(line)
+    f.close()
+
     setup(
           name = NAME,
           description = DESCRIPTION,
@@ -217,7 +241,6 @@ def build_windows_pkg():
     os.system(run + data)
     
 def build_linux_pkg():
-    import shutil
     src_path = os.getcwd()
     build_dir = 'build_data/linux/brickd/usr/share/brickd'
     dest_path = os.path.join(os.path.split(src_path)[0], build_dir)

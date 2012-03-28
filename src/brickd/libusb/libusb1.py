@@ -94,9 +94,12 @@ def _loadLibrary():
     else:
         from ctypes import CDLL as dll_loader
         libusb_path = find_library("usb-1.0")
+        print "path ", libusb_path
         if libusb_path is None and system == 'Darwin':
             # macport standard library path
+            print os.system("ls")
             libusb_path = '/opt/local/lib/libusb-1.0.dylib'
+            print "forcing path, to: ", libusb_path
             if not os.path.isfile(libusb_path):
                 libusb_path = None
     if libusb_path is None:

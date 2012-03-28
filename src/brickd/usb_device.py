@@ -120,12 +120,6 @@ class USBDevice:
         self.write_transfer_queue.put(self.usb_handle.getTransfer())
         
     def delete(self):
-        try:
-            self.write_data_queue.put(None, False)
-            self.write_transfer_queue.put(None, False)
-        except:
-            pass
-
         if not self.deleted:
             logging.info("Deleting USB device")
             for item in brick_protocol.device_dict.items():
@@ -145,6 +139,13 @@ class USBDevice:
                     
         self.alive = False
         self.deleted = True
+
+        try:
+            self.write_data_queue.put(None, False)
+            self.write_transfer_queue.put(None, False)
+        except:
+            pass
+
         self.write_loop_thread.join()
         self.event_loop_thread.join()
         self.usb_handle.close()
