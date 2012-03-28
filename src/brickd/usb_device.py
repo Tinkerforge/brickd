@@ -238,7 +238,7 @@ class USBDevice:
             # Data is return value of function call
             if key in self.data_callback:
                 try:
-                    callback = self.data_callback[key].get(True, 0.1)
+                    callback = self.data_callback[key].get(False)
                 except:
                     logging.warn("No callback for data. Latency too high?")
                 else:
