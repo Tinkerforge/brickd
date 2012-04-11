@@ -45,9 +45,6 @@ logging.basicConfig(
     datefmt = config.LOGGING_DATEFMT
 )
 
-
-from twisted.internet import reactor
-
 def osx_notifier(brickd):
     notify_added = brickd.usb_notifier.notify_added
     notify_removed = brickd.usb_notifier.notify_removed
@@ -159,14 +156,15 @@ class BrickdMacOS:
         self.stdout = stdout
         self.stderr = stderr
         
-        r = reactor
-        
-        signal.signal(signal.SIGINT, lambda s, f: exit_brickd(s, f, r)) 
-        signal.signal(signal.SIGTERM, lambda s, f: exit_brickd(s, f, r)) 
-
     def start(self):
         logging.info("brickd started")
         
+        from twisted.internet import reactor
+
+        r = reactor
+        signal.signal(signal.SIGINT, lambda s, f: exit_brickd(s, f, r)) 
+        signal.signal(signal.SIGTERM, lambda s, f: exit_brickd(s, f, r)) 
+
         self.usb_notifier = USBNotifier()
         self.osx_notifier_thread = Thread(target=osx_notifier, args=(self,))
         self.osx_notifier_thread.daemon = True
