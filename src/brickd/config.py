@@ -4,7 +4,7 @@
 
 import logging
 
-LOGGING_LEVEL = logging.WARN
+LOGGING_LEVEL = logging.ERROR
 LOGGING_FORMAT = "%(asctime)s <%(levelname)s> <%(filename)s:%(lineno)s> %(message)s"
 LOGGING_DATEFMT = "%H:%M:%S"
 PORT = 4223
