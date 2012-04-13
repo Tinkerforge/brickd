@@ -176,38 +176,11 @@ class BrickdMacOS:
         except KeyboardInterrupt:
             reactor.stop()
     
-    # based on http://www.jejik.com/articles/2007/02/a_simple_unix_linux_daemon_in_python/
-    def daemonize(self):   
-        """
-        do the UNIX double-fork magic, see Stevens' "Advanced 
-        Programming in the UNIX Environment" for details (ISBN 0201563177)
-        http://www.erlenstar.demon.co.uk/unix/faq_2.html#SEC16
-        """
-        try: 
-            pid = os.fork() 
-            if pid > 0:
-                # exit first parent
-                sys.exit(0) 
-        except OSError, e: 
-            sys.stderr.write("fork #1 failed: %d (%s)\n" % (e.errno, e.strerror))
-            sys.exit(1)
-    
-        # decouple from parent environment
-        os.chdir("/") 
-        os.setsid() 
-        os.umask(0) 
-    
-        # do second fork
-        try: 
-            pid = os.fork() 
-            if pid > 0:
-                open(PIDFILE, 'w').write("%d" % pid)
-                # exit from second parent
-                sys.exit(0) 
-        except OSError, e: 
-            sys.stderr.write("fork #2 failed: %d (%s)\n" % (e.errno, e.strerror))
-            sys.exit(1) 
-    
+    def daemonize(self):
+        # double fork doesn't work on mac os x, launching with launchctl after the py2app
+        # building results in a crash...
+        # we just use brickd as it is with logging from the daemon code
+
         # redirect standard file descriptors
         sys.stdout.flush()
         sys.stderr.flush()
