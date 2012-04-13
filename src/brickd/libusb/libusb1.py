@@ -39,6 +39,9 @@ import platform
 import os.path
 import sys
 
+global system
+system = platform.system()
+
 class Enum(object):
     def __init__(self, member_dict):
         forward_dict = {}
@@ -85,26 +88,34 @@ class timeval(Structure):
 timeval_p = POINTER(timeval)
 
 def _loadLibrary():
+    loader_kw = {}
     system = platform.system()
     if system == 'Windows':
+        libusb_name = 'libusb-1.0.dll'
         from ctypes import WinDLL as dll_loader
-        #libusb_path = find_library("libusb-1.0.dll")
         #libusb is in same folder as executeable
-        libusb_path ="libusb-1.0.dll"
+        libusb_path = libusb_name
     else:
         from ctypes import CDLL as dll_loader
-        libusb_path = find_library("usb-1.0")
-        if libusb_path is None and system == 'Darwin':
-            # macport standard library path
-            libusb_path = '/opt/local/lib/libusb-1.0.dylib'
-            if not os.path.isfile(libusb_path):
-                libusb_path = None
+        if system == 'Linux':
+            libusb_name = 'usb-1.0'
+            libusb_path = find_library(libusb_name)
+            if sys.version_info[:2] >= (2, 6):
+                loader_kw['use_errno'] = True
+                loader_kw['use_last_error'] = True
+        elif system == 'FreeBSD':
+            libusb_name = 'usb'
+            libusb_path = find_library(libusb_name)
+        elif system == 'Darwin':
+            libusb_name = 'usb-1.0'
+            libusb_path = find_library(libusb_name)
+            if libusb_path is None:
+                # macport standard library path
+                libusb_path = '/opt/local/lib/libusb-1.0.dylib'
+                if not os.path.isfile(libusb_path):
+                    libusb_path = None
     if libusb_path is None:
         raise Exception('Can\'t locate usb-1.0 library')
-    loader_kw = {}
-    if sys.version_info[:2] >= (2, 6):
-        loader_kw['use_errno'] = True
-        loader_kw['use_last_error'] = True
     return dll_loader(libusb_path, **loader_kw)
 
 libusb = _loadLibrary()
@@ -611,7 +622,10 @@ libusb_get_device_address.restype = c_uint8
 libusb_get_max_packet_size = libusb.libusb_get_max_packet_size
 libusb_get_max_packet_size.argtypes = [libusb_device_p, c_uchar]
 #int libusb_get_max_iso_packet_size(libusb_device *dev, unsigned char endpoint);
-libusb_get_max_iso_packet_size = libusb.libusb_get_max_iso_packet_size
+if system == 'FreeBSD':
+    libusb_get_max_iso_packet_size = libusb.libusb20_tr_get_max_packet_length
+else:
+    libusb_get_max_iso_packet_size = libusb.libusb_get_max_iso_packet_size
 libusb_get_max_iso_packet_size.argtypes = [libusb_device_p, c_uchar]
 
 #int libusb_open(libusb_device *dev, libusb_device_handle **handle);

@@ -161,7 +161,7 @@ class USBDevice:
             q = Queue()
             q.put(callback)
             self.data_callback[key] = q
-    
+            
     def write_callback(self, transfer):
         if not self.alive:
             return
