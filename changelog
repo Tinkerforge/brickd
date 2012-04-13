@@ -1,3 +1,5 @@
 1.0.0: Initial Version
 1.0.1: Add timeout for message callbacks
 1.0.2: Don't wait 100ms if no callback available and mac os support
+1.0.3: Remove global reactor import for mac os
+1.0.4: Remove double fork completely for mac os
