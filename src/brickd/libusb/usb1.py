@@ -1,6 +1,6 @@
 # This python wrapper for libusb1.0 is originally written by vpelletier 
 # and pulled from https://github.com/vpelletier/python-libusb1
-# (version 4855d3922524732ab4df)
+# (version 3399ba822a7625f5af1864cdd6205ec5aefe9110)
 #
 # The file is besides this header unchanged, it is licensed as GPL V2
 # according to the copying file in the git.
@@ -44,20 +44,19 @@ Features:
 - String descriptor lookups (ASCII & unicode), and list supported language
   codes
 - Synchronous I/O (control, bulk, interrupt)
-- Asyncrhonous I/O (control, bulk, interrupt)
-  Note: Isochronous support is experimental.
+- Asynchronous I/O (control, bulk, interrupt, isochronous)
+  Note: Isochronous support is not well tested.
   See USBPoller, USBTransfer and USBTransferHelper.
 """
 
 import libusb1
 from ctypes import byref, create_string_buffer, c_int, sizeof, POINTER, \
     create_unicode_buffer, c_wchar, cast, c_uint16, c_ubyte, string_at, \
-    addressof, c_void_p, cdll
+    c_void_p, cdll
 from cStringIO import StringIO
 import sys
+import threading
 from ctypes.util import find_library
-
-import logging
 
 __all__ = ['LibUSBContext', 'USBDeviceHandle', 'USBDevice',
     'USBPoller', 'USBTransfer', 'USBTransferHelper', 'EVENT_CALLBACK_SET']
@@ -99,10 +98,10 @@ DEFAULT_ASYNC_TRANSFER_ERROR_CALLBACK = lambda x: False
 
 def create_binary_buffer(string_or_len):
     # Prevent ctypes from adding a trailing null char.
-    if isinstance(string_or_len, basestring):
-        result = create_string_buffer(string_or_len, len(string_or_len))
-    else:
+    if isinstance(string_or_len, (int, long)):
         result = create_string_buffer(string_or_len)
+    else:
+        result = create_string_buffer(string_or_len, len(string_or_len))
     return result
 
 class USBTransfer(object):
@@ -186,9 +185,6 @@ class USBTransfer(object):
         Makes it possible for user-provided callback to alter transfer when
         fired (ie, mark transfer as not submitted upon call).
         """
-        mine = addressof(self.__transfer.contents)
-        his = addressof(transfer_p.contents)
-        assert mine == his, (mine, his)
         self.__submitted = False
         callback = self.__callback
         if callback is not None:
@@ -320,9 +316,8 @@ class USBTransfer(object):
         string_buffer = create_binary_buffer(buffer_or_len)
         buffer_length = sizeof(string_buffer)
         if iso_transfer_length_list is None:
-            iso_length = buffer_length / num_iso_packets
-            iso_transfer_length_list = [iso_length for _ in
-                xrange(num_iso_packets)]
+            iso_length = buffer_length // num_iso_packets
+            iso_transfer_length_list = [iso_length] * num_iso_packets
         configured_iso_packets = len(iso_transfer_length_list)
         if configured_iso_packets > num_iso_packets:
             raise ValueError('Too many ISO transfer lengths (%i), there are '
@@ -335,16 +330,29 @@ class USBTransfer(object):
         transfer_p = self.__transfer
         self.__initialized = False
         libusb1.libusb_fill_iso_transfer(transfer_p, self.__handle,
-            endpoint, string_buffer, buffer_length, num_iso_packets,
+            endpoint, string_buffer, buffer_length, configured_iso_packets,
             self.__ctypesCallbackWrapper, user_data, timeout)
         for length, iso_packet_desc in zip(iso_transfer_length_list,
                 libusb1.get_iso_packet_list(transfer_p)):
             if length <= 0:
-                raise ValueError('Negative/null transfer length are not '
+                raise ValueError('Negative/null length transfers are not '
                     'possible.')
             iso_packet_desc.length = length
         self.__callback = callback
         self.__initialized = True
+
+    def getType(self):
+        """
+        Get transfer type.
+        See libusb1.libusb_transfer_type.
+        """
+        return self.__transfer.contents.type
+
+    def getEndpoint(self):
+        """
+        Get endpoint.
+        """
+        return self.__transfer.contents.endpoint
 
     def getStatus(self):
         """
@@ -370,8 +378,7 @@ class USBTransfer(object):
         if transfer.type == libusb1.LIBUSB_TRANSFER_TYPE_CONTROL:
             result = libusb1.libusb_control_transfer_get_data(transfer_p)
         else:
-            result = string_at(transfer.buffer, self.getActualLength())
-            #result = string_at(transfer.buffer, transfer.length)
+            result = string_at(transfer.buffer, transfer.length)
         return result
 
     def getISOBufferList(self):
@@ -379,6 +386,7 @@ class USBTransfer(object):
         Get individual ISO transfer's buffer.
         Returns a list with one item per ISO transfer, with their
         individually-configured sizes.
+        Returned list is consistent with getISOSetupList return value.
         Should not be called on a submitted transfer.
         """
         transfer_p = self.__transfer
@@ -397,6 +405,7 @@ class USBTransfer(object):
         - actual_length
         - status
         (see libusb1's API documentation for their signification)
+        Returned list is consistent with getISOBufferList return value.
         Should not be called on a submitted transfer (except for 'length'
         values).
         """
@@ -415,8 +424,9 @@ class USBTransfer(object):
         """
         Replace buffer with a new one.
         Allows resizing read buffer and replacing data sent.
-        Note: resizing is not allowed for isochornous buffer (use
+        Note: resizing is not allowed for isochronous buffer (use
         setIsochronous).
+        Note: disallowed on control transfers (use setControl).
         """
         if self.__submitted:
             raise ValueError('Cannot alter a submitted transfer')
@@ -452,7 +462,6 @@ class USBTransfer(object):
         if result:
             self.__submitted = False
             raise libusb1.USBError(result)
-        
 
     def cancel(self):
         """
@@ -477,9 +486,12 @@ class USBTransferHelper(object):
     USBTransfer, and are expected to return a boolean:
     - True if transfer is to be submitted again (to receive/send more data)
     - False otherwise
+
+    Note: as per libusb1 specifications, isochronous transfer global state
+    might be LIBUSB_TRANSFER_COMPLETED although some individual packets might
+    have an error status. You can check individual packet status by calling
+    getISOSetupList on transfer object in your callback.
     """
-    # TODO: handle the special case of isochronous transfers, where there is a
-    # global status and per-packet status.
     def __init__(self, transfer=None):
         """
         Create a transfer callback dispatcher.
@@ -553,10 +565,108 @@ class USBTransferHelper(object):
         # Deprecated: to drop
         return self.__transfer.isSubmitted()
 
+class USBPollerThread(threading.Thread):
+    """
+    Implements libusb1 documentation about threaded, asynchronous
+    applications.
+    In short, instanciate this class once (...per LibUSBContext instance), call
+    start() on the instance, and do whatever you need.
+    This thread will be used to execute transfer completion callbacks, and you
+    are free to use libusb1's synchronous API in another thread, and can forget
+    about libusb1 file descriptors.
+
+    See http://libusb.sourceforge.net/api-1.0/mtasync.html .
+    """
+    def __init__(self, context, poller, exc_callback=None):
+        """
+        Create a poller thread for given context.
+        Warning: it will not check if another poller instance was already
+        present for that context, and will replace it.
+
+        poller is a polling instance implementing the following methods:
+        - register(fd, event_flags)
+          event_flags have the same meaning as in poll API (POLLIN & POLLOUT)
+        - unregister(fd)
+        - poll(timeout)
+          timeout being a float in seconds, or None if there is no timeout.
+          Its return value must evaluate to true if there are events to handle,
+          false otherwise.
+        poller should not be used outside this class, and should not have
+        any registered file descriptor.
+
+        exc_callback (callable)
+          Called with a libusb_error value as single parameter when event
+          handling fails.
+          If not given, an USBError will be raised, interrupting the thread.
+        """
+        super(USBPollerThread, self).__init__()
+        self.daemon = True
+        self.__context = context
+        self.__poller = poller
+        self.__fd_set = set()
+        context.setPollFDNotifiers(self._registerFD, self._unregisterFD)
+        for fd, events in context.getPollFDList():
+            self._registerFD(fd, events, None)
+        if exc_callback is not None:
+            self.exceptionHandler = exc_callback
+
+    def __del__(self):
+        self.__context.setPollFDNotifiers(None, None)
+
+    @staticmethod
+    def exceptionHandler(exc):
+        raise exc
+
+    def run(self):
+        # We expect quite some spinning in below loop, so move any unneeded
+        # operation out of it.
+        context = self.__context
+        poll = self.__poller.poll
+        try_lock_events = context.tryLockEvents
+        lock_event_waiters = context.lockEventWaiters
+        wait_for_event = context.waitForEvent
+        unlock_event_waiters = context.unlockEventWaiters
+        event_handling_ok = context.eventHandlingOK
+        unlock_events = context.unlockEvents
+        handle_events_locked = context.handleEventsLocked
+        event_handler_active = context.eventHandlerActive
+        getNextTimeout = context.getNextTimeout
+        exceptionHandler = self.exceptionHandler
+        fd_set = self.__fd_set
+        while fd_set:
+            if try_lock_events():
+                lock_event_waiters()
+                while event_handler_active():
+                    wait_for_event()
+                unlock_event_waiters()
+            else:
+                try:
+                    while event_handling_ok():
+                        if poll(getNextTimeout()):
+                            try:
+                                handle_events_locked()
+                            except libusb1.USBError, exc:
+                                exceptionHandler(exc)
+                finally:
+                    unlock_events()
+
+    def _registerFD(self, fd, events, _):
+        self.__poller.register(fd, events)
+        self.__fd_set.add(fd)
+
+    def _unregisterFD(self, fd, _):
+        self.__fd_set.discard(fd)
+        self.__poller.unregister(fd)
+
 class USBPoller(object):
     """
     Class allowing integration of USB event polling in a file-descriptor
     monitoring event loop.
+
+    WARNING: Do not call "poll" from several threads concurently. Do not use
+    synchronous USB transfers in a thread while "poll" is running. Doing so
+    will result in unnecessarily long pauses in some threads. Opening and/or
+    closing devices while polling can cause race conditions to occur.
     """
     def __init__(self, context, poller):
         """
@@ -642,16 +752,17 @@ class USBDeviceHandle(object):
     __handle = None
     __libusb_close = libusb1.libusb_close
 
-    def __init__(self, context, handle):
+    def __init__(self, context, handle, device):
         """
         You should not instanciate this class directly.
         Call "open" method on an USBDevice instance to get an USBDeviceHandle
         instance.
         """
         # XXX Context parameter is just here as a hint for garbage collector:
-        # It must collect USBDeviceHandle instance before their LibUSBContext.
+        # It must collect USBDeviceHandle instances before their LibUSBContext.
         self.__context = context
         self.__handle = handle
+        self.__device = device
 
     def __del__(self):
         self.close()
@@ -665,6 +776,13 @@ class USBDeviceHandle(object):
         if handle is not None:
             self.__libusb_close(handle)
             self.__handle = None
+
+    def getDevice(self):
+        """
+        Get an USBDevice instance for the device accessed through this handle.
+        Useful for example to query its configurations.
+        """
+        return self.__device
 
     def getConfiguration(self):
         """
@@ -946,6 +1064,140 @@ class USBDeviceHandle(object):
         """
         return USBTransfer(self.__handle, iso_packets)
 
+class USBConfiguration(object):
+    def __init__(self, config):
+        if not isinstance(config, libusb1.libusb_config_descriptor):
+            raise TypeError('Unexpected descriptor type.')
+        self.__config = config
+
+    def getNumInterfaces(self):
+        return self.__config.bNumInterfaces
+
+    def getConfigurationValue(self):
+        return self.__config.bConfigurationValue
+
+    def getDescriptor(self):
+        return self.__config.iConfiguration
+
+    def getAttributes(self):
+        return self.__config.bmAttributes
+
+    def getMaxPower(self):
+        return self.__config.MaxPower * 2
+
+    def getExtra(self):
+        return libusb1.get_extra(self.__config)
+
+    def iterInterfaces(self):
+        interface_list = self.__config.interface
+        for interface_num in xrange(self.getNumInterfaces()):
+            yield USBInterface(interface_list[interface_num])
+
+    def __getitem__(self, interface):
+        if not isinstance(interface, int):
+            raise TypeError('interface parameter must be an integer')
+        if not (0 <= interface < self.getNumInterfaces()):
+            raise IndexError('No such interface: %r' % (interface, ))
+        return USBInterface(self.__config.interface[interface])
+
+class USBInterface(object):
+    def __init__(self, interface):
+        if not isinstance(interface, libusb1.libusb_interface):
+            raise TypeError('Unexpected descriptor type.')
+        self.__interface = interface
+
+    def getNumSettings(self):
+        return self.__interface.num_altsetting
+
+    def iterSettings(self):
+        alt_setting_list = self.__interface.altsetting
+        for alt_setting_num in xrange(self.getNumSettings()):
+            yield USBInterfaceSetting(alt_setting_list[alt_setting_num])
+
+    def __getitem__(self, alt_setting):
+        if not isinstance(alt_setting, int):
+            raise TypeError('alt_setting parameter must be an integer')
+        if not (0 <= alt_setting < self.getNumSettings()):
+            raise IndexError('No such setting: %r' % (alt_setting, ))
+        return USBInterfaceSetting(self.__interface.altsetting[alt_setting])
+
+class USBInterfaceSetting(object):
+    def __init__(self, alt_setting):
+        if not isinstance(alt_setting, libusb1.libusb_interface_descriptor):
+            raise TypeError('Unexpected descriptor type.')
+        self.__alt_setting = alt_setting
+
+    def getNumber(self):
+        return self.__alt_setting.bInterfaceNumber
+
+    def getAlternateSetting(self):
+        return self.__alt_setting.bAlternateSetting
+
+    def getNumEndpoints(self):
+        return self.__alt_setting.bNumEndpoints
+
+    def getClass(self):
+        return self.__alt_setting.bInterfaceClass
+
+    def getSubClass(self):
+        return self.__alt_setting.bInterfaceSubClass
+
+    def getClassTupple(self):
+        """
+        For convenience: class and subclass are probably often matched
+        simultaneously.
+        """
+        alt_setting = self.__alt_setting
+        return (alt_setting.bInterfaceClass, alt_setting.bInterfaceSubClass)
+
+    def getProtocol(self):
+        return self.__alt_setting.bInterfaceProtocol
+
+    def getDescriptor(self):
+        return self.__alt_setting.iInterface
+
+    def getExtra(self):
+        return libusb1.get_extra(self.__alt_setting)
+
+    def iterEndpoints(self):
+        endpoint_list = self.__alt_setting.endpoint
+        for endpoint_num in xrange(self.getNumEndpoints()):
+            yield USBEndPoint(endpoint_list[endpoint_num])
+
+    def __getitem__(self, endpoint):
+        if not isinstance(endpoint, int):
+            raise TypeError('endpoint parameter must be an integer')
+        if not (0 <= endpoint < self.getNumEndpoints()):
+            raise ValueError('No such endpoint: %r' % (endpoint, ))
+        return USBEndPoint(self.__alt_setting.endpoint[endpoint])
+
+class USBEndPoint(object):
+    def __init__(self, endpoint):
+        if not isinstance(endpoint, libusb1.libusb_endpoint_descriptor):
+            raise TypeError('Unexpected descriptor type.')
+        self.__endpoint = endpoint
+
+    def getAddress(self):
+        return self.__endpoint.bEndpointAddress
+
+    def getAttributes(self):
+        return self.__endpoint.bmAttributes
+
+    def getMaxPacketSize(self):
+        return self.__endpoint.wMaxPacketSize
+
+    def getInterval(self):
+        return self.__endpoint.bInterval
+
+    def getRefresh(self):
+        return self.__endpoint.bRefresh
+
+    def getSyncAddress(self):
+        return self.__endpoint.bSynchAddress
+
+    def getExtra(self):
+        return libusb1.get_extra(self.__endpoint)
+
 class USBDevice(object):
     """
     Represents a USB device.
@@ -995,71 +1247,26 @@ class USBDevice(object):
             for config in self.__configuration_descriptor_list:
                 self.__libusb_free_config_descriptor(byref(config))
 
-#    def __str__(self):
-#        return 'Bus %03i Device %03i: ID %04x:%04x %s %s' % (
-#            self.getBusNumber(),
-#            self.getDeviceAddress(),
-#            self.getVendorID(),
-#            self.getProductID(),
-#            self.getManufacturer(),
-#            self.getProduct()
-#        )
+    def __str__(self):
+        return 'Bus %03i Device %03i: ID %04x:%04x' % (
+            self.getBusNumber(),
+            self.getDeviceAddress(),
+            self.getVendorID(),
+            self.getProductID(),
+        )
 
-    def reprConfigurations(self):
-        """
-        Get a string representation of device's configurations.
-        Note: opens the device temporarily.
-        """
-        out = StringIO()
+    def __getitem__(self, index):
+        return USBConfiguration(self.__configuration_descriptor_list[index])
+
+    def iterConfiguations(self):
         for config in self.__configuration_descriptor_list:
-            print >> out, 'Configuration %i: %s' % (config.bConfigurationValue,
-                self._getASCIIStringDescriptor(config.iConfiguration))
-            print >> out, '  Max Power: %i mA' % (config.MaxPower * 2, )
-            # TODO: bmAttributes dump
-            for interface_num in xrange(config.bNumInterfaces):
-                interface = config.interface[interface_num]
-                print >> out, '  Interface %i' % (interface_num, )
-                for alt_setting_num in xrange(interface.num_altsetting):
-                    altsetting = interface.altsetting[alt_setting_num]
-                    print >> out, '    Alt Setting %i: %s' % (alt_setting_num,
-                        self._getASCIIStringDescriptor(altsetting.iInterface))
-                    print >> out, '      Class: %02x Subclass: %02x' % \
-                        (altsetting.bInterfaceClass,
-                         altsetting.bInterfaceSubClass)
-                    print >> out, '      Protocol: %02x' % \
-                        (altsetting.bInterfaceProtocol, )
-                    for endpoint_num in xrange(altsetting.bNumEndpoints):
-                        endpoint = altsetting.endpoint[endpoint_num]
-                        print >> out, '      Endpoint %i' % (endpoint_num, )
-                        print >> out, '        Address: %02x' % \
-                            (endpoint.bEndpointAddress, )
-                        attribute_list = []
-                        transfer_type = endpoint.bmAttributes & \
-                            libusb1.LIBUSB_TRANSFER_TYPE_MASK
-                        attribute_list.append(libusb1.libusb_transfer_type(
-                            transfer_type
-                        ))
-                        if transfer_type == \
-                            libusb1.LIBUSB_TRANSFER_TYPE_ISOCHRONOUS:
-                            attribute_list.append(libusb1.libusb_iso_sync_type(
-                                (endpoint.bmAttributes & \
-                                 libusb1.LIBUSB_ISO_SYNC_TYPE_MASK) >> 2
-                            ))
-                            attribute_list.append(libusb1.libusb_iso_usage_type(
-                                (endpoint.bmAttributes & \
-                                 libusb1.LIBUSB_ISO_USAGE_TYPE_MASK) >> 4
-                            ))
-                        print >> out, '        Attributes: %s' % \
-                            (', '.join(attribute_list), )
-                        print >> out, '        Max Packet Size: %i' % \
-                            (endpoint.wMaxPacketSize, )
-                        print >> out, '        Interval: %i' % \
-                            (endpoint.bInterval, )
-                        print >> out, '        Refresh: %i' % \
-                            (endpoint.bRefresh, )
-                        print >> out, '        Sync Address: %02x' % \
-                            (endpoint.bSynchAddress, )
-        return out.getvalue()
+            yield USBConfiguration(config)
+
+    def iterSettings(self):
+        for config in self.__configuration_descriptor_list:
+            for interface in USBConfiguration(config).iterInterfaces():
+                for setting in interface.iterSettings():
+                    yield setting
 
     def getBusNumber(self):
         """
@@ -1102,6 +1309,25 @@ class USBDevice(object):
         Get device's max packet size for endpoint 0 (control).
         """
         return self.device_descriptor.bMaxPacketSize0
+
+    def getMaxPacketSize(self, endpoint):
+        """
+        Get device's max packet size for given endpoint.
+        """
+        result = libusb1.libusb_get_max_packet_size(self.device_p, endpoint)
+        if result < 0:
+            raise libusb1.USBError(result)
+        return result
+
+    def getMaxISOPacketSize(self, endpoint):
+        """
+        Get the maximum size for a single isochronous packet for given
+        endpoint.
+        """
+        result = libusb1.libusb_get_max_iso_packet_size(self.device_p, endpoint)
+        if result < 0:
+            raise libusb1.USBError(result)
+        return result
 
     def getVendorID(self):
         """
@@ -1173,16 +1399,26 @@ class USBDevice(object):
         """
         return self.device_descriptor.bNumConfigurations
 
+    def getDeviceSpeed(self):
+        """
+        Get device's speed (see libusb1.libusb_speed for possible return
+        values).
+        """
+        return libusb1.libusb_get_device_speed(self.device_p)
+
     def open(self):
         """
         Open device.
-        Returns an USBDeviceHandler instance.
+        Returns an USBDeviceHandle instance.
         """
         handle = libusb1.libusb_device_handle_p()
         result = libusb1.libusb_open(self.device_p, byref(handle))
         if result:
             raise libusb1.USBError(result)
-        return USBDeviceHandle(self.__context, handle)
+        return USBDeviceHandle(self.__context, handle, self)
+
+_zero_tv = libusb1.timeval(0, 0)
+_zero_tv_p = byref(_zero_tv)
 
 class LibUSBContext(object):
     """
@@ -1195,6 +1431,18 @@ class LibUSBContext(object):
     __context_p = None
     __added_cb = None
     __removed_cb = None
+    __libusb_set_pollfd_notifiers = libusb1.libusb_set_pollfd_notifiers
+
+    def _validContext(func):
+        # Defined inside LibUSBContext so we can access "self.__*".
+        def wrapper(self, *args, **kw):
+            self.__context_lock.acquire()
+            try:
+                if self.__context_p is not None:
+                    return func(self, *args, **kw)
+            finally:
+                self.__context_lock.release()
+        return wrapper
 
     def __init__(self):
         """
@@ -1205,46 +1453,62 @@ class LibUSBContext(object):
         if result:
             raise libusb1.USBError(result)
         self.__context_p = context_p
+        # Used to prevent an exit to cause a segfault if a concurent thread
+        # is still in libusb.
+        self.__context_lock = threading.RLock()
 
     def __del__(self):
         self.exit()
 
+    @_validContext
     def exit(self):
         """
         Close (destroy) this USB context.
+
+        When this function has been called, methods on its instance will
+        become mosty no-ops, returning None.
         """
         context_p = self.__context_p
-        if context_p is not None:
-            self.__libusb_exit(context_p)
-            self.__context_p = None
+        self.__libusb_exit(context_p)
+        self.__context_p = None
         self.__added_cb = None
         self.__removed_cb = None
 
+    @_validContext
     def getDeviceList(self):
         """
         Return a list of all USB devices currently plugged in, as USBDevice
         instances.
         """
         device_p_p = libusb1.libusb_device_p_p()
+        libusb_device_p = libusb1.libusb_device_p
         device_list_len = libusb1.libusb_get_device_list(self.__context_p,
                                                          byref(device_p_p))
-        result = [USBDevice(self, x) for x in device_p_p[:device_list_len]]
-        #libusb1.libusb_free_device_list(device_p_p, 0)
+        # Instanciate our own libusb_device_p object so we can free
+        # libusb-provided device list. Is this a bug in ctypes that it doesn't
+        # copy pointer value (=pointed memory address) ? At least, it's not so
+        # convenient and forces using such weird code.
+        result = [USBDevice(self, libusb_device_p(x.contents))
+            for x in device_p_p[:device_list_len]]
+        libusb1.libusb_free_device_list(device_p_p, 0)
         return result
 
     def openByVendorIDAndProductID(self, vendor_id, product_id):
         """
         Get the first USB device matching given vendor and product ids.
-        Returns an USBDevice instance, or None if no present devide match.
+        Returns an USBDeviceHandle instance, or None if no present device
+        match.
         """
-        handle_p = libusb1.libusb_open_device_with_vid_pid(self.__context_p,
-            vendor_id, product_id)
-        if handle_p:
-            result = USBDeviceHandle(self, handle_p)
+        for device in self.getDeviceList():
+            if device.getVendorID() == vendor_id and \
+                    device.getProductID() == product_id:
+                result = device.open()
+                break
         else:
             result = None
         return result
 
+    @_validContext
     def getPollFDList(self):
         """
         Return file descriptors to be used to poll USB events.
@@ -1272,6 +1536,7 @@ class LibUSBContext(object):
             _free(pollfd_p_p)
         return result
 
+    @_validContext
     def handleEvents(self):
         """
         Handle any pending event (blocking).
@@ -1282,12 +1547,15 @@ class LibUSBContext(object):
         if result:
             raise libusb1.USBError(result)
 
+    # TODO: handleEventsCompleted
+
+    @_validContext
     def handleEventsTimeout(self, tv=0):
         """
         Handle any pending event.
         If tv is 0, will return immediately after handling already-pending
         events.
-        Othewire, defines the maximum amount of time to wait for events, in
+        Otherwise, defines the maximum amount of time to wait for events, in
         seconds.
         """
         if tv is None:
@@ -1299,6 +1567,9 @@ class LibUSBContext(object):
         if result:
             raise libusb1.USBError(result)
 
+    # TODO: handleEventsTimeoutCompleted
+
+    @_validContext
     def setPollFDNotifiers(self, added_cb=None, removed_cb=None,
             user_data=None):
         """
@@ -1317,12 +1588,14 @@ class LibUSBContext(object):
             removed_cb = libusb1.libusb_pollfd_removed_cb_p(removed_cb)
         self.__added_cb = added_cb
         self.__removed_cb = removed_cb
-        libusb1.libusb_set_pollfd_notifiers(self.__context_p, added_cb,
+        self.__libusb_set_pollfd_notifiers(self.__context_p, added_cb,
                                             removed_cb, user_data)
 
+    @_validContext
     def getNextTimeout(self):
         """
-        Determine the next internal timeout that libusb needs to handle.
+        Returns the next internal timeout that libusb needs to handle, in
+        seconds, or None if no timeout is needed.
         You should not have to call this method, unless you are integrating
         this class with a polling mechanism.
         """
@@ -1337,6 +1610,7 @@ class LibUSBContext(object):
             raise libusb1.USBError(result)
         return result
 
+    @_validContext
     def setDebug(self, level):
         """
         Set debugging level.
@@ -1344,3 +1618,71 @@ class LibUSBContext(object):
         effect.
         """
         libusb1.libusb_set_debug(self.__context_p, level)
+
+    @_validContext
+    def tryLockEvents(self):
+        """
+        See libusb_try_lock_events doc.
+        """
+        return libusb1.libusb_try_lock_events(self.__context_p)
+
+    @_validContext
+    def lockEvents(self):
+        """
+        See libusb_lock_events doc.
+        """
+        libusb1.libusb_lock_events(self.__context_p)
+
+    @_validContext
+    def lockEventWaiters(self):
+        """
+        See libusb_lock_event_waiters doc.
+        """
+        libusb1.libusb_lock_event_waiters(self.__context_p)
+
+    @_validContext
+    def waitForEvent(self):
+        """
+        See libusb_wait_for_event doc.
+        """
+        libusb1.libusb_wait_for_event(self.__context_p)
+
+    @_validContext
+    def unlockEventWaiters(self):
+        """
+        See libusb_unlock_event_waiters doc.
+        """
+        libusb1.libusb_unlock_event_waiters(self.__context_p)
+
+    @_validContext
+    def eventHandlingOK(self):
+        """
+        See libusb_event_handling_ok doc.
+        """
+        return libusb1.libusb_event_handling_ok(self.__context_p)
+
+    @_validContext
+    def unlockEvents(self):
+        """
+        See libusb_unlock_events doc.
+        """
+        libusb1.libusb_unlock_events(self.__context_p)
+
+    @_validContext
+    def handleEventsLocked(self):
+        """
+        See libusb_handle_events_locked doc.
+        """
+        # XXX: does tv parameter need to be exposed ?
+        result = libusb1.libusb_handle_events_locked(self.__context_p, _zero_tv_p)
+        if result:
+            raise libusb1.USBError(result)
+
+    @_validContext
+    def eventHandlerActive(self):
+        """
+        See libusb_event_handler_active doc.
+        """
+        return libusb1.libusb_event_handler_active(self.__context_p)
+
+del LibUSBContext._validContext

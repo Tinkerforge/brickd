@@ -57,6 +57,8 @@ class USBDevice:
     TYPE_ADC_CALIBRATE = 251
     TYPE_GET_ADC_CALIBRATION = 250
     
+    MAX_CONCURRENT_REQUESTS = 25
+    
     def __init__(self, usb_device, context):
         self.usb_device = usb_device
         self.context = context
@@ -154,11 +156,21 @@ class USBDevice:
         if key in self.data_callback:
             logging.info("Add callback for message: " + 
                          str(brick_protocol.get_type_from_data(key)))
-            self.data_callback[key].put(callback)
+            # We actually don't know if a function does return something,
+            # so we always wait for a return value. Thus we need a maximum
+            # size for the callback queue, otherwise this would be a memory
+            # leak. This could be prevented by adding another byte to the
+            # protocol. On a PC a small queue for each setter does not matter.
+            # But as soon as we have a WIFI Extension, this might actually
+            # be a problem. If there is not enough flash on the Master Brick
+            # to implement this we will have to change the protocol.
+            # This will be an absolute pain in the ass :-).
+            if not self.data_callback[key].full():
+                self.data_callback[key].put(callback)
         else:
             logging.info("Add queue and callback for message: " + 
                          str(brick_protocol.get_type_from_data(key)))
-            q = Queue()
+            q = Queue(USBDevice.MAX_CONCURRENT_REQUESTS)
             q.put(callback)
             self.data_callback[key] = q
             

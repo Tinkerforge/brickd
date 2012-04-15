@@ -121,7 +121,6 @@ class BrickProtocol(Protocol):
             if usb_device == None:
                 continue
             
-            # TODO: find out if function does return something
             key = get_callback_key_from_data(msg)
             usb_device.add_read_callback(key, self.callback)
             
