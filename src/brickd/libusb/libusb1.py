@@ -88,7 +88,9 @@ def _loadLibrary():
     system = platform.system()
     if system == 'Windows':
         from ctypes import WinDLL as dll_loader
-        libusb_path = find_library('libusb-1.0.dll')
+        # on windows the libusb is in the same folder as the executable
+        # do not call find_library
+        libusb_path = 'libusb-1.0.dll'
     else:
         from ctypes import CDLL as dll_loader
         libusb_path = find_library('usb-1.0')
