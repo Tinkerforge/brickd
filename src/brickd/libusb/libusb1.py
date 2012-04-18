@@ -98,13 +98,11 @@ def _loadLibrary():
             if 'FreeBSD' in system:
                 libusb_path = find_library('usb')
             elif system == 'Darwin':
-                libusb_name = 'usb-1.0'
-                libusb_path = find_library(libusb_name)
-            if libusb_path is None:
                 # macport standard library path
                 libusb_path = '/opt/local/lib/libusb-1.0.dylib'
                 if not os.path.isfile(libusb_path):
-                    libusb_path = None
+                    # Try fink standard path
+                    libusb_path = '/sw/lib/libusb-1.0.dylib'
             elif system.startswith('CYGWIN'):
                 # Why, oh why bin/ and custom soname ?
                 libusb_path = '/usr/bin/cygusb-1.0.dll'
