@@ -195,7 +195,7 @@ class BrickdMacOS:
         
 if __name__ == "__main__":
     if os.geteuid() != 0:
-        sys.stderr.write("brickd has to be started as root, exiting")
+        sys.stderr.write("brickd has to be started as root, exiting\n")
     else:
         brickd = BrickdMacOS()
         if "nodaemon" in sys.argv:
