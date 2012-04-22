@@ -1,7 +1,16 @@
 #!/bin/sh
+### BEGIN INIT INFO
+# Provides:          brickd
+# Required-Start:    $remote_fs $syslog
+# Required-Stop:     $remote_fs $syslog
+# Default-Start:     2 3 4 5
+# Default-Stop:      0 1 6
+# Short-Description: brickd
+# Description:       brick daemon
+### END INIT INFO
 
 # brickd (Brick Daemon)
-# Copyright (C) 2011 Olaf Lüke <olaf@tinkerforge.com>
+# Copyright (C) 2011-2012 Olaf Lüke <olaf@tinkerforge.com>
 #
 # based on skeleton from Debian GNU/Linux
 # 
