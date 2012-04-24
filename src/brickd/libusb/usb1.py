@@ -1436,12 +1436,13 @@ class LibUSBContext(object):
     def _validContext(func):
         # Defined inside LibUSBContext so we can access "self.__*".
         def wrapper(self, *args, **kw):
-            self.__context_lock.acquire()
+#            self.__context_lock.acquire()
             try:
                 if self.__context_p is not None:
                     return func(self, *args, **kw)
             finally:
-                self.__context_lock.release()
+                pass
+                #self.__context_lock.release()
         return wrapper
 
     def __init__(self):
