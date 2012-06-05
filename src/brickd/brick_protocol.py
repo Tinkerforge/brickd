@@ -59,6 +59,9 @@ def get_usb_device_from_data(data):
     return None
 
 class BrickProtocol(Protocol):
+    def __init__(self):
+        self.pending_data = ''
+
     def connectionMade(self):
         brick_protocol_list.append(self)
         logging.info("New socket connection: " + str(self))
@@ -107,24 +110,35 @@ class BrickProtocol(Protocol):
                 usb_devices.add(usb_device)
         
     def dataReceived(self, data):
-        while len(data) != 0:
-            length = get_length_from_data(data)
-            msg = data[0:length]
-            data = data[length:]
-                
-            stack_id = get_stack_id_from_data(msg)
+        self.pending_data += data
+
+        while True:
+            if len(self.pending_data) < 4:
+                # wait for complete header
+                return
+
+            length = get_length_from_data(self.pending_data)
+
+            if len(self.pending_data) < length:
+                # wait for complete packet
+                return
+
+            packet = self.pending_data[0:length]
+            self.pending_data = self.pending_data[length:]
+
+            stack_id = get_stack_id_from_data(packet)
             if stack_id == 0:
-                self.handle_broadcast(msg)
+                self.handle_broadcast(packet)
                 continue
-        
-            usb_device = get_usb_device_from_data(msg)
+
+            usb_device = get_usb_device_from_data(packet)
             if usb_device == None:
                 continue
-            
-            key = get_callback_key_from_data(msg)
+
+            key = get_callback_key_from_data(packet)
             usb_device.add_read_callback(key, self.callback)
-            
-            usb_device.write_data_queue.put(msg)
+
+            usb_device.write_data_queue.put(packet)
 
 
 class BrickProtocolFactory(Factory):

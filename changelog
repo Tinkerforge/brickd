@@ -5,3 +5,4 @@
 1.0.4: Remove double fork completely for mac os
 1.0.5: Update to newest python-libusb1 version (thanks to vpelletier) and remove possible memory leak
 1.0.6: Remove faulty libusb locking
+1.0.7: Fix handling of incomplete packets

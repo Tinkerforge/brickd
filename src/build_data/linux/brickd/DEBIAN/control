@@ -1,5 +1,5 @@
 Package: brickd
-Version: 1.0
+Version: 1.0.7
 Section: electronics
 Maintainer: Olaf Lüke <olaf@tinkerforge.com>
 Architecture: all
