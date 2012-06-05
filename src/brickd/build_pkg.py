@@ -177,6 +177,14 @@ DESCRIPTION = 'WindowsBrickd'
 NAME = 'WindowsBrickd'
 
 def build_windows_pkg():
+    PWD = os.path.dirname(os.path.realpath(__file__))
+    BUILD_PATH = os.path.join(PWD, "build")
+    DIST_PATH = os.path.join(PWD, "dist")
+    if os.path.exists(BUILD_PATH):
+        shutil.rmtree(BUILD_PATH)
+    if os.path.exists(DIST_PATH):
+        shutil.rmtree(DIST_PATH)
+
     import py2exe
     data_files = []
     
@@ -251,18 +259,50 @@ def build_linux_pkg():
     
     build_data_path = os.path.join(os.path.split(src_path)[0], 'build_data/linux')
     os.chdir(build_data_path)
+
+    STEXT = 'Version:'
+    RTEXT = 'Version: {0}\n'.format(config.BRICKD_VERSION)
+
+    f = open('brickd/DEBIAN/control', 'r')
+    lines = f.readlines()
+    f.close()
+
+    f = open('brickd/DEBIAN/control', 'w')
+    for line in lines:
+        if not line.find(STEXT) == -1:
+            line = RTEXT
+        f.write(line)
+    f.close()
+
+    os.system('chown -R root brickd/usr')
+    os.system('chgrp -R root brickd/usr')
+    os.system('chown -R root brickd/etc')
+    os.system('chgrp -R root brickd/etc')
+
+    os.system('chmod 0644 brickd/DEBIAN/md5sums')
+    os.system('chmod 0755 brickd/DEBIAN/postinst')
+    os.system('chmod 0755 brickd/DEBIAN/postrm')
+
+    files = ['control', 'md5sums', 'postinst', 'postrm']
+
+    for f in files:
+        os.chown('brickd/DEBIAN/{0}'.format(f), 0, 0)
+
     os.system('dpkg -b brickd/ brickd-' + config.BRICKD_VERSION + '_all.deb')
 
+    for f in files:
+        os.chown('brickd/DEBIAN/{0}'.format(f), 1000, 1000)
 
-# call python build_pkg.py win/linux to build the windows/linux package
+
+# call python build_pkg.py windows/linux to build the windows/linux package
     
 if __name__ == "__main__":
-    if sys.argv[1] == "win":
+    if sys.argv[1] == "windows":
         sys.argv[1] = "py2exe" # rewrite sys.argv[1] for setup(), want to call py2exe
         build_windows_pkg()
-    if sys.argv[1] == "linux":
+    elif sys.argv[1] == "linux":
         build_linux_pkg()
-    if sys.argv[1] == "macos":
-        sys.argv[1] = "py2app" # rewrite sys.argv[1] for setup(), want to call py2exe
+    elif sys.argv[1] == "macos":
+        sys.argv[1] = "py2app" # rewrite sys.argv[1] for setup(), want to call py2app
         sys.argv.append("build")
         build_macos_pkg()
