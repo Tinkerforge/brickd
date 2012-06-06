@@ -352,7 +352,7 @@ class USBDevice:
     def new_device(self, data):
         stack_id = ord(data[52])
         if not stack_id in brick_protocol.device_dict:
-            name = data[12:52]
+            name = data[12:52].replace(chr(0), '')
             uid = data[4:12]
             brick_protocol.device_dict[stack_id] = (self, uid, name, set())
             logging.info("New device {0} with Stack ID {1} ".format(name, 
