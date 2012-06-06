@@ -79,9 +79,10 @@ class USBDevice:
             for i in range(256):
                 self.routing_table_in.append(chr(i))
                 self.routing_table_out.append(chr(i))
-            
-            self.xml_queue = Queue()
-            
+
+            self.read_transfers = []
+            self.write_transfers = []
+
             self.write_data_queue = Queue()
             self.write_transfer_queue = Queue(USBDevice.NUM_WRITE_TRANSFER)
             
@@ -116,10 +117,13 @@ class USBDevice:
                          4096, 
                          self.read_callback)
         transfer.submit()
+        self.read_transfers.append(transfer)
         
     def add_write_transfer(self):
         logging.info("Adding write transfer")
-        self.write_transfer_queue.put(self.usb_handle.getTransfer())
+        transfer = self.usb_handle.getTransfer()
+        self.write_transfer_queue.put(transfer)
+        self.write_transfers.append(transfer)
         
     def delete(self):
         if not self.deleted:
@@ -151,6 +155,12 @@ class USBDevice:
         self.write_loop_thread.join()
         self.event_loop_thread.join()
         self.usb_handle.close()
+
+        # Cancel pending USBTransfers and close all USBTransfers
+        for transfer in self.read_transfers + self.write_transfers:
+            if transfer.isSubmitted():
+                transfer.cancel()
+            transfer.close()
 
     def add_read_callback(self, key, callback):
         if key in self.data_callback:
