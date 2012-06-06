@@ -136,7 +136,7 @@ class USBDevice:
                 data += chr(253)                 # Enumerate Type
                 data += struct.pack('<H', 54)    # Length
                 data += item[1][1]               # UID 
-                data += item[1][2]               # Name
+                data += struct.pack('<40s', item[1][2]) # Name
                 data += chr(item[0])             # Device Stack ID
                 data += struct.pack('<?', False) # Denumerate
                 
