@@ -154,13 +154,14 @@ class USBDevice:
 
         self.write_loop_thread.join()
         self.event_loop_thread.join()
-        self.usb_handle.close()
 
         # Cancel pending USBTransfers and close all USBTransfers
         for transfer in self.read_transfers + self.write_transfers:
             if transfer.isSubmitted():
                 transfer.cancel()
             transfer.close()
+
+        self.usb_handle.close()
 
     def add_read_callback(self, key, callback):
         if key in self.data_callback:
