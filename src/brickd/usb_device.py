@@ -24,7 +24,7 @@ Boston, MA 02111-1307, USA.
 import logging
 import struct
 from libusb import libusb1
-
+from collections import deque
 from threading import Thread
 
 # Queue for python 2, queue for python 3
@@ -176,15 +176,23 @@ class USBDevice:
             # be a problem. If there is not enough flash on the Master Brick
             # to implement this we will have to change the protocol.
             # This will be an absolute pain in the ass :-).
-            if not self.data_callback[key].full():
-                self.data_callback[key].put(callback)
+            if len(self.data_callback[key]) < USBDevice.MAX_CONCURRENT_REQUESTS:
+                self.data_callback[key].append(callback)
         else:
             logging.info("Add queue and callback for message: " + 
                          str(brick_protocol.get_type_from_data(key)))
-            q = Queue(USBDevice.MAX_CONCURRENT_REQUESTS)
-            q.put(callback)
-            self.data_callback[key] = q
-            
+            self.data_callback[key] = deque([callback])
+
+    def remove_read_callback(self, callback):
+        for item in self.data_callback.items():
+            while True:
+                try:
+                    item[1].remove(callback)
+                    logging.info("Remove callback for message: " +
+                                 str(brick_protocol.get_type_from_data(item[0])))
+                except ValueError:
+                    break
+
     def write_callback(self, transfer):
         if not self.alive:
             return
@@ -262,7 +270,7 @@ class USBDevice:
             # Data is return value of function call
             if key in self.data_callback:
                 try:
-                    callback = self.data_callback[key].get(False)
+                    callback = self.data_callback[key].popleft()
                 except:
                     logging.warn("No callback for data. Latency too high?")
                 else:

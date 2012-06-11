@@ -83,6 +83,7 @@ class BrickProtocol(Protocol):
             
     def remove_connections(self):
         for item in device_dict.items():
+            item[1][0].remove_read_callback(self.callback)
             try:
                 item[1][3].remove(self.callback)
             except KeyError:
