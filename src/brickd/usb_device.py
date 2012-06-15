@@ -23,6 +23,7 @@ Boston, MA 02111-1307, USA.
 
 import logging
 import struct
+from threading import Lock
 from libusb import libusb1
 from collections import deque
 from threading import Thread
@@ -62,6 +63,7 @@ class USBDevice:
     def __init__(self, usb_device, context):
         self.usb_device = usb_device
         self.context = context
+        self.routing_table_lock = Lock()
 
         try:
             # open the device for communication
@@ -220,22 +222,24 @@ class USBDevice:
             
     def apply_routing_table_out(self, data):
         return self.apply_routing_table(self.routing_table_out, data)
-            
+
     def apply_routing_table_in(self, data):
         stack_id = brick_protocol.get_stack_id_from_data(data)
         type = brick_protocol.get_type_from_data(data)
         if stack_id == 0:
             if type == USBDevice.TYPE_ENUMERATE_CALLBACK:
+                self.routing_table_lock.acquire()
                 old_stack_id = ord(self.routing_table_in[ord(data[52])])
                 if old_stack_id in brick_protocol.device_dict:
                     uid = data[4:12]
                     if brick_protocol.device_dict[old_stack_id][1] != uid:
                         self.extend_routing_table(old_stack_id)
-                    
+                self.routing_table_lock.release()
+
                 return data[0:52] + \
-                       self.routing_table_in[old_stack_id] + \
+                       self.routing_table_in[ord(data[52])] + \
                        data[53:]
-                       
+
             elif type == USBDevice.TYPE_GET_STACK_ID:
                 old_stack_id = ord(data[55])
                 return data[0:55] + self.routing_table_in[old_stack_id]
@@ -243,7 +247,7 @@ class USBDevice:
                 return data
         else:
             return self.apply_routing_table(self.routing_table_in, data)
-    
+
     def apply_routing_table(self, rt, data):
         return rt[ord(data[0])] + data[1:]
         
