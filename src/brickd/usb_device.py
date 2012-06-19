@@ -348,7 +348,7 @@ class USBDevice:
         """
         
         while self.alive:
-            self.context.handleEvents()
+            self.context.handleEventsTimeout(1)
 
     def get_devices(self):
         logging.info("Calling get_devices on: " + str(self))
