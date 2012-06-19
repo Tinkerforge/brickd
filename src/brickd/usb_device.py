@@ -92,7 +92,7 @@ class USBDevice:
                 self.add_read_transfer()
             for i in xrange(USBDevice.NUM_WRITE_TRANSFER):
                 self.add_write_transfer()
-                
+
             self.alive = True
             self.deleted = False
             self.write_loop_thread = Thread(target=self.write_loop)
@@ -314,17 +314,20 @@ class USBDevice:
         Write data from queue to usb device
         """ 
 
+        logging.info("Started write thread")
         try:
             while self.alive:
                 transfer = self.write_transfer_queue.get()
                 if not transfer: 
                     if not self.alive:
+                        logging.info("Exit write thread")
                         return
                     continue
 
                 data = self.write_data_queue.get()
                 if not data:
                     if not self.alive:
+                        logging.info("Exit write thread")
                         return
                     continue
 
@@ -341,14 +344,17 @@ class USBDevice:
                 self.write_transfer_queue.task_done()
         except:
             self.alive = False
+        logging.info("Exit write thread")
     
     def event_loop(self):
         """
         Triggers libusb events
         """
-        
+
+        logging.info("Started event thread")
         while self.alive:
             self.context.handleEventsTimeout(1)
+        logging.info("Exit event thread")
 
     def get_devices(self):
         logging.info("Calling get_devices on: " + str(self))
