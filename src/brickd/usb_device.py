@@ -159,9 +159,12 @@ class USBDevice:
 
         # Cancel pending USBTransfers and close all USBTransfers
         for transfer in self.read_transfers + self.write_transfers:
-            if transfer.isSubmitted():
-                transfer.cancel()
-            transfer.close()
+            try:
+                if transfer.isSubmitted():
+                    transfer.cancel()
+                transfer.close()
+            except:
+                pass
 
         self.usb_handle.close()
 
