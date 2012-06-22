@@ -61,7 +61,7 @@ def build_macos_pkg():
         CFBundleShortVersionString = config.BRICKD_VERSION,
         CFBundleGetInfoString = ' '.join(['brickd', config.BRICKD_VERSION]),
         CFBundleExecutable = 'brickd_macosx',
-        CFBundleIdentifier = 'org.tinkerforge.brickd',
+        CFBundleIdentifier = 'com.tinkerforge.brickd',
         # hide dock icon
     #    LSUIElement = True,
     )
