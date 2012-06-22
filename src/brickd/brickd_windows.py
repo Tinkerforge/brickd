@@ -37,7 +37,8 @@ struct = win32gui_struct.struct
 pywintypes = win32gui_struct.pywintypes
 import win32con
 import pythoncom
-from win32api import OutputDebugString
+from win32api import OutputDebugString, MessageBox
+import sys
 
 import logging
 import signal
@@ -70,7 +71,6 @@ class BrickLoggingHandler(logging.Handler):
                                             datefmt=config.LOGGING_DATEFMT))
         
     def emit(self, record):
-
         self.loga.write(self.format(record))
         self.loga.flush()
         
@@ -84,10 +84,10 @@ class BrickLoggingHandler(logging.Handler):
 
 class BrickdWindows(win32serviceutil.ServiceFramework):
     _svc_name_ = 'Brickd'
-    _svc_display_name_ = 'Brickd 1.0'
-    _svc_description_ = 'brickd is a bridge between usb devices ("Bricks")' + \
-                        ' and tcp/ip sockets. It can be used to read out ' + \
-                        ' and control bricks.'
+    _svc_display_name_ = 'Brickd ' + config.BRICKD_VERSION
+    _svc_description_ = 'Brickd is a bridge between USB devices ("Bricks") ' + \
+                        'and TCP/IP sockets. It can be used to read out ' + \
+                        'and control Bricks.'
     
     def __init__(self, args):
         win32serviceutil.ServiceFramework.__init__(self, args)
@@ -96,7 +96,6 @@ class BrickdWindows(win32serviceutil.ServiceFramework):
         fil = win32gui_struct.PackDEV_BROADCAST_DEVICEINTERFACE(
             GUID_DEVINTERFACE_USB_DEVICE
         )
-
 
         self.hDevNotify = win32gui.RegisterDeviceNotification(
             self.ssh, # copy of the service status handle
@@ -121,7 +120,6 @@ class BrickdWindows(win32serviceutil.ServiceFramework):
 
     def SvcStop(self):
         reactor.stop()
-        
         self.ReportServiceStatus(win32service.SERVICE_STOP_PENDING)
         win32event.SetEvent(self.hWaitStop)
 
@@ -129,13 +127,9 @@ class BrickdWindows(win32serviceutil.ServiceFramework):
         logging.getLogger().addHandler(BrickLoggingHandler())
         logging.info("brickd started")
 
-#        for non service test purposes only
-#        signal.signal(signal.SIGINT, lambda s, f: exit_brickd(s, f, reactor)) 
-#        signal.signal(signal.SIGTERM, lambda s, f: exit_brickd(s, f, reactor)) 
-        
         self.usb_notifier = USBNotifier()
         reactor.listenTCP(config.PORT, BrickProtocolFactory())
-        
+
         try:
             reactor.run(installSignalHandlers = True)
         except KeyboardInterrupt:
@@ -143,6 +137,11 @@ class BrickdWindows(win32serviceutil.ServiceFramework):
 
         win32event.WaitForSingleObject(self.hWaitStop, win32event.INFINITE)
         
-if __name__=='__main__':
-    win32serviceutil.HandleCommandLine(BrickdWindows)
-    #BrickdWindows(None).SvcDoRun()
+if __name__ == '__main__':
+    if '--version' in sys.argv:
+        print config.BRICKD_VERSION
+    elif len(sys.argv) == 1:
+        MessageBox(None, 'Hello, this is Brick Daemon {0} at your service.'.format(config.BRICKD_VERSION),
+                   'Brick Daemon {0}'.format(config.BRICKD_VERSION))
+    else:
+        win32serviceutil.HandleCommandLine(BrickdWindows)

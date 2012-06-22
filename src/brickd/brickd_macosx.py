@@ -198,7 +198,9 @@ if __name__ == "__main__":
         sys.stderr.write("brickd has to be started as root, exiting\n")
     else:
         brickd = BrickdMacOS()
-        if "nodaemon" in sys.argv:
+        if "--version" in sys.argv:
+            print config.BRICKD_VERSION
+        elif "nodaemon" in sys.argv or "--no-daemon" in sys.argv:
             brickd.start()
         else:
             brickd.daemonize()

@@ -140,11 +140,13 @@ class BrickdLinux:
         self.start()
         
 if __name__ == "__main__":
-    if os.geteuid() != 0:
+    if "--version" in sys.argv:
+        print config.BRICKD_VERSION
+    elif os.geteuid() != 0:
         sys.stderr.write("brickd has to be started as root, exiting\n")
     else:
         brickd = BrickdLinux()
-        if "nodaemon" in sys.argv:
+        if "nodaemon" in sys.argv or "--no-daemon" in sys.argv:
             brickd.start()
         else:
             brickd.daemonize()

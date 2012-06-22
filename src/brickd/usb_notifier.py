@@ -87,7 +87,7 @@ class USBNotifier():
                         
                 tries = 0
             except:
-                logging.warn("usb context broken, trying to fix it")
+                logging.warn("USB context broken, trying to fix it")
                 self.context = usb1.LibUSBContext()
                 devices = []
                 tries -= 1
