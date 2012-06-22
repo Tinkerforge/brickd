@@ -7,7 +7,7 @@ InstallDir $PROGRAMFILES\Tinkerforge\Brickd
 
 ; Registry key to check for directory (so if you install again, it will 
 ; overwrite the old one automatically)
-InstallDirRegKey HKLM "SOFTWARE\TINKERFORGE\BRICKD" "Install_Dir"
+InstallDirRegKey HKLM "Software\Tinkerforge\Brickd" "Install_Dir"
 
 ; Request application privileges for Windows Vista
 RequestExecutionLevel admin
@@ -28,7 +28,7 @@ RequestExecutionLevel admin
   
   ; Remove registry keys
   DeleteRegKey HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Tinkerforge\Brickd"
-  DeleteRegKey HKLM SOFTWARE\TINKERFORGE\BRICKD
+  DeleteRegKey HKLM "Software\Tinkerforge\Brickd"
 
 
   Delete $INSTDIR\drivers\*
@@ -62,13 +62,13 @@ Section "Install Brickd Programm"
 
 ; Check to see if already installed
   ClearErrors
-  ReadRegStr $0 HKLM SOFTWARE\TINKERFORGE\BRICKD "Version"
+  ReadRegStr $0 HKLM "Software\Tinkerforge\Brickd" "Version"
   IfErrors install ;Version not set, install
   ${VersionCompare} $0 ${BRICKD_VERSION} $1
   IntCmp $1 2 uninstall
     MessageBox MB_YESNO|MB_ICONQUESTION "Brickd version $0 seems to be already installed on your system.$\n\
     Would you like to proceed with the installation of version ${BRICKD_VERSION}? $\n\
-    Old Version will be first uninstalled." \
+    Old version will be uninstalled first." \
         IDYES uninstall IDNO quit
 
   quit:
@@ -86,11 +86,11 @@ Section "Install Brickd Programm"
   File /r "..\drivers\*"
   
   ; Write the installation path into the registry
-  WriteRegStr HKLM SOFTWARE\TINKERFORGE\BRICKD "Install_Dir" "$INSTDIR"
-  WriteRegStr HKLM SOFTWARE\TINKERFORGE\BRICKD "Version" ${BRICKD_VERSION}
+  WriteRegStr HKLM Software\Tinkerforge\Brickd "Install_Dir" "$INSTDIR"
+  WriteRegStr HKLM Software\Tinkerforge\Brickd "Version" ${BRICKD_VERSION}
   
   ; Write the uninstall keys for Windows
-  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Tinkerforge\Brickd" "DisplayName" "Brickd"
+  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Tinkerforge\Brickd" "DisplayName" "Brickd ${BRICKD_VERSION}"
   WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Tinkerforge\Brickd" "Publisher" "Tinkerforge GmbH"
   WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Tinkerforge\Brickd" "UninstallString" '"$INSTDIR\uninstall.exe"'
   WriteRegDWORD HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Tinkerforge\Brickd" "NoModify" 1
@@ -106,7 +106,8 @@ Section "Install Brickd Service"
   ExecWait '"$INSTDIR\brickd_windows.exe" start' $1
   DetailPrint "$0 $1"
 
-  MessageBox MB_OK "A driver installation might be necessary when devices will be connected.$\nPlease choose manually the driver folder in your brickd installation to install the drivers."
+  MessageBox MB_OK "A driver installation might be necessary when devices will be connected.$\n\
+    Please choose manually the driver folder in your brickd installation to install the drivers."
 
   MessageBox MB_YESNO "A reboot is required to finish the installation. Do you wish to reboot now?" IDNO quit
     Reboot
