@@ -58,7 +58,7 @@ UninstPage instfiles
 
 
 ; The stuff to install
-Section "Install Brickd Programm"
+Section "Install Brickd ${BRICKD_VERSION} Program"
 
 ; Check to see if already installed
   ClearErrors
@@ -91,6 +91,7 @@ Section "Install Brickd Programm"
   
   ; Write the uninstall keys for Windows
   WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Tinkerforge Brickd" "DisplayName" "Tinkerforge Brickd ${BRICKD_VERSION}"
+  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Tinkerforge Brickd" "DisplayVersion" "${BRICKD_VERSION}"
   WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Tinkerforge Brickd" "Publisher" "Tinkerforge GmbH"
   WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Tinkerforge Brickd" "UninstallString" '"$INSTDIR\uninstall.exe"'
   WriteRegDWORD HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Tinkerforge Brickd" "NoModify" 1
@@ -99,7 +100,7 @@ Section "Install Brickd Programm"
 
 SectionEnd
 
-Section "Install Brickd Service"
+Section "Register Brickd ${BRICKD_VERSION} Service"
 
   ; Install service
   ExecWait '"$INSTDIR\brickd_windows.exe" --startup auto install' $0
