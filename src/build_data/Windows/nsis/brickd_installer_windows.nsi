@@ -27,7 +27,7 @@ RequestExecutionLevel admin
   DetailPrint "$0 $1 $2"
   
   ; Remove registry keys
-  DeleteRegKey HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Tinkerforge\Brickd"
+  DeleteRegKey HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Tinkerforge Brickd"
   DeleteRegKey HKLM "Software\Tinkerforge\Brickd"
 
 
@@ -86,15 +86,15 @@ Section "Install Brickd Programm"
   File /r "..\drivers\*"
   
   ; Write the installation path into the registry
-  WriteRegStr HKLM Software\Tinkerforge\Brickd "Install_Dir" "$INSTDIR"
-  WriteRegStr HKLM Software\Tinkerforge\Brickd "Version" ${BRICKD_VERSION}
+  WriteRegStr HKLM "Software\Tinkerforge\Brickd" "Install_Dir" "$INSTDIR"
+  WriteRegStr HKLM "Software\Tinkerforge\Brickd" "Version" ${BRICKD_VERSION}
   
   ; Write the uninstall keys for Windows
-  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Tinkerforge\Brickd" "DisplayName" "Brickd ${BRICKD_VERSION}"
-  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Tinkerforge\Brickd" "Publisher" "Tinkerforge GmbH"
-  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Tinkerforge\Brickd" "UninstallString" '"$INSTDIR\uninstall.exe"'
-  WriteRegDWORD HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Tinkerforge\Brickd" "NoModify" 1
-  WriteRegDWORD HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Tinkerforge\Brickd" "NoRepair" 1
+  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Tinkerforge Brickd" "DisplayName" "Tinkerforge Brickd ${BRICKD_VERSION}"
+  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Tinkerforge Brickd" "Publisher" "Tinkerforge GmbH"
+  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Tinkerforge Brickd" "UninstallString" '"$INSTDIR\uninstall.exe"'
+  WriteRegDWORD HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Tinkerforge Brickd" "NoModify" 1
+  WriteRegDWORD HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Tinkerforge Brickd" "NoRepair" 1
   WriteUninstaller "uninstall.exe"
 
 SectionEnd
