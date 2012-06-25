@@ -226,10 +226,9 @@ def build_windows_pkg():
           description = DESCRIPTION,
           version = config.BRICKD_VERSION,
           service = [{
-                    'modules':["brickd_windows"],
-                    'cmdline':'pywin32',
-                    'cmdline_style':'pywin32', 
-                    'dll_excludes': [ "mswsock.dll","powrprof.dll"]
+                    'modules': ["brickd_windows"],
+                    'cmdline_style': 'custom',
+                    'dll_excludes': ["mswsock.dll", "powrprof.dll"]
                     }],
           zipfile = None,
           data_files = data_files,

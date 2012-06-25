@@ -60,7 +60,6 @@ logging.basicConfig(
 
 class BrickLoggingHandler(logging.Handler):
     def __init__(self):
-        
         logging.Handler.__init__(self)
 
         self.loga = open('Log.txt','w')
@@ -136,12 +135,14 @@ class BrickdWindows(win32serviceutil.ServiceFramework):
             reactor.stop()
 
         win32event.WaitForSingleObject(self.hWaitStop, win32event.INFINITE)
-        
-if __name__ == '__main__':
+
+# Handler for custom cmdline_style
+def HandleCommandLine():
     if '--version' in sys.argv:
         print config.BRICKD_VERSION
-    elif len(sys.argv) == 1:
-        MessageBox(None, 'Hello, this is Brick Daemon {0} at your service.'.format(config.BRICKD_VERSION),
-                   'Brick Daemon {0}'.format(config.BRICKD_VERSION))
     else:
         win32serviceutil.HandleCommandLine(BrickdWindows)
+
+if __name__ == '__main__':
+    # Note: This code will not be run in the 'frozen' exe-file
+    HandleCommandLine()
