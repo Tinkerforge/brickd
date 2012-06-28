@@ -173,8 +173,8 @@ os.environ['RESOURCEPATH'] = os.path.dirname(os.path.realpath(__file__))
         print "Usage: python setup.py py2app build"
 
  
-DESCRIPTION = 'WindowsBrickd'
-NAME = 'WindowsBrickd'
+DESCRIPTION = 'Brickd for Windows'
+NAME = 'Brickd'
 
 def build_windows_pkg():
     PWD = os.path.dirname(os.path.realpath(__file__))
@@ -187,42 +187,25 @@ def build_windows_pkg():
 
     import py2exe
     data_files = []
-    
+
+    lines = []
+    for line in file('../build_data/Windows/nsis/brickd_installer_windows.nsi.template', 'rb').readlines():
+        line = line.replace('<<BRICKD_DOT_VERSION>>', config.BRICKD_VERSION)
+        line = line.replace('<<BRICKD_UNDERSCORE_VERSION>>', config.BRICKD_VERSION.replace('.', '_'))
+        lines.append(line)
+    file('../build_data/Windows/nsis/brickd_installer_windows.nsi', 'wb').writelines(lines)
+
     def visitor(arg, dirname, names):
         for n in names:
             if os.path.isfile(os.path.join(dirname, n)):
-                if arg[0] == 'y': #replace first folder name
+                if arg[0] == 'y': # replace first folder name
                     data_files.append((os.path.join(dirname.replace(arg[1],"")) , [os.path.join(dirname, n)]))
                 else:
                     data_files.append((os.path.join(dirname) , [os.path.join(dirname, n)]))
     
     os.path.walk("..\\build_data\Windows\\", visitor, ('y',"..\\build_data\Windows\\"))
-        
-    #print data_files
-    
-    #f = open('lala.txt','w')
-    #for x in data_files:
-    #    f.write(str(x))
-    #f.close()
-    
-    #return
 
-    STEXT = '!define BRICKD_VERSION'
-    RTEXT = '!define BRICKD_VERSION {0}\n'.format(config.BRICKD_VERSION)
-    
-    f = open('../build_data/Windows/nsis/brickd_installer_windows.nsi', 'r')
-    lines = f.readlines()
-    f.close()
-
-    f = open('../build_data/Windows/nsis/brickd_installer_windows.nsi', 'w')
-    for line in lines:
-        if not line.find(STEXT) == -1:
-            line = RTEXT
-        f.write(line)
-    f.close()
-
-    setup(
-          name = NAME,
+    setup(name = NAME,
           description = DESCRIPTION,
           version = config.BRICKD_VERSION,
           service = [{

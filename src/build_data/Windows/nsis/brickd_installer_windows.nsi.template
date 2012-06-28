@@ -1,11 +1,11 @@
-Name "Brickd Windows Installer"
+Name "Brickd <<BRICKD_DOT_VERSION>>"
 
-OutFile "brickd_windows.exe"
+OutFile "brickd_windows_<<BRICKD_UNDERSCORE_VERSION>>.exe"
 
 ; The default installation directory
 InstallDir $PROGRAMFILES\Tinkerforge\Brickd
 
-; Registry key to check for directory (so if you install again, it will 
+; Registry key to check for directory (so if you install again, it will
 ; overwrite the old one automatically)
 InstallDirRegKey HKLM "Software\Tinkerforge\Brickd" "Install_Dir"
 
@@ -14,7 +14,7 @@ RequestExecutionLevel admin
 
 ;--------------------------------
 
-!define BRICKD_VERSION "1.0.1"
+!define BRICKD_VERSION <<BRICKD_DOT_VERSION>>
 
 ;--------------------------------
 
@@ -25,11 +25,11 @@ RequestExecutionLevel admin
   ExecWait '"$INSTDIR\brickd_windows.exe" stop' $1
   ExecWait '"$INSTDIR\brickd_windows.exe" remove' $2
   DetailPrint "$0 $1 $2"
-  
+
   ; Remove registry keys
+  DeleteRegKey HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Tinkerforge" ; Remove old key too
   DeleteRegKey HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Tinkerforge Brickd"
   DeleteRegKey HKLM "Software\Tinkerforge\Brickd"
-
 
   Delete $INSTDIR\drivers\*
 
@@ -38,8 +38,8 @@ RequestExecutionLevel admin
 
   ; Remove directories used
   RMDir /R "$INSTDIR"
-!macroend
 
+!macroend
 
 ; Pages
 
@@ -53,17 +53,15 @@ UninstPage instfiles
 ;--------------------------------
 
 !include "WordFunc.nsh"
-  !insertmacro VersionCompare
-
-
+!insertmacro VersionCompare
 
 ; The stuff to install
 Section "Install Brickd ${BRICKD_VERSION} Program"
 
-; Check to see if already installed
+  ; Check to see if already installed
   ClearErrors
   ReadRegStr $0 HKLM "Software\Tinkerforge\Brickd" "Version"
-  IfErrors install ;Version not set, install
+  IfErrors install ; Version not set, install
   ${VersionCompare} $0 ${BRICKD_VERSION} $1
   IntCmp $1 2 uninstall
     MessageBox MB_YESNO|MB_ICONQUESTION "Brickd version $0 seems to be already installed on your system.$\n\
@@ -72,23 +70,23 @@ Section "Install Brickd ${BRICKD_VERSION} Program"
         IDYES uninstall IDNO quit
 
   quit:
-     Quit
+    Quit
 
   uninstall:
-     !insertmacro macrouninstall
+    !insertmacro macrouninstall
 
   install:
-  
+
   SetOutPath $INSTDIR
   File "..\*"
 
   SetOutPath $INSTDIR\drivers
   File /r "..\drivers\*"
-  
+
   ; Write the installation path into the registry
   WriteRegStr HKLM "Software\Tinkerforge\Brickd" "Install_Dir" "$INSTDIR"
   WriteRegStr HKLM "Software\Tinkerforge\Brickd" "Version" ${BRICKD_VERSION}
-  
+
   ; Write the uninstall keys for Windows
   WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Tinkerforge Brickd" "DisplayName" "Tinkerforge Brickd ${BRICKD_VERSION}"
   WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Tinkerforge Brickd" "DisplayVersion" "${BRICKD_VERSION}"
@@ -113,12 +111,10 @@ Section "Register Brickd ${BRICKD_VERSION} Service"
   MessageBox MB_YESNO "A reboot is required to finish the installation. Do you wish to reboot now?" IDNO quit
     Reboot
   quit:
-  
+
 SectionEnd
 
-
 ;--------------------------------
-
 ; Uninstaller
 
 Section "Uninstall"
