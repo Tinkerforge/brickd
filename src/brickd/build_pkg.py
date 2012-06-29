@@ -216,10 +216,20 @@ def build_windows_pkg():
           zipfile = None,
           data_files = data_files,
           options = {
-                     "py2exe":{"packages":"encodings",
-                         "includes":"win32com,win32service,win32serviceutil,win32event",
-                         "optimize": '2'
-                        },
+                     "py2exe" : {
+                     "packages" : "encodings",
+                     "includes" : ["win32com",
+                                   "win32service",
+                                   "win32serviceutil",
+                                   "win32event"],
+                     "excludes" : ["distutils",
+                                   "email",
+                                   "doctest",
+                                   "difflib",
+                                   "pdb",
+                                   "unittest",
+                                   "ctypes.macholib"],
+                     "optimize" : '2'},
           },
     )
     
