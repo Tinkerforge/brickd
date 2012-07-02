@@ -110,7 +110,7 @@ class USBDevice:
             self.get_devices()
         except:
             self.alive = False
-            logging.warning("Could not create USB Device")
+            logging.exception("Could not create USB Device")
         
     def add_read_transfer(self):
         logging.info("Adding read transfer")

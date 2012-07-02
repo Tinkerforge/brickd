@@ -32,7 +32,6 @@ class USBNotifier():
     USB_PRODUCT_ID = 0x063D
     def __init__(self):
         self.context = usb1.LibUSBContext()
-
         self.active_devices = self.find_all_devices()
         
         for device in self.active_devices:
@@ -44,6 +43,7 @@ class USBNotifier():
     def notify_added(self):
         new = self.find_all_devices()
         addr = {}
+
         for device in new:
             addr[self.get_addr(device)] = device
         
@@ -76,22 +76,15 @@ class USBNotifier():
         Finds and returns all supported usb devices.
         """
 
-        tries = 2
-        while tries > 0:
-            devices = []
-            try:
-                for device in self.context.getDeviceList():
-                    if device.getVendorID() == USBNotifier.USB_VENDOR_ID and \
-                       device.getProductID() == USBNotifier.USB_PRODUCT_ID:
-                        devices.append(device)
-                        
-                tries = 0
-            except:
-                logging.warn("USB context broken, trying to fix it")
-                self.context = usb1.LibUSBContext()
-                devices = []
-                tries -= 1
-            
+        devices = []
+        try:
+            for device in self.context.getDeviceList():
+                if device.getVendorID() == USBNotifier.USB_VENDOR_ID and \
+                   device.getProductID() == USBNotifier.USB_PRODUCT_ID:
+                    devices.append(device)
+        except:
+            logging.exception("Could not enumerate USB devices")
+
         return devices
     
     def device_addresses(self):

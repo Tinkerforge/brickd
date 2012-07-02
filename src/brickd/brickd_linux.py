@@ -26,6 +26,7 @@ import os
 import sys
 import signal
 import logging
+import time
 
 from usb_notifier import USBNotifier
 from brick_protocol import BrickProtocolFactory, exit_brickd
@@ -89,9 +90,11 @@ class BrickdLinux:
     
     def notify_udev(self, client, action, device):
         if action == "add":
+            time.sleep(0.1) # Wait for changes to settle down in the system
             logging.info("New USB device")
             self.usb_notifier.notify_added()
         elif action == "remove":
+            time.sleep(0.1) # Wait for changes to settle down in the system
             logging.info("Removed USB device")
             self.usb_notifier.notify_removed()
 
