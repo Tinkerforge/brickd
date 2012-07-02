@@ -31,9 +31,17 @@
 # libusb-1.0 python wrapper
 from ctypes import Structure, \
                    CFUNCTYPE, POINTER, addressof, sizeof, cast, \
-                   c_short, c_int, c_uint, c_ssize_t, c_long, \
+                   c_short, c_int, c_uint, c_long, \
                    c_uint8, c_uint16, c_uint32, \
                    c_void_p, c_char_p, py_object, string_at
+
+try:
+    # c_ssize_t is new in Python 2.7
+    from ctypes import c_ssize_t
+except ImportError:
+    # Use c_longlong as fallback
+    from ctypes import c_longlong as c_ssize_t
+
 import ctypes.util
 import platform
 import os.path
