@@ -10,4 +10,5 @@
        Add date to log output
        Fix stack ID routing for enumerate with multiple connected stacks
        Add --version commandline argument
-1.0.9: Avoid race condition when enumerating USB devices
+1.0.9: Avoid race condition when enumerating USB devices on Linux
+       Fix Mac OS installer
