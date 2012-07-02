@@ -31,7 +31,7 @@
 # libusb-1.0 python wrapper
 from ctypes import Structure, \
                    CFUNCTYPE, POINTER, addressof, sizeof, cast, \
-                   c_short, c_int, c_uint, c_size_t, c_long, \
+                   c_short, c_int, c_uint, c_ssize_t, c_long, \
                    c_uint8, c_uint16, c_uint32, \
                    c_void_p, c_char_p, py_object, string_at
 import ctypes.util
@@ -625,7 +625,7 @@ else:
 #        libusb_device ***list);
 libusb_get_device_list = libusb.libusb_get_device_list
 libusb_get_device_list.argtypes = [libusb_context_p, libusb_device_p_p_p]
-libusb_get_device_list.restype = c_size_t
+libusb_get_device_list.restype = c_ssize_t
 #void libusb_free_device_list(libusb_device **list, int unref_devices);
 libusb_free_device_list = libusb.libusb_free_device_list
 libusb_free_device_list.argtypes = [libusb_device_p_p, c_int]
