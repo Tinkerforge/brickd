@@ -62,17 +62,15 @@ class BrickLoggingHandler(logging.Handler):
     def __init__(self):
         logging.Handler.__init__(self)
 
-        self.loga = open('Log.txt','w')
-        self.loga.write("init")
-        self.loga.flush()            
-        
+        self.loga = open('brickd.log', 'a')
+
         self.setFormatter(logging.Formatter(fmt=config.LOGGING_FORMAT,
                                             datefmt=config.LOGGING_DATEFMT))
-        
+
     def emit(self, record):
-        self.loga.write(self.format(record))
+        self.loga.write(self.format(record).rstrip('\n') + '\r\n')
         self.loga.flush()
-        
+
         OutputDebugString(self.format(record))
         if record.levelno in [logging.ERROR, logging.WARN]:
             servicemanager.LogMsg (

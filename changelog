@@ -1,9 +1,11 @@
-1.0.0: Initial Version
+1.0.0: Initial version
 1.0.1: Add timeout for message callbacks
-1.0.2: Don't wait 100ms if no callback available and Mac OS support
-1.0.3: Remove global reactor import for mac os
-1.0.4: Remove double fork completely for mac os
-1.0.5: Update to newest python-libusb1 version (thanks to vpelletier) and remove possible memory leak
+1.0.2: Don't wait 100ms if no callback available
+       Add Mac OS support
+1.0.3: Remove global reactor import for Mac OS
+1.0.4: Remove double fork completely for Mac OS
+1.0.5: Update to newest python-libusb1 version (thanks to vpelletier)
+       Remove possible memory leak
 1.0.6: Remove faulty libusb locking
 1.0.7: Fix handling of incomplete packets
 1.0.8: Break a reference cycle between USBDevice and USBTransfer objects
@@ -12,3 +14,4 @@
        Add --version commandline argument
 1.0.9: Avoid race condition when enumerating USB devices on Linux
        Fix Mac OS installer
+       Use more expressive log file name and correct line endings on Windows
