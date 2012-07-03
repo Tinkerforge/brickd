@@ -31,7 +31,7 @@ class USBNotifier():
     USB_VENDOR_ID = 0x16D0
     USB_PRODUCT_ID = 0x063D
     def __init__(self):
-        self.context = usb1.LibUSBContext()
+        self.context = usb1.USBContext()
         self.active_devices = self.find_all_devices()
         
         for device in self.active_devices:

@@ -1,6 +1,6 @@
 # This python wrapper for libusb1.0 is originally written by vpelletier 
 # and pulled from https://github.com/vpelletier/python-libusb1
-# (version 3399ba822a7625f5af1864cdd6205ec5aefe9110)
+# (version 13e71d28853427554533d38910972519d1510d47)
 #
 # The file is besides this header unchanged, it is licensed as GPL V2
 # according to the copying file in the git.
@@ -57,8 +57,9 @@ from cStringIO import StringIO
 import sys
 import threading
 from ctypes.util import find_library
+import warnings
 
-__all__ = ['LibUSBContext', 'USBDeviceHandle', 'USBDevice',
+__all__ = ['USBContext', 'USBDeviceHandle', 'USBDevice',
     'USBPoller', 'USBTransfer', 'USBTransferHelper', 'EVENT_CALLBACK_SET']
 
 if sys.version_info[:2] >= (2, 6):
@@ -104,6 +105,9 @@ def create_binary_buffer(string_or_len):
         result = create_string_buffer(string_or_len, len(string_or_len))
     return result
 
+class DoomedTransferError(Exception):
+    pass
+
 class USBTransfer(object):
     """
     USB asynchronous transfer control & data.
@@ -123,6 +127,7 @@ class USBTransfer(object):
     __submitted = False
     __callback = None
     __ctypesCallbackWrapper = None
+    __doomed = False
 
     def __init__(self, handle, iso_packets=0):
         """
@@ -144,21 +149,30 @@ class USBTransfer(object):
 
     def close(self):
         """
-        Stop using this transfer.
-        This removes some references to other python objects, to help garbage
-        collection.
+        Break reference cycles to allow instance to be garbage-collected.
         Raises if called on a submitted transfer.
-        This does not prevent future reuse of instance (calling one of
-        "setControl", "setBulk", "setInterrupt" or "setIsochronous" methods
-        will initialize it properly again), just makes it ready to be
-        garbage-collected.
-        It is not mandatory to call it either, if you have no problems with
-        garbage collection.
         """
         if self.__submitted:
             raise ValueError('Cannot close a submitted transfer')
+        self.doom()
         self.__initialized = False
+        # Break possible external reference cycle
         self.__callback = None
+        # Break libusb_transfer reference cycles
+        self.__ctypesCallbackWrapper = None
+        # For some reason, overwriting callback is not enough to remove this
+        # reference cycle - though sometimes it works:
+        #   self -> self.__dict__ -> libusb_transfer -> dict[x] -> dict[x] ->
+        #   CThunkObject -> __callbackWrapper -> self
+        # So free transfer altogether.
+        self.__libusb_free_transfer(self.__transfer)
+        self.__transfer = None
+
+    def doom(self):
+        """
+        Prevent transfer from being submitted again.
+        """
+        self.__doomed = True
 
     def __del__(self):
         if self.__transfer is not None:
@@ -189,6 +203,8 @@ class USBTransfer(object):
         callback = self.__callback
         if callback is not None:
             callback(self)
+        if self.__doomed:
+            self.close()
 
     def setCallback(self, callback):
         """
@@ -220,6 +236,8 @@ class USBTransfer(object):
         """
         if self.__submitted:
             raise ValueError('Cannot alter a submitted transfer')
+        if self.__doomed:
+            raise DoomedTransferError('Cannot reuse a doomed transfer')
         if isinstance(buffer_or_len, basestring):
             length = len(buffer_or_len)
             string_buffer = create_binary_buffer(
@@ -253,6 +271,8 @@ class USBTransfer(object):
         """
         if self.__submitted:
             raise ValueError('Cannot alter a submitted transfer')
+        if self.__doomed:
+            raise DoomedTransferError('Cannot reuse a doomed transfer')
         string_buffer = create_binary_buffer(buffer_or_len)
         self.__initialized = False
         libusb1.libusb_fill_bulk_transfer(self.__transfer, self.__handle,
@@ -278,6 +298,8 @@ class USBTransfer(object):
         """
         if self.__submitted:
             raise ValueError('Cannot alter a submitted transfer')
+        if self.__doomed:
+            raise DoomedTransferError('Cannot reuse a doomed transfer')
         string_buffer = create_binary_buffer(buffer_or_len)
         self.__initialized = False
         libusb1.libusb_fill_interrupt_transfer(self.__transfer, self.__handle,
@@ -313,6 +335,8 @@ class USBTransfer(object):
             raise TypeError('This transfer canot be used for isochronous I/O. '
                 'You must get another one with a non-zero iso_packets '
                 'parameter.')
+        if self.__doomed:
+            raise DoomedTransferError('Cannot reuse a doomed transfer')
         string_buffer = create_binary_buffer(buffer_or_len)
         buffer_length = sizeof(string_buffer)
         if iso_transfer_length_list is None:
@@ -380,6 +404,20 @@ class USBTransfer(object):
         else:
             result = string_at(transfer.buffer, transfer.length)
         return result
+
+    def getUserData(self):
+        """
+        Retrieve user data provided on setup.
+        """
+        return self.__transfer.contents.user_data
+
+    def setUserData(self, user_data):
+        """
+        Change user data.
+        """
+        if self.__submitted:
+            raise ValueError('Cannot alter a submitted transfer')
+        self.__transfer.contents.user_data = user_data
 
     def getISOBufferList(self):
         """
@@ -457,6 +495,8 @@ class USBTransfer(object):
         if not self.__initialized:
             raise ValueError('Cannot submit a transfer until it has been '
                 'initialized')
+        if self.__doomed:
+            raise DoomedTransferError('Cannot submit doomed transfer')
         self.__submitted = True
         result = libusb1.libusb_submit_transfer(self.__transfer)
         if result:
@@ -469,10 +509,14 @@ class USBTransfer(object):
         Note: cancellation happens asynchronously, so you must wait for
         LIBUSB_TRANSFER_CANCELLED.
         """
+        if not self.__submitted:
+            # XXX: Workaround for a bug reported on libusb 1.0.8: calling
+            # libusb_cancel_transfer on a non-submitted transfer might
+            # trigger a segfault.
+            raise self.__USBError(self.__LIBUSB_ERROR_NOT_FOUND)
         result = self.__libusb_cancel_transfer(self.__transfer)
         if result:
             raise self.__USBError(result)
-        self.__submitted = False
 
 class USBTransferHelper(object):
     """
@@ -481,6 +525,8 @@ class USBTransferHelper(object):
     - no need to read event status to execute apropriate code, just setup
       different functions for each status code
     - just return True instead of calling submit
+    - no need to check if transfer is doomed before submitting it again,
+      DoomedTransferError is caught.
 
     Callbacks used in this class must follow the callback API described in
     USBTransfer, and are expected to return a boolean:
@@ -555,7 +601,10 @@ class USBTransferHelper(object):
         """
         if self.getEventCallback(transfer.getStatus(), self.__errorCallback)(
                 transfer):
-            transfer.submit()
+            try:
+                transfer.submit()
+            except DoomedTransferError:
+                pass
 
     def isSubmited(self):
         """
@@ -679,7 +728,8 @@ class USBPoller(object):
           event_flags have the same meaning as in poll API (POLLIN & POLLOUT)
         - unregister(fd)
         - poll(timeout)
-          timeout being a float in seconds, or None if there is no timeout.
+          timeout being a float in seconds, or negative/None if there is no
+          timeout.
           It must return a list of (descriptor, event) pairs.
         Note: USBPoller is itself a valid poller.
         """
@@ -700,7 +750,7 @@ class USBPoller(object):
         Returns a list of (descriptor, event) pairs.
         """
         next_usb_timeout = self.__context.getNextTimeout()
-        if timeout is None:
+        if timeout is None or timeout < 0:
             usb_timeout = next_usb_timeout
         elif next_usb_timeout:
             usb_timeout = min(next_usb_timeout, timeout)
@@ -1162,16 +1212,16 @@ class USBInterfaceSetting(object):
     def iterEndpoints(self):
         endpoint_list = self.__alt_setting.endpoint
         for endpoint_num in xrange(self.getNumEndpoints()):
-            yield USBEndPoint(endpoint_list[endpoint_num])
+            yield USBEndpoint(endpoint_list[endpoint_num])
 
     def __getitem__(self, endpoint):
         if not isinstance(endpoint, int):
             raise TypeError('endpoint parameter must be an integer')
         if not (0 <= endpoint < self.getNumEndpoints()):
             raise ValueError('No such endpoint: %r' % (endpoint, ))
-        return USBEndPoint(self.__alt_setting.endpoint[endpoint])
+        return USBEndpoint(self.__alt_setting.endpoint[endpoint])
 
-class USBEndPoint(object):
+class USBEndpoint(object):
     def __init__(self, endpoint):
         if not isinstance(endpoint, libusb1.libusb_endpoint_descriptor):
             raise TypeError('Unexpected descriptor type.')
@@ -1420,7 +1470,7 @@ class USBDevice(object):
 _zero_tv = libusb1.timeval(0, 0)
 _zero_tv_p = byref(_zero_tv)
 
-class LibUSBContext(object):
+class USBContext(object):
     """
     libusb1 USB context.
 
@@ -1436,32 +1486,41 @@ class LibUSBContext(object):
     def _validContext(func):
         # Defined inside LibUSBContext so we can access "self.__*".
         def wrapper(self, *args, **kw):
-#            self.__context_lock.acquire()
+            self.__context_cond.acquire()
+            self.__context_refcount += 1
+            self.__context_cond.release()
             try:
                 if self.__context_p is not None:
                     return func(self, *args, **kw)
             finally:
-                pass
-                #self.__context_lock.release()
+                self.__context_cond.acquire()
+                self.__context_refcount -= 1
+                if not self.__context_refcount:
+                    self.__context_cond.notifyAll()
+                self.__context_cond.release()
         return wrapper
 
     def __init__(self):
         """
         Create a new USB context.
         """
+        # Used to prevent an exit to cause a segfault if a concurrent thread
+        # is still in libusb.
+        self.__context_refcount = 0
+        self.__context_cond = threading.Condition()
         context_p = libusb1.libusb_context_p()
         result = libusb1.libusb_init(byref(context_p))
         if result:
             raise libusb1.USBError(result)
         self.__context_p = context_p
-        # Used to prevent an exit to cause a segfault if a concurent thread
-        # is still in libusb.
-        self.__context_lock = threading.RLock()
 
     def __del__(self):
-        self.exit()
+        # Avoid locking.
+        # XXX: Assumes __del__ should not normally be called while any
+        # instance's method is being executed. It seems unlikely (they hold a
+        # reference to their instance).
+        self._exit()
 
-    @_validContext
     def exit(self):
         """
         Close (destroy) this USB context.
@@ -1469,11 +1528,22 @@ class LibUSBContext(object):
         When this function has been called, methods on its instance will
         become mosty no-ops, returning None.
         """
+        self.__context_cond.acquire()
+        try:
+            while self.__context_refcount and self.__context_p is not None:
+                self.__context_cond.wait()
+            self._exit()
+        finally:
+            self.__context_cond.notifyAll()
+            self.__context_cond.release()
+
+    def _exit(self):
         context_p = self.__context_p
-        self.__libusb_exit(context_p)
-        self.__context_p = None
-        self.__added_cb = None
-        self.__removed_cb = None
+        if context_p is not None:
+            self.__libusb_exit(context_p)
+            self.__context_p = None
+            self.__added_cb = None
+            self.__removed_cb = None
 
     @_validContext
     def getDeviceList(self):
@@ -1485,6 +1555,7 @@ class LibUSBContext(object):
         libusb_device_p = libusb1.libusb_device_p
         device_list_len = libusb1.libusb_get_device_list(self.__context_p,
                                                          byref(device_p_p))
+        # Matthias: Now device_list_len is signed and can be checked for error
         if device_list_len < 0:
             raise libusb1.USBError(device_list_len)
         # Instanciate our own libusb_device_p object so we can free
@@ -1496,19 +1567,29 @@ class LibUSBContext(object):
         libusb1.libusb_free_device_list(device_p_p, 0)
         return result
 
+    def getByVendorIDAndProductID(self, vendor_id, product_id):
+        """
+        Get the first USB device matching given vendor and product ids.
+        Returns an USBDevice instance, or None if no present device match.
+        """
+        for device in self.getDeviceList():
+            if device.getVendorID() == vendor_id and \
+                    device.getProductID() == product_id:
+                result = device
+                break
+        else:
+            result = None
+        return result
+
     def openByVendorIDAndProductID(self, vendor_id, product_id):
         """
         Get the first USB device matching given vendor and product ids.
         Returns an USBDeviceHandle instance, or None if no present device
         match.
         """
-        for device in self.getDeviceList():
-            if device.getVendorID() == vendor_id and \
-                    device.getProductID() == product_id:
-                result = device.open()
-                break
-        else:
-            result = None
+        result = self.getByVendorIDAndProductID(vendor_id, product_id)
+        if result is not None:
+            result = result.open()
         return result
 
     @_validContext
@@ -1688,4 +1769,13 @@ class LibUSBContext(object):
         """
         return libusb1.libusb_event_handler_active(self.__context_p)
 
-del LibUSBContext._validContext
+del USBContext._validContext
+
+class LibUSBContext(USBContext):
+    """
+    Backward-compatibility alias for USBContext.
+    """
+    def __init__(self):
+        warnings.warn('LibUSBContext is being renamed to USBContext',
+            DeprecationWarning)
+        super(LibUSBContext, self).__init__()

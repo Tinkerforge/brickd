@@ -1,6 +1,6 @@
 # This python wrapper for libusb1.0 is originally written by vpelletier 
 # and pulled from https://github.com/vpelletier/python-libusb1
-# (version f5bda074c367442759f44118ff59c9584cdd28f6)
+# (version 13e71d28853427554533d38910972519d1510d47)
 #
 # The file is besides this header unchanged, it is licensed as GPL V2
 # according to the copying file in the git.
@@ -29,19 +29,25 @@
 # we will just switch to the winner. The APIs are all quite similar.
 
 # libusb-1.0 python wrapper
-from ctypes import Structure, \
+from ctypes import Structure, LittleEndianStructure, \
                    CFUNCTYPE, POINTER, addressof, sizeof, cast, \
-                   c_short, c_int, c_uint, c_long, \
+                   c_short, c_int, c_uint, c_size_t, c_long, \
+                   c_ulong, c_longlong, c_ulonglong, \
                    c_uint8, c_uint16, c_uint32, \
                    c_void_p, c_char_p, py_object, string_at
-
 try:
-    # c_ssize_t is new in Python 2.7
-    from ctypes import c_ssize_t
+    from ctypes import c_ssize_t_X
 except ImportError:
-    # Use c_longlong as fallback
-    from ctypes import c_longlong as c_ssize_t
-
+    # c_ssize_t is new in Python 2.7
+    if sizeof(c_uint) == sizeof(c_size_t):
+        c_ssize_t = c_int
+    elif sizeof(c_ulong) == sizeof(c_size_t):
+        c_ssize_t = c_long
+    elif sizeof(c_ulonglong) == sizeof(c_size_t):
+        c_ssize_t = c_longlong
+    else:
+        raise ValueError('Unsupported arch: sizeof(c_size_t) = %r' % (
+            sizeof(c_size_t), ))
 import ctypes.util
 import platform
 import os.path
@@ -71,6 +77,48 @@ class Enum(object):
 
     def get(self, value, default=None):
         return self.reverse_dict.get(value, default)
+
+_desc_type_dict = {
+  'b': c_uint8,
+  'bcd': c_uint16,
+  'bm': c_uint8,
+  'dw': c_uint32,
+  'i': c_uint8,
+  'id': c_uint16,
+  'w': c_uint16,
+}
+
+def newStruct(field_name_list):
+    """
+    Create a ctype structure class based on USB standard field naming
+    (type-prefixed).
+    """
+    field_list = []
+    append = field_list.append
+    for field in field_name_list:
+        type_prefix = ''
+        for char in field:
+            if not char.islower():
+                break
+            type_prefix += char
+        append((field, _desc_type_dict[type_prefix]))
+    result = type('some_descriptor', (LittleEndianStructure, ), {})
+    # Not using type()'s 3rd param to initialise class, as per ctypes
+    # documentation:
+    #   _pack_ must already be defined when _fields_ is assigned, otherwise it
+    #   will have no effect.
+    result._pack_ = 1
+    result._fields_ = field_list
+    return result
+
+def newDescriptor(field_name_list):
+    """
+    Create a USB descriptor ctype structure, ie starting with bLength and
+    bDescriptorType fields.
+
+    See newStruct().
+    """
+    return newStruct(['bLength', 'bDescriptorType'] + list(field_name_list))
 
 class USBError(Exception):
     def __init__(self, value):
@@ -568,20 +616,32 @@ libusb_transfer_p = POINTER(libusb_transfer)
 
 libusb_transfer_cb_fn_p = CFUNCTYPE(None, libusb_transfer_p)
 
-libusb_transfer._fields_ = [('dev_handle', libusb_device_handle_p),
-                            ('flags', c_uint8),
-                            ('endpoint', c_uchar),
-                            ('type', c_uchar),
-                            ('timeout', c_uint),
-                            ('status', c_int), # enum libusb_transfer_status
-                            ('length', c_int),
-                            ('actual_length', c_int),
-                            ('callback', libusb_transfer_cb_fn_p),
-                            ('user_data', py_object),
-                            ('buffer', c_void_p),
-                            ('num_iso_packets', c_int),
-                            ('iso_packet_desc', libusb_iso_packet_descriptor)
+_libusb_transfer_fields = [
+    ('dev_handle', libusb_device_handle_p),
+    ('flags', c_uint8),
+    ('endpoint', c_uchar),
+    ('type', c_uchar),
+    ('timeout', c_uint),
+    ('status', c_int), # enum libusb_transfer_status
+    ('length', c_int),
+    ('actual_length', c_int),
+    ('callback', libusb_transfer_cb_fn_p),
+    ('user_data', py_object),
+    ('buffer', c_void_p),
+    ('num_iso_packets', c_int),
+    ('iso_packet_desc', libusb_iso_packet_descriptor)
 ]
+if platform.system() == 'FreeBSD' and getattr(libusb,
+        'libusb_get_string_descriptor', None) is None:
+    # Old FreeBSD version has a slight ABI incompatibility.
+    # Work around it unless libusb_get_string_descriptor is available, as it
+    # is only available on fixed versions.
+    assert _libusb_transfer_fields[2][0] == 'endpoint'
+    _libusb_transfer_fields[2] = ('endpoint', c_uint32)
+    assert _libusb_transfer_fields[11][0] == 'num_iso_packets'
+    _libusb_transfer_fields.insert(11, ('os_priv', c_void_p))
+
+libusb_transfer._fields_ = _libusb_transfer_fields
 
 libusb_capability = Enum({
 # The libusb_has_capability() API is available.
