@@ -2,6 +2,8 @@ Name "Brickd <<BRICKD_DOT_VERSION>>"
 
 OutFile "brickd_windows_<<BRICKD_UNDERSCORE_VERSION>>.exe"
 
+XPStyle on
+
 ; The default installation directory
 InstallDir $PROGRAMFILES\Tinkerforge\Brickd
 
