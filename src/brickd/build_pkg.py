@@ -241,6 +241,10 @@ def build_windows_pkg():
     os.system(run + data)
     
 def build_linux_pkg():
+    if os.geteuid() != 0:
+        sys.stderr.write("build_pkg for Linux has to be started as root, exiting\n")
+        sys.exit(1)
+
     src_path = os.getcwd()
     build_dir = 'build_data/linux/brickd/usr/share/brickd'
     dest_path = os.path.join(os.path.split(src_path)[0], build_dir)
