@@ -87,6 +87,8 @@ class BrickdLinux:
             reactor.run(installSignalHandlers = True)
         except KeyboardInterrupt:
             reactor.stop()
+
+        logging.info("brickd stopped")
     
     def notify_udev(self, client, action, device):
         if action == "add":

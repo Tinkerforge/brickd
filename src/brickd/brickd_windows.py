@@ -52,25 +52,14 @@ GUID_DEVINTERFACE_USB_DEVICE = "{a5dcbf10-6530-11d2-901f-00c04fb951ed}"
 DBT_DEVICEARRIVAL = 0x8000
 DBT_DEVICEREMOVECOMPLETE = 0x8004
 
-logging.basicConfig(
-    level = config.LOGGING_LEVEL,
-    format = config.LOGGING_FORMAT,
-    datefmt = config.LOGGING_DATEFMT
-)
-
 class BrickLoggingHandler(logging.Handler):
     def __init__(self):
         logging.Handler.__init__(self)
-
-        self.loga = open('brickd.log', 'a')
 
         self.setFormatter(logging.Formatter(fmt=config.LOGGING_FORMAT,
                                             datefmt=config.LOGGING_DATEFMT))
 
     def emit(self, record):
-        self.loga.write(self.format(record).rstrip('\n') + '\r\n')
-        self.loga.flush()
-
         OutputDebugString(self.format(record))
         if record.levelno in [logging.ERROR, logging.WARN]:
             servicemanager.LogMsg (
@@ -108,12 +97,15 @@ class BrickdWindows(win32serviceutil.ServiceFramework):
         return rc
 
     def SvcOtherEx(self, control, event_type, data):
-        if event_type == DBT_DEVICEARRIVAL:
-            logging.info("New USB device")
-            self.usb_notifier.notify_added()
-        elif event_type == DBT_DEVICEREMOVECOMPLETE:
-            logging.info("Removed USB device")
-            self.usb_notifier.notify_removed()
+        try:
+            if event_type == DBT_DEVICEARRIVAL:
+                logging.info("New USB device")
+                self.usb_notifier.notify_added()
+            elif event_type == DBT_DEVICEREMOVECOMPLETE:
+                logging.info("Removed USB device")
+                self.usb_notifier.notify_removed()
+        except:
+            logging.exception("Caught unexpected exception in SvcOtherEx")
 
     def SvcStop(self):
         reactor.stop()
@@ -121,18 +113,35 @@ class BrickdWindows(win32serviceutil.ServiceFramework):
         win32event.SetEvent(self.hWaitStop)
 
     def SvcDoRun(self):
+        logfile = open('brickd.log', 'a')
+
+        logging.basicConfig(
+            level = config.LOGGING_LEVEL,
+            format = config.LOGGING_FORMAT,
+            datefmt = config.LOGGING_DATEFMT,
+            stream = logfile
+        )
+
+        sys.stdout = logfile
+        sys.stderr = logfile
+
         logging.getLogger().addHandler(BrickLoggingHandler())
         logging.info("brickd started")
 
-        self.usb_notifier = USBNotifier()
-        reactor.listenTCP(config.PORT, BrickProtocolFactory())
-
         try:
-            reactor.run(installSignalHandlers = True)
-        except KeyboardInterrupt:
-            reactor.stop()
+            self.usb_notifier = USBNotifier()
+            reactor.listenTCP(config.PORT, BrickProtocolFactory())
 
-        win32event.WaitForSingleObject(self.hWaitStop, win32event.INFINITE)
+            try:
+                reactor.run(installSignalHandlers = True)
+            except KeyboardInterrupt:
+                reactor.stop()
+
+            win32event.WaitForSingleObject(self.hWaitStop, win32event.INFINITE)
+        except:
+            logging.exception("Caught unexpected exception in SvcDoRun")
+
+        logging.info("brickd stopped")
 
 # Handler for custom cmdline_style
 def HandleCommandLine():
