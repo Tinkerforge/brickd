@@ -51,9 +51,7 @@ def build_macos_pkg():
 
     PWD = os.path.dirname(os.path.realpath(__file__))
     RES_PATH = os.path.join(PWD, 'dist', '%s.app' % 'brickd', 'Contents', 'Resources')
-    data_files = [
-        ("../build_data/macos/", glob.glob(os.path.join(PWD, "../build_data/macos/", "*.nib"))),
-    ]
+    data_files = []
     packages = find_packages()
 
     plist = dict(
@@ -63,7 +61,7 @@ def build_macos_pkg():
         CFBundleExecutable = 'brickd_macosx',
         CFBundleIdentifier = 'com.tinkerforge.brickd',
         # hide dock icon
-    #    LSUIElement = True,
+        #LSUIElement = True,
     )
 
     additional_data_files = []
@@ -76,10 +74,7 @@ def build_macos_pkg():
                 else: # keep full path
                     additional_data_files.append((os.path.join(dirname) , [os.path.join(dirname, n)]))
     
-    os.path.walk(os.path.normcase("../build_data/macos/"), visitor, ('y',os.path.normcase("../build_data/macos/")))
-    
-
-
+#    os.path.walk(os.path.normcase("../build_data/macos/"), visitor, ('y',os.path.normcase("../build_data/macos/")))
 
     def delete_old():
         BUILD_PATH = os.path.join(PWD, "build")
@@ -90,36 +85,24 @@ def build_macos_pkg():
             shutil.rmtree(DIST_PATH)
 
     def create_app():
-        apps = [
-            {
-                "script" : 'brickd_macosx.py',
-                "plist" : plist,
-            }
-        ]
-
-        OPTIONS = {'argv_emulation': True, 'site_packages': True, "includes":[],}
-
+        apps = [{ 'script' : 'brickd_macosx.py', 'plist' : plist }]
+        options = { 'argv_emulation' : True, 'site_packages' : True, 'includes' : [] }
         data = data_files + additional_data_files
 
-        setup(
-            name = 'brickd_macosx',
-            version = config.BRICKD_VERSION,
-            description = 'Brick Daemon Software',
-            author = 'Tinkerforge',
-            author_email = 'info@tinkerforge.com',
-            platforms = ["Mac OSX"],
-            license = "GPL V2",
-            url = "http://www.tinkerforge.com",
-            scripts = ['brickd_macosx.py'],
-
-            app = apps,
-            options = {'py2app': OPTIONS},
-            # setup_requires = ['py2app'],
-            data_files = data,
-            packages = packages,
-        )
-
-        print data
+        setup(name = 'brickd_macosx',
+              version = config.BRICKD_VERSION,
+              description = 'Brick Daemon Software',
+              author = 'Tinkerforge',
+              author_email = 'info@tinkerforge.com',
+              platforms = ["Mac OSX"],
+              license = "GPL V2",
+              url = "http://www.tinkerforge.com",
+              scripts = ['brickd_macosx.py'],
+              app = apps,
+              options = {'py2app': options},
+              #setup_requires = ['py2app'],
+              data_files = data,
+              packages = packages)
 
     _RUN_IN_TERM_PATCH = """import os
 import sys
@@ -158,7 +141,6 @@ os.environ['RESOURCEPATH'] = os.path.dirname(os.path.realpath(__file__))
         os.mkdir("macos_build")
         distutils.dir_util.copy_tree("../build_data/macos/", "macos_build")
         distutils.dir_util.copy_tree("dist", "macos_build/data")
-        distutils.dir_util.copy_tree("../build_data/macos/data/libusb/", "macos_build/data/brickd.app/Contents/Resources/")
 
 #        subprocess.call('./_build_dmg.sh', shell=True)
 
