@@ -58,6 +58,16 @@ def get_usb_device_from_data(data):
     
     return None
 
+BASE58 = '123456789abcdefghijkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ'
+def base58encode(value):
+    encoded = ''
+    while value >= 58:
+        div, mod = divmod(value, 58)
+        encoded = BASE58[mod] + encoded
+        value = div
+    encoded = BASE58[value] + encoded
+    return encoded
+
 class BrickProtocol(Protocol):
     def __init__(self):
         self.pending_data = ''
@@ -78,7 +88,7 @@ class BrickProtocol(Protocol):
         for item in device_dict.items():
             if uid == item[1][1]:
                 logging.info("Adding device " + 
-                             str(struct.unpack('<Q', uid)[0]))
+                             base58encode(struct.unpack('<Q', uid)[0]))
                 device_dict[item[0]][3].add(self.callback)
             
     def remove_connections(self):
@@ -140,7 +150,6 @@ class BrickProtocol(Protocol):
             usb_device.add_read_callback(key, self.callback)
 
             usb_device.write_data_queue.put(packet)
-
 
 class BrickProtocolFactory(Factory):
     protocol = BrickProtocol
