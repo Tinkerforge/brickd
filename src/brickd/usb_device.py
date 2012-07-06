@@ -323,15 +323,13 @@ class USBDevice:
                 transfer = self.write_transfer_queue.get()
                 if not transfer: 
                     if not self.alive:
-                        logging.info("Exit write thread")
-                        return
+                        break
                     continue
 
                 data = self.write_data_queue.get()
                 if not data:
                     if not self.alive:
-                        logging.info("Exit write thread")
-                        return
+                        break
                     continue
 
                 # Apply routing table
@@ -347,6 +345,7 @@ class USBDevice:
                 self.write_transfer_queue.task_done()
         except:
             self.alive = False
+
         logging.info("Exit write thread")
     
     def event_loop(self):
