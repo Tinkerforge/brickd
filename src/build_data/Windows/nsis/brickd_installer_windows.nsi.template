@@ -69,7 +69,7 @@ Section "Install Brickd ${BRICKD_VERSION} Program"
     MessageBox MB_YESNO|MB_ICONQUESTION "Brickd version $0 seems to be already installed on your system.$\n\
     Would you like to proceed with the installation of version ${BRICKD_VERSION}? $\n\
     Old version will be uninstalled first." \
-        IDYES uninstall IDNO quit
+        /SD IDYES IDYES uninstall IDNO quit
 
   quit:
     Quit
@@ -108,9 +108,9 @@ Section "Register Brickd ${BRICKD_VERSION} Service"
   DetailPrint "$0 $1"
 
   MessageBox MB_OK "A driver installation might be necessary when devices will be connected.$\n\
-    Please choose manually the driver folder in your brickd installation to install the drivers."
+    Please choose manually the driver folder in your brickd installation to install the drivers." /SD IDOK
 
-  MessageBox MB_YESNO "A reboot is required to finish the installation. Do you wish to reboot now?" IDNO quit
+  MessageBox MB_YESNO "A reboot is required to finish the installation. Do you wish to reboot now?" /SD IDNO IDNO quit
     Reboot
   quit:
 
