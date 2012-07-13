@@ -109,8 +109,8 @@ class USBDevice:
             
             self.get_devices()
         except:
-            self.alive = False
             logging.exception("Could not create USB Device")
+            self.alive = False
         
     def add_read_transfer(self):
         logging.info("Adding read transfer")
@@ -344,6 +344,7 @@ class USBDevice:
                 self.write_data_queue.task_done()
                 self.write_transfer_queue.task_done()
         except:
+            logging.exception("Could not write to USB Device")
             self.alive = False
 
         logging.info("Exit write thread")

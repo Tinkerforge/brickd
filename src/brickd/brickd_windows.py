@@ -105,7 +105,7 @@ class BrickdWindows(win32serviceutil.ServiceFramework):
                 logging.info("Removed USB device")
                 self.usb_notifier.notify_removed()
         except:
-            logging.exception("Caught unexpected exception in SvcOtherEx")
+            logging.exception("Caught unhandled exception in SvcOtherEx")
 
     def SvcStop(self):
         reactor.stop()
@@ -139,7 +139,7 @@ class BrickdWindows(win32serviceutil.ServiceFramework):
 
             win32event.WaitForSingleObject(self.hWaitStop, win32event.INFINITE)
         except:
-            logging.exception("Caught unexpected exception in SvcDoRun")
+            logging.exception("Caught unhandled exception in SvcDoRun")
 
         logging.info("brickd stopped")
 
