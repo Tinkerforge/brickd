@@ -158,13 +158,19 @@ class USBDevice:
         self.event_loop_thread.join()
 
         # Cancel pending USBTransfers and close all USBTransfers
-        for transfer in self.read_transfers + self.write_transfers:
+        # FIXME: There are situations (for example after waking up from a
+        # suspend-to-*) where libusb seems to have a problem and canceling a
+        # transfer that seems to be pending results in a segfault in
+        # libusb_cancel_transfer. So we prefer leaking the transfer here over
+        # the risk of a potential segfault for now. This problem is present
+        # in libusb 1.0.8 and 1.0.9
+        """for transfer in self.read_transfers + self.write_transfers:
             try:
                 if transfer.isSubmitted():
                     transfer.cancel()
                 transfer.close()
             except:
-                pass
+                pass"""
 
         self.usb_handle.close()
 
