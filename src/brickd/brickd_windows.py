@@ -126,7 +126,7 @@ class BrickdWindows(win32serviceutil.ServiceFramework):
         sys.stderr = logfile
 
         logging.getLogger().addHandler(BrickLoggingHandler())
-        logging.info("brickd started")
+        logging.info("brickd {0} started".format(config.BRICKD_VERSION))
 
         try:
             self.usb_notifier = USBNotifier()
@@ -141,7 +141,7 @@ class BrickdWindows(win32serviceutil.ServiceFramework):
         except:
             logging.exception("Caught unhandled exception in SvcDoRun")
 
-        logging.info("brickd stopped")
+        logging.info("brickd {0} stopped".format(config.BRICKD_VERSION))
 
 # Handler for custom cmdline_style
 def HandleCommandLine():

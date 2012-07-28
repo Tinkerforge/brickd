@@ -157,7 +157,7 @@ class BrickdMacOS:
         self.stderr = stderr
         
     def start(self):
-        logging.info("brickd started")
+        logging.info("brickd {0} started".format(config.BRICKD_VERSION))
 
         from twisted.internet import reactor
 
@@ -176,7 +176,7 @@ class BrickdMacOS:
         except KeyboardInterrupt:
             reactor.stop()
 
-        logging.info("brickd stopped")
+        logging.info("brickd {0} stopped".format(config.BRICKD_VERSION))
     
     def daemonize(self):
         # double fork doesn't work on mac os x, launching with launchctl after the py2app

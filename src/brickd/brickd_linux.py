@@ -74,7 +74,7 @@ class BrickdLinux:
         signal.signal(signal.SIGTERM, lambda s, f: exit_brickd(s, f, r)) 
         
     def start(self):
-        logging.info("brickd started")
+        logging.info("brickd {0} started".format(config.BRICKD_VERSION))
         
         self.usb_notifier = USBNotifier()
         
@@ -88,7 +88,7 @@ class BrickdLinux:
         except KeyboardInterrupt:
             reactor.stop()
 
-        logging.info("brickd stopped")
+        logging.info("brickd {0} stopped".format(config.BRICKD_VERSION))
     
     def notify_udev(self, client, action, device):
         if action == "add":
