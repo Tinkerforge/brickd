@@ -24,7 +24,7 @@ Boston, MA 02111-1307, USA.
 import logging
 import struct
 from threading import Lock
-from libusb import libusb1
+from libusb import libusb1, usb1
 from collections import deque
 from threading import Thread
 
@@ -54,25 +54,42 @@ class USBDevice:
     TYPE_GET_STACK_ID = 255
     TYPE_ENUMERATE = 254
     TYPE_ENUMERATE_CALLBACK = 253
-    TYPE_STACK_ENUMERATE = 252
-    TYPE_ADC_CALIBRATE = 251
-    TYPE_GET_ADC_CALIBRATION = 250
     
     MAX_CONCURRENT_REQUESTS = 25
     
-    def __init__(self, usb_device, context):
-        self.usb_device = usb_device
-        self.context = context
+    def __init__(self, address):
+        self.address = address
+        self.device = None
+
+        try:
+            self.context = usb1.USBContext()
+        except:
+            logging.exception("Could not create extra USB context")
+            return
+
+        try:
+            for device in self.context.getDeviceList():
+                if address == (device.getBusNumber(), device.getDeviceAddress()):
+                    self.device = device
+                    break
+        except:
+            logging.exception("Could not enumerate USB devices")
+            return
+
+        if self.device is None:
+            logging.error("Could not find USB device")
+            return
+
         self.routing_table_lock = Lock()
 
         try:
             # open the device for communication
-            self.usb_handle = self.usb_device.open()
-            self.usb_handle.resetDevice()
+            self.handle = self.device.open()
+            self.handle.resetDevice()
             
             # claim configuration and interface
-            self.usb_handle.setConfiguration(USBDevice.USB_CONFIGURATION)
-            self.usb_handle.claimInterface(USBDevice.USB_INTERFACE)
+            self.handle.setConfiguration(USBDevice.USB_CONFIGURATION)
+            self.handle.claimInterface(USBDevice.USB_INTERFACE)
 
             self.data_callback = {}
             
@@ -114,7 +131,7 @@ class USBDevice:
         
     def add_read_transfer(self):
         logging.info("Adding read transfer")
-        transfer = self.usb_handle.getTransfer()
+        transfer = self.handle.getTransfer()
         transfer.setBulk(USBDevice.USB_ENDPOINT_IN + 0x80, 
                          4096, 
                          self.read_callback)
@@ -123,7 +140,7 @@ class USBDevice:
         
     def add_write_transfer(self):
         logging.info("Adding write transfer")
-        transfer = self.usb_handle.getTransfer()
+        transfer = self.handle.getTransfer()
         self.write_transfer_queue.put(transfer)
         self.write_transfers.append(transfer)
         
@@ -172,7 +189,11 @@ class USBDevice:
             except:
                 pass"""
 
-        self.usb_handle.close()
+        try:
+            self.handle.close()
+            self.context.exit()
+        except:
+            logging.exception("Could not close USB handle and exit USB context")
 
     def add_read_callback(self, key, callback):
         if key in self.data_callback:

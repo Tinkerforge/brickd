@@ -30,50 +30,41 @@ import brick_protocol
 class USBNotifier():
     USB_VENDOR_ID = 0x16D0
     USB_PRODUCT_ID = 0x063D
+
     def __init__(self):
         self.context = usb1.USBContext()
         self.active_devices = self.find_all_devices()
         
-        for device in self.active_devices:
-            USBDevice(device, self.context)
+        for address in self.active_devices:
+            USBDevice(address)
             
-    def get_addr(self, device):
+    def get_device_address(self, device):
         return (device.getBusNumber(), device.getDeviceAddress())
 
     def notify_added(self):
-        new = self.find_all_devices()
-        addr = {}
-
-        for device in new:
-            addr[self.get_addr(device)] = device
-        
-        for device in self.active_devices:
-            if self.get_addr(device) in addr:
-                addr.pop(self.get_addr(device))
-                
-        for device in addr.values():
-            if device not in self.active_devices:
-                self.active_devices.append(device)
-                USBDevice(device, self.context)
+        for address in self.find_all_devices():
+            if address not in self.active_devices:
+                self.active_devices.append(address)
+                USBDevice(address)
              
     def notify_removed(self):
-        new = self.find_all_devices()
-        addr = self.device_addresses()
+        all_devices = self.find_all_devices()
+        removed_devices = []
 
-        for device in new:
-            if self.get_addr(device) in addr:
-                addr.remove(self.get_addr(device))
-                
-        for device in self.device_by_addr(addr):
-            self.active_devices.remove(device)
+        for address in self.active_devices:
+            if address not in all_devices:
+                removed_devices.append(address)
+
+        for address in removed_devices:
+            self.active_devices.remove(address)
             for item in brick_protocol.device_dict.items():
-                if item[1][0].usb_device is device:
+                if item[1][0].address == address:
                     item[1][0].delete()
                     brick_protocol.device_dict.pop(item[0])
 
     def find_all_devices(self):
         """ 
-        Finds and returns all supported usb devices.
+        Finds and returns all supported USB devices as addresses.
         """
 
         devices = []
@@ -81,31 +72,8 @@ class USBNotifier():
             for device in self.context.getDeviceList():
                 if device.getVendorID() == USBNotifier.USB_VENDOR_ID and \
                    device.getProductID() == USBNotifier.USB_PRODUCT_ID:
-                    devices.append(device)
+                    devices.append(self.get_device_address(device))
         except:
             logging.exception("Could not enumerate USB devices")
 
         return devices
-    
-    def device_addresses(self):
-        """ 
-        Returns addresses from all devices.
-        """
-        
-        return [self.get_addr(dev) for dev in self.active_devices]
-    
-    def device_by_addr(self, addr):
-        """ 
-        Finds and returns device by address.
-        """
-        
-        if not addr.__class__ == list:
-            addr = [addr]
-            
-        devices = []
-        for device in self.active_devices:
-            if self.get_addr(device) in addr:
-                devices.append(device)
-                
-        return devices
-    
