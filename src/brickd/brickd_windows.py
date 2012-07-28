@@ -113,20 +113,29 @@ class BrickdWindows(win32serviceutil.ServiceFramework):
         win32event.SetEvent(self.hWaitStop)
 
     def SvcDoRun(self):
-        logfile = open('brickd.log', 'a')
+        try:
+            logfile = open('brickd.log', 'a')
+        except:
+            logfile = None
 
-        logging.basicConfig(
-            level = config.LOGGING_LEVEL,
-            format = config.LOGGING_FORMAT,
-            datefmt = config.LOGGING_DATEFMT,
-            stream = logfile
-        )
+        if logfile is not None:
+            logging.basicConfig(level = config.LOGGING_LEVEL,
+                                format = config.LOGGING_FORMAT,
+                                datefmt = config.LOGGING_DATEFMT,
+                                stream = logfile)
 
-        sys.stdout = logfile
-        sys.stderr = logfile
+            sys.stdout = logfile
+            sys.stderr = logfile
+        else:
+            logging.basicConfig(level = config.LOGGING_LEVEL,
+                                format = config.LOGGING_FORMAT,
+                                datefmt = config.LOGGING_DATEFMT)
 
         logging.getLogger().addHandler(BrickLoggingHandler())
         logging.info("brickd {0} started".format(config.BRICKD_VERSION))
+
+        if logfile is None:
+            logging.warning("Could not open log file")
 
         try:
             self.usb_notifier = USBNotifier()
