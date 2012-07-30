@@ -35,6 +35,8 @@ import config
 PIDFILE = '/var/run/brickd.pid'
 if "TF_RUNTIME_DIR" in os.environ:
     PIDFILE = os.environ['TF_RUNTIME_DIR'] + '/brickd.pid'
+elif "XDG_RUNTIME_DIR" in os.environ:
+    PIDFILE = os.environ['XDG_RUNTIME_DIR'] + '/brickd.pid'
 
 LOGFILE = '/var/log/brickd.log'
 if "TF_LOG_DIR" in os.environ:
