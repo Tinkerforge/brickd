@@ -1286,6 +1286,9 @@ class USBDevice(object):
                 # Some devices (ex windows' root hubs) tell they have one
                 # configuration, but they have no configuration descriptor.
                 continue
+            if result == libusb1.LIBUSB_ERROR_ACCESS:
+                # Ignore devices you do not have permission to connect to
+                continue
             if result:
                 raise libusb1.USBError(result)
             append(config.contents)
