@@ -16,5 +16,5 @@
        Avoid race condition when enumerating USB devices on Linux
        Use more expressive log file name and correct line endings on Windows
        Don't cancel pending USB transfers to avoid segfault in libusb on USB hotunplug on Linux
-       Update libsub to make USB 3.0 work on Windows
+       Update libusb to make USB 3.0 work on Windows
        Increase USB hotplug/unplug stability by using a libusb context per device
