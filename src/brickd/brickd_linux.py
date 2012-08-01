@@ -41,6 +41,11 @@ elif "XDG_RUNTIME_DIR" in os.environ:
 LOGFILE = '/var/log/brickd.log'
 if "TF_LOG_DIR" in os.environ:
     LOGFILE = os.environ['TF_LOG_DIR'] + '/brickd.log'
+elif os.getuid() != 0 and "HOME" in os.environ:
+    log_dir = os.environ['HOME'] + '/brickd'
+    if not os.path.isdir(log_dir):
+        os.mkdir(log_dir)
+    LOGFILE = log_dir + '/brickd.log'
 
 logging.basicConfig(
     level = config.LOGGING_LEVEL, 
