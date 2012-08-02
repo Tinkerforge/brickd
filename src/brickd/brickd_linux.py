@@ -32,21 +32,39 @@ from usb_notifier import USBNotifier
 from brick_protocol import BrickProtocolFactory, exit_brickd
 import config
 
-PIDFILE = '/var/run/brickd.pid'
-if "TF_RUNTIME_DIR" in os.environ:
-    PIDFILE = os.environ['TF_RUNTIME_DIR'] + '/brickd.pid'
-elif "XDG_RUNTIME_DIR" in os.environ:
-    PIDFILE = os.environ['XDG_RUNTIME_DIR'] + '/brickd.pid'
+# logfile
+LOG_FILENAME = '/var/log/brickd.log'
+TF_DATA_DIR = os.getenv('TF_DATA_DIR')
 
-LOGFILE = '/var/log/brickd.log'
-if "TF_LOG_DIR" in os.environ:
-    LOGFILE = os.environ['TF_LOG_DIR'] + '/brickd.log'
-elif os.getuid() != 0 and "HOME" in os.environ:
-    log_dir = os.environ['HOME'] + '/brickd'
-    if not os.path.isdir(log_dir):
-        os.mkdir(log_dir)
-    LOGFILE = log_dir + '/brickd.log'
+if TF_DATA_DIR is not None and len(TF_DATA_DIR) > 0:
+    LOG_FILENAME = os.path.join(TF_DATA_DIR, 'brickd.log')
+elif os.getuid() != 0:
+    XDG_DATA_DIR = os.getenv('XDG_DATA_DIR')
 
+    if XDG_DATA_DIR is not None and len(XDG_DATA_DIR) > 0:
+        LOG_FILENAME = os.path.join(XDG_DATA_DIR, 'brickd.log')
+    else:
+        LOG_FILENAME = os.path.expanduser('~/.brickd/brickd.log')
+
+LOG_DIRNAME = os.path.dirname(LOG_FILENAME)
+
+# pidfile
+PID_FILENAME = '/var/run/brickd.pid'
+TF_RUNTIME_DIR = os.getenv('TF_RUNTIME_DIR')
+
+if TF_RUNTIME_DIR is not None and len(TF_RUNTIME_DIR) > 0:
+    PID_FILENAME = os.path.join(TF_RUNTIME_DIR, 'brickd.pid')
+elif os.getuid() != 0:
+    XDG_RUNTIME_DIR = os.getenv('XDG_RUNTIME_DIR')
+
+    if XDG_RUNTIME_DIR is not None and len(XDG_RUNTIME_DIR) > 0:
+        PID_FILENAME = os.path.join(XDG_RUNTIME_DIR, 'brickd.pid')
+    else:
+        PID_FILENAME = os.path.expanduser('~/.brickd/brickd.pid')
+
+PID_DIRNAME = os.path.dirname(PID_FILENAME)
+
+# logging
 logging.basicConfig(
     level = config.LOGGING_LEVEL, 
     format = config.LOGGING_FORMAT,
@@ -72,7 +90,14 @@ except ImportError:
 from twisted.internet import reactor
 
 class BrickdLinux:
-    def __init__(self, stdin='/dev/null', stdout=LOGFILE, stderr=LOGFILE):
+    def __init__(self, stdin='/dev/null', stdout=LOG_FILENAME, stderr=LOG_FILENAME):
+        if os.getuid() != 0:
+            if not os.path.exists(LOG_DIRNAME):
+                os.makedirs(LOG_DIRNAME)
+
+            if not os.path.exists(PID_DIRNAME):
+                os.makedirs(PID_DIRNAME)
+
         self.stdin = stdin
         self.stdout = stdout
         self.stderr = stderr
@@ -132,18 +157,28 @@ class BrickdLinux:
         os.chdir("/") 
         os.setsid() 
         os.umask(0) 
-    
+
         # do second fork
-        try: 
+        try:
             pid = os.fork() 
             if pid > 0:
-                open(PIDFILE, 'w').write("%d" % pid)
+                try:
+                    open(PID_FILENAME, 'w').write("%d" % pid)
+                except IOError, e:
+                    sys.stderr.write("Could not write to pidfile %s: %s\n" % (PID_FILENAME, str(e)))
+                    sys.exit(1)
                 # exit from second parent
-                sys.exit(0) 
-        except OSError, e: 
+                sys.exit(0)
+        except OSError, e:
             sys.stderr.write("fork #2 failed: %d (%s)\n" % (e.errno, e.strerror))
-            sys.exit(1) 
-    
+            sys.exit(1)
+
+        try:
+            open(LOG_FILENAME, 'a+').close()
+        except IOError, e:
+            sys.stderr.write("Could not open logfile %s: %s\n" % (LOG_FILENAME, str(e)))
+            sys.exit(1)
+
         # redirect standard file descriptors
         sys.stdout.flush()
         sys.stderr.flush()
