@@ -33,7 +33,19 @@ from brick_protocol import BrickProtocolFactory, exit_brickd
 import config
 
 PIDFILE = '/var/run/brickd.pid'
+if "TF_RUNTIME_DIR" in os.environ:
+    PIDFILE = os.environ['TF_RUNTIME_DIR'] + '/brickd.pid'
+elif "XDG_RUNTIME_DIR" in os.environ:
+    PIDFILE = os.environ['XDG_RUNTIME_DIR'] + '/brickd.pid'
+
 LOGFILE = '/var/log/brickd.log'
+if "TF_LOG_DIR" in os.environ:
+    LOGFILE = os.environ['TF_LOG_DIR'] + '/brickd.log'
+elif os.getuid() != 0 and "HOME" in os.environ:
+    log_dir = os.environ['HOME'] + '/brickd'
+    if not os.path.isdir(log_dir):
+        os.mkdir(log_dir)
+    LOGFILE = log_dir + '/brickd.log'
 
 logging.basicConfig(
     level = config.LOGGING_LEVEL, 
@@ -147,8 +159,6 @@ class BrickdLinux:
 if __name__ == "__main__":
     if "--version" in sys.argv:
         print config.BRICKD_VERSION
-    elif os.geteuid() != 0:
-        sys.stderr.write("brickd has to be started as root, exiting\n")
     else:
         brickd = BrickdLinux()
         if "nodaemon" in sys.argv or "--no-daemon" in sys.argv:
