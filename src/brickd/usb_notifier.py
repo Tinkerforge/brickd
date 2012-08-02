@@ -69,7 +69,7 @@ class USBNotifier():
 
         devices = []
         try:
-            for device in self.context.getDeviceList():
+            for device in self.context.getDeviceList(True):
                 if device.getVendorID() == USBNotifier.USB_VENDOR_ID and \
                    device.getProductID() == USBNotifier.USB_PRODUCT_ID:
                     devices.append(self.get_device_address(device))

@@ -68,8 +68,8 @@ class USBDevice:
             return
 
         try:
-            for device in self.context.getDeviceList():
-                if address == (device.getBusNumber(), device.getDeviceAddress()):
+            for device in self.context.getDeviceList(True):
+                if self.address == (device.getBusNumber(), device.getDeviceAddress()):
                     self.device = device
                     break
         except:
@@ -84,7 +84,15 @@ class USBDevice:
 
         try:
             # open the device for communication
-            self.handle = self.device.open()
+            try:
+                self.handle = self.device.open()
+            except libusb1.USBError, e:
+                if e.value != libusb1.LIBUSB_ERROR_ACCESS:
+                    raise
+                else:
+                    logging.info("Ignoring inaccessible USB device {0}".format(self.address))
+                    return
+
             self.handle.resetDevice()
             
             # claim configuration and interface
