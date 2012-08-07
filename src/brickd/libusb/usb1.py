@@ -1546,14 +1546,13 @@ class USBContext(object):
             self.__removed_cb = None
 
     @_validContext
-    def getDeviceList(self, skip_on_access_error=False):
+    def getDeviceList(self, skip_on_error=False):
         """
         Return a list of all USB devices currently plugged in, as USBDevice
         instances.
 
-        skip_on_access_error (bool)
-            If True, catch LIBUSB_ERROR_ACCESS errors and just skip to next
-            device.
+        skip_on_error (bool)
+            If True, catch errors and just skip to next device.
         """
         device_p_p = libusb1.libusb_device_p_p()
         libusb_device_p = libusb1.libusb_device_p
@@ -1572,8 +1571,7 @@ class USBContext(object):
                 # code.
                 device = USBDevice(self, libusb_device_p(device_p.contents))
             except libusb1.USBError, exc:
-                if exc.value != libusb1.LIBUSB_ERROR_ACCESS or \
-                        not skip_on_access_error:
+                if not skip_on_error:
                     raise
             else:
                 append(device)
@@ -1581,15 +1579,15 @@ class USBContext(object):
         return result
 
     def getByVendorIDAndProductID(self, vendor_id, product_id,
-            skip_on_access_error=False):
+            skip_on_error=False):
         """
         Get the first USB device matching given vendor and product ids.
         Returns an USBDevice instance, or None if no present device match.
-        skip_on_access_error (bool)
+        skip_on_error (bool)
             (see getDeviceList)
         """
         for device in self.getDeviceList(
-                skip_on_access_error=skip_on_access_error):
+                skip_on_error=skip_on_error):
             if device.getVendorID() == vendor_id and \
                     device.getProductID() == product_id:
                 result = device
@@ -1599,16 +1597,16 @@ class USBContext(object):
         return result
 
     def openByVendorIDAndProductID(self, vendor_id, product_id,
-            skip_on_access_error=False):
+            skip_on_error=False):
         """
         Get the first USB device matching given vendor and product ids.
         Returns an USBDeviceHandle instance, or None if no present device
         match.
-        skip_on_access_error (bool)
+        skip_on_error (bool)
             (see getDeviceList)
         """
         result = self.getByVendorIDAndProductID(vendor_id, product_id,
-            skip_on_access_error=skip_on_access_error)
+            skip_on_error=skip_on_error)
         if result is not None:
             result = result.open()
         return result
