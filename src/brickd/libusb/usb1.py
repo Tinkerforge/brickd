@@ -115,6 +115,11 @@ class USBTransfer(object):
     All modification methods will raise if called on a submitted transfer.
     Methods noted as "should not be called on a submitted transfer" will not
     prevent you from reading, but returned value is unspecified.
+
+    Note on user_data: because of pypy's current ctype restrictions, user_data
+    is not provided to C level, but is managed purely in python. It should
+    change nothing for you, unless you are looking at underlying C transfer
+    structure - which you should never have to.
     """
     # Prevent garbage collector from freeing the free function before our
     # instances, as we need it to property destruct them.
@@ -128,6 +133,8 @@ class USBTransfer(object):
     __callback = None
     __ctypesCallbackWrapper = None
     __doomed = False
+    __user_data = None
+    __transfer_buffer = None
 
     def __init__(self, handle, iso_packets=0):
         """
@@ -247,10 +254,12 @@ class USBTransfer(object):
             string_buffer = create_binary_buffer(length + \
                 libusb1.LIBUSB_CONTROL_SETUP_SIZE)
         self.__initialized = False
+        self.__transfer_buffer = string_buffer
+        self.__user_data = user_data
         libusb1.libusb_fill_control_setup(string_buffer, request_type,
             request, value, index, length)
         libusb1.libusb_fill_control_transfer(self.__transfer, self.__handle,
-            string_buffer, self.__ctypesCallbackWrapper, user_data, timeout)
+            string_buffer, self.__ctypesCallbackWrapper, None, timeout)
         self.__callback = callback
         self.__initialized = True
 
@@ -275,9 +284,11 @@ class USBTransfer(object):
             raise DoomedTransferError('Cannot reuse a doomed transfer')
         string_buffer = create_binary_buffer(buffer_or_len)
         self.__initialized = False
+        self.__transfer_buffer = string_buffer
+        self.__user_data = user_data
         libusb1.libusb_fill_bulk_transfer(self.__transfer, self.__handle,
             endpoint, string_buffer, sizeof(string_buffer),
-            self.__ctypesCallbackWrapper, user_data, timeout)
+            self.__ctypesCallbackWrapper, None, timeout)
         self.__callback = callback
         self.__initialized = True
 
@@ -302,9 +313,11 @@ class USBTransfer(object):
             raise DoomedTransferError('Cannot reuse a doomed transfer')
         string_buffer = create_binary_buffer(buffer_or_len)
         self.__initialized = False
+        self.__transfer_buffer = string_buffer
+        self.__user_data = user_data
         libusb1.libusb_fill_interrupt_transfer(self.__transfer, self.__handle,
             endpoint, string_buffer,  sizeof(string_buffer),
-            self.__ctypesCallbackWrapper, user_data, timeout)
+            self.__ctypesCallbackWrapper, None, timeout)
         self.__callback = callback
         self.__initialized = True
 
@@ -353,9 +366,11 @@ class USBTransfer(object):
                     buffer_length))
         transfer_p = self.__transfer
         self.__initialized = False
+        self.__transfer_buffer = string_buffer
+        self.__user_data = user_data
         libusb1.libusb_fill_iso_transfer(transfer_p, self.__handle,
             endpoint, string_buffer, buffer_length, configured_iso_packets,
-            self.__ctypesCallbackWrapper, user_data, timeout)
+            self.__ctypesCallbackWrapper, None, timeout)
         for length, iso_packet_desc in zip(iso_transfer_length_list,
                 libusb1.get_iso_packet_list(transfer_p)):
             if length <= 0:
@@ -409,7 +424,7 @@ class USBTransfer(object):
         """
         Retrieve user data provided on setup.
         """
-        return self.__transfer.contents.user_data
+        return self.__user_data
 
     def setUserData(self, user_data):
         """
@@ -417,7 +432,7 @@ class USBTransfer(object):
         """
         if self.__submitted:
             raise ValueError('Cannot alter a submitted transfer')
-        self.__transfer.contents.user_data = user_data
+        self.__user_data = user_data
 
     def getISOBufferList(self):
         """
@@ -477,6 +492,7 @@ class USBTransfer(object):
                 sizeof(buff) != transfer.length:
             raise ValueError('To alter isochronous transfer buffer length, '
                 'use setIsochronous')
+        self.__transfer_buffer = buff
         transfer.buffer = cast(buff, c_void_p)
         transfer.length = sizeof(buff)
 
