@@ -9,4 +9,4 @@ LOGGING_FORMAT = "%(asctime)s <%(levelname)s> <%(filename)s:%(lineno)s> %(messag
 LOGGING_DATEFMT = "%Y-%m-%d %H:%M:%S"
 PORT = 4223
 
-BRICKD_VERSION = "1.0.9"
+BRICKD_VERSION = "1.0.10"

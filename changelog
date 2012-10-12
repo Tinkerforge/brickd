@@ -18,3 +18,5 @@
        Don't cancel pending USB transfers to avoid segfault in libusb on USB hotunplug on Linux
        Update libusb to make USB 3.0 work on Windows
        Increase USB hotplug/unplug stability by using a libusb context per device
+1.0.10: Enable non-root usage on Linux
+        Avoid potential data corruption in python-libusb1
