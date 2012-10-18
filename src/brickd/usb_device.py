@@ -323,6 +323,17 @@ class USBDevice:
                 # Stack ID = 0 -> Broadcast Message
                 if stack_id == 0:
                     for bp in brick_protocol.brick_protocol_list:
+                        if type == USBDevice.TYPE_GET_STACK_ID:
+                            uid = data[4:12]
+                            bp.pending_get_stack_id_requests_lock.acquire()
+
+                            if uid not in bp.pending_get_stack_id_requests:
+                                bp.pending_get_stack_id_requests_lock.release()
+                                continue
+
+                            bp.pending_get_stack_id_requests.remove(uid)
+                            bp.pending_get_stack_id_requests_lock.release()
+
                         callback = bp.callback
                         twisted.internet.reactor.callFromThread(callback, data)
                 elif stack_id in brick_protocol.device_dict:

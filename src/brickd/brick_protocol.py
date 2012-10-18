@@ -22,6 +22,7 @@ Boston, MA 02111-1307, USA.
 """
 
 from twisted.internet.protocol import Factory, Protocol
+from threading import Lock
 
 import logging
 import struct
@@ -71,6 +72,8 @@ def base58encode(value):
 class BrickProtocol(Protocol):
     def __init__(self):
         self.pending_data = ''
+        self.pending_get_stack_id_requests = set()
+        self.pending_get_stack_id_requests_lock = Lock()
 
     def connectionMade(self):
         brick_protocol_list.append(self)
@@ -109,7 +112,12 @@ class BrickProtocol(Protocol):
         stack_id = get_stack_id_from_data(data)
         type = get_type_from_data(data)
         if type == 255 and stack_id == 0:
-            self.add_connection(data[4:12])
+            uid = data[4:12]
+            self.add_connection(uid)
+
+            self.pending_get_stack_id_requests_lock.acquire()
+            self.pending_get_stack_id_requests.add(uid)
+            self.pending_get_stack_id_requests_lock.release()
         
     def handle_broadcast(self, data):
         self.special_data_handling(data)
