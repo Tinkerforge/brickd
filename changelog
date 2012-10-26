@@ -20,6 +20,6 @@
        Increase USB hotplug/unplug stability by using a libusb context per device
 1.0.10: Enable non-root usage on Linux
         Avoid potential data corruption in python-libusb1
-1.0.11: Don't broadcast GetStackID responses, avoids confosing clients
+1.0.11: Don't broadcast GetStackID responses, avoids confusing clients
         Update libusb-1.0.dll to support the 2nd generation of Renesas USB 3.0 controllers
         Lock the PID file on Linux to prohibit starting multiple instances
