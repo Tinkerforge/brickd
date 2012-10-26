@@ -11,6 +11,7 @@
 
 # brickd (Brick Daemon)
 # Copyright (C) 2011-2012 Olaf Lüke <olaf@tinkerforge.com>
+# Copyright (C) 2012 Matthias Bolte <matthias@tinkerforge.com>
 #
 # based on skeleton from Debian GNU/Linux
 # 
@@ -32,6 +33,7 @@
 PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
 DAEMON=/usr/bin/brickd
 NAME=brickd
+PIDFILE=/var/run/$NAME.pid
 DESC="Brick Daemon"
 
 test -f $DAEMON || exit 0
@@ -41,27 +43,45 @@ set -e
 case "$1" in
   start)
 	echo -n "Starting $DESC: "
-	start-stop-daemon --start --quiet --pidfile /var/run/$NAME.pid --exec $DAEMON
-	echo "$NAME."
+	start-stop-daemon --start --quiet --pidfile $PIDFILE --exec $DAEMON
+	echo "$NAME"
 	;;
   stop)
 	echo -n "Stopping $DESC: "
-	start-stop-daemon --stop --quiet --pidfile /var/run/$NAME.pid
-	echo "$NAME."
+	start-stop-daemon --stop --quiet --pidfile $PIDFILE
+	echo "$NAME"
 	;;
   restart|force-reload)
 	echo -n "Restarting $DESC: "
-	start-stop-daemon --stop --quiet --pidfile /var/run/$NAME.pid
+	start-stop-daemon --stop --quiet --pidfile $PIDFILE
 	sleep 1
-	start-stop-daemon --start --quiet --pidfile /var/run/$NAME.pid --exec $DAEMON
-	echo "$NAME."
+	start-stop-daemon --start --quiet --pidfile $PIDFILE --exec $DAEMON
+	echo "$NAME"
+	;;
+  status)
+	echo -n "Status of $DESC: "
+	if [ -n "${PIDFILE:-}" -a -r "$PIDFILE" ]; then
+		PID=`cat "$PIDFILE"`
+		if [ -n "${PID:-}" ]; then
+			if $(kill -0 "${PID:-}" 2> /dev/null); then
+				echo "running, $PID"
+			elif ps "${PID:-}" > /dev/null 2>&1; then
+				echo "running, $PID"
+			else
+				echo "stopped"
+			fi
+		else
+			echo "stopped"
+		fi
+	else
+		echo "stopped"
+	fi
 	;;
   *)
 	N=/etc/init.d/$NAME
-	echo "Usage: $N {start|stop|restart|force-reload}" >&2
+	echo "Usage: $N {start|stop|restart|force-reload|status}" >&2
 	exit 1
 	;;
 esac
 
 exit 0
-

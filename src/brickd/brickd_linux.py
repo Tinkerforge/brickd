@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-  
+# -*- coding: utf-8 -*-
 """
 brickd (Brick Daemon)
 Copyright (C) 2008-2011 Olaf Lüke <olaf@tinkerforge.com>
@@ -7,8 +7,8 @@ Copyright (C) 2008-2011 Olaf Lüke <olaf@tinkerforge.com>
 brickd_linux.py: Brick Daemon starting point for linux
 
 This program is free software; you can redistribute it and/or
-modify it under the terms of the GNU General Public License 
-as published by the Free Software Foundation; either version 2 
+modify it under the terms of the GNU General Public License
+as published by the Free Software Foundation; either version 2
 of the License, or (at your option) any later version.
 
 This program is distributed in the hope that it will be useful,
@@ -27,9 +27,10 @@ import sys
 import signal
 import logging
 import time
+import fcntl
 
 from usb_notifier import USBNotifier
-from brick_protocol import BrickProtocolFactory, exit_brickd
+from brick_protocol import BrickProtocolFactory, shutdown
 import config
 
 # logfile
@@ -66,7 +67,7 @@ PID_DIRNAME = os.path.dirname(PID_FILENAME)
 
 # logging
 logging.basicConfig(
-    level = config.LOGGING_LEVEL, 
+    level = config.LOGGING_LEVEL,
     format = config.LOGGING_FORMAT,
     datefmt = config.LOGGING_DATEFMT
 )
@@ -84,13 +85,15 @@ try:
     glib2reactor.install()
     glib2reactor_installed = True
 except ImportError:
-    logging.warn("Could not install glib2reactor. Disabling USB hotplug.")
+    logging.warn("Could not install glib2reactor. Disabling USB hotplug")
     glib2reactor_installed = False
 
 from twisted.internet import reactor
 
 class BrickdLinux:
     def __init__(self, stdin='/dev/null', stdout=LOG_FILENAME, stderr=LOG_FILENAME):
+        self.pidfile = None
+
         if os.getuid() != 0:
             if not os.path.exists(LOG_DIRNAME):
                 os.makedirs(LOG_DIRNAME)
@@ -101,32 +104,41 @@ class BrickdLinux:
         self.stdin = stdin
         self.stdout = stdout
         self.stderr = stderr
-        
+
         if glib2reactor_installed:
-            r = glib2reactor
+            self.reactor = glib2reactor
         else:
-            r = reactor
-        
-        signal.signal(signal.SIGINT, lambda s, f: exit_brickd(s, f, r)) 
-        signal.signal(signal.SIGTERM, lambda s, f: exit_brickd(s, f, r)) 
-        
-    def start(self):
+            self.reactor = reactor
+
+        signal.signal(signal.SIGINT, lambda s, f: self.exit_brickd)
+        signal.signal(signal.SIGTERM, lambda s, f: self.exit_brickd)
+
+    def exit_brickd(self):
+        logging.info("Received SIGINT or SIGTERM, shutting down")
+        shutdown(self.reactor)
+        sys.exit()
+
+    def start(self, statuspipe=None):
         logging.info("brickd {0} started".format(config.BRICKD_VERSION))
-        
+
         self.usb_notifier = USBNotifier()
-        
+
         if gudev_imported:
             self.gudev_client = gudev.Client(["usb"])
             self.gudev_client.connect("uevent", self.notify_udev)
-            
+
         reactor.listenTCP(config.PORT, BrickProtocolFactory())
+
+        if statuspipe is not None:
+            os.write(statuspipe, '0')
+
         try:
             reactor.run(installSignalHandlers = True)
         except KeyboardInterrupt:
             reactor.stop()
 
         logging.info("brickd {0} stopped".format(config.BRICKD_VERSION))
-    
+
     def notify_udev(self, client, action, device):
         if action == "add":
             time.sleep(0.1) # Wait for changes to settle down in the system
@@ -137,60 +149,114 @@ class BrickdLinux:
             logging.info("Removed USB device")
             self.usb_notifier.notify_removed()
 
+    def write_pid(self, statuspipe):
+        self.pidfile = open(PID_FILENAME, "a+")
+
+        try:
+            fcntl.flock(self.pidfile.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except IOError:
+            os.write(statuspipe, '1')
+            sys.stderr.write("Already running according to {0}\n".format(PID_FILENAME))
+            sys.exit(1)
+
+        self.pidfile.seek(0)
+        self.pidfile.truncate()
+        self.pidfile.write(str(os.getpid()))
+        self.pidfile.flush()
+        self.pidfile.seek(0)
+
     # based on http://www.jejik.com/articles/2007/02/a_simple_unix_linux_daemon_in_python/
-    def daemonize(self):   
+    def daemonize(self):
         """
-        do the UNIX double-fork magic, see Stevens' "Advanced 
+        do the UNIX double-fork magic, see Stevens' "Advanced
         Programming in the UNIX Environment" for details (ISBN 0201563177)
         http://www.erlenstar.demon.co.uk/unix/faq_2.html#SEC16
         """
-        try: 
-            pid = os.fork() 
-            if pid > 0:
-                # exit first parent
-                sys.exit(0) 
-        except OSError, e: 
-            sys.stderr.write("fork #1 failed: %d (%s)\n" % (e.errno, e.strerror))
+
+        statuspipe = os.pipe()
+
+        # do first fork
+        try:
+            pid = os.fork()
+        except OSError, e:
+            os.close(statuspipe[1])
+            sys.stderr.write("Could not fork #1: %d (%s)\n" % (e.errno, e.strerror))
             sys.exit(1)
-    
+
+        if pid > 0:
+            os.close(statuspipe[1])
+
+            # wait for first child to exit
+            _, child1_status = os.waitpid(pid, 0)
+
+            if child1_status != 0:
+                sys.exit(child1_status)
+
+            child2_status = ''
+            while len(child2_status) == 0:
+                child2_status = os.read(statuspipe[0], 1)
+
+            os.close(statuspipe[0])
+
+            # exit first parent
+            sys.exit(int(child2_status))
+
+        os.close(statuspipe[0])
+
         # decouple from parent environment
-        os.chdir("/") 
-        os.setsid() 
-        os.umask(0) 
+        os.chdir("/")
+        os.setsid()
+        os.umask(0)
 
         # do second fork
         try:
-            pid = os.fork() 
-            if pid > 0:
-                try:
-                    open(PID_FILENAME, 'w').write("%d" % pid)
-                except IOError, e:
-                    sys.stderr.write("Could not write to pidfile %s: %s\n" % (PID_FILENAME, str(e)))
-                    sys.exit(1)
-                # exit from second parent
-                sys.exit(0)
+            pid = os.fork()
         except OSError, e:
-            sys.stderr.write("fork #2 failed: %d (%s)\n" % (e.errno, e.strerror))
+            sys.stderr.write("Could not fork #2: %d (%s)\n" % (e.errno, e.strerror))
             sys.exit(1)
 
+        if pid > 0:
+            # exit second parent
+            sys.exit(0)
+
+        # write pid
+        try:
+            self.write_pid(statuspipe[1])
+        except IOError, e:
+            os.write(statuspipe[1], '1')
+            sys.stderr.write("Could not write to pidfile %s: %s\n" % (PID_FILENAME, str(e)))
+            sys.exit(1)
+
+        # check log file
         try:
             open(LOG_FILENAME, 'a+').close()
         except IOError, e:
+            os.write(statuspipe[1], '1')
             sys.stderr.write("Could not open logfile %s: %s\n" % (LOG_FILENAME, str(e)))
             sys.exit(1)
 
         # redirect standard file descriptors
-        sys.stdout.flush()
-        sys.stderr.flush()
-        si = file(self.stdin, 'r')
-        so = file(self.stdout, 'a+')
-        se = file(self.stderr, 'a+', 0)
-        os.dup2(si.fileno(), sys.stdin.fileno())
-        os.dup2(so.fileno(), sys.stdout.fileno())
-        os.dup2(se.fileno(), sys.stderr.fileno())
+        try:
+            sys.stdout.flush()
+            sys.stderr.flush()
+            si = file(self.stdin, 'r')
+            so = file(self.stdout, 'a+')
+            se = file(self.stderr, 'a+', 0)
+            os.dup2(si.fileno(), sys.stdin.fileno())
+            os.dup2(so.fileno(), sys.stdout.fileno())
+            os.dup2(se.fileno(), sys.stderr.fileno())
+        except Exception, e:
+            os.write(statuspipe[1], '1')
+            sys.stderr.write("Could not redirect stdio: %s\n" % str(e))
+            sys.exit(1)
 
-        self.start()
-        
+        try:
+            self.start(statuspipe[1])
+        except Exception, e:
+            os.write(statuspipe[1], '1')
+            sys.stderr.write("Could not start: %s\n" % str(e))
+            sys.exit(1)
+
 if __name__ == "__main__":
     if "--version" in sys.argv:
         print config.BRICKD_VERSION

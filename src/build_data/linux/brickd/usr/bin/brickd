@@ -1,2 +1,2 @@
 #!/bin/sh
-python /usr/share/brickd/brickd_linux.py "$@"
+exec python /usr/share/brickd/brickd_linux.py "$@"

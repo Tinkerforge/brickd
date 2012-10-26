@@ -258,10 +258,11 @@ def build_linux_pkg():
     os.system('chgrp -R root brickd/etc')
 
     os.system('chmod 0644 brickd/DEBIAN/md5sums')
+    os.system('chmod 0755 brickd/DEBIAN/preinst')
     os.system('chmod 0755 brickd/DEBIAN/postinst')
-    os.system('chmod 0755 brickd/DEBIAN/postrm')
+    os.system('chmod 0755 brickd/DEBIAN/prerm')
 
-    files = ['control', 'md5sums', 'postinst', 'postrm']
+    files = ['control', 'md5sums', 'preinst', 'postinst', 'prerm']
 
     for f in files:
         os.chown('brickd/DEBIAN/{0}'.format(f), 0, 0)
@@ -270,6 +271,7 @@ def build_linux_pkg():
 
     for f in files:
         os.chown('brickd/DEBIAN/{0}'.format(f), 1000, 1000)
+    os.chown('brickd/etc/init.d/brickd'.format(f), 1000, 1000)
 
 
 # call python build_pkg.py windows/linux to build the windows/linux package

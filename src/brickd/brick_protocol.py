@@ -32,13 +32,11 @@ device_dict = {}
 
 brick_protocol_list = []
 
-def exit_brickd(signl, frme, reactor):
-    logging.info("Received SIGINT or SIGTERM, shutting down.")
+def shutdown(reactor):
     for device in device_dict.values():
         device[0].delete()
-        
+
     reactor.callFromThread(reactor.stop)
-    sys.exit() 
 
 def get_stack_id_from_data(data):
     return ord(data[0])

@@ -45,7 +45,7 @@ import signal
 import config
 from twisted.internet import reactor
 from usb_notifier import USBNotifier
-from brick_protocol import BrickProtocolFactory, exit_brickd
+from brick_protocol import BrickProtocolFactory, shutdown
 
 # USB Raw
 GUID_DEVINTERFACE_USB_DEVICE = "{a5dcbf10-6530-11d2-901f-00c04fb951ed}" 
@@ -108,7 +108,7 @@ class BrickdWindows(win32serviceutil.ServiceFramework):
             logging.exception("Caught unhandled exception in SvcOtherEx")
 
     def SvcStop(self):
-        reactor.stop()
+        shutdown(reactor)
         self.ReportServiceStatus(win32service.SERVICE_STOP_PENDING)
         win32event.SetEvent(self.hWaitStop)
 

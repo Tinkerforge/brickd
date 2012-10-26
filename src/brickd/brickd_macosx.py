@@ -29,7 +29,7 @@ import signal
 import logging
 
 from usb_notifier import USBNotifier
-from brick_protocol import BrickProtocolFactory, exit_brickd
+from brick_protocol import BrickProtocolFactory, shutdown
 import config
 from threading import Thread
 
@@ -150,20 +150,25 @@ def osx_notifier(brickd):
     # Go
     CFRunLoopRun()
 
-class BrickdMacOS:
+class BrickdMacOSX:
     def __init__(self, stdin='/dev/null', stdout=LOGFILE, stderr=LOGFILE):
         self.stdin = stdin
         self.stdout = stdout
         self.stderr = stderr
+
+    def exit_brickd(self):
+        logging.info("Received SIGINT or SIGTERM, shutting down.")
+        shutdown(self.reactor)
+        sys.exit()
         
     def start(self):
         logging.info("brickd {0} started".format(config.BRICKD_VERSION))
 
         from twisted.internet import reactor
 
-        r = reactor
-        signal.signal(signal.SIGINT, lambda s, f: exit_brickd(s, f, r)) 
-        signal.signal(signal.SIGTERM, lambda s, f: exit_brickd(s, f, r)) 
+        self.reactor = reactor
+        signal.signal(signal.SIGINT, lambda s, f: self.exit_brickd)
+        signal.signal(signal.SIGTERM, lambda s, f: self.exit_brickd)
 
         self.usb_notifier = USBNotifier()
         self.osx_notifier_thread = Thread(target=osx_notifier, args=(self,))
@@ -179,8 +184,8 @@ class BrickdMacOS:
         logging.info("brickd {0} stopped".format(config.BRICKD_VERSION))
     
     def daemonize(self):
-        # double fork doesn't work on mac os x, launching with launchctl after the py2app
-        # building results in a crash...
+        # double fork doesn't work on Mac OS X, launching with launchctl after
+        # the py2app building results in a crash...
         # we just use brickd as it is with logging from the daemon code
 
         # redirect standard file descriptors
@@ -201,7 +206,7 @@ if __name__ == "__main__":
     elif os.geteuid() != 0:
         sys.stderr.write("brickd has to be started as root, exiting\n")
     else:
-        brickd = BrickdMacOS()
+        brickd = BrickdMacOSX()
         if "nodaemon" in sys.argv or "--no-daemon" in sys.argv:
             brickd.start()
         else:
