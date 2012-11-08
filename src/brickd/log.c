@@ -72,7 +72,9 @@ static void log_stream_handler(LogLevel level, const char *file, int line,
 	struct timeval tv;
 	struct tm lt;
 	char lt_str[64] = "<unknown>";
-	const char *level_str = "<unknown>";
+	char level_c = 'U';
+
+	(void)function;
 
 	// check stream
 	if (_stream == NULL) {
@@ -91,30 +93,16 @@ static void log_stream_handler(LogLevel level, const char *file, int line,
 
 	// format level
 	switch (level) {
-	case LOG_LEVEL_NONE:
-		level_str = "NONE ";
-		break;
-
-	case LOG_LEVEL_ERROR:
-		level_str = "ERROR";
-		break;
-
-	case LOG_LEVEL_WARN:
-		level_str = "WARN ";
-		break;
-
-	case LOG_LEVEL_INFO:
-		level_str = "INFO ";
-		break;
-
-	case LOG_LEVEL_DEBUG:
-		level_str = "DEBUG";
-		break;
+	case LOG_LEVEL_NONE:  level_c = 'N'; break;
+	case LOG_LEVEL_ERROR: level_c = 'E'; break;
+	case LOG_LEVEL_WARN:  level_c = 'W'; break;
+	case LOG_LEVEL_INFO:  level_c = 'I'; break;
+	case LOG_LEVEL_DEBUG: level_c = 'D'; break;
 	};
 
 	// print prefix
-	fprintf(_stream, "%s.%06d <%s> <%s:%d> [%s] ",
-	        lt_str, (int)tv.tv_usec, level_str, file, line, function);
+	fprintf(_stream, "%s.%03d <%c> <%s:%d> ",
+	        lt_str, ((int)tv.tv_usec + 500) / 1000, level_c, file, line);
 
 	// print message
 	vfprintf(_stream, format, arguments);

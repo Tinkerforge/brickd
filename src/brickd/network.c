@@ -36,6 +36,7 @@
 
 #define LOG_CATEGORY LOG_CATEGORY_NETWORK
 
+static int _port = 4223;
 static Array _clients = ARRAY_INITIALIZER;
 static EventHandle _server_socket = INVALID_EVENT_HANDLE;
 
@@ -121,12 +122,12 @@ int network_init(void) {
 
 	server_address.sin_family = AF_INET;
 	server_address.sin_addr.s_addr = htonl(INADDR_ANY);
-	server_address.sin_port = htons(4223);
+	server_address.sin_port = htons(_port);
 
 	if (socket_bind(_server_socket, (struct sockaddr *)&server_address, sizeof(server_address)) < 0) {
 		// FIXME: close socket
-		log_error("Could not bind server socket: %s (%d)",
-		          get_errno_name(errno), errno);
+		log_error("Could not bind server socket to port %d: %s (%d)",
+		          _port, get_errno_name(errno), errno);
 
 		// FIXME: free client array
 		return -1;
@@ -134,8 +135,8 @@ int network_init(void) {
 
 	if (socket_listen(_server_socket, 10) < 0) {
 		// FIXME: close socket
-		log_error("Could not listen to server socket: %s (%d)",
-		          get_errno_name(errno), errno);
+		log_error("Could not listen to server socket on port %d: %s (%d)",
+		          _port, get_errno_name(errno), errno);
 
 		// FIXME: free client array
 		return -1;

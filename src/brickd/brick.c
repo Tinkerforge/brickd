@@ -48,24 +48,26 @@ static void read_transfer_callback(Transfer *transfer) {
 	}
 
 	if (transfer->handle->actual_length < (int)sizeof(PacketHeader)) {
-		log_error("Read transfer returned packet with incomplete header from %s [%s]",
+		log_error("Read transfer returned response with incomplete header from %s [%s]",
 		          transfer->brick->product, transfer->brick->serial_number);
 
 		goto resubmit;
 	}
 
 	if (transfer->handle->actual_length != transfer->packet.header.length) {
-		log_error("Read transfer returned packet with length mismatch (%u != %u) from %s [%s]",
+		log_error("Read transfer returned response with length mismatch (%u != %u) from %s [%s]",
 		          transfer->handle->actual_length, transfer->packet.header.length,
 		          transfer->brick->product, transfer->brick->serial_number);
 
 		goto resubmit;
 	}
 
-	log_debug("Got packet (uid: %u, length: %u, function_id: %u) from %s [%s]",
+	log_debug("Got response (U: %u, L: %u, F: %u, S: %u, E: %u) from %s [%s]",
 	          transfer->packet.header.uid,
 	          transfer->packet.header.length,
 	          transfer->packet.header.function_id,
+	          transfer->packet.header.sequence_number,
+	          transfer->packet.header.error_code,
 	          transfer->brick->product, transfer->brick->serial_number);
 
 	if (brick_add_uid(transfer->brick, transfer->packet.header.uid) < 0) {

@@ -267,7 +267,7 @@ int usb_update(void) {
 			continue;
 		}
 
-		log_info("Removed USB device (bus %d, device %d) at index %d: %s [%s]",
+		log_info("Removed USB device (bus: %d, device: %d) at index %d: %s [%s]",
 		         brick->bus_number, brick->device_address, i,
 		         brick->product, brick->serial_number);
 
@@ -317,8 +317,11 @@ void usb_dispatch_packet(Packet *packet) {
 	int k;
 	Transfer *transfer;
 
-	log_debug("Dispatching packet (uid: %u, length: %u, function_id: %u) to %d Brick(s)",
-	          packet->header.uid, packet->header.length, packet->header.function_id,
+	log_debug("Dispatching request (U: %u, L: %u, F: %u, S: %u, R: %u) to %d Brick(s)",
+	          packet->header.uid, packet->header.length,
+	          packet->header.function_id,
+	          packet->header.sequence_number,
+	          packet->header.response_expected,
 	          _bricks.count);
 
 	for (j = 0; j < _bricks.count; ++j) {
@@ -332,8 +335,6 @@ void usb_dispatch_packet(Packet *packet) {
 			if (transfer->submitted) {
 				continue;
 			}
-
-			//brick->write_transfers[k].submitted = 1;
 
 			transfer->function = write_transfer_callback;
 
