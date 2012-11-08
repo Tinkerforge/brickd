@@ -46,34 +46,22 @@ typedef struct {
 	uint32_t uid;
 	uint8_t length;
 	uint8_t function_id;
-	uint8_t sequence_number : 4;
-
-	// options
-	uint8_t return_expected : 1;
-	uint8_t authentication : 1;
-	uint8_t other_options : 2;
-
-	// flags
-	uint8_t error : 2;
-	uint8_t future_use : 6;
+	uint8_t other_options : 2,
+	        authentication : 1,
+	        response_expected : 1,
+	        sequence_number : 4;
+	uint8_t error_code : 2,
+	        future_use : 6;
 } ATTRIBUTE_PACKED PacketHeader;
 
 typedef struct {
-	// header
 	PacketHeader header;
-
-	// payload
 	uint8_t payload[64];
-
-	// optional data
 	uint8_t optional_data[8];
 } ATTRIBUTE_PACKED Packet;
 
 typedef struct {
-	// header
 	PacketHeader header;
-
-	// payload
 	char uid[8];
 	char connected_uid[8];
 	char position;
