@@ -1,3 +1,5 @@
+*.d
+*.o
 *.pyc
 src/brickd/build
 src/brickd/dist
