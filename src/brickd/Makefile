@@ -7,7 +7,7 @@
 CC := gcc
 RM := rm -f --
 
-SOURCES := brick.c event.c event_posix.c main_linux.c log.c network.c \
+SOURCES := brick.c client.c event.c event_posix.c main_linux.c log.c network.c \
            pipe_posix.c socket_posix.c threads_posix.c transfer.c udev.c \
            usb.c utils.c
 OBJECTS := ${SOURCES:.c=.o}

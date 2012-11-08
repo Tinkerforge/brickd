@@ -2,7 +2,7 @@
  * brickd
  * Copyright (C) 2012 Matthias Bolte <matthias@tinkerforge.com>
  *
- * network.h: Network specific functions
+ * client.h: Client specific functions
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,17 +19,23 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-#ifndef BRICKD_NETWORK_H
-#define BRICKD_NETWORK_H
+#ifndef BRICKD_CLIENT_H
+#define BRICKD_CLIENT_H
 
-#include "client.h"
+#include "event.h"
 #include "packet.h"
+#include "utils.h"
 
-int network_init(void);
-void network_exit(void);
+typedef struct {
+	EventHandle socket;
+	Packet packet;
+	int packet_used;
+	Array pending_requests;
+} Client;
 
-void network_client_disconnected(Client *client);
+int client_create(Client *client, EventHandle socket);
+void client_destroy(Client *client);
 
-void network_dispatch_packet(Packet *packet);
+int client_dispatch_packet(Client *client, Packet *packet, int force);
 
-#endif // BRICKD_NETWORK_H
+#endif // BRICKD_CLIENT_H

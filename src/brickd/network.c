@@ -35,77 +35,9 @@
 #include "utils.h"
 
 #define LOG_CATEGORY LOG_CATEGORY_NETWORK
-typedef struct {
-	EventHandle socket;
-	Packet packet;
-	int packet_used;
-} Client;
 
 static Array _clients = ARRAY_INITIALIZER;
 static EventHandle _server_socket = INVALID_EVENT_HANDLE;
-
-static void network_handle_receive(void *opaque) {
-	Client *client = opaque;
-	int length = socket_receive(client->socket,
-	                            (uint8_t *)&client->packet + client->packet_used,
-	                            sizeof(Packet) - client->packet_used);
-	int i;
-
-	if (length < 0) {
-		if (!errno_would_block() && !errno_interrupted()) {
-			log_error("Could not receive from socket (handle: %d): %s (%d)",
-			          client->socket, get_errno_name(errno), errno);
-		}
-
-		// FIXME: does this work in case of blocking or interrupted
-		// need to retry on interrupted and blocking should never happend
-		return;
-	}
-
-	if (length == 0) {
-		log_info("Socket (handle: %d) disconnected by client", client->socket);
-
-		event_remove_source(client->socket); // FIXME: handle error?
-		socket_destroy(client->socket);
-
-		i = array_find(&_clients, client);
-
-		if (i < 0) {
-			log_error("Client not found in client array");
-		} else {
-			array_remove(&_clients, i, NULL);
-		}
-
-		return;
-	}
-
-	client->packet_used += length;
-
-	while (client->packet_used > 0) {
-		if (client->packet_used < (int)sizeof(PacketHeader)) {
-			// wait for complete header
-			break;
-		}
-
-		length = client->packet.header.length;
-
-		if (client->packet_used < length) {
-			// wait for complete packet
-			break;
-		}
-
-		log_debug("Got complete packet (uid: %u, length: %u, function_id: %u) from socket (handle: %d)",
-		          client->packet.header.uid,
-		          client->packet.header.length,
-		          client->packet.header.function_id,
-		          client->socket);
-
-		usb_dispatch_packet(&client->packet);
-
-		memmove(&client->packet, (uint8_t *)&client->packet + length, client->packet_used - length);
-		client->packet_used -= length;
-	}
-}
 
 static void network_handle_accept(void *opaque) {
 	EventHandle client_socket;
@@ -147,12 +79,7 @@ static void network_handle_accept(void *opaque) {
 		return;
 	}
 
-	client->socket = client_socket;
-	client->packet_used = 0;
-
-	// add as event source
-	if (event_add_source(client->socket, EVENT_READ,
-	                     network_handle_receive, client) < 0) {
+	if (client_create(client, client_socket) < 0) {
 		array_remove(&_clients, _clients.count - 1, NULL);
 		socket_destroy(client_socket);
 
@@ -236,31 +163,56 @@ void network_exit(void) {
 
 	// FIXME
 
+	array_destroy(&_clients, (FreeFunction)client_destroy);
+
 	socket_destroy(_server_socket);
+}
+
+void network_client_disconnected(Client *client) {
+	int i = array_find(&_clients, client);
+
+	if (i < 0) {
+		log_error("Client (socket: %d) not found in client array", client->socket);
+	} else {
+		array_remove(&_clients, i, (FreeFunction)client_destroy);
+	}
 }
 
 void network_dispatch_packet(Packet *packet) {
 	int i;
 	Client *client;
+	int rc;
+	int dispatched = 0;
 
-	log_debug("Dispatching packet (uid: %u, length: %u, function_id: %u) to %d client(s)",
-	          packet->header.uid, packet->header.length, packet->header.function_id,
+	log_debug("Dispatching response (U: %u, L: %u, F: %u, S: %u, E: %u) to %d client(s)",
+	          packet->header.uid,
+	          packet->header.length,
+	          packet->header.function_id,
+	          packet->header.sequence_number,
+	          packet->header.error_code,
 	          _clients.count);
 
 	for (i = 0; i < _clients.count; ++i) {
 		client = array_get(&_clients, i);
 
-		if (socket_send(client->socket, packet, packet->header.length) < 0) {
-			if (errno_would_block()) {
-				// FIXME: put data into send queue and enable EVENT_WRITE on
-				//        client socket via event_set_events
-				continue;
-			}
+		rc = client_dispatch_packet(client, packet, 0);
 
-			log_error("Could not send to client socket (handle: %d): %s (%d)",
-			          client->socket, get_errno_name(errno), errno);
-
+		if (rc < 0) {
 			continue;
+		} else if (rc > 0) {
+			dispatched = 1;
 		}
+	}
+
+	if (dispatched) {
+		return;
+	}
+
+	log_debug("Broadcasting response because no client had a pending request matching it");
+
+	for (i = 0; i < _clients.count; ++i) {
+		client = array_get(&_clients, i);
+
+		client_dispatch_packet(client, packet, 1);
 	}
 }
