@@ -181,6 +181,14 @@ int network_init(void) {
 		return -1;
 	}
 
+	if (socket_set_address_reuse(_server_socket, 1) < 0) {
+		// FIXME: close socket
+		log_error("Could not enable address-reuse mode for server socket: %s (%d)",
+		          get_errno_name(errno), errno);
+		// FIXME: free client array
+		return -1;
+	}
+
 	memset(&server_address, 0, sizeof(server_address));
 
 	server_address.sin_family = AF_INET;

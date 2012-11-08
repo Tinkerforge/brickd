@@ -79,3 +79,9 @@ int socket_set_non_blocking(EventHandle handle, int non_blocking) {
 
 	return fcntl(handle, F_SETFL, flags);
 }
+
+// sets errno on error
+int socket_set_address_reuse(EventHandle handle, int address_reuse) {
+	return setsockopt(handle, SOL_SOCKET, SO_REUSEADDR,
+	                  &address_reuse, sizeof(address_reuse));
+}
