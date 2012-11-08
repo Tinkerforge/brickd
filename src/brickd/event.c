@@ -27,6 +27,8 @@
 #include "pipe.h"
 #include "utils.h"
 
+#define LOG_CATEGORY LOG_CATEGORY_EVENT
+
 static Array _event_sources = ARRAY_INITIALIZER;
 static int _running = 0;
 static int _stop_requested = 0;
@@ -91,7 +93,7 @@ int event_add_source(EventHandle handle, int events,
 	event_source = array_append(&_event_sources);
 
 	if (event_source == NULL) {
-		log_error("Could not append to the event source array: %s (%d)",
+		log_error("Could not append to event source array: %s (%d)",
 		          get_errno_name(errno), errno);
 
 		return -1;

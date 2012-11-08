@@ -25,6 +25,8 @@
 
 #include "log.h"
 
+#define LOG_CATEGORY LOG_CATEGORY_OTHER
+
 void mutex_create(Mutex *mutex) {
 	InitializeCriticalSection(&mutex->handle);
 }

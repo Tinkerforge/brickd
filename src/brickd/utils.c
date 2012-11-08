@@ -28,6 +28,8 @@
 
 #include "log.h"
 
+#define LOG_CATEGORY LOG_CATEGORY_OTHER
+
 int errno_would_block(void) {
 #ifdef _WIN32
 	return errno == ERRNO_WINSOCK2_OFFSET + WSAEWOULDBLOCK ? 1 : 0;

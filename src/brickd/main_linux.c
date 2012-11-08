@@ -28,6 +28,8 @@
 #include "usb.h"
 #include "version.h"
 
+#define LOG_CATEGORY LOG_CATEGORY_OTHER
+
 static void print_usage(const char *binary) {
 	printf("Usage: %s [--help|--version|--daemon]\n", binary);
 }
@@ -63,7 +65,11 @@ int main(int argc, char **argv) {
 	log_init();
 
 	// FIXME: read config
-	log_set_level(LOG_LEVEL_DEBUG);
+	log_set_level(LOG_CATEGORY_EVENT, LOG_LEVEL_INFO);
+	log_set_level(LOG_CATEGORY_USB, LOG_LEVEL_DEBUG);
+	log_set_level(LOG_CATEGORY_NETWORK, LOG_LEVEL_DEBUG);
+	log_set_level(LOG_CATEGORY_HOTPLUG, LOG_LEVEL_DEBUG);
+	log_set_level(LOG_CATEGORY_OTHER, LOG_LEVEL_DEBUG);
 
 	if (daemon) {
 		log_info("Brick Daemon %s started (daemonized)", VERSION_STRING);

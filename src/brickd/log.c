@@ -26,7 +26,8 @@
 #include "threads.h"
 
 static Mutex _mutex; // protects writing to _stream and calling of _extra_handler
-static LogLevel _level = LOG_LEVEL_NONE;
+static LogLevel _levels[5] = { LOG_LEVEL_NONE, LOG_LEVEL_NONE, LOG_LEVEL_NONE,
+                               LOG_LEVEL_NONE, LOG_LEVEL_NONE };
 static FILE *_stream = NULL;
 static LogHandler _extra_handler = NULL;
 
@@ -40,12 +41,12 @@ void log_exit(void) {
 	mutex_destroy(&_mutex);
 }
 
-void log_set_level(LogLevel level) {
-	_level = level;
+void log_set_level(LogCategory category, LogLevel level) {
+	_levels[category] = level;
 }
 
-LogLevel log_get_level(void) {
-	return _level;
+LogLevel log_get_level(LogCategory category) {
+	return _levels[category];
 }
 
 void log_set_stream(FILE *stream) {
@@ -121,12 +122,13 @@ static void log_stream_handler(LogLevel level, const char *file, int line,
 	fflush(_stream);
 }
 
-void log_message(LogLevel level, const char *file, int line,
+void log_message(LogCategory category, LogLevel level,
+                 const char *file, int line,
                  const char *function, const char *format, ...)
 {
 	va_list arguments;
 
-	if (level > _level) {
+	if (level > _levels[category]) {
 		return;
 	}
 

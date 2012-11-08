@@ -28,11 +28,19 @@
 #include "utils.h"
 
 typedef enum {
+	LOG_CATEGORY_EVENT = 0,
+	LOG_CATEGORY_USB,
+	LOG_CATEGORY_NETWORK,
+	LOG_CATEGORY_HOTPLUG,
+	LOG_CATEGORY_OTHER
+} LogCategory;
+
+typedef enum {
 	LOG_LEVEL_NONE = 0,
 	LOG_LEVEL_ERROR,
 	LOG_LEVEL_WARN,
 	LOG_LEVEL_INFO,
-	LOG_LEVEL_DEBUG,
+	LOG_LEVEL_DEBUG
 } LogLevel;
 
 typedef void (*LogHandler)(LogLevel level, const char *file, int line,
@@ -40,22 +48,26 @@ typedef void (*LogHandler)(LogLevel level, const char *file, int line,
                            va_list arguments);
 
 #define log_error(...) \
-	log_message(LOG_LEVEL_ERROR, __FILE__, __LINE__, __FUNCTION__, __VA_ARGS__)
+	log_message(LOG_CATEGORY, LOG_LEVEL_ERROR, \
+	            __FILE__, __LINE__, __FUNCTION__, __VA_ARGS__)
 
 #define log_warn(...) \
-	log_message(LOG_LEVEL_WARN, __FILE__, __LINE__, __FUNCTION__, __VA_ARGS__)
+	log_message(LOG_CATEGORY, LOG_LEVEL_WARN, \
+	            __FILE__, __LINE__, __FUNCTION__, __VA_ARGS__)
 
 #define log_info(...) \
-	log_message(LOG_LEVEL_INFO, __FILE__, __LINE__, __FUNCTION__, __VA_ARGS__)
+	log_message(LOG_CATEGORY, LOG_LEVEL_INFO, \
+	            __FILE__, __LINE__, __FUNCTION__, __VA_ARGS__)
 
 #define log_debug(...) \
-	log_message(LOG_LEVEL_DEBUG, __FILE__, __LINE__, __FUNCTION__, __VA_ARGS__)
+	log_message(LOG_CATEGORY, LOG_LEVEL_DEBUG, \
+	            __FILE__, __LINE__, __FUNCTION__, __VA_ARGS__)
 
 void log_init(void);
 void log_exit(void);
 
-void log_set_level(LogLevel level);
-LogLevel log_get_level(void);
+void log_set_level(LogCategory category, LogLevel level);
+LogLevel log_get_level(LogCategory category);
 
 void log_set_stream(FILE *stream);
 FILE *log_get_stream(void);
@@ -63,7 +75,8 @@ FILE *log_get_stream(void);
 void log_set_extra_handler(LogHandler handler);
 LogHandler log_get_extra_handler(void);
 
-void log_message(LogLevel level, const char *file, int line, const char *function,
-                 const char *format, ...) ATTRIBUTE_FMT_PRINTF(5, 6);
+void log_message(LogCategory category, LogLevel level,
+                 const char *file, int line, const char *function,
+                 const char *format, ...) ATTRIBUTE_FMT_PRINTF(6, 7);
 
 #endif // BRICKD_LOG_H

@@ -27,6 +27,8 @@
 #include "log.h"
 #include "utils.h"
 
+#define LOG_CATEGORY LOG_CATEGORY_EVENT
+
 typedef struct {
 	int count;
 	SOCKET sockets[0];

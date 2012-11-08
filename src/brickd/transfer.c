@@ -26,6 +26,8 @@
 #include "log.h"
 #include "usb.h"
 
+#define LOG_CATEGORY LOG_CATEGORY_USB
+
 static void LIBUSB_CALL transfer_wrapper(struct libusb_transfer *handle) {
 	Transfer *transfer = handle->user_data;
 
@@ -124,9 +126,9 @@ int transfer_submit(Transfer *transfer) {
 		return -1;
 	}
 
-	log_debug("Submitted %s transfer for %u bytes to %s [%s]",
+	/*log_debug("Submitted %s transfer for %u bytes to %s [%s]",
 	          type_name, length,
-	          transfer->brick->product, transfer->brick->serial_number);
+	          transfer->brick->product, transfer->brick->serial_number);*/
 
 	return 0;
 }

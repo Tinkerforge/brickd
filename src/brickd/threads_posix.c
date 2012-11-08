@@ -23,6 +23,8 @@
 
 #include "log.h"
 
+#define LOG_CATEGORY LOG_CATEGORY_OTHER
+
 #define MACOSX_SEMAPHORE_NAME
 
 void mutex_create(Mutex *mutex) {

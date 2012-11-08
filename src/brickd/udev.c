@@ -29,6 +29,8 @@
 #include "log.h"
 #include "usb.h"
 
+#define LOG_CATEGORY LOG_CATEGORY_HOTPLUG
+
 static struct udev *_udev_context = NULL;
 static struct udev_monitor *_udev_monitor = NULL;
 static int _udev_monitor_fd = -1;

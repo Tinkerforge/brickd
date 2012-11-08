@@ -29,6 +29,8 @@
 #include "utils.h"
 #include "version.h"
 
+#define LOG_CATEGORY LOG_CATEGORY_OTHER
+
 
 //#include <usbiodef.h>
 /* A5DCBF10-6530-11D2-901F-00C04FB951ED */

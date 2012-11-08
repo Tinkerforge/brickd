@@ -34,6 +34,7 @@
 #include "usb.h" // FIXME
 #include "utils.h"
 
+#define LOG_CATEGORY LOG_CATEGORY_NETWORK
 typedef struct {
 	EventHandle socket;
 	Packet packet;
@@ -115,7 +116,7 @@ static void network_handle_accept(void *opaque) {
 	// accept new client socket
 	if (socket_accept(_server_socket, &client_socket, NULL, NULL) < 0) {
 		if (!errno_would_block() && !errno_interrupted()) {
-			log_error("Could not accept client socket: %s (%d)",
+			log_error("Could not accept new socket: %s (%d)",
 			          get_errno_name(errno), errno);
 		}
 
@@ -126,8 +127,8 @@ static void network_handle_accept(void *opaque) {
 
 	// enable non-blocking
 	if (socket_set_non_blocking(client_socket, 1) < 0) {
-		log_error("Could not set client socket non-blocking: %s (%d)",
-		          get_errno_name(errno), errno);
+		log_error("Could not enable non-blocking mode for socket (handle: %d): %s (%d)",
+		          client_socket, get_errno_name(errno), errno);
 
 		socket_destroy(client_socket);
 
@@ -138,7 +139,7 @@ static void network_handle_accept(void *opaque) {
 	client = array_append(&_clients);
 
 	if (client == NULL) {
-		log_error("Could not append to the client array: %s (%d)",
+		log_error("Could not append to client array: %s (%d)",
 		          get_errno_name(errno), errno);
 
 		socket_destroy(client_socket);
@@ -158,7 +159,7 @@ static void network_handle_accept(void *opaque) {
 		return;
 	}
 
-	log_info("Added new client socket (handle: %d)", client->socket);
+	log_info("Added new client (socket: %d)", client->socket);
 }
 
 int network_init(void) {
@@ -215,7 +216,7 @@ int network_init(void) {
 
 	if (socket_set_non_blocking(_server_socket, 1) < 0) {
 		// FIXME: close socket
-		log_error("Could not set server socket non-blocking: %s (%d)",
+		log_error("Could not enable non-blocking mode for server socket: %s (%d)",
 		          get_errno_name(errno), errno);
 		// FIXME: free client array
 		return -1;

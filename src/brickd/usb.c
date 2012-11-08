@@ -32,6 +32,8 @@
 #include "transfer.h"
 #include "utils.h"
 
+#define LOG_CATEGORY LOG_CATEGORY_USB
+
 static libusb_context *_context = NULL;
 static Array _bricks = ARRAY_INITIALIZER;
 
@@ -112,7 +114,7 @@ static int usb_handle_device(libusb_device *device) {
 	brick = array_append(&_bricks);
 
 	if (brick == NULL) {
-		log_error("Could not append to the Bricks array: %s (%d)",
+		log_error("Could not append to Bricks array: %s (%d)",
 		          get_errno_name(errno), errno);
 
 		return -1;
@@ -298,7 +300,13 @@ int usb_update(void) {
 
 
 static void write_transfer_callback(Transfer *transfer) {
-	log_debug("Write transfer returned");
+	if (transfer->handle->status != LIBUSB_TRANSFER_COMPLETED) {
+		log_warn("Write transfer returned with an error: %s (%d)",
+		         get_libusb_transfer_status_name(transfer->handle->status),
+		         transfer->handle->status);
+
+		return;
+	}
 }
 
 

@@ -31,17 +31,19 @@
 #include "usb.h"
 #include "utils.h"
 
-static void read_transfer_callback(Transfer *transfer) {
-	log_debug("Read transfer returned: %s (%d)",
-	          get_libusb_transfer_status_name(transfer->handle->status),
-	          transfer->handle->status);
+#define LOG_CATEGORY LOG_CATEGORY_USB
 
+static void read_transfer_callback(Transfer *transfer) {
 	// FIXME: need to avoid or deal with the case that a transfer can return
 	// when the brick object is already dead. actually brick destroy should
 	// probably cancle and wait for all transfers to return
 
 	if (transfer->handle->status != LIBUSB_TRANSFER_COMPLETED) {
-		// FIXME
+		log_warn("Read transfer returned with an error: %s (%d)",
+		         get_libusb_transfer_status_name(transfer->handle->status),
+		         transfer->handle->status);
+
+		// FIXME: resubmit anyway?
 		return;
 	}
 
@@ -247,7 +249,7 @@ int brick_create(Brick *brick, libusb_context *context,
 		transfer = array_append(&brick->read_transfers);
 
 		if (transfer == NULL) {
-			log_error("Could not append to the read transfer array: %s (%d)",
+			log_error("Could not append to read transfer array: %s (%d)",
 			          get_errno_name(errno), errno);
 
 			brick_destroy(brick); // FIXME: don't use
@@ -284,7 +286,7 @@ int brick_create(Brick *brick, libusb_context *context,
 		transfer = array_append(&brick->write_transfers);
 
 		if (transfer == NULL) {
-			log_error("Could not append to the write transfer array: %s (%d)",
+			log_error("Could not append to write transfer array: %s (%d)",
 			          get_errno_name(errno), errno);
 
 			brick_destroy(brick); // FIXME: don't use
