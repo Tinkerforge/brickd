@@ -40,6 +40,7 @@ int socket_create(EventHandle *handle, int domain, int type, int protocol) {
 }
 
 void socket_destroy(EventHandle handle) {
+	shutdown(handle, SD_BOTH);
 	closesocket(handle);
 }
 

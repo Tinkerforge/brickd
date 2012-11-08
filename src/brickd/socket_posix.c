@@ -33,6 +33,7 @@ int socket_create(EventHandle *handle, int domain, int type, int protocol) {
 }
 
 void socket_destroy(EventHandle handle) {
+	shutdown(handle, SHUT_RDWR);
 	close(handle);
 }
 
