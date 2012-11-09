@@ -36,10 +36,11 @@
 static void read_transfer_callback(Transfer *transfer) {
 	// FIXME: need to avoid or deal with the case that a transfer can return
 	// when the brick object is already dead. actually brick destroy should
-	// probably cancle and wait for all transfers to return
+	// probably cancel them and wait for all transfers to return
 
 	if (transfer->handle->status != LIBUSB_TRANSFER_COMPLETED) {
-		log_warn("Read transfer returned with an error: %s (%d)",
+		log_warn("Read transfer returned with an error from %s [%s]: %s (%d)",
+		         transfer->brick->product, transfer->brick->serial_number,
 		         get_libusb_transfer_status_name(transfer->handle->status),
 		         transfer->handle->status);
 
@@ -62,13 +63,21 @@ static void read_transfer_callback(Transfer *transfer) {
 		goto resubmit;
 	}
 
-	log_debug("Got response (U: %u, L: %u, F: %u, S: %u, E: %u) from %s [%s]",
-	          transfer->packet.header.uid,
-	          transfer->packet.header.length,
-	          transfer->packet.header.function_id,
-	          transfer->packet.header.sequence_number,
-	          transfer->packet.header.error_code,
-	          transfer->brick->product, transfer->brick->serial_number);
+	if (transfer->packet.header.sequence_number == 0) {
+		log_debug("Got callback (U: %u, L: %u, F: %u) from %s [%s]",
+		          transfer->packet.header.uid,
+		          transfer->packet.header.length,
+		          transfer->packet.header.function_id,
+		          transfer->brick->product, transfer->brick->serial_number);
+	} else {
+		log_debug("Got response (U: %u, L: %u, F: %u, S: %u, E: %u) from %s [%s]",
+		          transfer->packet.header.uid,
+		          transfer->packet.header.length,
+		          transfer->packet.header.function_id,
+		          transfer->packet.header.sequence_number,
+		          transfer->packet.header.error_code,
+		          transfer->brick->product, transfer->brick->serial_number);
+	}
 
 	if (brick_add_uid(transfer->brick, transfer->packet.header.uid) < 0) {
 		goto resubmit;
@@ -88,7 +97,7 @@ int brick_create(Brick *brick, libusb_context *context,
 	int i = 0;
 	Transfer *transfer;
 
-	log_debug("Creating Brick from USB device (bus %u, device %u)",
+	log_debug("Creating Brick from USB device (bus: %u, device: %u)",
 	          bus_number, device_address);
 
 	brick->bus_number = bus_number;

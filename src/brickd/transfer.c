@@ -28,6 +28,19 @@
 
 #define LOG_CATEGORY LOG_CATEGORY_USB
 
+static const char *transfer_get_type_name(int type) {
+	switch (type) {
+	case TRANSFER_READ:
+		return "read";
+
+	case TRANSFER_WRITE:
+		return "write";
+
+	default:
+		return NULL;
+	}
+}
+
 static void LIBUSB_CALL transfer_wrapper(struct libusb_transfer *handle) {
 	Transfer *transfer = handle->user_data;
 
@@ -47,7 +60,8 @@ int transfer_create(Transfer *transfer, Brick *brick, int type,
 	transfer->handle = libusb_alloc_transfer(0);
 
 	if (transfer->handle == NULL) {
-		log_error("Could not allocate libusb transfer for %s [%s]",
+		log_error("Could not allocate libusb %s transfer for %s [%s]",
+		          transfer_get_type_name(transfer->type),
 		          brick->product, brick->serial_number);
 
 		return -1;
@@ -70,7 +84,7 @@ void transfer_destroy(Transfer *transfer) {
 int transfer_submit(Transfer *transfer) {
 	int end_point;
 	int length;
-	const char *type_name;
+	const char *type_name = transfer_get_type_name(transfer->type);
 	int rc;
 
 	if (transfer->submitted) {
@@ -83,15 +97,13 @@ int transfer_submit(Transfer *transfer) {
 	switch (transfer->type) {
 	case TRANSFER_READ:
 		end_point = USB_ENDPOINT_IN + 0x80;
-		length = sizeof(transfer->packet);
-		type_name = "read";
+		length = sizeof(Packet);
 
 		break;
 
 	case TRANSFER_WRITE:
 		end_point = USB_ENDPOINT_OUT;
 		length = transfer->packet.header.length;
-		type_name = "write";
 
 		break;
 

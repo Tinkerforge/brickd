@@ -198,6 +198,12 @@ int usb_init(void) {
 		return -1;
 	}
 
+	if (!libusb_pollfds_handle_timeouts(_context)) {
+		log_warn("libusb requires special timeout handling"); // FIXME
+	} else {
+		log_debug("libusb can handle timeouts on its own");
+	}
+
 	// get pollfds from main libusb context
 	pollfds = (struct libusb_pollfd **)libusb_get_pollfds(_context);
 
@@ -212,7 +218,8 @@ int usb_init(void) {
 
 	for (pollfd = pollfds; *pollfd != NULL; ++pollfd) {
 		// FIXME: need to handle libsub timeouts
-		if (event_add_source((*pollfd)->fd, (*pollfd)->events, usb_handle_events, _context) < 0) {
+		if (event_add_source((*pollfd)->fd, (*pollfd)->events,
+		                     usb_handle_events, _context) < 0) {
 			// FIXME: close context, remove already added pollfds, free array
 			return -1;
 		}
@@ -236,8 +243,6 @@ void usb_exit(void) {
 
 	libusb_exit(_context);
 }
-
-
 
 int usb_update(void) {
 	int i;
