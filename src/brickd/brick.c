@@ -34,18 +34,18 @@
 #define LOG_CATEGORY LOG_CATEGORY_USB
 
 static void read_transfer_callback(Transfer *transfer) {
-	// FIXME: need to avoid or deal with the case that a transfer can return
-	// when the brick object is already dead. actually brick destroy should
-	// probably cancel them and wait for all transfers to return
-
 	if (transfer->handle->status != LIBUSB_TRANSFER_COMPLETED) {
 		log_warn("Read transfer returned with an error from %s [%s]: %s (%d)",
 		         transfer->brick->product, transfer->brick->serial_number,
 		         get_libusb_transfer_status_name(transfer->handle->status),
 		         transfer->handle->status);
 
-		// FIXME: resubmit anyway?
-		return;
+		if (transfer->handle->status == LIBUSB_TRANSFER_CANCELLED ||
+		    transfer->handle->status == LIBUSB_TRANSFER_NO_DEVICE) {
+			return;
+		}
+
+		goto resubmit;
 	}
 
 	if (transfer->handle->actual_length < (int)sizeof(PacketHeader)) {
@@ -87,6 +87,48 @@ static void read_transfer_callback(Transfer *transfer) {
 
 resubmit:
 	transfer_submit(transfer);
+}
+
+static void write_transfer_callback(Transfer *transfer) {
+	Packet *packet;
+
+	if (transfer->handle->status != LIBUSB_TRANSFER_COMPLETED) {
+		log_warn("Write transfer returned with an error from %s [%s]: %s (%d)",
+		         transfer->brick->product, transfer->brick->serial_number,
+		         get_libusb_transfer_status_name(transfer->handle->status),
+		         transfer->handle->status);
+
+		if (transfer->handle->status == LIBUSB_TRANSFER_CANCELLED ||
+		    transfer->handle->status == LIBUSB_TRANSFER_NO_DEVICE) {
+			return;
+		}
+	}
+
+	if (transfer->brick->write_queue.count > 0) {
+		packet = array_get(&transfer->brick->write_queue, 0);
+
+		memcpy(&transfer->packet, packet, packet->header.length);
+
+		if (transfer_submit(transfer) < 0) {
+			// FIXME: how to handle a failed submission, try to re-submit?
+			/*log_error("Could not send queued request (U: %u, L: %u, F: %u, S: %u, R: %u) to %s [%s]: %s (%d)",
+			          packet->header.uid, packet->header.length,
+			          packet->header.function_id, packet->header.sequence_number,
+			          packet->header.response_expected,
+			          transfer->brick->product, transfer->brick->serial_number,
+			          get_errno_name(errno), errno);*/
+
+			return;
+		}
+
+		log_debug("Sent queued request (U: %u, L: %u, F: %u, S: %u, R: %u) to %s [%s]",
+		          packet->header.uid, packet->header.length,
+		          packet->header.function_id, packet->header.sequence_number,
+		          packet->header.response_expected,
+		          transfer->brick->product, transfer->brick->serial_number);
+
+		array_remove(&transfer->brick->write_queue, 0, NULL);
+	}
 }
 
 int brick_create(Brick *brick, libusb_context *context,
@@ -321,12 +363,27 @@ int brick_create(Brick *brick, libusb_context *context,
 		return -1;
 	}
 
+	if (array_create(&brick->write_queue, 32, sizeof(Packet)) < 0) {
+		log_error("Could not create write queue array: %s (%d)",
+		          get_errno_name(errno), errno);
+
+		brick_destroy(brick); // FIXME: don't use
+
+		return -1;
+	}
+
 	return 0;
 }
 
 void brick_destroy(Brick *brick) {
 	// FIXME: free uids array
-	// FIXME: cancel and free transfers
+
+	array_destroy(&brick->read_transfers, (FreeFunction)transfer_destroy);
+	array_destroy(&brick->write_transfers, (FreeFunction)transfer_destroy);
+
+	array_destroy(&brick->uids, NULL);
+
+	array_destroy(&brick->write_queue, NULL);
 
 	if (brick->device != NULL) {
 		libusb_unref_device(brick->device);
@@ -371,7 +428,7 @@ int brick_add_uid(Brick *brick, uint32_t uid) {
 	return 0;
 }
 
-int brick_has_uid(Brick *brick, uint32_t uid) {
+int brick_knows_uid(Brick *brick, uint32_t uid) {
 	int i;
 	uint32_t known_uid;
 
@@ -384,4 +441,72 @@ int brick_has_uid(Brick *brick, uint32_t uid) {
 	}
 
 	return 0;
+}
+
+int brick_dispatch_packet(Brick *brick, Packet *packet, int force) {
+	int i;
+	Transfer *transfer;
+	int submitted = 0;
+	Packet *queued_packet;
+	int rc = -1;
+
+	if (force || brick_knows_uid(brick, packet->header.uid)) {
+		for (i = 0; i < /*brick->write_transfers.count*/1; ++i) {
+			transfer = array_get(&brick->write_transfers, i);
+
+			if (transfer->submitted) {
+				continue;
+			}
+
+			transfer->function = write_transfer_callback;
+
+			memcpy(&transfer->packet, packet, packet->header.length);
+
+			if (transfer_submit(transfer) < 0) {
+				// FIXME: how to handle a failed submission, try to re-submit?
+
+				continue;
+			}
+
+			submitted = 1;
+
+			break;
+		}
+
+		if (!submitted) {
+			queued_packet = array_append(&brick->write_queue);
+
+			if (queued_packet == NULL) {
+				log_error("Could not append to write queue array: %s (%d)",
+				          get_errno_name(errno), errno);
+
+				goto cleanup;
+			}
+
+			log_info("Could not find a free write transfer for %s [%s], put request into write queue (count: %d)",
+			         brick->product, brick->serial_number,
+			         brick->write_queue.count);
+
+			memcpy(queued_packet, packet, packet->header.length);
+
+			submitted = 1;
+		} else {
+			if (force) {
+				log_debug("Forced to sent request to %s [%s]",
+				          brick->product, brick->serial_number);
+			} else {
+				log_debug("Sent request to %s [%s]",
+				          brick->product, brick->serial_number);
+			}
+		}
+	}
+
+	rc = 0;
+
+cleanup:
+	if (submitted && rc == 0) {
+		rc = 1;
+	}
+
+	return rc;
 }

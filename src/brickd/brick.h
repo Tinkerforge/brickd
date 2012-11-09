@@ -51,6 +51,7 @@ typedef struct {
 
 	// Brick
 	Array uids;
+	Array write_queue;
 
 	// used by usb_update
 	int connected;
@@ -61,7 +62,8 @@ int brick_create(Brick *brick, libusb_context *context,
 void brick_destroy(Brick *brick);
 
 int brick_add_uid(Brick *brick, uint32_t uid);
+int brick_knows_uid(Brick *brick, uint32_t uid);
 
-int brick_has_uid(Brick *brick, uint32_t uid);
+int brick_dispatch_packet(Brick *brick, Packet *packet, int force);
 
 #endif // BRICKD_BRICK_H

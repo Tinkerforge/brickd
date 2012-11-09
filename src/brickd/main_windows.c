@@ -146,7 +146,7 @@ void WINAPI service_main(DWORD dwArgc, LPTSTR *lpszArgv) {
 
 
 
-	ZeroMemory(&notification_filter, sizeof(notification_filter));
+	ZeroMemory(&notification_filter, sizeof(DEV_BROADCAST_DEVICEINTERFACE));
 
 	notification_filter.dbcc_size = sizeof(DEV_BROADCAST_DEVICEINTERFACE);
 	notification_filter.dbcc_devicetype = DBT_DEVTYP_DEVICEINTERFACE;

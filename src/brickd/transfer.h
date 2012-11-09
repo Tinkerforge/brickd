@@ -40,6 +40,7 @@ struct _Transfer {
 	Brick *brick;
 	int type;
 	int submitted;
+	int completed;
 	TransferFunction function;
 	struct libusb_transfer *handle;
 	Packet packet;

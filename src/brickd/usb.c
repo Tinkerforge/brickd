@@ -301,73 +301,60 @@ int usb_update(void) {
 	return 0;
 }
 
+void usb_dispatch_packet(Packet *packet) {
+	int i;
+	Brick *brick;
+	int rc;
+	int dispatched = 0;
 
-
-
-static void write_transfer_callback(Transfer *transfer) {
-	if (transfer->handle->status != LIBUSB_TRANSFER_COMPLETED) {
-		log_warn("Write transfer returned with an error: %s (%d)",
-		         get_libusb_transfer_status_name(transfer->handle->status),
-		         transfer->handle->status);
+	if (_bricks.count == 0) {
+		log_debug("No Bricks connected, dropping request (U: %u, L: %u, F: %u, S: %u, R: %u)",
+		          packet->header.uid, packet->header.length,
+		          packet->header.function_id, packet->header.sequence_number,
+		          packet->header.response_expected);
 
 		return;
 	}
-}
 
+	if (packet->header.uid == 0) {
+		log_debug("Broadcasting request (U: %u, L: %u, F: %u, S: %u, R: %u) to %d Brick(s)",
+		          packet->header.uid, packet->header.length,
+		          packet->header.function_id, packet->header.sequence_number,
+		          packet->header.response_expected, _bricks.count);
 
-void usb_dispatch_packet(Packet *packet) {
-	int j;
-	Brick *brick;
-	int submitted;
-	int k;
-	Transfer *transfer;
+		for (i = 0; i < _bricks.count; ++i) {
+			brick = array_get(&_bricks, i);
 
-	log_debug("Dispatching request (U: %u, L: %u, F: %u, S: %u, R: %u) to %d Brick(s)",
-	          packet->header.uid, packet->header.length,
-	          packet->header.function_id,
-	          packet->header.sequence_number,
-	          packet->header.response_expected,
-	          _bricks.count);
+			brick_dispatch_packet(brick, packet, 1);
+		}
+	} else {
+		log_debug("Dispatching request (U: %u, L: %u, F: %u, S: %u, R: %u) to %d Brick(s)",
+		          packet->header.uid, packet->header.length,
+		          packet->header.function_id, packet->header.sequence_number,
+		          packet->header.response_expected, _bricks.count);
 
-	for (j = 0; j < _bricks.count; ++j) {
-		brick = array_get(&_bricks, j);
+		for (i = 0; i < _bricks.count; ++i) {
+			brick = array_get(&_bricks, i);
 
-		submitted = 0;
+			rc = brick_dispatch_packet(brick, packet, 0);
 
-		for (k = 0; k < brick->write_transfers.count; ++k) {
-			transfer = array_get(&brick->write_transfers, k);
-
-			if (transfer->submitted) {
+			if (rc < 0) {
 				continue;
+			} else if (rc > 0) {
+				dispatched = 1;
 			}
-
-			transfer->function = write_transfer_callback;
-
-			memcpy(&transfer->packet, packet, packet->header.length);
-
-			if (transfer_submit(transfer) < 0) {
-				// FIXME: how to handle a failed submission, try to re-submit?
-
-				continue;
-			}
-
-			submitted = 1;
-
-			break;
 		}
 
-		if (!submitted) {
-			log_error("Could not find a free write transfer for %s [%s]",
-			          brick->product, brick->serial_number);
+		if (dispatched) {
+			return;
+		}
 
-			/*queued_packet = array_append(&brick->write_transfer_packet_queue);
+		log_debug("Broadcasting request because no Brick knows the UID");
 
-			if (queued_packet == NULL) {
-				// FIXME: report error
-				continue;
-			}
+		for (i = 0; i < _bricks.count; ++i) {
+			brick = array_get(&_bricks, i);
 
-			memcpy(queued_packet, packet, packet->header.length);*/
+			brick_dispatch_packet(brick, packet, 1);
 		}
 	}
 }

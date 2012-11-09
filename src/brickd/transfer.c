@@ -45,8 +45,17 @@ static void LIBUSB_CALL transfer_wrapper(struct libusb_transfer *handle) {
 	Transfer *transfer = handle->user_data;
 
 	transfer->submitted = 0;
+	transfer->completed = 1;
 
-	if (transfer->function != NULL) {
+	if (handle->status == LIBUSB_TRANSFER_CANCELLED) {
+		log_debug("Cancelled pending %s transfer for %s [%s]",
+		          transfer_get_type_name(transfer->type),
+		          transfer->brick->product, transfer->brick->serial_number);
+	} else if (handle->status == LIBUSB_TRANSFER_NO_DEVICE) {
+		log_debug("Pending %s transfer for %s [%s] aborted, device was disconnected",
+		          transfer_get_type_name(transfer->type),
+		          transfer->brick->product, transfer->brick->serial_number);
+	} else if (transfer->function != NULL) {
 		transfer->function(transfer);
 	}
 }
@@ -56,6 +65,7 @@ int transfer_create(Transfer *transfer, Brick *brick, int type,
 	transfer->brick = brick;
 	transfer->type = type;
 	transfer->submitted = 0;
+	transfer->completed = 0;
 	transfer->function = function;
 	transfer->handle = libusb_alloc_transfer(0);
 
@@ -71,11 +81,30 @@ int transfer_create(Transfer *transfer, Brick *brick, int type,
 }
 
 void transfer_destroy(Transfer *transfer) {
-	// FIXME: assume that transfer is not submitted
+	struct timeval tv;
+	int rc;
+
+	/*log_debug("Freeing libusb %s transfer for %s [%s]",
+	          transfer_get_type_name(transfer->type),
+	          transfer->brick->product, transfer->brick->serial_number);*/
 
 	if (transfer->submitted) {
-		log_warn("Trying to destroy a submitted transfer for %s [%s]",
-		         transfer->brick->product, transfer->brick->serial_number);
+		transfer->completed = 0;
+
+		libusb_cancel_transfer(transfer->handle);
+
+		tv.tv_sec = 0;
+		tv.tv_usec = 0;
+
+		while (!transfer->completed) {
+			// FIXME: calling this here might be a problem when using threads
+			rc = libusb_handle_events_timeout(transfer->brick->context, &tv);
+
+			if (rc < 0) {
+				log_error("Could not handle USB events: %s (%d)",
+				          get_libusb_error_name(rc), rc);
+			}
+		}
 	}
 
 	libusb_free_transfer(transfer->handle);

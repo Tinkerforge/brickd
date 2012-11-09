@@ -118,13 +118,13 @@ int network_init(void) {
 		return -1;
 	}
 
-	memset(&server_address, 0, sizeof(server_address));
+	memset(&server_address, 0, sizeof(struct sockaddr_in));
 
 	server_address.sin_family = AF_INET;
 	server_address.sin_addr.s_addr = htonl(INADDR_ANY);
 	server_address.sin_port = htons(_port);
 
-	if (socket_bind(_server_socket, (struct sockaddr *)&server_address, sizeof(server_address)) < 0) {
+	if (socket_bind(_server_socket, (struct sockaddr *)&server_address, sizeof(struct sockaddr_in)) < 0) {
 		// FIXME: close socket
 		log_error("Could not bind server socket to port %d: %s (%d)",
 		          _port, get_errno_name(errno), errno);
@@ -185,35 +185,67 @@ void network_dispatch_packet(Packet *packet) {
 	int rc;
 	int dispatched = 0;
 
-	log_debug("Dispatching response (U: %u, L: %u, F: %u, S: %u, E: %u) to %d client(s)",
-	          packet->header.uid,
-	          packet->header.length,
-	          packet->header.function_id,
-	          packet->header.sequence_number,
-	          packet->header.error_code,
-	          _clients.count);
-
-	for (i = 0; i < _clients.count; ++i) {
-		client = array_get(&_clients, i);
-
-		rc = client_dispatch_packet(client, packet, 0);
-
-		if (rc < 0) {
-			continue;
-		} else if (rc > 0) {
-			dispatched = 1;
+	if (_clients.count == 0) {
+		if (packet->header.sequence_number == 0) {
+			log_debug("No clients connected, dropping callback (U: %u, L: %u, F: %u)",
+			          packet->header.uid,
+			          packet->header.length,
+			          packet->header.function_id);
+		} else {
+			log_debug("No clients connected, dropping response (U: %u, L: %u, F: %u, S: %u, E: %u)",
+			          packet->header.uid,
+			          packet->header.length,
+			          packet->header.function_id,
+			          packet->header.sequence_number,
+			          packet->header.error_code);
 		}
-	}
 
-	if (dispatched) {
 		return;
 	}
 
-	log_debug("Broadcasting response because no client had a pending request matching it");
+	if (packet->header.sequence_number == 0) {
+		log_debug("Broadcasting callback (U: %u, L: %u, F: %u) to %d client(s)",
+		          packet->header.uid,
+		          packet->header.length,
+		          packet->header.function_id,
+		          _clients.count);
 
-	for (i = 0; i < _clients.count; ++i) {
-		client = array_get(&_clients, i);
+		for (i = 0; i < _clients.count; ++i) {
+			client = array_get(&_clients, i);
 
-		client_dispatch_packet(client, packet, 1);
+			client_dispatch_packet(client, packet, 1);
+		}
+	} else {
+		log_debug("Dispatching response (U: %u, L: %u, F: %u, S: %u, E: %u) to %d client(s)",
+		          packet->header.uid,
+		          packet->header.length,
+		          packet->header.function_id,
+		          packet->header.sequence_number,
+		          packet->header.error_code,
+		          _clients.count);
+
+		for (i = 0; i < _clients.count; ++i) {
+			client = array_get(&_clients, i);
+
+			rc = client_dispatch_packet(client, packet, 0);
+
+			if (rc < 0) {
+				continue;
+			} else if (rc > 0) {
+				dispatched = 1;
+			}
+		}
+
+		if (dispatched) {
+			return;
+		}
+
+		log_debug("Broadcasting response because no client has a matching pending request");
+
+		for (i = 0; i < _clients.count; ++i) {
+			client = array_get(&_clients, i);
+
+			client_dispatch_packet(client, packet, 1);
+		}
 	}
 }
