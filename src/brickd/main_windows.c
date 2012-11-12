@@ -25,6 +25,7 @@
 
 #include "event.h"
 #include "log.h"
+#include "network.h"
 #include "usb.h"
 #include "utils.h"
 #include "version.h"
@@ -47,12 +48,12 @@ static char *service_description = "Brick Daemon is a bridge between USB devices
 static SERVICE_STATUS service_status;
 static SERVICE_STATUS_HANDLE service_status_handle = 0;
 
-DWORD WINAPI service_control_handler( DWORD dwControl,
- DWORD dwEventType,
- LPVOID lpEventData,
-  LPVOID lpContext )
-{
+static DWORD WINAPI service_control_handler(DWORD dwControl, DWORD dwEventType,
+                                            LPVOID lpEventData, LPVOID lpContext) {
 	log_info("ServiceControlHandler: %u\n", GetCurrentThreadId());
+
+	(void)lpEventData;
+	(void)lpContext;
 
 	switch (dwControl) {
 	case SERVICE_CONTROL_INTERROGATE:
@@ -94,11 +95,14 @@ DWORD WINAPI service_control_handler( DWORD dwControl,
 
 			log_info("DBT_DEVICEARRIVAL %u\n", GetCurrentThreadId());
 
+			usb_update();
+
 			break;
 
 		case DBT_DEVICEREMOVECOMPLETE:
 			log_info("DBT_DEVICEREMOVECOMPLETE %u\n", GetCurrentThreadId());
 
+			usb_update();
 
 			break;
 		}
@@ -111,6 +115,7 @@ DWORD WINAPI service_control_handler( DWORD dwControl,
 
 static void WINAPI service_main(DWORD dwArgc, LPTSTR *lpszArgv) {
 	int rc;
+	WSADATA wsa_data;
 	DEV_BROADCAST_DEVICEINTERFACE notification_filter;
 
 	log_info("ServiceMain: %u\n", GetCurrentThreadId());
@@ -126,10 +131,10 @@ static void WINAPI service_main(DWORD dwArgc, LPTSTR *lpszArgv) {
 
 	service_status_handle = RegisterServiceCtrlHandlerEx(service_name, service_control_handler, NULL);
 
-	if (service_status_handle == 0) {
+	if (service_status_handle == NULL) {
 		rc = ERRNO_WINAPI_OFFSET + GetLastError();
 
-		log_error("Could not register service control handler: %d (%d)",
+		log_error("Could not register service control handler: %s (%d)",
 		          get_errno_name(rc), rc);
 
 		return;
@@ -143,8 +148,27 @@ static void WINAPI service_main(DWORD dwArgc, LPTSTR *lpszArgv) {
 
 	// do initialisation here
 
-	// INITIAL USB DEVICE enumeration
 
+	// Initialize Winsock2
+	if (WSAStartup(MAKEWORD(2, 2), &wsa_data) != 0) {
+		rc = ERRNO_WINSOCK2_OFFSET + WSAGetLastError();
+
+		log_error("Could not initialize Windows Sockets 2.2: %s (%d)",
+		          get_errno_name(rc), rc);
+
+		goto error_event;
+	}
+
+
+
+
+	if (event_init() < 0) {
+		goto error_event;
+	}
+
+	if (usb_init() < 0) {
+		goto error_usb;
+	}
 
 
 	ZeroMemory(&notification_filter, sizeof(DEV_BROADCAST_DEVICEINTERFACE));
@@ -159,23 +183,50 @@ static void WINAPI service_main(DWORD dwArgc, LPTSTR *lpszArgv) {
 		DEVICE_NOTIFY_SERVICE_HANDLE // type of recipient handle
 		);
 
+	//if RegisterDeviceNotification fails
+	// goto error_device_notification
+
+	if (network_init() < 0) {
+		goto error_network;
+	}
+
+
+
+
+
 	// running
 	service_status.dwControlsAccepted |= (SERVICE_ACCEPT_STOP | SERVICE_ACCEPT_SHUTDOWN);
 	service_status.dwCurrentState = SERVICE_RUNNING;
 
 	SetServiceStatus( service_status_handle, &service_status );
 
-	event_run(); // FIXME check return value and set exit code
+
+	if (event_run() < 0) {
+		goto error_run;
+	}
 
 
-	// service was stopped, FIXME: move after the event_stop() call
-	service_status.dwCurrentState = SERVICE_STOP_PENDING;
+	//exit_code = 0;
 
-	SetServiceStatus(service_status_handle, &service_status);
+error_run:
+	network_exit();
 
-	// do cleanup here
-
+error_network:
 	//UnregisterDeviceNotification (handle)
+
+error_device_notification:
+	usb_exit();
+
+error_usb:
+	event_exit();
+
+error_event:
+	log_info("Brick Daemon %s stopped", VERSION_STRING);
+
+	log_exit();
+
+	//return exit_code;
+
 
 	// service is now stopped
 	service_status.dwControlsAccepted &= ~(SERVICE_ACCEPT_STOP | SERVICE_ACCEPT_SHUTDOWN);
@@ -416,17 +467,25 @@ int main(int argc, char **argv) {
 	}
 	else
 	{
+
+
+
 		FILE *fp = fopen("C:\\tf\\brickd.log", "a+");
 
 		log_init();
-		log_set_level(LOG_LEVEL_DEBUG);
+		log_set_level(LOG_CATEGORY_EVENT, LOG_LEVEL_DEBUG);
+		log_set_level(LOG_CATEGORY_USB, LOG_LEVEL_DEBUG);
+		log_set_level(LOG_CATEGORY_NETWORK, LOG_LEVEL_DEBUG);
+		log_set_level(LOG_CATEGORY_HOTPLUG, LOG_LEVEL_DEBUG);
+		log_set_level(LOG_CATEGORY_OTHER, LOG_LEVEL_DEBUG);
 		log_set_stream(fp);
 
 
 		log_info("brickd %s started", VERSION_STRING);
 
 
-		log_info("main: %u\n", GetCurrentThreadId());
+
+		log_info("main: %u", GetCurrentThreadId());
 		service_run();
 	}
 
