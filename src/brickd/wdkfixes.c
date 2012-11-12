@@ -24,11 +24,16 @@
 // stop system header from defining _wstat
 #define _WSTAT_DEFINED
 
-#include <windows.h>
+#include <errno.h>
+#include <stdint.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <windows.h>
 
 #include "wdkfixes.h"
+
+// difference between Unix epoch and January 1, 1601 in 100-nanoseconds
+#define DELTA_EPOCH 116444736000000000ULL
 
 // getpid is missing in WDK's msvcrt.lib, only in libcmt.lib
 int __cdecl getpid(void) {
@@ -54,6 +59,30 @@ struct tm *localtime_r(const time_t *timep, struct tm *result) {
 	} else {
 		return NULL;
 	}
+}
+
+// implement gettimeofday based on GetSystemTimeAsFileTime
+int gettimeofday(struct timeval *tv, struct timezone *tz) {
+	FILETIME ft;
+	uint64_t t;
+
+	if (tz != NULL) {
+		errno = EINVAL;
+
+		return -1;
+	}
+
+	if (tv != NULL) {
+		GetSystemTimeAsFileTime(&ft);
+
+		t = ((uint64_t)ft.dwHighDateTime << 32) | (uint64_t)ft.dwLowDateTime;
+		t = (t - DELTA_EPOCH) / 10; // 100-nanoseconds to microseconds
+
+		tv->tv_sec = (long)(t / 1000000UL);
+		tv->tv_usec = (long)(t % 1000000UL);
+	}
+
+	return 0;
 }
 
 #endif // BRICKD_WDK_BUILD

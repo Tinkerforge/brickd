@@ -25,8 +25,16 @@
 #ifdef BRICKD_WDK_BUILD
 
 #include <time.h>
+#include <winsock2.h> // for struct timeval
+
+struct timezone {
+	int tz_minuteswest;
+	int tz_dsttime;
+};
 
 struct tm *localtime_r(const time_t *timep, struct tm *result);
+
+int gettimeofday(struct timeval *tv, struct timezone *tz);
 
 #endif // BRICKD_WDK_BUILD
 
