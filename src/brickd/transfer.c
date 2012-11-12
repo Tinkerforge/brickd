@@ -131,13 +131,13 @@ int transfer_submit(Transfer *transfer) {
 
 	switch (transfer->type) {
 	case TRANSFER_TYPE_READ:
-		end_point = USB_ENDPOINT_IN + 0x80;
+		end_point = LIBUSB_ENDPOINT_IN + USB_ENDPOINT_IN;
 		length = sizeof(Packet);
 
 		break;
 
 	case TRANSFER_TYPE_WRITE:
-		end_point = USB_ENDPOINT_OUT;
+		end_point = LIBUSB_ENDPOINT_OUT + USB_ENDPOINT_OUT;
 		length = transfer->packet.header.length;
 
 		break;
