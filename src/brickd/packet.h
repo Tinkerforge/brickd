@@ -24,8 +24,6 @@
 
 #include <stdint.h>
 
-#include "utils.h"
-
 #define CALLBACK_ENUMERATE 253
 
 #define ENUMERATION_AVAILABLE 0
@@ -76,7 +74,10 @@ typedef struct {
 #endif
 #undef ATTRIBUTE_PACKED
 
-static_assert(sizeof(PacketHeader) == 8, "PacketHeader has invalid size");
-static_assert(sizeof(Packet) == 80, "Packet has invalid size");
+// FIXME: check this for MSVC too
+#ifdef __GNUC__
+_Static_assert(sizeof(PacketHeader) == 8, "PacketHeader has invalid size");
+_Static_assert(sizeof(Packet) == 80, "Packet has invalid size");
+#endif
 
 #endif // BRICKD_PACKET_H

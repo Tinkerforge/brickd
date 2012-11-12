@@ -47,24 +47,25 @@ typedef struct {
 
 int array_create(Array *array, int reserved, int size);
 void array_destroy(Array *array, FreeFunction function);
+
 int array_reserve(Array *array, int count);
 int array_resize(Array *array, int count, FreeFunction function);
+
 void *array_append(Array *array);
 void array_remove(Array *array, int i, FreeFunction function);
+
 void *array_get(Array *array, int i);
 int array_find(Array *array, void *item);
 
 void base58_encode(char *str, uint32_t value);
 
 #ifdef __GNUC__
-	#define static_assert _Static_assert
-#endif
-
-#ifdef __GNUC__
 	#if __GNUC_PREREQ(4, 4)
-		#define ATTRIBUTE_FMT_PRINTF(fmtpos, argpos) __attribute__((__format__ (__gnu_printf__, fmtpos, argpos)))
+		#define ATTRIBUTE_FMT_PRINTF(fmtpos, argpos) \
+			__attribute__((__format__(__gnu_printf__, fmtpos, argpos)))
 	#else
-		#define ATTRIBUTE_FMT_PRINTF(fmtpos, argpos) __attribute__((__format__ (__printf__, fmtpos, argpos)))
+		#define ATTRIBUTE_FMT_PRINTF(fmtpos, argpos) \
+			__attribute__((__format__(__printf__, fmtpos, argpos)))
 	#endif
 #else
 	#define ATTRIBUTE_FMT_PRINTF(fmtpos, argpos)
