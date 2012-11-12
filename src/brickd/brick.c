@@ -134,6 +134,7 @@ static void write_transfer_callback(Transfer *transfer) {
 
 int brick_create(Brick *brick, libusb_context *context,
                  uint8_t bus_number, uint8_t device_address) {
+	int phase = 0;
 	int rc;
 	libusb_device **devices;
 	libusb_device *device;
@@ -156,9 +157,11 @@ int brick_create(Brick *brick, libusb_context *context,
 	if (rc < 0) {
 		log_error("Could not initialize per-device libusb context: %s (%d)",
 		          get_libusb_error_name(rc), rc);
-		brick_destroy(brick);
-		return -1;
+
+		goto cleanup;
 	}*/
+
+	phase = 1;
 
 	// find device
 	rc = libusb_get_device_list(brick->context, &devices);
@@ -167,9 +170,7 @@ int brick_create(Brick *brick, libusb_context *context,
 		log_error("Could not get USB device list: %s (%d)",
 		          get_libusb_error_name(rc), rc);
 
-		brick_destroy(brick); // FIXME: don't use
-
-		return -1;
+		goto cleanup;
 	}
 
 	for (device = devices[0]; device != NULL; device = devices[i++]) {
@@ -186,10 +187,10 @@ int brick_create(Brick *brick, libusb_context *context,
 		log_error("Could not find USB device (bus: %u, device: %u)",
 		          brick->bus_number, brick->device_address);
 
-		brick_destroy(brick); // FIXME: don't use
-
-		return -1;
+		goto cleanup;
 	}
+
+	phase = 2;
 
 	// get device descriptor
 	rc = libusb_get_device_descriptor(brick->device, &brick->device_descriptor);
@@ -199,9 +200,7 @@ int brick_create(Brick *brick, libusb_context *context,
 		          brick->bus_number, brick->device_address,
 		          get_libusb_error_name(rc), rc);
 
-		brick_destroy(brick); // FIXME: don't use
-
-		return -1;
+		goto cleanup;
 	}
 
 	// open device
@@ -212,10 +211,10 @@ int brick_create(Brick *brick, libusb_context *context,
 		          brick->bus_number, brick->device_address,
 		          get_libusb_error_name(rc), rc);
 
-		brick_destroy(brick); // FIXME: don't use
-
-		return -1;
+		goto cleanup;
 	}
+
+	phase = 3;
 
 	// reset device
 	rc = libusb_reset_device(brick->device_handle);
@@ -225,9 +224,7 @@ int brick_create(Brick *brick, libusb_context *context,
 		          brick->bus_number, brick->device_address,
 		          get_libusb_error_name(rc), rc);
 
-		brick_destroy(brick); // FIXME: don't use
-
-		return -1;
+		goto cleanup;
 	}
 
 	// set device configuration
@@ -238,9 +235,7 @@ int brick_create(Brick *brick, libusb_context *context,
 		          brick->bus_number, brick->device_address,
 		          get_libusb_error_name(rc), rc);
 
-		brick_destroy(brick); // FIXME: don't use
-
-		return -1;
+		goto cleanup;
 	}
 
 	// claim device interface
@@ -251,9 +246,7 @@ int brick_create(Brick *brick, libusb_context *context,
 		          brick->bus_number, brick->device_address,
 		          get_libusb_error_name(rc), rc);
 
-		brick_destroy(brick); // FIXME: don't use
-
-		return -1;
+		goto cleanup;
 	}
 
 	// get product string descriptor
@@ -267,9 +260,7 @@ int brick_create(Brick *brick, libusb_context *context,
 		          brick->bus_number, brick->device_address,
 		          get_libusb_error_name(rc), rc);
 
-		brick_destroy(brick); // FIXME: don't use
-
-		return -1;
+		goto cleanup;
 	}
 
 	// get serial number string descriptor
@@ -283,9 +274,7 @@ int brick_create(Brick *brick, libusb_context *context,
 		          brick->bus_number, brick->device_address,
 		          get_libusb_error_name(rc), rc);
 
-		brick_destroy(brick); // FIXME: don't use
-
-		return -1;
+		goto cleanup;
 	}
 
 	// allocate and submit read transfers
@@ -293,9 +282,7 @@ int brick_create(Brick *brick, libusb_context *context,
 		log_error("Could not create read transfer array: %s (%d)",
 		          get_errno_name(errno), errno);
 
-		brick_destroy(brick); // FIXME: don't use
-
-		return -1;
+		goto cleanup;
 	}
 
 	for (i = 0; i < 5; ++i) {
@@ -306,100 +293,104 @@ int brick_create(Brick *brick, libusb_context *context,
 			log_error("Could not append to read transfer array: %s (%d)",
 			          get_errno_name(errno), errno);
 
-			brick_destroy(brick); // FIXME: don't use
-
-			return -1;
+			goto cleanup;
 		}
 
 		if (transfer_create(transfer, brick, TRANSFER_TYPE_READ,
 		                    read_transfer_callback) < 0) {
-			brick_destroy(brick); // FIXME: don't use
-
-			return -1;
+			goto cleanup;
 		}
 
 		if (transfer_submit(transfer) < 0) {
-			brick_destroy(brick); // FIXME: don't use
-
-			return -1;
+			goto cleanup;
 		}
 	}
+
+	phase = 4;
 
 	// allocate write transfers
 	if (array_create(&brick->write_transfers, 5, sizeof(Transfer)) < 0) {
 		log_error("Could not create write transfer array: %s (%d)",
 		          get_errno_name(errno), errno);
 
-		brick_destroy(brick); // FIXME: don't use
-
-		return -1;
+		goto cleanup;
 	}
 
 	for (i = 0; i < 5; ++i) {
-		// FIXME: need to destroy already created, transfers in case of an error
 		transfer = array_append(&brick->write_transfers);
 
 		if (transfer == NULL) {
 			log_error("Could not append to write transfer array: %s (%d)",
 			          get_errno_name(errno), errno);
 
-			brick_destroy(brick); // FIXME: don't use
-
-			return -1;
+			goto cleanup;
 		}
 
 		if (transfer_create(transfer, brick, TRANSFER_TYPE_WRITE, NULL) < 0) {
-			brick_destroy(brick); // FIXME: don't use
-
-			return -1;
+			goto cleanup;
 		}
 	}
+
+	phase = 5;
 
 	if (array_create(&brick->uids, 32, sizeof(uint32_t)) < 0) {
 		log_error("Could not create UID array: %s (%d)",
 		          get_errno_name(errno), errno);
 
-		brick_destroy(brick); // FIXME: don't use
-
-		return -1;
+		goto cleanup;
 	}
+
+	phase = 6;
 
 	if (array_create(&brick->write_queue, 32, sizeof(Packet)) < 0) {
 		log_error("Could not create write queue array: %s (%d)",
 		          get_errno_name(errno), errno);
 
-		brick_destroy(brick); // FIXME: don't use
-
-		return -1;
+		goto cleanup;
 	}
 
-	return 0;
+	phase = 7;
+
+cleanup:
+	switch (phase) { // no breaks, all cases fall through intentionally
+	case 6:
+		array_destroy(&brick->uids, NULL);
+
+	case 5:
+		array_destroy(&brick->write_transfers, (FreeFunction)transfer_destroy);
+
+	case 4:
+		array_destroy(&brick->read_transfers, (FreeFunction)transfer_destroy);
+
+	case 3:
+		libusb_close(brick->device_handle);
+
+	case 2:
+		libusb_unref_device(brick->device);
+
+	case 1:
+		//libusb_exit(brick->context);
+
+	default:
+		break;
+	}
+
+	return phase == 7 ? 0 : -1;
 }
 
 void brick_destroy(Brick *brick) {
-	// FIXME: free uids array
+	array_destroy(&brick->write_queue, NULL);
+
+	array_destroy(&brick->uids, NULL);
 
 	array_destroy(&brick->read_transfers, (FreeFunction)transfer_destroy);
 	array_destroy(&brick->write_transfers, (FreeFunction)transfer_destroy);
 
-	array_destroy(&brick->uids, NULL);
+	libusb_close(brick->device_handle);
 
-	array_destroy(&brick->write_queue, NULL);
+	libusb_unref_device(brick->device);
 
-	if (brick->device != NULL) {
-		libusb_unref_device(brick->device);
-		brick->device = NULL;
-	}
-
-	if (brick->device_handle != NULL) {
-		libusb_close(brick->device_handle);
-		brick->device_handle = NULL;
-	}
-
-	/*if (brick->context != NULL) {
-		libusb_exit(brick->context);
-		brick->context = NULL;
-	}*/
+	//libusb_exit(brick->context);
 }
 
 int brick_add_uid(Brick *brick, uint32_t uid) {
