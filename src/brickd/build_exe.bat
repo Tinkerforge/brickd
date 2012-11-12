@@ -34,6 +34,7 @@
  pipe_winapi.c^
  socket_winapi.c^
  threads_winapi.c^
+ transfer.c^
  usb.c^
  utils.c^
  wdkfixes.c
