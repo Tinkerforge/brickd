@@ -44,6 +44,14 @@ static const char *transfer_get_type_name(TransferType type, int upper) {
 static void LIBUSB_CALL transfer_wrapper(struct libusb_transfer *handle) {
 	Transfer *transfer = handle->user_data;
 
+	if (!transfer->submitted) {
+		log_error("%s transfer %p returned from %s [%s], but was nut submitted before",
+		          transfer_get_type_name(transfer->type, 1), transfer,
+		          transfer->brick->product, transfer->brick->serial_number);
+
+		return;
+	}
+
 	log_debug("%s transfer %p returned from %s [%s]: %s (%d)",
 	          transfer_get_type_name(transfer->type, 1), transfer,
 	          transfer->brick->product, transfer->brick->serial_number,

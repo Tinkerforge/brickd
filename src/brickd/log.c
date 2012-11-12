@@ -103,8 +103,8 @@ static void log_stream_handler(LogLevel level, const char *file, int line,
 	};
 
 	// print prefix
-	fprintf(_stream, "%s.%03d <%c> <%s:%d> ",
-	        lt_str, ((int)tv.tv_usec + 500) / 1000, level_c, file, line);
+	fprintf(_stream, "%s.%06d <%c> <%s:%d> ",
+	        lt_str, (int)tv.tv_usec, level_c, file, line);
 
 	// print message
 	vfprintf(_stream, format, arguments);
