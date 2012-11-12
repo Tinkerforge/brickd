@@ -91,6 +91,7 @@ static void network_handle_accept(void *opaque) {
 }
 
 int network_init(void) {
+	int phase = 0;
 	struct sockaddr_in server_address;
 
 	log_debug("Initializing network subsystem");
@@ -99,24 +100,26 @@ int network_init(void) {
 		log_error("Could not create client array: %s (%d)",
 		          get_errno_name(errno), errno);
 
-		return -1;
+		goto cleanup;
 	}
+
+	phase = 1;
 
 	if (socket_create(&_server_socket, AF_INET, SOCK_STREAM, 0) < 0) {
 		log_error("Could not create server socket: %s (%d)",
 		          get_errno_name(errno), errno);
 
-		// FIXME: free client array
-		return -1;
+		goto cleanup;
 	}
+
+	phase = 2;
 
 	// FIXME: use this for debugging purpose only
 	if (socket_set_address_reuse(_server_socket, 1) < 0) {
-		// FIXME: close socket
 		log_error("Could not enable address-reuse mode for server socket: %s (%d)",
 		          get_errno_name(errno), errno);
-		// FIXME: free client array
-		return -1;
+
+		goto cleanup;
 	}
 
 	memset(&server_address, 0, sizeof(struct sockaddr_in));
@@ -127,48 +130,55 @@ int network_init(void) {
 
 	if (socket_bind(_server_socket, (struct sockaddr *)&server_address,
 	                sizeof(struct sockaddr_in)) < 0) {
-		// FIXME: close socket
 		log_error("Could not bind server socket to port %u: %s (%d)",
 		          _port, get_errno_name(errno), errno);
 
-		// FIXME: free client array
-		return -1;
+		goto cleanup;
 	}
 
 	if (socket_listen(_server_socket, 10) < 0) {
-		// FIXME: close socket
 		log_error("Could not listen to server socket on port %u: %s (%d)",
 		          _port, get_errno_name(errno), errno);
 
-		// FIXME: free client array
-		return -1;
+		goto cleanup;
 	}
 
 	// FIXME: do we really need this?
 	if (socket_set_non_blocking(_server_socket, 1) < 0) {
-		// FIXME: close socket
 		log_error("Could not enable non-blocking mode for server socket: %s (%d)",
 		          get_errno_name(errno), errno);
-		// FIXME: free client array
-		return -1;
+
+		goto cleanup;
 	}
 
 	if (event_add_source(_server_socket, EVENT_SOURCE_TYPE_GENERIC, EVENT_READ,
 	                     network_handle_accept, NULL) < 0) {
-		// FIXME: close socket
-		// FIXME: free client array
-		return -1;
+		goto cleanup;
 	}
 
-	return 0;
+	phase = 3;
+
+cleanup:
+	switch (phase) { // no breaks, all cases fall through intentionally
+	case 2:
+		socket_destroy(_server_socket);
+
+	case 1:
+		array_destroy(&_clients, (FreeFunction)client_destroy);
+
+	default:
+		break;
+	}
+
+	return phase == 3 ? 0 : -1;
 }
 
 void network_exit(void) {
 	log_debug("Shutting down network subsystem");
 
-	// FIXME
-
 	array_destroy(&_clients, (FreeFunction)client_destroy);
+
+	event_remove_source(_server_socket, EVENT_SOURCE_TYPE_GENERIC);
 
 	socket_destroy(_server_socket);
 }
