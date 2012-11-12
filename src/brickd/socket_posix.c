@@ -38,7 +38,8 @@ void socket_destroy(EventHandle handle) {
 }
 
 // sets errno on error
-int socket_bind(EventHandle handle, const struct sockaddr *address, socklen_t length) {
+int socket_bind(EventHandle handle, const struct sockaddr *address,
+                socklen_t length) {
 	return bind(handle, address, length);
 }
 
@@ -48,7 +49,8 @@ int socket_listen(EventHandle handle, int backlog) {
 }
 
 // sets errno on error
-int socket_accept(EventHandle handle, EventHandle *accepted_handle, struct sockaddr *address, socklen_t *length) {
+int socket_accept(EventHandle handle, EventHandle *accepted_handle,
+                  struct sockaddr *address, socklen_t *length) {
 	*accepted_handle = accept(handle, address, length);
 
 	return *accepted_handle < 0 ? -1 : 0;

@@ -45,7 +45,8 @@ void socket_destroy(EventHandle handle) {
 }
 
 // sets errno on error
-int socket_bind(EventHandle handle, const struct sockaddr *address, socklen_t length) {
+int socket_bind(EventHandle handle, const struct sockaddr *address,
+                socklen_t length) {
 	int rc = bind(handle, address, length);
 
 	if (rc == SOCKET_ERROR) {
@@ -69,7 +70,8 @@ int socket_listen(EventHandle handle, int backlog) {
 }
 
 // sets errno on error
-int socket_accept(EventHandle handle, EventHandle *accepted_handle, struct sockaddr *address, socklen_t *length) {
+int socket_accept(EventHandle handle, EventHandle *accepted_handle,
+                  struct sockaddr *address, socklen_t *length) {
 	*accepted_handle = accept(handle, address, length);
 
 	if (*accepted_handle == INVALID_SOCKET) {
@@ -109,6 +111,20 @@ int socket_send(EventHandle handle, void *buffer, int length) {
 int socket_set_non_blocking(EventHandle handle, int non_blocking) {
 	unsigned long argument = non_blocking;
 	int rc = ioctlsocket(handle, FIONBIO, &argument);
+
+	if (rc == SOCKET_ERROR) {
+		rc = -1;
+		errno = ERRNO_WINSOCK2_OFFSET + WSAGetLastError();
+	}
+
+	return rc;
+}
+
+// sets errno on error
+int socket_set_address_reuse(EventHandle handle, int address_reuse) {
+	BOOL argument = address_reuse;
+	int rc = setsockopt(handle, SOL_SOCKET, SO_REUSEADDR, (const char *)&argument,
+	                    sizeof(BOOL));
 
 	if (rc == SOCKET_ERROR) {
 		rc = -1;

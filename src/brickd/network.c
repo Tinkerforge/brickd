@@ -36,7 +36,7 @@
 
 #define LOG_CATEGORY LOG_CATEGORY_NETWORK
 
-static int _port = 4223;
+static uint16_t _port = 4223;
 static Array _clients = ARRAY_INITIALIZER;
 static EventHandle _server_socket = INVALID_EVENT_HANDLE;
 
@@ -110,6 +110,7 @@ int network_init(void) {
 		return -1;
 	}
 
+	// FIXME: use this for debugging purpose only
 	if (socket_set_address_reuse(_server_socket, 1) < 0) {
 		// FIXME: close socket
 		log_error("Could not enable address-reuse mode for server socket: %s (%d)",
@@ -124,7 +125,8 @@ int network_init(void) {
 	server_address.sin_addr.s_addr = htonl(INADDR_ANY);
 	server_address.sin_port = htons(_port);
 
-	if (socket_bind(_server_socket, (struct sockaddr *)&server_address, sizeof(struct sockaddr_in)) < 0) {
+	if (socket_bind(_server_socket, (struct sockaddr *)&server_address,
+	                sizeof(struct sockaddr_in)) < 0) {
 		// FIXME: close socket
 		log_error("Could not bind server socket to port %u: %s (%d)",
 		          _port, get_errno_name(errno), errno);
@@ -142,6 +144,7 @@ int network_init(void) {
 		return -1;
 	}
 
+	// FIXME: do we really need this?
 	if (socket_set_non_blocking(_server_socket, 1) < 0) {
 		// FIXME: close socket
 		log_error("Could not enable non-blocking mode for server socket: %s (%d)",

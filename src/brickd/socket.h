@@ -32,11 +32,16 @@
 
 int socket_create(EventHandle *handle, int domain, int type, int protocol);
 void socket_destroy(EventHandle handle);
-int socket_bind(EventHandle handle, const struct sockaddr *address, socklen_t length);
+
+int socket_bind(EventHandle handle, const struct sockaddr *address,
+                socklen_t length);
 int socket_listen(EventHandle handle, int backlog);
-int socket_accept(EventHandle handle, EventHandle *accepted_handle, struct sockaddr *address, socklen_t *length);
+int socket_accept(EventHandle handle, EventHandle *accepted_handle,
+                  struct sockaddr *address, socklen_t *length);
+
 int socket_receive(EventHandle handle, void *buffer, int length);
 int socket_send(EventHandle handle, void *buffer, int length);
+
 int socket_set_non_blocking(EventHandle handle, int non_blocking);
 int socket_set_address_reuse(EventHandle handle, int address_reuse);
 
