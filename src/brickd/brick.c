@@ -249,6 +249,8 @@ int brick_create(Brick *brick, libusb_context *context,
 		goto cleanup;
 	}
 
+	phase = 4;
+
 	// get product string descriptor
 	rc = libusb_get_string_descriptor_ascii(brick->device_handle,
 	                                        brick->device_descriptor.iProduct,
@@ -306,7 +308,7 @@ int brick_create(Brick *brick, libusb_context *context,
 		}
 	}
 
-	phase = 4;
+	phase = 5;
 
 	// allocate write transfers
 	if (array_create(&brick->write_transfers, 5, sizeof(Transfer)) < 0) {
@@ -331,7 +333,7 @@ int brick_create(Brick *brick, libusb_context *context,
 		}
 	}
 
-	phase = 5;
+	phase = 6;
 
 	if (array_create(&brick->uids, 32, sizeof(uint32_t)) < 0) {
 		log_error("Could not create UID array: %s (%d)",
@@ -340,7 +342,7 @@ int brick_create(Brick *brick, libusb_context *context,
 		goto cleanup;
 	}
 
-	phase = 6;
+	phase = 7;
 
 	if (array_create(&brick->write_queue, 32, sizeof(Packet)) < 0) {
 		log_error("Could not create write queue array: %s (%d)",
@@ -349,18 +351,21 @@ int brick_create(Brick *brick, libusb_context *context,
 		goto cleanup;
 	}
 
-	phase = 7;
+	phase = 8;
 
 cleanup:
 	switch (phase) { // no breaks, all cases fall through intentionally
-	case 6:
+	case 7:
 		array_destroy(&brick->uids, NULL);
 
-	case 5:
+	case 6:
 		array_destroy(&brick->write_transfers, (FreeFunction)transfer_destroy);
 
-	case 4:
+	case 5:
 		array_destroy(&brick->read_transfers, (FreeFunction)transfer_destroy);
+
+	case 4:
+		libusb_release_interface(brick->device_handle, USB_INTERFACE);
 
 	case 3:
 		libusb_close(brick->device_handle);
@@ -375,7 +380,7 @@ cleanup:
 		break;
 	}
 
-	return phase == 7 ? 0 : -1;
+	return phase == 8 ? 0 : -1;
 }
 
 void brick_destroy(Brick *brick) {
@@ -385,6 +390,8 @@ void brick_destroy(Brick *brick) {
 
 	array_destroy(&brick->read_transfers, (FreeFunction)transfer_destroy);
 	array_destroy(&brick->write_transfers, (FreeFunction)transfer_destroy);
+
+	libusb_release_interface(brick->device_handle, USB_INTERFACE);
 
 	libusb_close(brick->device_handle);
 
