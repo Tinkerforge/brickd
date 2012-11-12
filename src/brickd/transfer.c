@@ -28,19 +28,6 @@
 
 #define LOG_CATEGORY LOG_CATEGORY_USB
 
-static const char *transfer_get_type_name(TransferType type, int upper) {
-	switch (type) {
-	case TRANSFER_TYPE_READ:
-		return upper ? "Read" : "read";
-
-	case TRANSFER_TYPE_WRITE:
-		return upper ? "Write" : "write";
-
-	default:
-		return upper ? "<Unknown>" : "<unknown>";
-	}
-}
-
 static void LIBUSB_CALL transfer_wrapper(struct libusb_transfer *handle) {
 	Transfer *transfer = handle->user_data;
 
@@ -71,6 +58,19 @@ static void LIBUSB_CALL transfer_wrapper(struct libusb_transfer *handle) {
 		          transfer->brick->product, transfer->brick->serial_number);
 	} else if (transfer->function != NULL) {
 		transfer->function(transfer);
+	}
+}
+
+const char *transfer_get_type_name(TransferType type, int upper) {
+	switch (type) {
+	case TRANSFER_TYPE_READ:
+		return upper ? "Read" : "read";
+
+	case TRANSFER_TYPE_WRITE:
+		return upper ? "Write" : "write";
+
+	default:
+		return upper ? "<Unknown>" : "<unknown>";
 	}
 }
 

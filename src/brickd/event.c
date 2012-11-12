@@ -38,6 +38,19 @@ extern void event_exit_platform(void);
 extern int event_run_platform(Array *sources, int *running);
 extern int event_stop_platform(void);
 
+const char *event_get_source_type_name(EventSourceType type, int upper) {
+	switch (type) {
+	case EVENT_SOURCE_TYPE_GENERIC:
+		return upper ? "Generic" : "generic";
+
+	case EVENT_SOURCE_TYPE_USB:
+		return "USB";
+
+	default:
+		return upper ? "<Unknown>" : "<unknown>";
+	}
+}
+
 int event_init(void) {
 	log_debug("Initializing event subsystem");
 
@@ -67,19 +80,6 @@ void event_exit(void) {
 	}
 
 	array_destroy(&_event_sources, NULL);
-}
-
-const char *event_get_source_type_name(EventSourceType type, int upper) {
-	switch (type) {
-	case EVENT_SOURCE_TYPE_GENERIC:
-		return upper ? "Generic" : "generic";
-
-	case EVENT_SOURCE_TYPE_USB:
-		return "USB";
-
-	default:
-		return upper ? "<Unknown>" : "<unknown>";
-	}
 }
 
 int event_add_source(EventHandle handle, EventSourceType type, int events,

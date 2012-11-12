@@ -46,6 +46,8 @@ struct _Transfer {
 	Packet packet;
 };
 
+const char *transfer_get_type_name(TransferType type, int upper);
+
 int transfer_create(Transfer *transfer, Brick *brick, TransferType type,
                     TransferFunction function);
 void transfer_destroy(Transfer *transfer);

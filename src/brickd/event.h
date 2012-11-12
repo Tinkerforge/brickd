@@ -66,10 +66,10 @@ typedef struct {
 	int removed;
 } EventSource;
 
+const char *event_get_source_type_name(EventSourceType type, int upper);
+
 int event_init(void);
 void event_exit(void);
-
-const char *event_get_source_type_name(EventSourceType type, int upper);
 
 int event_add_source(EventHandle handle, EventSourceType type,
                      int events, EventFunction function, void *opaque);

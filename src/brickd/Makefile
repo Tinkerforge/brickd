@@ -24,7 +24,7 @@ LIBUDEV_CFLAGS := $(shell pkg-config --cflags libudev)
 LIBUDEV_LDFLAGS := $(shell pkg-config --libs-only-other --libs-only-L libudev)
 LIBUDEV_LIBS := $(shell pkg-config --libs-only-l libudev)
 
-CFLAGS += $(LIBUSB_CFLAGS) $(LIBUDEV_CFLAGS)
+CFLAGS += $(LIBUSB_CFLAGS) $(LIBUDEV_CFLAGS) -DBRICKD_LOG_ENABLED
 LDFLAGS += $(LIBUSB_LDFLAGS) $(LIBUDEV_LDFLAGS)
 
 .PHONY: all clean

@@ -47,21 +47,28 @@ typedef void (*LogHandler)(LogLevel level, const char *file, int line,
                            const char *function, const char *format,
                            va_list arguments);
 
-#define log_error(...) \
-	log_message(LOG_CATEGORY, LOG_LEVEL_ERROR, \
-	            __FILE__, __LINE__, __FUNCTION__, __VA_ARGS__)
+#ifdef BRICKD_LOG_ENABLED
+	#define log_error(...) \
+		log_message(LOG_CATEGORY, LOG_LEVEL_ERROR, \
+		            __FILE__, __LINE__, __FUNCTION__, __VA_ARGS__)
 
-#define log_warn(...) \
-	log_message(LOG_CATEGORY, LOG_LEVEL_WARN, \
-	            __FILE__, __LINE__, __FUNCTION__, __VA_ARGS__)
+	#define log_warn(...) \
+		log_message(LOG_CATEGORY, LOG_LEVEL_WARN, \
+		            __FILE__, __LINE__, __FUNCTION__, __VA_ARGS__)
 
-#define log_info(...) \
-	log_message(LOG_CATEGORY, LOG_LEVEL_INFO, \
-	            __FILE__, __LINE__, __FUNCTION__, __VA_ARGS__)
+	#define log_info(...) \
+		log_message(LOG_CATEGORY, LOG_LEVEL_INFO, \
+		            __FILE__, __LINE__, __FUNCTION__, __VA_ARGS__)
 
-#define log_debug(...) \
-	log_message(LOG_CATEGORY, LOG_LEVEL_DEBUG, \
-	            __FILE__, __LINE__, __FUNCTION__, __VA_ARGS__)
+	#define log_debug(...) \
+		log_message(LOG_CATEGORY, LOG_LEVEL_DEBUG, \
+		            __FILE__, __LINE__, __FUNCTION__, __VA_ARGS__)
+#else
+	#define log_error(...) ((void)0)
+	#define log_warn(...) ((void)0)
+	#define log_info(...) ((void)0)
+	#define log_debug(...) ((void)0)
+#endif
 
 void log_init(void);
 void log_exit(void);

@@ -76,6 +76,8 @@ void semaphore_create(Semaphore *semaphore) {
 void semaphore_destroy(Semaphore *semaphore) {
 #ifdef __APPLE__
 	sem_close(semaphore->pointer);
+#else
+	(void)semaphore;
 #endif
 
 	// FIXME: error handling
@@ -112,6 +114,7 @@ void thread_create(Thread *thread, ThreadFunction function, void *opaque) {
 
 void thread_destroy(Thread *thread) {
 	// FIXME
+	(void)thread;
 }
 
 void thread_join(Thread *thread) {
