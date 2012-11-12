@@ -45,7 +45,7 @@ int pipe_create(EventHandle handles[2]) {
 	memset(&address, 0, length);
 
 	address.sin_family = AF_INET;
-	address.sin_addr.s_addr = htonl(0x7f000001);
+	address.sin_addr.s_addr = htonl(0x7f000001); // 127.0.0.1
 	address.sin_port = 0;
 
 	rc = bind(listener, (const struct sockaddr *)&address, length);
@@ -113,6 +113,7 @@ void pipe_destroy(EventHandle handles[2]) {
 
 // sets errno on error
 int pipe_read(EventHandle handle, void *buffer, int length) {
+	// FIXME: handle partial read and interruption
 	length = recv(handle, (char *)buffer, length, 0);
 
 	if (length == SOCKET_ERROR) {
@@ -124,6 +125,7 @@ int pipe_read(EventHandle handle, void *buffer, int length) {
 
 // sets errno on error
 int pipe_write(EventHandle handle, void *buffer, int length) {
+	// FIXME: handle partial write and interruption
 	length = send(handle, (const char *)buffer, length, 0);
 
 	if (length == SOCKET_ERROR) {

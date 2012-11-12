@@ -23,6 +23,8 @@
 
 #include "pipe.h"
 
+#include "utils.h"
+
 // sets errno on error
 int pipe_create(EventHandle handles[2]) {
 	return pipe(handles);
@@ -35,10 +37,24 @@ void pipe_destroy(EventHandle handles[2]) {
 
 // sets errno on error
 int pipe_read(EventHandle handle, void *buffer, int length) {
-	return read(handle, buffer, length);
+	int rc;
+
+	// FIXME: handle partial read
+	do {
+		rc = read(handle, buffer, length);
+	} while (rc < 0 && errno_interrupted());
+
+	return rc;
 }
 
 // sets errno on error
 int pipe_write(EventHandle handle, void *buffer, int length) {
-	return write(handle, buffer, length);
+	int rc;
+
+	// FIXME: handle partial write
+	do {
+		rc = write(handle, buffer, length);
+	} while (rc < 0 && errno_interrupted());
+
+	return rc;
 }

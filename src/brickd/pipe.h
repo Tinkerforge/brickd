@@ -26,6 +26,7 @@
 
 int pipe_create(EventHandle handles[2]);
 void pipe_destroy(EventHandle handles[2]);
+
 int pipe_read(EventHandle handle, void *buffer, int length);
 int pipe_write(EventHandle handle, void *buffer, int length);
 
