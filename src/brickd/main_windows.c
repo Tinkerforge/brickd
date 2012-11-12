@@ -43,6 +43,7 @@ static const GUID GUID_DEVINTERFACE_USB_DEVICE = { 0xA5DCBF10L, 0x6530, 0x11D2, 
 			 0xC0, 0x4F, 0xB9, 0x51, 0xED } };
 
 static char *service_name = "Brick Daemon";
+static char *service_description = "Brick Daemon is a bridge between USB devices (Bricks) and TCP/IP sockets. It can be used to read out and control Bricks.";
 static SERVICE_STATUS service_status;
 static SERVICE_STATUS_HANDLE service_status_handle = 0;
 
@@ -108,7 +109,7 @@ DWORD WINAPI service_control_handler( DWORD dwControl,
 	return ERROR_CALL_NOT_IMPLEMENTED;
 }
 
-void WINAPI service_main(DWORD dwArgc, LPTSTR *lpszArgv) {
+static void WINAPI service_main(DWORD dwArgc, LPTSTR *lpszArgv) {
 	int rc;
 	DEV_BROADCAST_DEVICEINTERFACE notification_filter;
 
@@ -183,7 +184,7 @@ void WINAPI service_main(DWORD dwArgc, LPTSTR *lpszArgv) {
 	SetServiceStatus(service_status_handle, &service_status);
 }
 
-void service_run(void) {
+static void service_run(void) {
 	SERVICE_TABLE_ENTRY service_table[2];
 	int rc;
 
@@ -201,86 +202,217 @@ void service_run(void) {
 	}
 }
 
-void service_install(void) {
-	SC_HANDLE service_control_manager = OpenSCManager(0, 0, SC_MANAGER_CREATE_SERVICE);
+static int service_install(void) {
+	SC_HANDLE service_control_manager;
+	int rc;
+	char path[1024];
+	SC_HANDLE service;
+	SERVICE_DESCRIPTION description;
 
-		printf("0\n");
-	if ( service_control_manager )
-	{
-		char path[ 512 + 1 ];
-		printf("1\n");
-		if ( GetModuleFileName( 0, path, sizeof(path)/sizeof(path[0]) ) > 0 )
-		{
-			SC_HANDLE service = CreateService( service_control_manager,
-							service_name, service_name,
-							SERVICE_ALL_ACCESS, SERVICE_WIN32_OWN_PROCESS,
-							SERVICE_AUTO_START, SERVICE_ERROR_IGNORE, path,
-							0, 0, 0, 0, 0 );
-		printf("2\n");
-			if ( service ) {
-				SERVICE_DESCRIPTION description;
-				description.lpDescription = "Brick Daemon is a bridge between USB devices ('Bricks') and TCP/IP sockets. It can be used to read out and control Bricks.";
+	// open service control manager
+	service_control_manager = OpenSCManager(0, 0, SC_MANAGER_CREATE_SERVICE);
 
-				/*BOOL*/ ChangeServiceConfig2(service, SERVICE_CONFIG_DESCRIPTION,&description);
+	if (service_control_manager == NULL) {
+		rc = ERRNO_WINAPI_OFFSET + GetLastError();
 
+		printf("Could not open service control manager: %s (%d)\n",
+		       get_errno_name(rc), rc);
 
-
-		printf("3\n");
-			  /*BOOL*/ StartService(service, 0, NULL);
-
-
-				CloseServiceHandle( service );
-			}
-		}
-
-		CloseServiceHandle( service_control_manager );
+		return -1;
 	}
+
+	if (GetModuleFileName(NULL, path, sizeof(path)) == 0) {
+		rc = ERRNO_WINAPI_OFFSET + GetLastError();
+
+		printf("Could not get module file name: %s (%d)\n",
+		       get_errno_name(rc), rc);
+
+		CloseServiceHandle(service_control_manager);
+
+		return -1;
+	}
+
+	// install service
+	service = CreateService(service_control_manager, service_name, service_name,
+	                        SERVICE_ALL_ACCESS, SERVICE_WIN32_OWN_PROCESS,
+	                        SERVICE_AUTO_START, SERVICE_ERROR_IGNORE, path,
+	                        NULL, NULL, NULL, NULL, NULL);
+
+	if (service == NULL) {
+		rc = ERRNO_WINAPI_OFFSET + GetLastError();
+
+		printf("Could not install '%s' service: %s (%d)\n",
+		       service_name, get_errno_name(rc), rc);
+
+		CloseServiceHandle(service_control_manager);
+
+		return -1;
+	}
+
+	printf("Installed '%s' service\n");
+
+	// update description
+	description.lpDescription = service_description;
+
+	if (!ChangeServiceConfig2(service, SERVICE_CONFIG_DESCRIPTION,
+	                          &description)) {
+		rc = ERRNO_WINAPI_OFFSET + GetLastError();
+
+		printf("Could not update description of '%s' service: %s (%d)\n",
+		       service_name, get_errno_name(rc), rc);
+
+		CloseServiceHandle(service);
+		CloseServiceHandle(service_control_manager);
+
+		return -1;
+	}
+
+	// start service
+	if (!StartService(service, 0, NULL)) {
+		rc = ERRNO_WINAPI_OFFSET + GetLastError();
+
+		printf("Could not start '%s' service: %s (%d)\n",
+		       service_name, get_errno_name(rc), rc);
+
+		CloseServiceHandle(service);
+		CloseServiceHandle(service_control_manager);
+
+		return -1;
+	}
+
+	printf("Started '%s' service\n");
+
+	CloseServiceHandle(service);
+	CloseServiceHandle(service_control_manager);
+
+	return 0;
 }
 
-void service_uninstall(void) {
-	SC_HANDLE service_control_manager = OpenSCManager(0, 0, SC_MANAGER_CONNECT);
+static int service_uninstall(void) {
+	SC_HANDLE service_control_manager;
+	int rc;
+	SC_HANDLE service;
+	SERVICE_STATUS service_status;
+	int tries = 0;
 
-		printf("a\n");
-	if ( service_control_manager )
-	{
-		SC_HANDLE service = OpenService( service_control_manager,
-			service_name, SERVICE_QUERY_STATUS | SERVICE_STOP | DELETE );
-		printf("b\n");
-		if ( service )
-		{
-			SERVICE_STATUS service_status;
-		printf("c\n");
-				/*BOOL */ ControlService(service, SERVICE_CONTROL_STOP, &service_status);
-			 while (service_status.dwCurrentState != SERVICE_STOPPED) {
-			printf("d\n");
-				if ( QueryServiceStatus( service, &service_status ) )
-				{
+	// open service control manager
+	service_control_manager = OpenSCManager(0, 0, SC_MANAGER_CONNECT);
 
+	if (service_control_manager == NULL) {
+		rc = ERRNO_WINAPI_OFFSET + GetLastError();
 
+		printf("Could not open service control manager: %s (%d)\n",
+		       get_errno_name(rc), rc);
 
-					if ( service_status.dwCurrentState == SERVICE_STOPPED ) {
-						DeleteService( service );
+		return -1;
+	}
 
-			printf("e\n");
-					}
-				}
-			}
+	// open service
+	service = OpenService(service_control_manager, service_name,
+	                      SERVICE_QUERY_STATUS | SERVICE_STOP | DELETE);
 
-			CloseServiceHandle( service );
+	if (service == NULL) {
+		rc = ERRNO_WINAPI_OFFSET + GetLastError();
+
+		printf("Could not open '%s' service: %s (%d)\n",
+		       service_name, get_errno_name(rc), rc);
+
+		CloseServiceHandle(service_control_manager);
+
+		return -1;
+	}
+
+	// get service status
+	if (!QueryServiceStatus(service, &service_status)) {
+		rc = ERRNO_WINAPI_OFFSET + GetLastError();
+
+		printf("Could not query status of '%s' service: %s (%d)\n",
+		       service_name, get_errno_name(rc), rc);
+
+		CloseServiceHandle(service);
+		CloseServiceHandle(service_control_manager);
+
+		return -1;
+	}
+
+	// stop service
+	if (service_status.dwCurrentState != SERVICE_STOPPED) {
+		if (!ControlService(service, SERVICE_CONTROL_STOP, &service_status)) {
+			rc = ERRNO_WINAPI_OFFSET + GetLastError();
+
+			printf("Could not send stop control code to '%s' service: %s (%d)\n",
+			       service_name, get_errno_name(rc), rc);
+
+			CloseServiceHandle(service);
+			CloseServiceHandle(service_control_manager);
+
+			return -1;
 		}
 
-		CloseServiceHandle( service_control_manager );
+		while (service_status.dwCurrentState != SERVICE_STOPPED && tries < 60) {
+			if (!QueryServiceStatus(service, &service_status)) {
+				rc = ERRNO_WINAPI_OFFSET + GetLastError();
+
+				printf("Could not query status of '%s' service: %s (%d)\n",
+				       service_name, get_errno_name(rc), rc);
+
+				CloseServiceHandle(service);
+				CloseServiceHandle(service_control_manager);
+
+				return -1;
+			}
+
+			Sleep(500);
+
+			++tries;
+		}
+
+		if (service_status.dwCurrentState != SERVICE_STOPPED) {
+			printf("Could not stop '%s' service after 30 seconds\n",
+			       service_name);
+
+			CloseServiceHandle(service);
+			CloseServiceHandle(service_control_manager);
+
+			return -1;
+		}
+
+		printf("Stopped '%s' service\n");
 	}
+
+	// uninstall service
+	if (!DeleteService(service)) {
+		rc = ERRNO_WINAPI_OFFSET + GetLastError();
+
+		printf("Could not uninstall '%s' service: %s (%d)\n",
+		       service_name, get_errno_name(rc), rc);
+
+		CloseServiceHandle(service);
+		CloseServiceHandle(service_control_manager);
+
+		return -1;
+	}
+
+	printf("Uninstalled '%s' service\n");
+
+	CloseServiceHandle(service);
+	CloseServiceHandle(service_control_manager);
+
+	return 0;
 }
 
 int main(int argc, char **argv) {
 	if ( argc > 1 && strcmp( argv[1], "install" ) == 0 )
 	{
-		service_install();
+		if (service_install() < 0) {
+			return 1;
+		}
 	}
 	else if ( argc > 1 && strcmp( argv[1], "uninstall" ) == 0 )
 	{
-		service_uninstall();
+		if (service_uninstall() < 0) {
+			return 1;
+		}
 	}
 	else
 	{
