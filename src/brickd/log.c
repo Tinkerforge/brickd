@@ -19,7 +19,9 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-#include <sys/time.h>
+#ifndef _WIN32
+	#include <sys/time.h>
+#endif
 
 #include "log.h"
 
