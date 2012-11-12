@@ -38,7 +38,8 @@ void semaphore_destroy(Semaphore *semaphore);
 void semaphore_acquire(Semaphore *semaphore);
 void semaphore_release(Semaphore *semaphore);
 
-void thread_start(Thread *thread, ThreadFunction function, void *opaque);
+void thread_create(Thread *thread, ThreadFunction function, void *opaque);
+void thread_destroy(Thread *thread);
 void thread_join(Thread *thread);
 
 #endif // BRICKD_THREADS_H

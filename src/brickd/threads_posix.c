@@ -101,14 +101,17 @@ static void *thread_wrapper(void *opaque) {
 	return NULL;
 }
 
-void thread_start(Thread *thread, ThreadFunction function, void *opaque)
-{
+void thread_create(Thread *thread, ThreadFunction function, void *opaque) {
 	thread->function = function;
 	thread->opaque = opaque;
 
 	pthread_create(&thread->handle, NULL, thread_wrapper, thread);
 
 	// FIXME: error handling
+}
+
+void thread_destroy(Thread *thread) {
+	// FIXME
 }
 
 void thread_join(Thread *thread) {

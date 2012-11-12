@@ -75,13 +75,17 @@ static DWORD WINAPI thread_wrapper(void *opaque) {
 	return 0;
 }
 
-void thread_start(Thread *thread, ThreadFunction function, void *opaque) {
+void thread_create(Thread *thread, ThreadFunction function, void *opaque) {
 	thread->function = function;
 	thread->opaque = opaque;
 
 	thread->handle = CreateThread(NULL, 0, thread_wrapper, thread, 0, &thread->id);
 
 	// FIXME: error handling
+}
+
+void thread_destroy(Thread *thread) {
+	CloseHandle(thread->handle);
 }
 
 void thread_join(Thread *thread) {
