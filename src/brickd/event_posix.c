@@ -36,17 +36,11 @@ static EventHandle _signal_pipe[2] = { INVALID_EVENT_HANDLE,
                                        INVALID_EVENT_HANDLE };
 
 static void event_handle_signal(void *opaque) {
-	int rc;
 	int signal_number;
 
 	(void)opaque;
 
-	// FIXME: handle partial reads?
-	do {
-		rc = pipe_read(_signal_pipe[0], &signal_number, sizeof(int));
-	} while (rc < 0 && errno_interrupted());
-
-	if (rc < 0) {
+	if (pipe_read(_signal_pipe[0], &signal_number, sizeof(int)) < 0) {
 		log_error("Could not read from signal pipe: %s (%d)",
 		          get_errno_name(errno), errno);
 
@@ -67,60 +61,88 @@ static void event_handle_signal(void *opaque) {
 }
 
 static void event_forward_signal(int signal_number) {
-	int rc;
-
-	// FIXME: handle partial writes?
-	do {
-		rc = pipe_write(_signal_pipe[1], &signal_number, sizeof(int));
-	} while (rc < 0 && errno_interrupted());
+	pipe_write(_signal_pipe[1], &signal_number, sizeof(int));
 }
 
 int event_init_platform(void) {
+	int phase = 0;
+
+	// create pollfd array
 	if (array_create(&_pollfds, 32, sizeof(struct pollfd)) < 0) {
 		log_error("Could not create pollfd array: %s (%d)",
 		          get_errno_name(errno), errno);
 
-		return -1;
+		goto cleanup;
 	}
 
+	phase = 1;
+
+	// create signal pipe
 	if (pipe_create(_signal_pipe) < 0) {
 		// FIXME: free array
 		log_error("Could not create signal pipe: %s (%d)",
 		          get_errno_name(errno), errno);
 
-		return -1;
+		goto cleanup;
 	}
 
-	if (event_add_source(_signal_pipe[0], EVENT_READ,
-	                     event_handle_signal, NULL) < 0) {
-		// FIXME: free array, destroy pipe
-		return -1;
+	phase = 2;
+
+	if (event_add_source(_signal_pipe[0], EVENT_SOURCE_TYPE_GENERIC,
+	                     EVENT_READ, event_handle_signal, NULL) < 0) {
+		goto cleanup;
 	}
 
+	phase = 3;
+
+	// setup signal handlers
 	if (signal(SIGINT, event_forward_signal) == SIG_ERR) {
-		// FIXME: free array, destroy pipe
 		log_error("Could install signal handler for SIGINT: %s (%d)",
 		          get_errno_name(errno), errno);
 
-		return -1;
+		goto cleanup;
 	}
 
+	phase = 4;
+
 	if (signal(SIGTERM, event_forward_signal) == SIG_ERR) {
-		// FIXME: free array, destroy pipe
 		log_error("Could install signal handler for SIGTERM: %s (%d)",
 		          get_errno_name(errno), errno);
 
-		return -1;
+		goto cleanup;
 	}
 
-	return 0;
+	phase = 5;
+
+cleanup:
+	switch (phase) { // no breaks, all cases fall through intentionally
+	case 4:
+		signal(SIGINT, SIG_DFL);
+
+	case 3:
+		event_remove_source(_signal_pipe[0], EVENT_SOURCE_TYPE_GENERIC);
+
+	case 2:
+		pipe_destroy(_signal_pipe);
+
+	case 1:
+		array_destroy(&_pollfds, NULL);
+
+	default:
+		break;
+	}
+
+	return phase == 5 ? 0 : -1;
 }
 
 void event_exit_platform(void) {
-	// FIXME Close _signal_pipe
+	signal(SIGINT, SIG_DFL);
+	signal(SIGTERM, SIG_DFL);
+
+	event_remove_source(_signal_pipe[0], EVENT_SOURCE_TYPE_GENERIC);
+	pipe_destroy(_signal_pipe);
 
 	array_destroy(&_pollfds, NULL);
-	pipe_destroy(_signal_pipe);
 }
 
 int event_run_platform(Array *event_sources, int *running) {
@@ -128,10 +150,12 @@ int event_run_platform(Array *event_sources, int *running) {
 	EventSource *event_source;
 	struct pollfd *pollfd;
 	int ready;
+	int handled;
 
 	*running = 1;
 
 	while (*running) {
+		// update pollfd array
 		if (array_resize(&_pollfds, event_sources->count, NULL) < 0) {
 			log_error("Could not resize pollfd array: %s (%d)",
 			          get_errno_name(errno), errno);
@@ -148,6 +172,7 @@ int event_run_platform(Array *event_sources, int *running) {
 			pollfd->revents = 0;
 		}
 
+		// start to poll
 		log_debug("Starting to poll on %d event source(s)", _pollfds.count);
 
 		ready = poll((struct pollfd *)_pollfds.bytes, _pollfds.count, -1);
@@ -155,46 +180,65 @@ int event_run_platform(Array *event_sources, int *running) {
 		if (ready < 0) {
 			if (errno_interrupted()) {
 				log_debug("Poll got interrupted");
+
 				continue;
 			}
-
-			*running = 0;
 
 			log_error("Count not poll on event source(s): %s (%d)",
 			          get_errno_name(errno), errno);
 
+			*running = 0;
+
 			return -1;
 		}
 
+		// handle poll result
 		log_debug("Poll returned %d event source(s) as ready", ready);
 
-		for (i = 0; i < _pollfds.count && ready > 0; ++i) {
+		handled = 0;
+
+		// this loop assumes that event source array and pollfd array can be
+		// matched by index. this means that the first n items of the event
+		// source array (with n = items in pollfd array) are not removed
+		// or replaced during the iteration over the pollfd array. because
+		// of this event_remove_source only marks event sources as removed,
+		// the actual removal is done after this loop
+		for (i = 0; i < _pollfds.count && ready > handled; ++i) {
 			pollfd = array_get(&_pollfds, i);
 
 			if (pollfd->revents == 0) {
 				continue;
 			}
 
-			--ready;
-
 			event_source = array_get(event_sources, i);
 
 			if (event_source->removed) {
-				log_debug("Ignoring event source (handle: %d, received events: %d) marked as removed at index %d",
+				log_debug("Ignoring %s event source (handle: %d, received events: %d) marked as removed at index %d",
+				          event_get_source_type_name(event_source->type, 0),
 				          event_source->handle, pollfd->revents, i);
 			} else {
-				log_debug("Handling event source (handle: %d, received events: %d) at index %d",
+				log_debug("Handling %s event source (handle: %d, received events: %d) at index %d",
+				          event_get_source_type_name(event_source->type, 0),
 				          event_source->handle, pollfd->revents, i);
 
-				event_source->function(event_source->opaque);
+				if (event_source->function != NULL) {
+					event_source->function(event_source->opaque);
+				}
 			}
+
+			++handled;
 
 			if (!*running) {
 				break;
 			}
 		}
 
-		log_debug("Handled all ready event sources");
+		if (ready == handled) {
+			log_debug("Handled all ready event sources");
+		} else {
+			log_warn("Handled only %d of %d ready event sources",
+			         handled, ready);
+		}
 
 		// now remove event sources that got marked as removed during the
 		// event handling
@@ -204,7 +248,8 @@ int event_run_platform(Array *event_sources, int *running) {
 			if (event_source->removed) {
 				array_remove(event_sources, i, NULL);
 
-				log_debug("Removed event source (handle: %d, events: %d) at index %d",
+				log_debug("Removed %s event source (handle: %d, events: %d) at index %d",
+				          event_get_source_type_name(event_source->type, 0),
 				          event_source->handle, event_source->events, i);
 			} else {
 				++i;
@@ -212,5 +257,10 @@ int event_run_platform(Array *event_sources, int *running) {
 		}
 	}
 
+	return 0;
+}
+
+int event_stop_platform(void) {
+	// nothing to do, the signal pipe already interrupted the running poll
 	return 0;
 }

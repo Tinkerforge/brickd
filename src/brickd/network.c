@@ -150,7 +150,8 @@ int network_init(void) {
 		return -1;
 	}
 
-	if (event_add_source(_server_socket, EVENT_READ, network_handle_accept, NULL) < 0) {
+	if (event_add_source(_server_socket, EVENT_SOURCE_TYPE_GENERIC, EVENT_READ,
+	                     network_handle_accept, NULL) < 0) {
 		// FIXME: close socket
 		// FIXME: free client array
 		return -1;

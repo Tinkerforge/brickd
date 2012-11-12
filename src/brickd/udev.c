@@ -131,7 +131,8 @@ int udev_init(void) {
 	// add event source
 	_udev_monitor_fd = udev_monitor_get_fd(_udev_monitor);
 
-	if (event_add_source(_udev_monitor_fd, EVENT_READ, udev_handle_event, NULL) < 0) {
+	if (event_add_source(_udev_monitor_fd, EVENT_SOURCE_TYPE_GENERIC,
+	                     EVENT_READ, udev_handle_event, NULL) < 0) {
 		goto cleanup;
 	}
 
@@ -155,7 +156,7 @@ cleanup:
 void udev_exit(void) {
 	log_debug("Shutting down udev subsystem");
 
-	event_remove_source(_udev_monitor_fd); // FIXME: handle error?
+	event_remove_source(_udev_monitor_fd, EVENT_SOURCE_TYPE_GENERIC); // FIXME: handle error?
 
 	udev_monitor_unref(_udev_monitor);
 	udev_unref(_udev_context);

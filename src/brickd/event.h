@@ -42,7 +42,7 @@ typedef int EventHandle;
 
 typedef void (*EventFunction)(void *opaque);
 
-enum {
+typedef enum {
 #ifdef _WIN32
 	EVENT_READ = 1 << 0,
 	EVENT_WRITE = 1 << 2
@@ -50,10 +50,16 @@ enum {
 	EVENT_READ = POLLIN,
 	EVENT_WRITE = POLLOUT
 #endif
-};
+} Event;
+
+typedef enum {
+	EVENT_SOURCE_TYPE_GENERIC = 0,
+	EVENT_SOURCE_TYPE_USB
+} EventSourceType;
 
 typedef struct {
 	EventHandle handle;
+	EventSourceType type;
 	int events;
 	EventFunction function;
 	void *opaque;
@@ -63,8 +69,11 @@ typedef struct {
 int event_init(void);
 void event_exit(void);
 
-int event_add_source(EventHandle handle, int events, EventFunction function, void *opaque);
-int event_remove_source(EventHandle handle);
+const char *event_get_source_type_name(EventSourceType type, int upper);
+
+int event_add_source(EventHandle handle, EventSourceType type,
+                     int events, EventFunction function, void *opaque);
+int event_remove_source(EventHandle handle, EventSourceType type);
 
 int event_run(void);
 void event_stop(void);

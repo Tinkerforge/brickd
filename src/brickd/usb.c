@@ -161,7 +161,7 @@ static void LIBUSB_CALL usb_add_pollfd(int fd, short events, void *opaque) {
 	log_debug("Adding libusb pollfd (handle: %d, events: %d)", fd, events);
 
 	// FIXME: need to handle libusb timeouts
-	event_add_source(fd, events, usb_handle_events, _context); // FIXME: handle error?
+	event_add_source(fd, EVENT_SOURCE_TYPE_USB, events, usb_handle_events, _context); // FIXME: handle error?
 }
 
 static void LIBUSB_CALL usb_remove_pollfd(int fd, void *opaque) {
@@ -169,7 +169,7 @@ static void LIBUSB_CALL usb_remove_pollfd(int fd, void *opaque) {
 
 	log_debug("Removing libusb pollfd (handle: %d)", fd);
 
-	event_remove_source(fd); // FIXME: handle error?
+	event_remove_source(fd, EVENT_SOURCE_TYPE_USB); // FIXME: handle error?
 }
 
 int usb_init(void) {
@@ -218,8 +218,9 @@ int usb_init(void) {
 
 	for (pollfd = pollfds; *pollfd != NULL; ++pollfd) {
 		// FIXME: need to handle libsub timeouts
-		if (event_add_source((*pollfd)->fd, (*pollfd)->events,
-		                     usb_handle_events, _context) < 0) {
+		if (event_add_source((*pollfd)->fd, EVENT_SOURCE_TYPE_USB,
+		                     (*pollfd)->events, usb_handle_events,
+		                     _context) < 0) {
 			// FIXME: close context, remove already added pollfds, free array
 			return -1;
 		}

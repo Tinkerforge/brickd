@@ -36,6 +36,7 @@ static int _stop_requested = 0;
 extern int event_init_platform(void);
 extern void event_exit_platform(void);
 extern int event_run_platform(Array *sources, int *running);
+extern int event_stop_platform(void);
 
 int event_init(void) {
 	log_debug("Initializing event subsystem");
@@ -68,7 +69,20 @@ void event_exit(void) {
 	array_destroy(&_event_sources, NULL);
 }
 
-int event_add_source(EventHandle handle, int events,
+const char *event_get_source_type_name(EventSourceType type, int upper) {
+	switch (type) {
+	case EVENT_SOURCE_TYPE_GENERIC:
+		return upper ? "Generic" : "generic";
+
+	case EVENT_SOURCE_TYPE_USB:
+		return "USB";
+
+	default:
+		return upper ? "<Unknown>" : "<unknown>";
+	}
+}
+
+int event_add_source(EventHandle handle, EventSourceType type, int events,
                      EventFunction function, void *opaque) {
 	int i;
 	EventSource *event_source;
@@ -81,8 +95,10 @@ int event_add_source(EventHandle handle, int events,
 			continue;
 		}
 
-		if (event_source->handle == handle) {
-			log_error("Event source (handle: %d, events: %d) already added at index %d",
+		if (event_source->handle == handle &&
+		    event_source->type == type) {
+			log_error("%s event source (handle: %d, events: %d) already added at index %d",
+			          event_get_source_type_name(type, 1),
 			          event_source->handle, event_source->events, i);
 
 			return -1;
@@ -100,12 +116,14 @@ int event_add_source(EventHandle handle, int events,
 	}
 
 	event_source->handle = handle;
+	event_source->type = type;
 	event_source->events = events;
 	event_source->function = function;
 	event_source->opaque = opaque;
 	event_source->removed = 0;
 
-	log_debug("Added event source (handle: %d, events: %d) at index %d",
+	log_debug("Added %s event source (handle: %d, events: %d) at index %d",
+	          event_get_source_type_name(type, 0),
 	          handle, events, _event_sources.count - 1);
 
 	return 0;
@@ -113,21 +131,24 @@ int event_add_source(EventHandle handle, int events,
 
 // only mark event sources as removed here, because the event loop might be in
 // the middle of iterating the event sources array when this function is called
-int event_remove_source(EventHandle handle) {
+int event_remove_source(EventHandle handle, EventSourceType type) {
 	int i;
 	EventSource *event_source;
 
 	for (i = 0; i < _event_sources.count; i++) {
 		event_source = array_get(&_event_sources, i);
 
-		if (event_source->handle == handle) {
+		if (event_source->handle == handle &&
+		    event_source->type == type) {
 			if (event_source->removed) {
-				log_warn("Event source (handle: %d, events: %d) already marked as removed at index %d",
-				          event_source->handle, event_source->events, i);
+				log_warn("%s event source (handle: %d, events: %d) already marked as removed at index %d",
+				         event_get_source_type_name(event_source->type, 1),
+				         event_source->handle, event_source->events, i);
 			} else {
 				event_source->removed = 1;
 
-				log_debug("Marked event source (handle: %d, events: %d) as removed at index %d",
+				log_debug("Marked %s event source (handle: %d, events: %d) as removed at index %d",
+				          event_get_source_type_name(event_source->type, 0),
 				          event_source->handle, event_source->events, i);
 			}
 
@@ -135,7 +156,8 @@ int event_remove_source(EventHandle handle) {
 		}
 	}
 
-	log_warn("Could not mark unknown event source (handle: %d) as removed", handle);
+	log_warn("Could not mark unknown %s event source (handle: %d) as removed",
+	         event_get_source_type_name(type, 0), handle);
 
 	return -1;
 }
@@ -178,4 +200,6 @@ void event_stop(void) {
 	_running = 0;
 
 	log_debug("Stopping the event loop");
+
+	event_stop_platform();
 }
