@@ -84,37 +84,40 @@ cleanup:
 }
 
 int udev_init(void) {
+	int phase = 0;
 	int rc;
 
 	log_debug("Initializing udev subsystem");
 
+	// create udev context
 	_udev_context = udev_new();
 
 	if (_udev_context == NULL) {
 		log_error("Could not create udev context");
 
-		return -1;
+		goto cleanup;
 	}
 
+	phase = 1;
+
+	// create udev monitor
 	_udev_monitor = udev_monitor_new_from_netlink(_udev_context, "udev");
 
 	if (_udev_monitor == NULL) {
 		log_error("Could not initialize udev monitor");
 
-		udev_unref(_udev_context);
-
-		return -1;
+		goto cleanup;
 	}
 
+	phase = 2;
+
+	// create filter for USB
 	rc = udev_monitor_filter_add_match_subsystem_devtype(_udev_monitor, "usb", 0);
 
 	if (rc != 0) {
 		log_error("Could not initialize udev monitor filter for 'usb' subsystem: %d", rc);
 
-		udev_monitor_unref(_udev_monitor);
-		udev_unref(_udev_context);
-
-		return -1;
+		goto cleanup;
 	}
 
 	rc = udev_monitor_enable_receiving(_udev_monitor);
@@ -122,28 +125,38 @@ int udev_init(void) {
 	if (rc != 0) {
 		log_error("Could not enable the udev monitor: %d", rc);
 
-		udev_monitor_unref(_udev_monitor);
-		udev_unref(_udev_context);
-
-		return -1;
+		goto cleanup;
 	}
 
+	// add event source
 	_udev_monitor_fd = udev_monitor_get_fd(_udev_monitor);
 
 	if (event_add_source(_udev_monitor_fd, EVENT_READ, udev_handle_event, NULL) < 0) {
-		udev_monitor_unref(_udev_monitor);
-		udev_unref(_udev_context);
-
-		return -1;
+		goto cleanup;
 	}
 
-	return 0;
+	phase = 3;
+
+cleanup:
+	switch (phase) { // no breaks, all cases fall through intentionally
+	case 2:
+		udev_monitor_unref(_udev_monitor);
+
+	case 1:
+		udev_unref(_udev_context);
+
+	default:
+		break;
+	}
+
+	return phase == 3 ? 0 : -1;
 }
 
 void udev_exit(void) {
 	log_debug("Shutting down udev subsystem");
 
 	event_remove_source(_udev_monitor_fd); // FIXME: handle error?
+
 	udev_monitor_unref(_udev_monitor);
 	udev_unref(_udev_context);
 }
