@@ -1,0 +1,138 @@
+diff --git a/libusb/io.c b/libusb/io.c
+index 1338981..1cdd67c 100644
+--- a/libusb/io.c
++++ b/libusb/io.c
+@@ -2377,7 +2377,6 @@ DEFAULT_VISIBILITY
+ const struct libusb_pollfd ** LIBUSB_CALL libusb_get_pollfds(
+ 	libusb_context *ctx)
+ {
+-#ifndef OS_WINDOWS
+ 	struct libusb_pollfd **ret = NULL;
+ 	struct usbi_pollfd *ipollfd;
+ 	size_t i = 0;
+@@ -2399,11 +2398,6 @@ const struct libusb_pollfd ** LIBUSB_CALL libusb_get_pollfds(
+ out:
+ 	usbi_mutex_unlock(&ctx->pollfds_lock);
+ 	return (const struct libusb_pollfd **) ret;
+-#else
+-	usbi_err(ctx, "external polling of libusbx's internal descriptors "\
+-		"is not yet supported on Windows platforms");
+-	return NULL;
+-#endif
+ }
+ 
+ /* Backends call this from handle_events to report disconnection of a device.
+diff --git a/libusb/libusb-1.0.def b/libusb/libusb-1.0.def
+index 3aba343..50b994f 100644
+--- a/libusb/libusb-1.0.def
++++ b/libusb/libusb-1.0.def
+@@ -124,3 +124,13 @@ EXPORTS
+   libusb_unref_device@4 = libusb_unref_device
+   libusb_wait_for_event
+   libusb_wait_for_event@8 = libusb_wait_for_event
++  usbi_pipe
++  usbi_pipe@4 = usbi_pipe
++  usbi_poll
++  usbi_poll@12 = usbi_poll
++  usbi_write
++  usbi_write@12 = usbi_write
++  usbi_read
++  usbi_read@12 = usbi_read
++  usbi_close
++  usbi_close@4 = usbi_close
+diff --git a/libusb/libusb-1.0.rc b/libusb/libusb-1.0.rc
+index 86cb853..72321da 100644
+--- a/libusb/libusb-1.0.rc
++++ b/libusb/libusb-1.0.rc
+@@ -47,7 +47,7 @@ BEGIN
+ 			VALUE "LegalTrademarks", "http://www.gnu.org/licenses/lgpl-2.1.html\0"
+ 			VALUE "OriginalFilename", "libusb-1.0.dll\0"
+ 			VALUE "PrivateBuild", "\0"
+-			VALUE "ProductName", "libusb-1.0\0"
++			VALUE "ProductName", "libusb-1.0-66db81a41cd64e638795f1da117e912e14d76f7c-tf-5\0"
+ 			VALUE "ProductVersion", LIBUSB_VERSIONSTRING
+ 			VALUE "SpecialBuild", "\0"
+ 		END
+diff --git a/libusb/os/poll_windows.c b/libusb/os/poll_windows.c
+index 4601a79..dc847ec 100644
+--- a/libusb/os/poll_windows.c
++++ b/libusb/os/poll_windows.c
+@@ -246,7 +246,7 @@ void exit_polling(void)
+  * event. To that extent, we create a single wfd and overlapped as a means
+  * to access that event.
+  */
+-int usbi_pipe(int filedes[2])
++int API_EXPORTED usbi_pipe(int filedes[2])
+ {
+ 	int i;
+ 	OVERLAPPED* overlapped;
+@@ -517,7 +517,7 @@ struct winfd overlapped_to_winfd(OVERLAPPED* overlapped)
+  * Currently, this function only accepts one of POLLIN or POLLOUT per fd
+  * (but you can create multiple fds from the same handle for read and write)
+  */
+-int usbi_poll(struct pollfd *fds, unsigned int nfds, int timeout)
++int API_EXPORTED usbi_poll(struct pollfd *fds, unsigned int nfds, int timeout)
+ {
+ 	unsigned i;
+ 	int _index, object_index, triggered;
+@@ -639,7 +639,7 @@ poll_exit:
+ /*
+  * close a fake pipe fd
+  */
+-int usbi_close(int fd)
++int API_EXPORTED usbi_close(int fd)
+ {
+ 	int _index;
+ 	int r = -1;
+@@ -669,7 +669,7 @@ int usbi_close(int fd)
+ /*
+  * synchronous write for fake "pipe" signaling
+  */
+-ssize_t usbi_write(int fd, const void *buf, size_t count)
++ssize_t API_EXPORTED usbi_write(int fd, const void *buf, size_t count)
+ {
+ 	int _index;
+ 	UNUSED(buf);
+@@ -705,7 +705,7 @@ ssize_t usbi_write(int fd, const void *buf, size_t count)
+ /*
+  * synchronous read for fake "pipe" signaling
+  */
+-ssize_t usbi_read(int fd, void *buf, size_t count)
++ssize_t API_EXPORTED usbi_read(int fd, void *buf, size_t count)
+ {
+ 	int _index;
+ 	ssize_t r = -1;
+diff --git a/libusb/os/poll_windows.h b/libusb/os/poll_windows.h
+index e53af2d..95ab9e1 100644
+--- a/libusb/os/poll_windows.h
++++ b/libusb/os/poll_windows.h
+@@ -74,11 +74,11 @@ struct winfd {
+ };
+ extern const struct winfd INVALID_WINFD;
+ 
+-int usbi_pipe(int pipefd[2]);
+-int usbi_poll(struct pollfd *fds, unsigned int nfds, int timeout);
+-ssize_t usbi_write(int fd, const void *buf, size_t count);
+-ssize_t usbi_read(int fd, void *buf, size_t count);
+-int usbi_close(int fd);
++int LIBUSB_CALL usbi_pipe(int pipefd[2]);
++int LIBUSB_CALL usbi_poll(struct pollfd *fds, unsigned int nfds, int timeout);
++ssize_t LIBUSB_CALL usbi_write(int fd, const void *buf, size_t count);
++ssize_t LIBUSB_CALL usbi_read(int fd, void *buf, size_t count);
++int LIBUSB_CALL usbi_close(int fd);
+ 
+ void init_polling(void);
+ void exit_polling(void);
+diff --git a/libusb/os/windows_usb.c b/libusb/os/windows_usb.c
+index 914461d..fc56c48 100644
+--- a/libusb/os/windows_usb.c
++++ b/libusb/os/windows_usb.c
+@@ -2130,7 +2130,7 @@ static int windows_handle_events(struct libusb_context *ctx, struct pollfd *fds,
+ 			windows_handle_callback(transfer, io_result, io_size);
+ 		} else {
+ 			usbi_err(ctx, "could not find a matching transfer for fd %x", fds[i]);
+-			return LIBUSB_ERROR_NOT_FOUND;
++			//return LIBUSB_ERROR_NOT_FOUND;
+ 		}
+ 	}
+ 
