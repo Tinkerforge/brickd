@@ -150,7 +150,7 @@ int event_run(void) {
 	}
 
 	if (_stop_requested) {
-		log_debug("Not starting the event loop, stop was requested before");
+		log_debug("Not starting the event loop, stop was requested");
 
 		return 0;
 	}

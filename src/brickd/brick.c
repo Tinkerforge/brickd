@@ -121,13 +121,14 @@ static void write_transfer_callback(Transfer *transfer) {
 			return;
 		}
 
-		log_debug("Sent queued request (U: %u, L: %u, F: %u, S: %u, R: %u) to %s [%s]",
+		array_remove(&transfer->brick->write_queue, 0, NULL);
+
+		log_debug("Sent queued request (U: %u, L: %u, F: %u, S: %u, R: %u) to %s [%s], %d packets left in queue",
 		          packet->header.uid, packet->header.length,
 		          packet->header.function_id, packet->header.sequence_number,
 		          packet->header.response_expected,
-		          transfer->brick->product, transfer->brick->serial_number);
-
-		array_remove(&transfer->brick->write_queue, 0, NULL);
+		          transfer->brick->product, transfer->brick->serial_number,
+		          transfer->brick->write_queue.count);
 	}
 }
 
@@ -182,7 +183,7 @@ int brick_create(Brick *brick, libusb_context *context,
 	libusb_free_device_list(devices, 1);
 
 	if (brick->device == NULL) {
-		log_error("Could not find USB device (bus %u, device %u)",
+		log_error("Could not find USB device (bus: %u, device: %u)",
 		          brick->bus_number, brick->device_address);
 
 		brick_destroy(brick); // FIXME: don't use
@@ -194,7 +195,7 @@ int brick_create(Brick *brick, libusb_context *context,
 	rc = libusb_get_device_descriptor(brick->device, &brick->device_descriptor);
 
 	if (rc < 0) {
-		log_error("Could not get device descriptor for USB device (bus %u, device %u): %s (%d)",
+		log_error("Could not get device descriptor for USB device (bus: %u, device: %u): %s (%d)",
 		          brick->bus_number, brick->device_address,
 		          get_libusb_error_name(rc), rc);
 
@@ -207,7 +208,7 @@ int brick_create(Brick *brick, libusb_context *context,
 	rc = libusb_open(brick->device, &brick->device_handle);
 
 	if (rc < 0) {
-		log_error("Could not open USB device (bus %d, device %d): %s (%d)",
+		log_error("Could not open USB device (bus: %u, device: %u): %s (%d)",
 		          brick->bus_number, brick->device_address,
 		          get_libusb_error_name(rc), rc);
 
@@ -220,7 +221,7 @@ int brick_create(Brick *brick, libusb_context *context,
 	rc = libusb_reset_device(brick->device_handle);
 
 	if (rc < 0) {
-		log_error("Could not reset USB device (bus %d, device %d): %s (%d)",
+		log_error("Could not reset USB device (bus: %u, device: %u): %s (%d)",
 		          brick->bus_number, brick->device_address,
 		          get_libusb_error_name(rc), rc);
 
@@ -233,7 +234,7 @@ int brick_create(Brick *brick, libusb_context *context,
 	rc = libusb_set_configuration(brick->device_handle, USB_CONFIGURATION);
 
 	if (rc < 0) {
-		log_error("Could set USB device configuration (bus %d, device %d): %s (%d)",
+		log_error("Could set USB device configuration (bus: %u, device: %u): %s (%d)",
 		          brick->bus_number, brick->device_address,
 		          get_libusb_error_name(rc), rc);
 
@@ -246,7 +247,7 @@ int brick_create(Brick *brick, libusb_context *context,
 	rc = libusb_claim_interface(brick->device_handle, USB_INTERFACE);
 
 	if (rc < 0) {
-		log_error("Could not claim USB device interface (bus %d, device %d): %s (%d)",
+		log_error("Could not claim USB device interface (bus: %u, device: %u): %s (%d)",
 		          brick->bus_number, brick->device_address,
 		          get_libusb_error_name(rc), rc);
 
@@ -262,7 +263,7 @@ int brick_create(Brick *brick, libusb_context *context,
 	                                        sizeof(brick->product));
 
 	if (rc < 0) {
-		log_error("Could not get product string descriptor for USB device (bus %d, device %d): %s (%d)",
+		log_error("Could not get product string descriptor for USB device (bus: %u, device: %u): %s (%d)",
 		          brick->bus_number, brick->device_address,
 		          get_libusb_error_name(rc), rc);
 
@@ -278,7 +279,7 @@ int brick_create(Brick *brick, libusb_context *context,
 	                                        sizeof(brick->serial_number));
 
 	if (rc < 0) {
-		log_error("Could not get serial number string descriptor for USB device (bus %d, device %d): %s (%d)",
+		log_error("Could not get serial number string descriptor for USB device (bus: %u, device: %u): %s (%d)",
 		          brick->bus_number, brick->device_address,
 		          get_libusb_error_name(rc), rc);
 
@@ -310,7 +311,7 @@ int brick_create(Brick *brick, libusb_context *context,
 			return -1;
 		}
 
-		if (transfer_create(transfer, brick, TRANSFER_READ,
+		if (transfer_create(transfer, brick, TRANSFER_TYPE_READ,
 		                    read_transfer_callback) < 0) {
 			brick_destroy(brick); // FIXME: don't use
 
@@ -347,7 +348,7 @@ int brick_create(Brick *brick, libusb_context *context,
 			return -1;
 		}
 
-		if (transfer_create(transfer, brick, TRANSFER_WRITE, NULL) < 0) {
+		if (transfer_create(transfer, brick, TRANSFER_TYPE_WRITE, NULL) < 0) {
 			brick_destroy(brick); // FIXME: don't use
 
 			return -1;

@@ -27,10 +27,10 @@
 #include "brick.h"
 #include "packet.h"
 
-enum {
-	TRANSFER_READ = 0,
-	TRANSFER_WRITE
-};
+typedef enum {
+	TRANSFER_TYPE_READ = 0,
+	TRANSFER_TYPE_WRITE
+} TransferType;
 
 typedef struct _Transfer Transfer;
 
@@ -38,7 +38,7 @@ typedef void (*TransferFunction)(Transfer *transfer);
 
 struct _Transfer {
 	Brick *brick;
-	int type;
+	TransferType type;
 	int submitted;
 	int completed;
 	TransferFunction function;
@@ -46,7 +46,7 @@ struct _Transfer {
 	Packet packet;
 };
 
-int transfer_create(Transfer *transfer, Brick *brick, int type,
+int transfer_create(Transfer *transfer, Brick *brick, TransferType type,
                     TransferFunction function);
 void transfer_destroy(Transfer *transfer);
 

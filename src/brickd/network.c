@@ -126,7 +126,7 @@ int network_init(void) {
 
 	if (socket_bind(_server_socket, (struct sockaddr *)&server_address, sizeof(struct sockaddr_in)) < 0) {
 		// FIXME: close socket
-		log_error("Could not bind server socket to port %d: %s (%d)",
+		log_error("Could not bind server socket to port %u: %s (%d)",
 		          _port, get_errno_name(errno), errno);
 
 		// FIXME: free client array
@@ -135,7 +135,7 @@ int network_init(void) {
 
 	if (socket_listen(_server_socket, 10) < 0) {
 		// FIXME: close socket
-		log_error("Could not listen to server socket on port %d: %s (%d)",
+		log_error("Could not listen to server socket on port %u: %s (%d)",
 		          _port, get_errno_name(errno), errno);
 
 		// FIXME: free client array

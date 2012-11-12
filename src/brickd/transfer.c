@@ -28,39 +28,45 @@
 
 #define LOG_CATEGORY LOG_CATEGORY_USB
 
-static const char *transfer_get_type_name(int type) {
+static const char *transfer_get_type_name(TransferType type, int upper) {
 	switch (type) {
-	case TRANSFER_READ:
-		return "read";
+	case TRANSFER_TYPE_READ:
+		return upper ? "Read" : "read";
 
-	case TRANSFER_WRITE:
-		return "write";
+	case TRANSFER_TYPE_WRITE:
+		return upper ? "Write" : "write";
 
 	default:
-		return NULL;
+		return upper ? "<Unknown>" : "<unknown>";
 	}
 }
 
 static void LIBUSB_CALL transfer_wrapper(struct libusb_transfer *handle) {
 	Transfer *transfer = handle->user_data;
 
+	log_debug("%s transfer %p returned from %s [%s]: %s (%d)",
+	          transfer_get_type_name(transfer->type, 1), transfer,
+	          transfer->brick->product, transfer->brick->serial_number,
+	          get_libusb_transfer_status_name(transfer->handle->status),
+	          transfer->handle->status);
+
 	transfer->submitted = 0;
 	transfer->completed = 1;
 
 	if (handle->status == LIBUSB_TRANSFER_CANCELLED) {
-		log_debug("Cancelled pending %s transfer for %s [%s]",
-		          transfer_get_type_name(transfer->type),
+		log_debug("Cancelled pending %s transfer %p for %s [%s]",
+		          transfer_get_type_name(transfer->type, 0), transfer,
 		          transfer->brick->product, transfer->brick->serial_number);
 	} else if (handle->status == LIBUSB_TRANSFER_NO_DEVICE) {
-		log_debug("Pending %s transfer for %s [%s] aborted, device was disconnected",
-		          transfer_get_type_name(transfer->type),
+		log_debug("Pending %s transfer %p for %s [%s] aborted, device was disconnected",
+		          transfer_get_type_name(transfer->type, 0), transfer,
 		          transfer->brick->product, transfer->brick->serial_number);
 	} else if (transfer->function != NULL) {
 		transfer->function(transfer);
 	}
 }
 
-int transfer_create(Transfer *transfer, Brick *brick, int type,
+int transfer_create(Transfer *transfer, Brick *brick, TransferType type,
                     TransferFunction function) {
 	transfer->brick = brick;
 	transfer->type = type;
@@ -71,7 +77,7 @@ int transfer_create(Transfer *transfer, Brick *brick, int type,
 
 	if (transfer->handle == NULL) {
 		log_error("Could not allocate libusb %s transfer for %s [%s]",
-		          transfer_get_type_name(transfer->type),
+		          transfer_get_type_name(transfer->type, 0),
 		          brick->product, brick->serial_number);
 
 		return -1;
@@ -85,7 +91,7 @@ void transfer_destroy(Transfer *transfer) {
 	int rc;
 
 	/*log_debug("Freeing libusb %s transfer for %s [%s]",
-	          transfer_get_type_name(transfer->type),
+	          transfer_get_type_name(transfer->type, 0),
 	          transfer->brick->product, transfer->brick->serial_number);*/
 
 	if (transfer->submitted) {
@@ -111,26 +117,26 @@ void transfer_destroy(Transfer *transfer) {
 }
 
 int transfer_submit(Transfer *transfer) {
-	int end_point;
+	uint8_t end_point;
 	int length;
-	const char *type_name = transfer_get_type_name(transfer->type);
 	int rc;
 
 	if (transfer->submitted) {
-		log_error("Trying to submit an already submitted transfer for %s [%s]",
+		log_error("%s transfer %p is already submitted for %s [%s]",
+		          transfer_get_type_name(transfer->type, 1), transfer,
 		          transfer->brick->product, transfer->brick->serial_number);
 
 		return -1;
 	}
 
 	switch (transfer->type) {
-	case TRANSFER_READ:
+	case TRANSFER_TYPE_READ:
 		end_point = USB_ENDPOINT_IN + 0x80;
 		length = sizeof(Packet);
 
 		break;
 
-	case TRANSFER_WRITE:
+	case TRANSFER_TYPE_WRITE:
 		end_point = USB_ENDPOINT_OUT;
 		length = transfer->packet.header.length;
 
@@ -157,8 +163,8 @@ int transfer_submit(Transfer *transfer) {
 	rc = libusb_submit_transfer(transfer->handle);
 
 	if (rc < 0) {
-		log_error("Could not submit %s transfer to %s [%s]: %s (%d)",
-		          type_name,
+		log_error("Could not submit %s transfer %p to %s [%s]: %s (%d)",
+		          transfer_get_type_name(transfer->type, 0), transfer,
 		          transfer->brick->product, transfer->brick->serial_number,
 		          get_libusb_error_name(rc), rc);
 
@@ -167,9 +173,9 @@ int transfer_submit(Transfer *transfer) {
 		return -1;
 	}
 
-	/*log_debug("Submitted %s transfer for %u bytes to %s [%s]",
-	          type_name, length,
-	          transfer->brick->product, transfer->brick->serial_number);*/
+	log_debug("Submitted %s transfer %p for %u bytes to %s [%s]",
+	          transfer_get_type_name(transfer->type, 0), transfer, length,
+	          transfer->brick->product, transfer->brick->serial_number);
 
 	return 0;
 }

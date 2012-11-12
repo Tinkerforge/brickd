@@ -47,6 +47,7 @@ static void udev_handle_event(void *opaque) {
 
 	if (device == NULL) {
 		log_error("Could not read data from udev monitor socket");
+
 		return;
 	}
 

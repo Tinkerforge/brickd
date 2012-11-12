@@ -108,7 +108,7 @@ static int usb_handle_device(libusb_device *device) {
 	}
 
 	// create new Brick object
-	log_debug("Found new USB device (bus %u, device %u)",
+	log_debug("Found new USB device (bus: %u, device: %u)",
 	          bus_number, device_address);
 
 	brick = array_append(&_bricks);
@@ -123,7 +123,7 @@ static int usb_handle_device(libusb_device *device) {
 	if (brick_create(brick, _context, bus_number, device_address) < 0) {
 		array_remove(&_bricks, _bricks.count - 1, NULL);
 
-		log_info("Ignoring USB device (bus %u, device %u) due to an error",
+		log_info("Ignoring USB device (bus: %u, device: %u) due to an error",
 		         bus_number, device_address);
 
 		return 0;
@@ -132,7 +132,7 @@ static int usb_handle_device(libusb_device *device) {
 	// mark new Brick as connected
 	brick->connected = 1;
 
-	log_info("Added USB device (bus %d, device %d) at index %d: %s [%s]",
+	log_info("Added USB device (bus: %d, device: %d) at index %d: %s [%s]",
 	         brick->bus_number, brick->device_address, _bricks.count - 1,
 	         brick->product, brick->serial_number);
 
