@@ -33,6 +33,9 @@
 
 #define LOG_CATEGORY LOG_CATEGORY_USB
 
+#define MAX_READ_TRANSFERS 5
+#define MAX_WRITE_TRANSFERS 5
+
 static void read_transfer_callback(Transfer *transfer) {
 	if (transfer->handle->status != LIBUSB_TRANSFER_COMPLETED) {
 		log_warn("Read transfer returned with an error from %s [%s]: %s (%d)",
@@ -280,14 +283,15 @@ int brick_create(Brick *brick, libusb_context *context,
 	}
 
 	// allocate and submit read transfers
-	if (array_create(&brick->read_transfers, 5, sizeof(Transfer)) < 0) {
+	if (array_create(&brick->read_transfers, MAX_READ_TRANSFERS,
+	                 sizeof(Transfer)) < 0) {
 		log_error("Could not create read transfer array: %s (%d)",
 		          get_errno_name(errno), errno);
 
 		goto cleanup;
 	}
 
-	for (i = 0; i < 5; ++i) {
+	for (i = 0; i < MAX_READ_TRANSFERS; ++i) {
 		// FIXME: need to destroy already created, transfers in case of an error
 		transfer = array_append(&brick->read_transfers);
 
@@ -311,14 +315,15 @@ int brick_create(Brick *brick, libusb_context *context,
 	phase = 5;
 
 	// allocate write transfers
-	if (array_create(&brick->write_transfers, 5, sizeof(Transfer)) < 0) {
+	if (array_create(&brick->write_transfers, MAX_WRITE_TRANSFERS,
+	                 sizeof(Transfer)) < 0) {
 		log_error("Could not create write transfer array: %s (%d)",
 		          get_errno_name(errno), errno);
 
 		goto cleanup;
 	}
 
-	for (i = 0; i < 5; ++i) {
+	for (i = 0; i < MAX_WRITE_TRANSFERS; ++i) {
 		transfer = array_append(&brick->write_transfers);
 
 		if (transfer == NULL) {
@@ -450,7 +455,7 @@ int brick_dispatch_packet(Brick *brick, Packet *packet, int force) {
 	int rc = -1;
 
 	if (force || brick_knows_uid(brick, packet->header.uid)) {
-		for (i = 0; i < /*brick->write_transfers.count*/1; ++i) {
+		for (i = 0; i < brick->write_transfers.count; ++i) {
 			transfer = array_get(&brick->write_transfers, i);
 
 			if (transfer->submitted) {
