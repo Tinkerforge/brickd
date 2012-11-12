@@ -182,7 +182,8 @@ int client_dispatch_packet(Client *client, Packet *packet, int force) {
 		}
 
 		if (force) {
-			log_debug("Forced to sent response to client (socket: %d)", client->socket);
+			log_debug("Forced to sent response to client (socket: %d)",
+			          client->socket);
 		} else {
 			log_debug("Sent response to client (socket: %d)", client->socket);
 		}

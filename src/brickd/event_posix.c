@@ -79,7 +79,6 @@ int event_init_platform(void) {
 
 	// create signal pipe
 	if (pipe_create(_signal_pipe) < 0) {
-		// FIXME: free array
 		log_error("Could not create signal pipe: %s (%d)",
 		          get_errno_name(errno), errno);
 

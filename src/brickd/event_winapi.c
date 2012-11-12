@@ -32,17 +32,18 @@
 
 #define LOG_CATEGORY LOG_CATEGORY_EVENT
 
-#define USBI_POLLIN      0x0001    /* There is data to read */
-#define USBI_POLLOUT     0x0004    /* Writing now will not block */
+#define USBI_POLLIN 0x0001
+#define USBI_POLLOUT 0x0004
 
 struct usbi_pollfd {
-    int fd;           /* file descriptor */
-    short events;     /* requested events */
-    short revents;    /* returned events */
+	int fd;
+	short events;
+	short revents;
 };
 
 extern int LIBUSB_CALL usbi_pipe(int filedes[2]);
-extern int LIBUSB_CALL usbi_poll(struct usbi_pollfd *fds, unsigned int nfds, int timeout);
+extern int LIBUSB_CALL usbi_poll(struct usbi_pollfd *fds, unsigned int nfds,
+                                 int timeout);
 extern int LIBUSB_CALL usbi_close(int fd);
 extern ssize_t LIBUSB_CALL usbi_write(int fd, const void *buf, size_t count);
 extern ssize_t LIBUSB_CALL usbi_read(int fd, void *buf, size_t count);
@@ -356,7 +357,6 @@ cleanup:
 void event_exit_platform(void) {
 	if (_usb_poller.running) {
 		_usb_poller.running = 0;
-
 		// FIXME: need to write to suspend pipe to break thread out of usbi_poll
 
 		semaphore_release(&_usb_poller.resume);
