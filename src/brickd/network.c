@@ -31,7 +31,6 @@
 #include "log.h"
 #include "packet.h"
 #include "socket.h"
-#include "usb.h" // FIXME
 #include "utils.h"
 
 #define LOG_CATEGORY LOG_CATEGORY_NETWORK

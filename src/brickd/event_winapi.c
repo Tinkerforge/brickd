@@ -520,6 +520,7 @@ int event_run_platform(Array *event_sources, int *running) {
 		// sources that got added during the event handling
 		event_source_count = event_sources->count;
 
+		// FIXME: add a handled variable that counts upwards instead of decreasing ready
 		for (i = 0; i < event_source_count && ready > 0; ++i) {
 			event_source = array_get(event_sources, i);
 			received_events = 0;

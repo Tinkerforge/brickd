@@ -173,6 +173,7 @@ static void LIBUSB_CALL usb_remove_pollfd(int fd, void *opaque) {
 }
 
 int usb_init(void) {
+	// FIXME: use phase pattern
 	int rc;
 	struct libusb_pollfd **pollfds;
 	struct libusb_pollfd **pollfd;
