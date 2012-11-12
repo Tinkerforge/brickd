@@ -48,6 +48,7 @@ int errno_interrupted(void) {
 
 const char *get_errno_name(int error_code) {
 	#define ERRNO_NAME(code) case code: return #code
+	#define WINAPI_ERROR_NAME(code) case ERRNO_WINAPI_OFFSET + code: return #code
 	#define WINSOCK2_ERROR_NAME(code) case ERRNO_WINSOCK2_OFFSET + code: return #code
 
 	switch (error_code) {
@@ -65,7 +66,9 @@ const char *get_errno_name(int error_code) {
 	ERRNO_NAME(ENOMEM);
 	ERRNO_NAME(EACCES);
 	ERRNO_NAME(EFAULT);
+#ifdef ENOTBLK
 	ERRNO_NAME(ENOTBLK);
+#endif
 	ERRNO_NAME(EBUSY);
 	ERRNO_NAME(EEXIST);
 	ERRNO_NAME(EXDEV);
@@ -75,7 +78,9 @@ const char *get_errno_name(int error_code) {
 	ERRNO_NAME(ENFILE);
 	ERRNO_NAME(EMFILE);
 	ERRNO_NAME(ENOTTY);
+#ifdef ETXTBSY
 	ERRNO_NAME(ETXTBSY);
+#endif
 	ERRNO_NAME(EFBIG);
 	ERRNO_NAME(ENOSPC);
 	ERRNO_NAME(ESPIPE);
@@ -90,6 +95,7 @@ const char *get_errno_name(int error_code) {
 	ERRNO_NAME(ENOSYS);
 	ERRNO_NAME(ENOTEMPTY);
 
+#ifndef _WIN32
 	ERRNO_NAME(ELOOP);
 #if EWOULDBLOCK != EAGAIN
 	ERRNO_NAME(EWOULDBLOCK);
@@ -187,8 +193,13 @@ const char *get_errno_name(int error_code) {
 	ERRNO_NAME(EOWNERDEAD);
 	ERRNO_NAME(ENOTRECOVERABLE);
 	ERRNO_NAME(ERFKILL);
+#endif
 
 #ifdef _WIN32
+	WINAPI_ERROR_NAME(ERROR_FAILED_SERVICE_CONTROLLER_CONNECT);
+	WINAPI_ERROR_NAME(ERROR_INVALID_DATA);
+	WINAPI_ERROR_NAME(ERROR_SERVICE_ALREADY_RUNNING);
+
 	WINSOCK2_ERROR_NAME(WSAEINTR);
 	WINSOCK2_ERROR_NAME(WSAEBADF);
 	WINSOCK2_ERROR_NAME(WSAEACCES);

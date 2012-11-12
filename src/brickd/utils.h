@@ -24,8 +24,8 @@
 
 #include <stdint.h>
 
-#define ERRNO_WINAPI_OFFSET 1000000
-#define ERRNO_WINSOCK2_OFFSET 2000000
+#define ERRNO_WINAPI_OFFSET 71000000
+#define ERRNO_WINSOCK2_OFFSET 72000000
 
 int errno_would_block(void);
 int errno_interrupted(void);
