@@ -137,7 +137,8 @@ int event_remove_source(EventHandle handle, EventSourceType type) {
 	int i;
 	EventSource *event_source;
 
-	for (i = 0; i < _event_sources.count; i++) {
+	// iterate backwards to remove the last added instance of an event source
+	for (i = _event_sources.count - 1; i >= 0; --i) {
 		event_source = array_get(&_event_sources, i);
 
 		if (event_source->handle == handle &&
@@ -169,6 +170,7 @@ void event_cleanup_sources(void) {
 	int i;
 	EventSource *event_source;
 
+	// iterate backwards to be able to print the correct index
 	for (i = _event_sources.count - 1; i >= 0; --i) {
 		event_source = array_get(&_event_sources, i);
 
