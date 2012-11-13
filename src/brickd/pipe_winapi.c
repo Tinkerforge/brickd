@@ -82,14 +82,6 @@ int pipe_create(EventHandle handles[2]) {
 		goto error;
 	}
 
-	if (shutdown(handles[0], SD_SEND) == SOCKET_ERROR) {
-		goto error;
-	}
-
-	if (shutdown(handles[1], SD_RECEIVE) == SOCKET_ERROR) {
-		goto error;
-	}
-
 	closesocket(listener);
 
 	return 0;
