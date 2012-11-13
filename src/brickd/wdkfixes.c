@@ -52,13 +52,21 @@ int __cdecl _wstat32(const wchar_t *path, struct _stat *buffer) {
 	return _wstat(path, buffer);
 }
 
-// implement localtime_r based on _localtime32_s
+// implement localtime_r based on localtime
 struct tm *localtime_r(const time_t *timep, struct tm *result) {
-	if (_localtime32_s(result, timep) == 0) {
-		return result;
-	} else {
+	struct tm *temp;
+
+	// localtime is thread-safe, it uses thread local storage for its
+	// return value on Windows
+	temp = localtime(timep);
+
+	if (temp == NULL) {
 		return NULL;
 	}
+
+	memcpy(result, temp, sizeof(struct tm));
+
+	return result;
 }
 
 // implement gettimeofday based on GetSystemTimeAsFileTime
@@ -66,11 +74,7 @@ int gettimeofday(struct timeval *tv, struct timezone *tz) {
 	FILETIME ft;
 	uint64_t t;
 
-	if (tz != NULL) {
-		errno = EINVAL;
-
-		return -1;
-	}
+	(void)tz;
 
 	if (tv != NULL) {
 		GetSystemTimeAsFileTime(&ft);
