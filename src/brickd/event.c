@@ -75,6 +75,8 @@ void event_exit(void) {
 
 	event_exit_platform();
 
+	event_cleanup_sources();
+
 	if (_event_sources.count > 0) {
 		log_warn("Leaking %d event sources", _event_sources.count);
 	}
@@ -160,6 +162,24 @@ int event_remove_source(EventHandle handle, EventSourceType type) {
 	         event_get_source_type_name(type, 0), handle);
 
 	return -1;
+}
+
+// remove event sources that got marked as removed
+void event_cleanup_sources(void) {
+	int i;
+	EventSource *event_source;
+
+	for (i = _event_sources.count - 1; i >= 0; --i) {
+		event_source = array_get(&_event_sources, i);
+
+		if (event_source->removed) {
+			array_remove(&_event_sources, i, NULL);
+
+			log_debug("Removed %s event source (handle: %d, events: %d) at index %d",
+			          event_get_source_type_name(event_source->type, 0),
+			          event_source->handle, event_source->events, i);
+		}
+	}
 }
 
 int event_run(void) {

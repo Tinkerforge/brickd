@@ -566,18 +566,7 @@ int event_run_platform(Array *event_sources, int *running) {
 
 		// now remove event sources that got marked as removed during the
 		// event handling
-		for (i = 0; i < event_sources->count;) {
-			event_source = array_get(event_sources, i);
-
-			if (event_source->removed) {
-				array_remove(event_sources, i, NULL);
-
-				log_debug("Removed event source (handle: %d, events: %d) at index %d",
-				          event_source->handle, event_source->events, i);
-			} else {
-				++i;
-			}
-		}
+		event_cleanup_sources();
 	}
 
 	// FIXME: remove _usb_poller.notify_pipe[0] event source
