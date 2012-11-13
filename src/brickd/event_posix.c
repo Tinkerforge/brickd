@@ -153,6 +153,8 @@ int event_run_platform(Array *event_sources, int *running) {
 
 	*running = 1;
 
+	event_cleanup_sources();
+
 	while (*running) {
 		// update pollfd array
 		if (array_resize(&_pollfds, event_sources->count, NULL) < 0) {

@@ -406,6 +406,8 @@ int event_run_platform(Array *event_sources, int *running) {
 
 	thread_create(&_usb_poller.thread, event_poll_usb_events, event_sources);
 
+	event_cleanup_sources();
+
 	while (*running) {
 		// update SocketSet arrays
 
