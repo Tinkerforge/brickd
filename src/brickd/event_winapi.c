@@ -388,6 +388,7 @@ int event_run_platform(Array *event_sources, int *running) {
 	int i;
 	EventSource *event_source;
 	int ready;
+	int handled;
 	uint8_t byte = 1;
 	int rc;
 	int event_source_count;
@@ -516,12 +517,13 @@ int event_run_platform(Array *event_sources, int *running) {
 		          ready,
 		          event_get_source_type_name(EVENT_SOURCE_TYPE_GENERIC, 0));
 
+		handled = 0;
+
 		// cache event source count here to avoid looking at new event
 		// sources that got added during the event handling
 		event_source_count = event_sources->count;
 
-		// FIXME: add a handled variable that counts upwards instead of decreasing ready
-		for (i = 0; i < event_source_count && ready > 0; ++i) {
+		for (i = 0; i < event_source_count && ready > handled; ++i) {
 			event_source = array_get(event_sources, i);
 			received_events = 0;
 
@@ -541,8 +543,6 @@ int event_run_platform(Array *event_sources, int *running) {
 				continue;
 			}
 
-			--ready;
-
 			if (event_source->removed) {
 				log_debug("Ignoring %s event source (handle: %d, received events: %d) marked as removed at index %d",
 				          event_get_source_type_name(event_source->type, 0),
@@ -557,12 +557,19 @@ int event_run_platform(Array *event_sources, int *running) {
 				}
 			}
 
+			++handled;
+
 			if (!*running) {
 				break;
 			}
 		}
 
-		log_debug("Handled all ready event sources");
+		if (ready == handled) {
+			log_debug("Handled all ready event sources");
+		} else {
+			log_warn("Handled only %d of %d ready event source(s)",
+			         handled, ready);
+		}
 
 		// now remove event sources that got marked as removed during the
 		// event handling

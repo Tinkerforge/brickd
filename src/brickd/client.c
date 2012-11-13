@@ -148,7 +148,7 @@ int client_create(Client *client, EventHandle socket) {
 }
 
 void client_destroy(Client *client) {
-	event_remove_source(client->socket, EVENT_SOURCE_TYPE_GENERIC); // FIXME: handle error?
+	event_remove_source(client->socket, EVENT_SOURCE_TYPE_GENERIC);
 	socket_destroy(client->socket);
 	array_destroy(&client->pending_requests, NULL);
 }

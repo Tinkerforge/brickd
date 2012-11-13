@@ -235,7 +235,7 @@ int event_run_platform(Array *event_sources, int *running) {
 		if (ready == handled) {
 			log_debug("Handled all ready event sources");
 		} else {
-			log_warn("Handled only %d of %d ready event sources",
+			log_warn("Handled only %d of %d ready event source(s)",
 			         handled, ready);
 		}
 

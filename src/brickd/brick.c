@@ -292,7 +292,6 @@ int brick_create(Brick *brick, libusb_context *context,
 	}
 
 	for (i = 0; i < MAX_READ_TRANSFERS; ++i) {
-		// FIXME: need to destroy already created, transfers in case of an error
 		transfer = array_append(&brick->read_transfers);
 
 		if (transfer == NULL) {
@@ -304,6 +303,9 @@ int brick_create(Brick *brick, libusb_context *context,
 
 		if (transfer_create(transfer, brick, TRANSFER_TYPE_READ,
 		                    read_transfer_callback) < 0) {
+			array_remove(&brick->read_transfers,
+			             brick->read_transfers.count -1, NULL);
+
 			goto cleanup;
 		}
 
@@ -334,6 +336,9 @@ int brick_create(Brick *brick, libusb_context *context,
 		}
 
 		if (transfer_create(transfer, brick, TRANSFER_TYPE_WRITE, NULL) < 0) {
+			array_remove(&brick->write_transfers,
+			             brick->write_transfers.count -1, NULL);
+
 			goto cleanup;
 		}
 	}
