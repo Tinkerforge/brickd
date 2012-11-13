@@ -300,7 +300,7 @@ static int service_install(void) {
 		return -1;
 	}
 
-	printf("Installed '%s' service\n");
+	printf("Installed '%s' service\n", service_name);
 
 	// update description
 	description.lpDescription = service_description;
@@ -331,7 +331,7 @@ static int service_install(void) {
 		return -1;
 	}
 
-	printf("Started '%s' service\n");
+	printf("Started '%s' service\n", service_name);
 
 	CloseServiceHandle(service);
 	CloseServiceHandle(service_control_manager);
@@ -428,7 +428,7 @@ static int service_uninstall(void) {
 			return -1;
 		}
 
-		printf("Stopped '%s' service\n");
+		printf("Stopped '%s' service\n", service_name);
 	}
 
 	// uninstall service
@@ -444,7 +444,7 @@ static int service_uninstall(void) {
 		return -1;
 	}
 
-	printf("Uninstalled '%s' service\n");
+	printf("Uninstalled '%s' service\n", service_name);
 
 	CloseServiceHandle(service);
 	CloseServiceHandle(service_control_manager);
