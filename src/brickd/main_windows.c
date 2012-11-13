@@ -286,21 +286,41 @@ static int service_install(void) {
 	// install service
 	service = CreateService(service_control_manager, service_name, service_name,
 	                        SERVICE_ALL_ACCESS, SERVICE_WIN32_OWN_PROCESS,
-	                        SERVICE_AUTO_START, SERVICE_ERROR_IGNORE, path,
+	                        SERVICE_AUTO_START, SERVICE_ERROR_NORMAL, path,
 	                        NULL, NULL, NULL, NULL, NULL);
 
 	if (service == NULL) {
-		rc = ERRNO_WINAPI_OFFSET + GetLastError();
+		rc = GetLastError();
 
-		printf("Could not install '%s' service: %s (%d)\n",
-		       service_name, get_errno_name(rc), rc);
+		if (rc != ERROR_SERVICE_EXISTS) {
+			rc += ERRNO_WINAPI_OFFSET;
 
-		CloseServiceHandle(service_control_manager);
+			printf("Could not install '%s' service: %s (%d)\n",
+			       service_name, get_errno_name(rc), rc);
 
-		return -1;
+			CloseServiceHandle(service_control_manager);
+
+			return -1;
+		} else {
+			printf("'%s' service is already installed\n", service_name);
+
+			service = OpenService(service_control_manager, service_name,
+			                      SERVICE_CHANGE_CONFIG | SERVICE_START);
+
+			if (service == NULL) {
+				rc = ERRNO_WINAPI_OFFSET + GetLastError();
+
+				printf("Could not open '%s' service: %s (%d)\n",
+				       service_name, get_errno_name(rc), rc);
+
+				CloseServiceHandle(service_control_manager);
+
+				return -1;
+			}
+		}
+	} else {
+		printf("Installed '%s' service\n", service_name);
 	}
-
-	printf("Installed '%s' service\n", service_name);
 
 	// update description
 	description.lpDescription = service_description;
@@ -320,18 +340,24 @@ static int service_install(void) {
 
 	// start service
 	if (!StartService(service, 0, NULL)) {
-		rc = ERRNO_WINAPI_OFFSET + GetLastError();
+		rc = GetLastError();
 
-		printf("Could not start '%s' service: %s (%d)\n",
-		       service_name, get_errno_name(rc), rc);
+		if (rc != ERROR_SERVICE_ALREADY_RUNNING) {
+			rc += ERRNO_WINAPI_OFFSET;
 
-		CloseServiceHandle(service);
-		CloseServiceHandle(service_control_manager);
+			printf("Could not start '%s' service: %s (%d)\n",
+			       service_name, get_errno_name(rc), rc);
 
-		return -1;
+			CloseServiceHandle(service);
+			CloseServiceHandle(service_control_manager);
+
+			return -1;
+		} else {
+			printf("'%s' service is already running\n", service_name);
+		}
+	} else {
+		printf("Started '%s' service\n", service_name);
 	}
-
-	printf("Started '%s' service\n", service_name);
 
 	CloseServiceHandle(service);
 	CloseServiceHandle(service_control_manager);
@@ -363,7 +389,17 @@ static int service_uninstall(void) {
 	                      SERVICE_QUERY_STATUS | SERVICE_STOP | DELETE);
 
 	if (service == NULL) {
-		rc = ERRNO_WINAPI_OFFSET + GetLastError();
+		rc = GetLastError();
+
+		if (rc == ERROR_SERVICE_DOES_NOT_EXIST) {
+			printf("'%s' service is not installed\n", service_name);
+
+			CloseServiceHandle(service_control_manager);
+
+			return -1;
+		}
+
+		rc += ERRNO_WINAPI_OFFSET;
 
 		printf("Could not open '%s' service: %s (%d)\n",
 		       service_name, get_errno_name(rc), rc);
