@@ -1,5 +1,13 @@
 @setlocal
 
+@if "%1" == "oacr" (
+ move Makefile Makefile.disabled
+ echo WDK build with OACR
+ build -bcwgZ
+ move Makefile.disabled Makefile
+ goto done
+)
+
 @set CC=cl /nologo /c /MD /O2 /W4 /wd4200 /wd4214 /FIwdkfixes.h^
  /DBRICKD_LOG_ENABLED /DWIN32_LEAN_AND_MEAN
 @set RC=rc /dWIN32 /r
@@ -53,4 +61,5 @@
 copy brickd.exe dist\
 copy ..\build_data\Windows\libusb\libusb-1.0.dll dist\
 
+:done
 @endlocal
