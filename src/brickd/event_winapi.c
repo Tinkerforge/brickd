@@ -21,6 +21,7 @@
 
 #include <errno.h>
 #include <libusb.h>
+#include <stddef.h>
 #include <stdlib.h>
 
 #include "event.h"
@@ -50,6 +51,7 @@ extern ssize_t LIBUSB_CALL usbi_read(int fd, void *buf, size_t count);
 
 // mimic fd_set
 typedef struct {
+	int allocated;
 	int count;
 	SOCKET sockets[0];
 } SocketSet;
@@ -64,13 +66,41 @@ typedef struct {
 	Thread thread;
 } USBPoller;
 
-static int _socket_read_set_allocated = 0;
 static SocketSet *_socket_read_set = NULL;
-static int _socket_write_set_allocated = 0;
 static SocketSet *_socket_write_set = NULL;
 static EventHandle _stop_pipe[2] = { INVALID_EVENT_HANDLE,
                                      INVALID_EVENT_HANDLE };
 static USBPoller _usb_poller;
+
+static int event_reserve_socket_set(SocketSet **socket_set, int size) {
+	// FIXME: use better growth pattern
+	SocketSet *bytes;
+
+	if (*socket_set != NULL) {
+		if ((*socket_set)->allocated >= size) {
+			return 0;
+		}
+
+		bytes = realloc(*socket_set, sizeof(SocketSet) + sizeof(SOCKET) * size);
+	} else {
+		bytes = calloc(1, sizeof(SocketSet) + sizeof(SOCKET) * size);
+	}
+
+	if (bytes == NULL) {
+		errno = ENOMEM;
+
+		return -1;
+	}
+
+	*socket_set = bytes;
+	(*socket_set)->allocated = size;
+
+	return 0;
+}
+
+static fd_set *event_get_socket_set_as_fd_set(SocketSet *socket_set) {
+	return (fd_set *)((uint8_t *)socket_set + offsetof(SocketSet, count));
+}
 
 static void event_poll_usb_events(void *opaque) {
 	Array *event_sources = opaque;
@@ -269,30 +299,22 @@ int event_init_platform(void) {
 	int count = 32;
 
 	// create read set
-	_socket_read_set = calloc(1, sizeof(SocketSet) + sizeof(SOCKET) * count);
-
-	if (_socket_read_set == NULL) {
+	if (event_reserve_socket_set(&_socket_read_set, count) < 0) {
 		log_error("Could not create socket read set: %s (%d)",
-		          get_errno_name(ENOMEM), ENOMEM);
+		          get_errno_name(errno), errno);
 
 		goto cleanup;
 	}
-
-	_socket_read_set_allocated = count;
 
 	phase = 1;
 
 	// create write set
-	_socket_write_set = calloc(1, sizeof(SocketSet) + sizeof(SOCKET) * count);
-
-	if (_socket_write_set == NULL) {
+	if (event_reserve_socket_set(&_socket_write_set, count) < 0) {
 		log_error("Could not create socket write set: %s (%d)",
-		          get_errno_name(ENOMEM), ENOMEM);
+		          get_errno_name(errno), errno);
 
 		goto cleanup;
 	}
-
-	_socket_write_set_allocated = count;
 
 	phase = 2;
 
@@ -403,9 +425,10 @@ void event_exit_platform(void) {
 }
 
 int event_run_platform(Array *event_sources, int *running) {
-	SocketSet *socket_set;
 	int i;
 	EventSource *event_source;
+	fd_set *fd_read_set;
+	fd_set *fd_write_set;
 	int ready;
 	int handled;
 	uint8_t byte = 1;
@@ -431,37 +454,23 @@ int event_run_platform(Array *event_sources, int *running) {
 		// update SocketSet arrays
 
 		// FIXME: this over allocates
-		if (event_sources->count > _socket_read_set_allocated) {
-			// FIXME: use better growth pattern
-			socket_set = realloc(_socket_read_set, sizeof(SocketSet) + sizeof(SOCKET) * event_sources->count);
+		if (event_reserve_socket_set(&_socket_read_set,
+		                             event_sources->count) < 0) {
+			log_error("Could not resize socket read set: %s (%d)",
+			          get_errno_name(errno), errno);
 
-			if (socket_set == NULL) {
-				log_error("Could not resize socket read set: %s (%d)",
-				          get_errno_name(ENOMEM), ENOMEM);
-
-				// FIXME: remove _usb_poller.ready_pipe[0] event source
-				return -1;
-			}
-
-			_socket_read_set_allocated = event_sources->count;
-			_socket_read_set = socket_set;
+			// FIXME: remove _usb_poller.ready_pipe[0] event source
+			return -1;
 		}
 
 		// FIXME: this over allocates
-		if (event_sources->count > _socket_write_set_allocated) {
-			// FIXME: use better growth pattern
-			socket_set = realloc(_socket_write_set, sizeof(SocketSet) + sizeof(SOCKET) * event_sources->count);
+		if (event_reserve_socket_set(&_socket_write_set,
+		                             event_sources->count) < 0) {
+			log_error("Could not resize socket write set: %s (%d)",
+			          get_errno_name(errno), errno);
 
-			if (socket_set == NULL) {
-				log_error("Could not resize socket write set: %s (%d)",
-				          get_errno_name(ENOMEM), ENOMEM);
-
-				// FIXME: remove _usb_poller.ready_pipe[0] event source
-				return -1;
-			}
-
-			_socket_write_set_allocated = event_sources->count;
-			_socket_write_set = socket_set;
+			// FIXME: remove _usb_poller.ready_pipe[0] event source
+			return -1;
 		}
 
 		_socket_read_set->count = 0;
@@ -490,7 +499,12 @@ int event_run_platform(Array *event_sources, int *running) {
 
 		semaphore_release(&_usb_poller.resume);
 
-		ready = select(0, (fd_set *)_socket_read_set, (fd_set *)_socket_write_set, NULL, NULL);
+		fd_read_set = event_get_socket_set_as_fd_set(_socket_read_set);
+		fd_write_set = event_get_socket_set_as_fd_set(_socket_write_set);
+
+		ready = select(0, fd_read_set, fd_write_set, NULL, NULL);
+
+		log_debug("Sending suspend signal");
 
 		if (usbi_write(_usb_poller.suspend_pipe[1], &byte, 1) < 0) {
 			log_error("Could not write to USB suspend pipe");
@@ -552,11 +566,11 @@ int event_run_platform(Array *event_sources, int *running) {
 				continue;
 			}
 
-			if (FD_ISSET(event_source->handle, _socket_read_set)) {
+			if (FD_ISSET(event_source->handle, fd_read_set)) {
 				received_events |= EVENT_READ;
 			}
 
-			if (FD_ISSET(event_source->handle, _socket_write_set)) {
+			if (FD_ISSET(event_source->handle, fd_write_set)) {
 				received_events |= EVENT_WRITE;
 			}
 
