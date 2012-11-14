@@ -95,14 +95,14 @@ static DWORD WINAPI service_control_handler(DWORD dwControl, DWORD dwEventType,
 
 			log_info("DBT_DEVICEARRIVAL %u\n", GetCurrentThreadId());
 
-			usb_update();
+			//usb_update(); // FIXME: this is not allowed to be called from this thread, need a pipe
 
 			break;
 
 		case DBT_DEVICEREMOVECOMPLETE:
 			log_info("DBT_DEVICEREMOVECOMPLETE %u\n", GetCurrentThreadId());
 
-			usb_update();
+			//usb_update(); // FIXME: this is not allowed to be called from this thread, need a pipe
 
 			break;
 		}
