@@ -57,7 +57,7 @@ typedef struct {
 typedef struct {
 	int running;
 	int suspend_pipe[2];
-	EventHandle notify_pipe[2];
+	EventHandle ready_pipe[2];
 	Semaphore resume;
 	Semaphore suspend;
 	Array pollfds;
@@ -81,15 +81,19 @@ static void event_poll_usb_events(void *opaque) {
 	int k;
 	int ready;
 
+	log_debug("Started USB poll thread");
+
 	while (1) {
 		semaphore_acquire(&_usb_poller.resume);
+
+		log_debug("Resumed USB poll thread");
 
 		if (!_usb_poller.running) {
 			goto cleanup;
 		}
 
 		// update pollfd array
-		count = 1;
+		count = 0;
 
 		for (i = 0; i < event_sources->count; i++) {
 			event_source = array_get(event_sources, i);
@@ -99,9 +103,11 @@ static void event_poll_usb_events(void *opaque) {
 			}
 		}
 
-		if (count == 1) {
+		if (count == 0) {
 			goto suspend;
 		}
+
+		++count; // add the suspend pipe
 
 		if (array_resize(&_usb_poller.pollfds, count, NULL) < 0) {
 			log_error("Could not resize USB pollfd array: %s (%d)",
@@ -154,17 +160,17 @@ static void event_poll_usb_events(void *opaque) {
 			goto cleanup;
 		}
 
+		if (ready == 0) {
+			goto suspend;
+		}
+
 		// handle poll result
-		for (i = 0; i < _usb_poller.pollfds.count && ready > 0; ++i) {
-			pollfd = array_get(&_usb_poller.pollfds, i);
+		pollfd = array_get(&_usb_poller.pollfds, 0);
 
-			if (pollfd->fd == _usb_poller.suspend_pipe[0]) {
-				--ready;
+		if (pollfd->revents != 0) {
+			log_debug("Got suspend signal");
 
-				pollfd->revents = 0;
-
-				break;
-			}
+			--ready; // remove the suspend pipe
 		}
 
 		if (ready == 0) {
@@ -175,19 +181,22 @@ static void event_poll_usb_events(void *opaque) {
 		          ready,
 		          event_get_source_type_name(EVENT_SOURCE_TYPE_USB, 0));
 
-		if (pipe_write(_usb_poller.notify_pipe[1], &ready,
-		               sizeof(int)) < 0) {
-			log_error("Could not write to USB notify pipe: %s (%d)",
+		if (pipe_write(_usb_poller.ready_pipe[1], &ready, sizeof(int)) < 0) {
+			log_error("Could not write to USB ready pipe: %s (%d)",
 			          get_errno_name(errno), errno);
 
 			goto cleanup;
 		}
 
 	suspend:
+		log_debug("Suspending USB poll thread");
+
 		semaphore_release(&_usb_poller.suspend);
 	}
 
 cleanup:
+	log_debug("Stopped USB poll thread");
+
 	semaphore_release(&_usb_poller.suspend);
 
 	_usb_poller.running = 0;
@@ -196,6 +205,7 @@ cleanup:
 static void event_forward_usb_events(void *opaque) {
 	Array *event_sources = opaque;
 	int ready;
+	int handled = 0;
 	int i;
 	int k;
 	EventSource *event_source;
@@ -203,14 +213,14 @@ static void event_forward_usb_events(void *opaque) {
 
 	(void)opaque;
 
-	if (pipe_read(_usb_poller.notify_pipe[0], &ready, sizeof(int)) < 0) {
-		log_error("Could not read from USB notify pipe: %s (%d)",
+	if (pipe_read(_usb_poller.ready_pipe[0], &ready, sizeof(int)) < 0) {
+		log_error("Could not read from USB ready pipe: %s (%d)",
 		          get_errno_name(errno), errno);
 
 		return;
 	}
 
-	for (i = 0, k = 0; i < event_sources->count && k < _usb_poller.pollfds.count && ready > 0; ++i) {
+	for (i = 0, k = 1; i < event_sources->count && k < _usb_poller.pollfds.count && ready > handled; ++i) {
 		event_source = array_get(event_sources, i);
 
 		if (event_source->type != EVENT_SOURCE_TYPE_USB) {
@@ -229,9 +239,7 @@ static void event_forward_usb_events(void *opaque) {
 			continue;
 		}
 
-		--ready;
-
-		if (event_source->removed) {
+		if (event_source->state != EVENT_SOURCE_STATE_NORMAL) {
 			log_debug("Ignoring %s event source (handle: %d, received events: %d) marked as removed at index %d",
 			          event_get_source_type_name(event_source->type, 0),
 			          event_source->handle, pollfd->revents, i);
@@ -242,6 +250,17 @@ static void event_forward_usb_events(void *opaque) {
 
 			event_source->function(event_source->opaque);
 		}
+
+		++handled;
+	}
+
+	if (ready == handled) {
+		log_debug("Handled all ready %s event sources",
+		          event_get_source_type_name(EVENT_SOURCE_TYPE_USB, 0));
+	} else {
+		log_warn("Handled only %d of %d ready %s event source(s)",
+		         handled, ready,
+		         event_get_source_type_name(EVENT_SOURCE_TYPE_USB, 0));
 	}
 }
 
@@ -305,8 +324,8 @@ int event_init_platform(void) {
 
 	phase = 5;
 
-	if (pipe_create(_usb_poller.notify_pipe) < 0) {
-		log_error("Could not create USB notify pipe: %s (%d)",
+	if (pipe_create(_usb_poller.ready_pipe) < 0) {
+		log_error("Could not create USB ready pipe: %s (%d)",
 		          get_errno_name(errno), errno);
 
 		goto cleanup;
@@ -329,7 +348,7 @@ int event_init_platform(void) {
 cleanup:
 	switch (phase) { // no breaks, all cases fall through intentionally
 	case 6:
-		pipe_destroy(_usb_poller.notify_pipe);
+		pipe_destroy(_usb_poller.ready_pipe);
 
 	case 5:
 		usbi_close(_usb_poller.suspend_pipe[0]);
@@ -371,7 +390,7 @@ void event_exit_platform(void) {
 
 	array_destroy(&_usb_poller.pollfds, NULL);
 
-	pipe_destroy(_usb_poller.notify_pipe);
+	pipe_destroy(_usb_poller.ready_pipe);
 
 	usbi_close(_usb_poller.suspend_pipe[0]);
 	usbi_close(_usb_poller.suspend_pipe[1]);
@@ -394,7 +413,7 @@ int event_run_platform(Array *event_sources, int *running) {
 	int event_source_count;
 	int received_events;
 
-	if (event_add_source(_usb_poller.notify_pipe[0], EVENT_SOURCE_TYPE_GENERIC,
+	if (event_add_source(_usb_poller.ready_pipe[0], EVENT_SOURCE_TYPE_GENERIC,
 	                     EVENT_READ, event_forward_usb_events,
 	                     event_sources) < 0) {
 		return -1;
@@ -420,7 +439,7 @@ int event_run_platform(Array *event_sources, int *running) {
 				log_error("Could not resize socket read set: %s (%d)",
 				          get_errno_name(ENOMEM), ENOMEM);
 
-				// FIXME: remove _usb_poller.notify_pipe[0] event source
+				// FIXME: remove _usb_poller.ready_pipe[0] event source
 				return -1;
 			}
 
@@ -437,7 +456,7 @@ int event_run_platform(Array *event_sources, int *running) {
 				log_error("Could not resize socket write set: %s (%d)",
 				          get_errno_name(ENOMEM), ENOMEM);
 
-				// FIXME: remove _usb_poller.notify_pipe[0] event source
+				// FIXME: remove _usb_poller.ready_pipe[0] event source
 				return -1;
 			}
 
@@ -480,7 +499,7 @@ int event_run_platform(Array *event_sources, int *running) {
 
 			*running = 0;
 
-			// FIXME: remove _usb_poller.notify_pipe[0] event source
+			// FIXME: remove _usb_poller.ready_pipe[0] event source
 			return -1;
 		}
 
@@ -491,7 +510,7 @@ int event_run_platform(Array *event_sources, int *running) {
 
 			*running = 0;
 
-			// FIXME: remove _usb_poller.notify_pipe[0] event source
+			// FIXME: remove _usb_poller.ready_pipe[0] event source
 			return -1;
 		}
 
@@ -510,7 +529,7 @@ int event_run_platform(Array *event_sources, int *running) {
 
 			*running = 0;
 
-			// FIXME: remove _usb_poller.notify_pipe[0] event source
+			// FIXME: remove _usb_poller.ready_pipe[0] event source
 			return -1;
 		}
 
@@ -545,7 +564,7 @@ int event_run_platform(Array *event_sources, int *running) {
 				continue;
 			}
 
-			if (event_source->removed) {
+			if (event_source->state != EVENT_SOURCE_STATE_NORMAL) {
 				log_debug("Ignoring %s event source (handle: %d, received events: %d) marked as removed at index %d",
 				          event_get_source_type_name(event_source->type, 0),
 				          event_source->handle, received_events, i);
@@ -567,10 +586,12 @@ int event_run_platform(Array *event_sources, int *running) {
 		}
 
 		if (ready == handled) {
-			log_debug("Handled all ready event sources");
+			log_debug("Handled all ready %s event sources",
+			          event_get_source_type_name(EVENT_SOURCE_TYPE_GENERIC, 0));
 		} else {
-			log_warn("Handled only %d of %d ready event source(s)",
-			         handled, ready);
+			log_warn("Handled only %d of %d ready %s event source(s)",
+			         handled, ready,
+			         event_get_source_type_name(EVENT_SOURCE_TYPE_GENERIC, 0));
 		}
 
 		// now remove event sources that got marked as removed during the
@@ -578,7 +599,7 @@ int event_run_platform(Array *event_sources, int *running) {
 		event_cleanup_sources();
 	}
 
-	// FIXME: remove _usb_poller.notify_pipe[0] event source
+	// FIXME: remove _usb_poller.ready_pipe[0] event source
 	return 0;
 }
 
