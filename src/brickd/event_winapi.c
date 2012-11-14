@@ -58,6 +58,7 @@ typedef struct {
 
 typedef struct {
 	int running;
+	int stuck;
 	int suspend_pipe[2];
 	EventHandle ready_pipe[2];
 	Semaphore resume;
@@ -337,6 +338,7 @@ int event_init_platform(void) {
 
 	// create USB poller
 	_usb_poller.running = 0;
+	_usb_poller.stuck = 0;
 
 	if (usbi_pipe(_usb_poller.suspend_pipe) < 0) {
 		log_error("Could not create USB suspend pipe");
@@ -396,13 +398,17 @@ cleanup:
 }
 
 void event_exit_platform(void) {
-	if (_usb_poller.running) {
+	uint8_t byte = 1;
+
+	if (_usb_poller.running && !_usb_poller.stuck) {
 		_usb_poller.running = 0;
-		// FIXME: need to write to suspend pipe to break thread out of usbi_poll
 
-		semaphore_release(&_usb_poller.resume);
-
-		thread_join(&_usb_poller.thread);
+		if (usbi_write(_usb_poller.suspend_pipe[1], &byte, 1) < 0) {
+			log_error("Could not write to USB suspend pipe");
+		} else {
+			semaphore_release(&_usb_poller.resume);
+			thread_join(&_usb_poller.thread);
+		}
 	}
 
 	thread_destroy(&_usb_poller.thread);
@@ -425,6 +431,7 @@ void event_exit_platform(void) {
 }
 
 int event_run_platform(Array *event_sources, int *running) {
+	int result = -1;
 	int i;
 	EventSource *event_source;
 	fd_set *fd_read_set;
@@ -452,25 +459,20 @@ int event_run_platform(Array *event_sources, int *running) {
 
 	while (*running) {
 		// update SocketSet arrays
-
-		// FIXME: this over allocates
-		if (event_reserve_socket_set(&_socket_read_set,
+		if (event_reserve_socket_set(&_socket_read_set, // FIXME: this over allocates
 		                             event_sources->count) < 0) {
 			log_error("Could not resize socket read set: %s (%d)",
 			          get_errno_name(errno), errno);
 
-			// FIXME: remove _usb_poller.ready_pipe[0] event source
-			return -1;
+			goto cleanup;
 		}
 
-		// FIXME: this over allocates
-		if (event_reserve_socket_set(&_socket_write_set,
+		if (event_reserve_socket_set(&_socket_write_set, // FIXME: this over allocates
 		                             event_sources->count) < 0) {
 			log_error("Could not resize socket write set: %s (%d)",
 			          get_errno_name(errno), errno);
 
-			// FIXME: remove _usb_poller.ready_pipe[0] event source
-			return -1;
+			goto cleanup;
 		}
 
 		_socket_read_set->count = 0;
@@ -509,12 +511,10 @@ int event_run_platform(Array *event_sources, int *running) {
 		if (usbi_write(_usb_poller.suspend_pipe[1], &byte, 1) < 0) {
 			log_error("Could not write to USB suspend pipe");
 
-			// FIXME: usbi poller thread is stuck now, will block event_exit_platform
-
+			_usb_poller.stuck = 1;
 			*running = 0;
 
-			// FIXME: remove _usb_poller.ready_pipe[0] event source
-			return -1;
+			goto cleanup;
 		}
 
 		semaphore_acquire(&_usb_poller.suspend);
@@ -524,8 +524,7 @@ int event_run_platform(Array *event_sources, int *running) {
 
 			*running = 0;
 
-			// FIXME: remove _usb_poller.ready_pipe[0] event source
-			return -1;
+			goto cleanup;
 		}
 
 		if (ready < 0) {
@@ -543,8 +542,7 @@ int event_run_platform(Array *event_sources, int *running) {
 
 			*running = 0;
 
-			// FIXME: remove _usb_poller.ready_pipe[0] event source
-			return -1;
+			goto cleanup;
 		}
 
 		// handle select result
@@ -613,8 +611,12 @@ int event_run_platform(Array *event_sources, int *running) {
 		event_cleanup_sources();
 	}
 
-	// FIXME: remove _usb_poller.ready_pipe[0] event source
-	return 0;
+	result = 0;
+
+cleanup:
+	event_remove_source(_usb_poller.ready_pipe[0], EVENT_SOURCE_TYPE_GENERIC);
+
+	return result;
 }
 
 int event_stop_platform(void) {
