@@ -483,6 +483,7 @@ int brick_dispatch_packet(Brick *brick, Packet *packet, int force) {
 		}
 
 		if (!submitted) {
+			// FIXME: need to limit size of write queue
 			queued_packet = array_append(&brick->write_queue);
 
 			if (queued_packet == NULL) {

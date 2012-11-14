@@ -93,12 +93,21 @@ int event_add_source(EventHandle handle, EventSourceType type, int events,
 	for (i = 0; i < _event_sources.count; i++) {
 		event_source = array_get(&_event_sources, i);
 
-		if (event_source->removed) {
-			continue;
-		}
-
 		if (event_source->handle == handle &&
 		    event_source->type == type) {
+			if (event_source->state == EVENT_SOURCE_STATE_REMOVED) {
+				event_source->events = events;
+				event_source->state = EVENT_SOURCE_STATE_READDED;
+				event_source->function = function;
+				event_source->opaque = opaque;
+
+				log_debug("Readded %s event source (handle: %d, events: %d) at index %d",
+				          event_get_source_type_name(type, 0),
+				          handle, events, i);
+
+				return 0;
+			}
+
 			log_error("%s event source (handle: %d, events: %d) already added at index %d",
 			          event_get_source_type_name(type, 1),
 			          event_source->handle, event_source->events, i);
@@ -120,9 +129,9 @@ int event_add_source(EventHandle handle, EventSourceType type, int events,
 	event_source->handle = handle;
 	event_source->type = type;
 	event_source->events = events;
+	event_source->state = EVENT_SOURCE_STATE_ADDED;
 	event_source->function = function;
 	event_source->opaque = opaque;
-	event_source->removed = 0;
 
 	log_debug("Added %s event source (handle: %d, events: %d) at index %d",
 	          event_get_source_type_name(type, 0),
@@ -143,12 +152,12 @@ int event_remove_source(EventHandle handle, EventSourceType type) {
 
 		if (event_source->handle == handle &&
 		    event_source->type == type) {
-			if (event_source->removed) {
+			if (event_source->state == EVENT_SOURCE_STATE_REMOVED) {
 				log_warn("%s event source (handle: %d, events: %d) already marked as removed at index %d",
 				         event_get_source_type_name(event_source->type, 1),
 				         event_source->handle, event_source->events, i);
 			} else {
-				event_source->removed = 1;
+				event_source->state = EVENT_SOURCE_STATE_REMOVED;
 
 				log_debug("Marked %s event source (handle: %d, events: %d) as removed at index %d",
 				          event_get_source_type_name(event_source->type, 0),
@@ -174,12 +183,14 @@ void event_cleanup_sources(void) {
 	for (i = _event_sources.count - 1; i >= 0; --i) {
 		event_source = array_get(&_event_sources, i);
 
-		if (event_source->removed) {
+		if (event_source->state == EVENT_SOURCE_STATE_REMOVED) {
 			array_remove(&_event_sources, i, NULL);
 
 			log_debug("Removed %s event source (handle: %d, events: %d) at index %d",
 			          event_get_source_type_name(event_source->type, 0),
 			          event_source->handle, event_source->events, i);
+		} else {
+			event_source->state = EVENT_SOURCE_STATE_NORMAL;
 		}
 	}
 }

@@ -57,13 +57,20 @@ typedef enum {
 	EVENT_SOURCE_TYPE_USB
 } EventSourceType;
 
+typedef enum {
+	EVENT_SOURCE_STATE_NORMAL = 0,
+	EVENT_SOURCE_STATE_ADDED,
+	EVENT_SOURCE_STATE_REMOVED,
+	EVENT_SOURCE_STATE_READDED
+} EventSourceState;
+
 typedef struct {
 	EventHandle handle;
 	EventSourceType type;
 	int events;
+	EventSourceState state;
 	EventFunction function;
 	void *opaque;
-	int removed;
 } EventSource;
 
 const char *event_get_source_type_name(EventSourceType type, int upper);

@@ -213,8 +213,8 @@ int event_run_platform(Array *event_sources, int *running) {
 
 			event_source = array_get(event_sources, i);
 
-			if (event_source->removed) {
-				log_debug("Ignoring %s event source (handle: %d, received events: %d) marked as removed at index %d",
+			if (event_source->state != EVENT_SOURCE_STATE_NORMAL) {
+				log_debug("Ignoring %s event source (handle: %d, received events: %d) in transition at index %d",
 				          event_get_source_type_name(event_source->type, 0),
 				          event_source->handle, pollfd->revents, i);
 			} else {
