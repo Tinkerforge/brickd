@@ -127,7 +127,24 @@ diff --git a/libusb/os/windows_usb.c b/libusb/os/windows_usb.c
 index 914461d..fc56c48 100644
 --- a/libusb/os/windows_usb.c
 +++ b/libusb/os/windows_usb.c
-@@ -2130,7 +2130,7 @@ static int windows_handle_events(struct libusb_context *ctx, struct pollfd *fds,
+@@ -2060,10 +2060,14 @@ static void windows_transfer_callback(struct usbi_transfer *itransfer, uint32_t
+ 		status = LIBUSB_TRANSFER_ERROR;
+ 		break;
+ 	}
+ 	windows_clear_transfer_priv(itransfer);	// Cancel polling
+ 	usbi_handle_transfer_completion(itransfer, (enum libusb_transfer_status)status);
++
++	if (status == LIBUSB_TRANSFER_STALL) {
++		usbi_handle_disconnect(transfer->dev_handle);
++	}
+ }
+ 
+ static void windows_handle_callback (struct usbi_transfer *itransfer, uint32_t io_result, uint32_t io_size)
+ {
+ 	struct libusb_transfer *transfer = USBI_TRANSFER_TO_LIBUSB_TRANSFER(itransfer);
+@@ -2128,11 +2132,11 @@ static int windows_handle_events(struct libusb_context *ctx, struct pollfd *fds,
+ 			// If you don't use the transfer wfd, you run a risk of trying to free a
+ 			// newly allocated wfd that took the place of the one from the transfer.
  			windows_handle_callback(transfer, io_result, io_size);
  		} else {
  			usbi_err(ctx, "could not find a matching transfer for fd %x", fds[i]);
@@ -136,3 +153,17 @@ index 914461d..fc56c48 100644
  		}
  	}
  
+ 	usbi_mutex_unlock(&ctx->open_devs_lock);
+ 	return LIBUSB_SUCCESS;
+@@ -3041,10 +3045,11 @@ static int winusbx_abort_transfers(int sub_api, struct usbi_transfer *itransfer)
+ 
+ 	winusb_handle = handle_priv->interface_handle[current_interface].api_handle;
+ 
+ 	if (!WinUSBX[sub_api].AbortPipe(winusb_handle, transfer->endpoint)) {
+ 		usbi_err(ctx, "AbortPipe failed: %s", windows_error_str(0));
++		usbi_handle_disconnect(transfer->dev_handle);
+ 		return LIBUSB_ERROR_NO_DEVICE;
+ 	}
+ 
+ 	return LIBUSB_SUCCESS;
+ }
