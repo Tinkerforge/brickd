@@ -38,4 +38,7 @@ int usb_update(void);
 
 void usb_dispatch_packet(Packet *packet);
 
+int usb_create_context(libusb_context **context);
+void usb_destroy_context(libusb_context *context);
+
 #endif // BRICKD_USB_H

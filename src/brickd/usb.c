@@ -120,7 +120,7 @@ static int usb_handle_device(libusb_device *device) {
 		return -1;
 	}
 
-	if (brick_create(brick, _context, bus_number, device_address) < 0) {
+	if (brick_create(brick, bus_number, device_address) < 0) {
 		array_remove(&_bricks, _bricks.count - 1, NULL);
 
 		log_info("Ignoring USB device (bus: %u, device: %u) due to an error",
@@ -156,12 +156,12 @@ static void usb_handle_events(void *opaque) {
 }
 
 static void LIBUSB_CALL usb_add_pollfd(int fd, short events, void *opaque) {
-	(void)opaque;
+	libusb_context *context = opaque;
 
 	log_debug("Adding libusb pollfd (handle: %d, events: %d)", fd, events);
 
 	// FIXME: need to handle libusb timeouts
-	event_add_source(fd, EVENT_SOURCE_TYPE_USB, events, usb_handle_events, _context); // FIXME: handle error?
+	event_add_source(fd, EVENT_SOURCE_TYPE_USB, events, usb_handle_events, context); // FIXME: handle error?
 }
 
 static void LIBUSB_CALL usb_remove_pollfd(int fd, void *opaque) {
@@ -174,20 +174,11 @@ static void LIBUSB_CALL usb_remove_pollfd(int fd, void *opaque) {
 
 int usb_init(void) {
 	int phase = 0;
-	int rc;
-	struct libusb_pollfd **pollfds = NULL;
-	struct libusb_pollfd **pollfd;
-	struct libusb_pollfd **last_added_pollfd = NULL;
 
 	log_debug("Initializing USB subsystem");
 
 	// initialize main libusb context
-	rc = libusb_init(&_context);
-
-	if (rc < 0) {
-		log_error("Could not initialize main libusb context: %s (%d)",
-		          get_libusb_error_name(rc), rc);
-
+	if (usb_create_context(&_context)) {
 		goto cleanup;
 	}
 
@@ -199,31 +190,6 @@ int usb_init(void) {
 		log_debug("libusb can handle timeouts on its own");
 	}
 
-	// get pollfds from main libusb context
-	pollfds = (struct libusb_pollfd **)libusb_get_pollfds(_context);
-
-	if (pollfds == NULL) {
-		log_error("Could not get pollfds from main libusb context");
-
-		goto cleanup;
-	}
-
-	for (pollfd = pollfds; *pollfd != NULL; ++pollfd) {
-		if (event_add_source((*pollfd)->fd, EVENT_SOURCE_TYPE_USB,
-		                     (*pollfd)->events, usb_handle_events,
-		                     _context) < 0) {
-			goto cleanup;
-		}
-
-		last_added_pollfd = pollfd;
-		phase = 2;
-	}
-
-	// register pollfd notifiers for main libusb context
-	libusb_set_pollfd_notifiers(_context, usb_add_pollfd, usb_remove_pollfd, NULL);
-
-	phase = 3;
-
 	// create Bricks array
 	if (array_create(&_bricks, 32, sizeof(Brick)) < 0) {
 		log_error("Could not create Brick array: %s (%d)",
@@ -232,63 +198,36 @@ int usb_init(void) {
 		goto cleanup;
 	}
 
-	phase = 4;
+	phase = 2;
 
 	// find all Bricks
 	if (usb_update() < 0) {
 		goto cleanup;
 	}
 
-	phase = 5;
+	phase = 3;
 
 cleanup:
 	switch (phase) { // no breaks, all cases fall through intentionally
-	case 4:
+	case 2:
 		array_destroy(&_bricks, (FreeFunction)brick_destroy);
 
-	case 3:
-		libusb_set_pollfd_notifiers(_context, NULL, NULL, NULL);
-
-	case 2:
-		for (pollfd = pollfds; pollfd != last_added_pollfd; ++pollfd) {
-			event_remove_source((*pollfd)->fd, EVENT_SOURCE_TYPE_USB);
-		}
-
 	case 1:
-		libusb_exit(_context);
+		usb_destroy_context(_context);
 
 	default:
 		break;
 	}
 
-	free(pollfds);
-
-	return phase == 5 ? 0 : -1;
+	return phase == 3 ? 0 : -1;
 }
 
 void usb_exit(void) {
-	struct libusb_pollfd **pollfds = NULL;
-	struct libusb_pollfd **pollfd;
-
 	log_debug("Shutting down USB subsystem");
 
 	array_destroy(&_bricks, (FreeFunction)brick_destroy);
 
-	libusb_set_pollfd_notifiers(_context, NULL, NULL, NULL);
-
-	pollfds = (struct libusb_pollfd **)libusb_get_pollfds(_context);
-
-	if (pollfds == NULL) {
-		log_error("Could not get pollfds from main libusb context");
-	} else {
-		for (pollfd = pollfds; *pollfd != NULL; ++pollfd) {
-			event_remove_source((*pollfd)->fd, EVENT_SOURCE_TYPE_USB);
-		}
-
-		free(pollfds);
-	}
-
-	libusb_exit(_context);
+	usb_destroy_context(_context);
 }
 
 int usb_update(void) {
@@ -404,4 +343,88 @@ void usb_dispatch_packet(Packet *packet) {
 			brick_dispatch_packet(brick, packet, 1);
 		}
 	}
+}
+
+int usb_create_context(libusb_context **context) {
+	int phase = 0;
+	int rc;
+	struct libusb_pollfd **pollfds = NULL;
+	struct libusb_pollfd **pollfd;
+	struct libusb_pollfd **last_added_pollfd = NULL;
+
+	rc = libusb_init(context);
+
+	if (rc < 0) {
+		log_error("Could not initialize libusb context: %s (%d)",
+		          get_libusb_error_name(rc), rc);
+
+		goto cleanup;
+	}
+
+	phase = 1;
+
+	// get pollfds from main libusb context
+	pollfds = (struct libusb_pollfd **)libusb_get_pollfds(*context);
+
+	if (pollfds == NULL) {
+		log_error("Could not get pollfds from libusb context");
+
+		goto cleanup;
+	}
+
+	for (pollfd = pollfds; *pollfd != NULL; ++pollfd) {
+		if (event_add_source((*pollfd)->fd, EVENT_SOURCE_TYPE_USB,
+		                     (*pollfd)->events, usb_handle_events,
+		                     *context) < 0) {
+			goto cleanup;
+		}
+
+		last_added_pollfd = pollfd;
+		phase = 2;
+	}
+
+	// register pollfd notifiers
+	libusb_set_pollfd_notifiers(*context, usb_add_pollfd, usb_remove_pollfd,
+	                            *context);
+
+	phase = 3;
+
+cleanup:
+	switch (phase) { // no breaks, all cases fall through intentionally
+	case 2:
+		for (pollfd = pollfds; pollfd != last_added_pollfd; ++pollfd) {
+			event_remove_source((*pollfd)->fd, EVENT_SOURCE_TYPE_USB);
+		}
+
+	case 1:
+		libusb_exit(*context);
+
+	default:
+		break;
+	}
+
+	free(pollfds);
+
+	return phase == 3 ? 0 : -1;
+}
+
+void usb_destroy_context(libusb_context *context) {
+	struct libusb_pollfd **pollfds = NULL;
+	struct libusb_pollfd **pollfd;
+
+	libusb_set_pollfd_notifiers(context, NULL, NULL, NULL);
+
+	pollfds = (struct libusb_pollfd **)libusb_get_pollfds(context);
+
+	if (pollfds == NULL) {
+		log_error("Could not get pollfds from main libusb context");
+	} else {
+		for (pollfd = pollfds; *pollfd != NULL; ++pollfd) {
+			event_remove_source((*pollfd)->fd, EVENT_SOURCE_TYPE_USB);
+		}
+
+		free(pollfds);
+	}
+
+	libusb_exit(context);
 }

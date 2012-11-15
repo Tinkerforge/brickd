@@ -37,20 +37,6 @@
 #define MAX_WRITE_TRANSFERS 5
 
 static void read_transfer_callback(Transfer *transfer) {
-	if (transfer->handle->status != LIBUSB_TRANSFER_COMPLETED) {
-		log_warn("Read transfer returned with an error from %s [%s]: %s (%d)",
-		         transfer->brick->product, transfer->brick->serial_number,
-		         get_libusb_transfer_status_name(transfer->handle->status),
-		         transfer->handle->status);
-
-		if (transfer->handle->status == LIBUSB_TRANSFER_CANCELLED ||
-		    transfer->handle->status == LIBUSB_TRANSFER_NO_DEVICE) {
-			return;
-		}
-
-		goto resubmit;
-	}
-
 	if (transfer->handle->actual_length < (int)sizeof(PacketHeader)) {
 		log_error("Read transfer returned response with incomplete header from %s [%s]",
 		          transfer->brick->product, transfer->brick->serial_number);
@@ -95,31 +81,18 @@ resubmit:
 static void write_transfer_callback(Transfer *transfer) {
 	Packet *packet;
 
-	if (transfer->handle->status != LIBUSB_TRANSFER_COMPLETED) {
-		log_warn("Write transfer returned with an error from %s [%s]: %s (%d)",
-		         transfer->brick->product, transfer->brick->serial_number,
-		         get_libusb_transfer_status_name(transfer->handle->status),
-		         transfer->handle->status);
-
-		if (transfer->handle->status == LIBUSB_TRANSFER_CANCELLED ||
-		    transfer->handle->status == LIBUSB_TRANSFER_NO_DEVICE) {
-			return;
-		}
-	}
-
 	if (transfer->brick->write_queue.count > 0) {
 		packet = array_get(&transfer->brick->write_queue, 0);
 
 		memcpy(&transfer->packet, packet, packet->header.length);
 
 		if (transfer_submit(transfer) < 0) {
-			// FIXME: how to handle a failed submission, try to re-submit?
-			/*log_error("Could not send queued request (U: %u, L: %u, F: %u, S: %u, R: %u) to %s [%s]: %s (%d)",
+			log_error("Could not send queued request (U: %u, L: %u, F: %u, S: %u, R: %u) to %s [%s]: %s (%d)",
 			          packet->header.uid, packet->header.length,
 			          packet->header.function_id, packet->header.sequence_number,
 			          packet->header.response_expected,
 			          transfer->brick->product, transfer->brick->serial_number,
-			          get_errno_name(errno), errno);*/
+			          get_errno_name(errno), errno);
 
 			return;
 		}
@@ -135,8 +108,7 @@ static void write_transfer_callback(Transfer *transfer) {
 	}
 }
 
-int brick_create(Brick *brick, libusb_context *context,
-                 uint8_t bus_number, uint8_t device_address) {
+int brick_create(Brick *brick, uint8_t bus_number, uint8_t device_address) {
 	int phase = 0;
 	int rc;
 	libusb_device **devices;
@@ -150,19 +122,14 @@ int brick_create(Brick *brick, libusb_context *context,
 	brick->bus_number = bus_number;
 	brick->device_address = device_address;
 
-	brick->context = context;
+	brick->context = NULL;
 	brick->device = NULL;
 	brick->device_handle = NULL;
 
 	// initialize per-device libusb context
-	/*rc = libusb_init(&brick->context);
-
-	if (rc < 0) {
-		log_error("Could not initialize per-device libusb context: %s (%d)",
-		          get_libusb_error_name(rc), rc);
-
+	if (usb_create_context(&brick->context) < 0) {
 		goto cleanup;
-	}*/
+	}
 
 	phase = 1;
 
@@ -384,7 +351,7 @@ cleanup:
 		libusb_unref_device(brick->device);
 
 	case 1:
-		//libusb_exit(brick->context);
+		usb_destroy_context(brick->context);
 
 	default:
 		break;
@@ -407,7 +374,11 @@ void brick_destroy(Brick *brick) {
 
 	libusb_unref_device(brick->device);
 
-	//libusb_exit(brick->context);
+	usb_destroy_context(brick->context);
+
+	log_debug("Destroyed %s [%s] of USB device (bus: %u, device: %u)",
+	          brick->product, brick->serial_number,
+	          brick->bus_number, brick->device_address);
 }
 
 int brick_add_uid(Brick *brick, uint32_t uid) {

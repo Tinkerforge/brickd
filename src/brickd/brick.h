@@ -57,8 +57,7 @@ typedef struct {
 	int connected;
 } Brick;
 
-int brick_create(Brick *brick, libusb_context *context,
-                 uint8_t bus_number, uint8_t device_address);
+int brick_create(Brick *brick, uint8_t bus_number, uint8_t device_address);
 void brick_destroy(Brick *brick);
 
 int brick_add_uid(Brick *brick, uint32_t uid);
