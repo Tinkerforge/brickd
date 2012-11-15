@@ -19,6 +19,7 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
+#include <errno.h>
 #include <stdio.h>
 #include <windows.h>
 #include <dbt.h>
@@ -26,31 +27,41 @@
 #include "event.h"
 #include "log.h"
 #include "network.h"
+#include "pipe.h"
 #include "usb.h"
 #include "utils.h"
 #include "version.h"
 
 #define LOG_CATEGORY LOG_CATEGORY_OTHER
 
-
-//#include <usbiodef.h>
-/* A5DCBF10-6530-11D2-901F-00C04FB951ED */
-/*#undef EXTERN_C
-#define EXTERN_C
-DEFINE_GUID(GUID_DEVINTERFACE_USB_DEVICE, 0xA5DCBF10L, 0x6530, 0x11D2, 0x90, 0x1F, 0x00, \
-			 0xC0, 0x4F, 0xB9, 0x51, 0xED);*/
-
-static const GUID GUID_DEVINTERFACE_USB_DEVICE = { 0xA5DCBF10L, 0x6530, 0x11D2, { 0x90, 0x1F, 0x00,
-			 0xC0, 0x4F, 0xB9, 0x51, 0xED } };
+static const GUID GUID_DEVINTERFACE_USB_DEVICE =
+{ 0xA5DCBF10L, 0x6530, 0x11D2, { 0x90, 0x1F, 0x00, 0xC0, 0x4F, 0xB9, 0x51, 0xED } };
 
 static char *service_name = "Brick Daemon";
 static char *service_description = "Brick Daemon is a bridge between USB devices (Bricks) and TCP/IP sockets. It can be used to read out and control Bricks.";
 static SERVICE_STATUS service_status;
 static SERVICE_STATUS_HANDLE service_status_handle = 0;
+static EventHandle _notification_pipe[2] = { INVALID_EVENT_HANDLE,
+                                             INVALID_EVENT_HANDLE };
+
+static void handle_notification(void *opaque) {
+	uint8_t byte;
+
+	(void)opaque;
+
+	if (pipe_read(_notification_pipe[0], &byte, sizeof(uint8_t)) < 0) {
+		log_error("Could not read from notification pipe: %s (%d)",
+		          get_errno_name(errno), errno);
+
+		return;
+	}
+
+	usb_update();
+}
 
 static DWORD WINAPI service_control_handler(DWORD dwControl, DWORD dwEventType,
                                             LPVOID lpEventData, LPVOID lpContext) {
-	log_info("ServiceControlHandler: %u\n", GetCurrentThreadId());
+	uint8_t byte = 0;
 
 	(void)lpEventData;
 	(void)lpContext;
@@ -70,39 +81,24 @@ static DWORD WINAPI service_control_handler(DWORD dwControl, DWORD dwEventType,
 		return NO_ERROR;
 
 	case SERVICE_CONTROL_DEVICEEVENT:
-		//	PDEV_BROADCAST_HDR pBroadcastHdr = (PDEV_BROADCAST_HDR)lpEventData;
-
 		switch (dwEventType) {
 		case DBT_DEVICEARRIVAL:
-			/*::MessageBox(NULL, "A Device has been plugged in.", "Pounce", MB_OK | MB_ICONINFORMATION);
+			log_info("DBT_DEVICEARRIVAL"); // FIXME
 
-			switch (pBroadcastHdr->dbch_devicetype)
-			{
-			case DBT_DEVTYP_DEVICEINTERFACE:
-				PDEV_BROADCAST_DEVICEINTERFACE pDevInt = (PDEV_BROADCAST_DEVICEINTERFACE)pBroadcastHdr;
-
-				if (::IsEqualGUID(pDevInt->dbcc_classguid, GUID_DEVINTERFACE_VOLUME))
-				{
-					PDEV_BROADCAST_VOLUME pVol = (PDEV_BROADCAST_VOLUME)pDevInt;
-
-					char szMsg[80];
-					char cDriveLetter = ::GetDriveLetter(pVol->dbcv_unitmask);
-
-					::wsprintfA(szMsg, "USB disk drive with the drive letter '%c:' has been inserted.", cDriveLetter);
-					::MessageBoxA(NULL, szMsg, "Pounce", MB_OK | MB_ICONINFORMATION);
-				}
-			}*/
-
-			log_info("DBT_DEVICEARRIVAL %u\n", GetCurrentThreadId());
-
-			//usb_update(); // FIXME: this is not allowed to be called from this thread, need a pipe
+			if (pipe_write(_notification_pipe[1], &byte, sizeof(uint8_t)) < 0) {
+				log_error("Could not write to notification pipe: %s (%d)",
+				          get_errno_name(errno), errno);
+			}
 
 			break;
 
 		case DBT_DEVICEREMOVECOMPLETE:
-			log_info("DBT_DEVICEREMOVECOMPLETE %u\n", GetCurrentThreadId());
+			log_info("DBT_DEVICEREMOVECOMPLETE"); // FIXME
 
-			//usb_update(); // FIXME: this is not allowed to be called from this thread, need a pipe
+			if (pipe_write(_notification_pipe[1], &byte, sizeof(uint8_t)) < 0) {
+				log_error("Could not write to notification pipe: %s (%d)",
+				          get_errno_name(errno), errno);
+			}
 
 			break;
 		}
@@ -117,8 +113,7 @@ static void WINAPI service_main(DWORD dwArgc, LPTSTR *lpszArgv) {
 	int rc;
 	WSADATA wsa_data;
 	DEV_BROADCAST_DEVICEINTERFACE notification_filter;
-
-	log_info("ServiceMain: %u\n", GetCurrentThreadId());
+	HDEVNOTIFY notification_handle;
 
 	// initialise service status
 	service_status.dwServiceType = SERVICE_WIN32_OWN_PROCESS;
@@ -129,7 +124,9 @@ static void WINAPI service_main(DWORD dwArgc, LPTSTR *lpszArgv) {
 	service_status.dwCheckPoint = 0;
 	service_status.dwWaitHint = 0;
 
-	service_status_handle = RegisterServiceCtrlHandlerEx(service_name, service_control_handler, NULL);
+	service_status_handle = RegisterServiceCtrlHandlerEx(service_name,
+	                                                     service_control_handler,
+	                                                     NULL);
 
 	if (service_status_handle == NULL) {
 		rc = ERRNO_WINAPI_OFFSET + GetLastError();
@@ -140,16 +137,12 @@ static void WINAPI service_main(DWORD dwArgc, LPTSTR *lpszArgv) {
 		return;
 	}
 
-
 	// service is starting
 	service_status.dwCurrentState = SERVICE_START_PENDING;
 
 	SetServiceStatus(service_status_handle, &service_status);
 
-	// do initialisation here
-
-
-	// Initialize Winsock2
+	// initialize Winsock2
 	if (WSAStartup(MAKEWORD(2, 2), &wsa_data) != 0) {
 		rc = ERRNO_WINSOCK2_OFFSET + WSAGetLastError();
 
@@ -159,9 +152,6 @@ static void WINAPI service_main(DWORD dwArgc, LPTSTR *lpszArgv) {
 		goto error_event;
 	}
 
-
-
-
 	if (event_init() < 0) {
 		goto error_event;
 	}
@@ -170,41 +160,52 @@ static void WINAPI service_main(DWORD dwArgc, LPTSTR *lpszArgv) {
 		goto error_usb;
 	}
 
+	// create notification pipe
+	if (pipe_create(_notification_pipe) < 0) {
+		log_error("Could not create notification pipe: %s (%d)",
+		          get_errno_name(errno), errno);
 
+		goto error_pipe;
+	}
+
+	if (event_add_source(_notification_pipe[0], EVENT_SOURCE_TYPE_GENERIC,
+	                     EVENT_READ, handle_notification, NULL) < 0) {
+		goto error_pipe_add;
+	}
+
+	// register device notification
 	ZeroMemory(&notification_filter, sizeof(DEV_BROADCAST_DEVICEINTERFACE));
 
 	notification_filter.dbcc_size = sizeof(DEV_BROADCAST_DEVICEINTERFACE);
 	notification_filter.dbcc_devicetype = DBT_DEVTYP_DEVICEINTERFACE;
 	notification_filter.dbcc_classguid = GUID_DEVINTERFACE_USB_DEVICE;
 
-	/* handle */RegisterDeviceNotification(
-		service_status_handle,					   // events recipient
-		&notification_filter,		// type of device
-		DEVICE_NOTIFY_SERVICE_HANDLE // type of recipient handle
-		);
+	notification_handle = RegisterDeviceNotification(service_status_handle,
+	                                                 &notification_filter,
+	                                                 DEVICE_NOTIFY_SERVICE_HANDLE);
 
-	//if RegisterDeviceNotification fails
-	// goto error_device_notification
+	if (notification_handle == NULL) {
+		rc = ERRNO_WINAPI_OFFSET + GetLastError();
+
+		log_error("Could not register for device notification: %s (%d)",
+		          get_errno_name(rc), rc);
+
+		goto error_notification;
+	}
 
 	if (network_init() < 0) {
 		goto error_network;
 	}
 
-
-
-
-
 	// running
-	service_status.dwControlsAccepted |= (SERVICE_ACCEPT_STOP | SERVICE_ACCEPT_SHUTDOWN);
+	service_status.dwControlsAccepted |= SERVICE_ACCEPT_STOP | SERVICE_ACCEPT_SHUTDOWN;
 	service_status.dwCurrentState = SERVICE_RUNNING;
 
-	SetServiceStatus( service_status_handle, &service_status );
-
+	SetServiceStatus(service_status_handle, &service_status);
 
 	if (event_run() < 0) {
 		goto error_run;
 	}
-
 
 	//exit_code = 0;
 
@@ -212,9 +213,15 @@ error_run:
 	network_exit();
 
 error_network:
-	//UnregisterDeviceNotification (handle)
+	UnregisterDeviceNotification(notification_handle);
 
-error_device_notification:
+error_notification:
+	event_remove_source(_notification_pipe[0], EVENT_SOURCE_TYPE_GENERIC);
+
+error_pipe_add:
+	pipe_destroy(_notification_pipe);
+
+error_pipe:
 	usb_exit();
 
 error_usb:
@@ -224,9 +231,6 @@ error_event:
 	log_info("Brick Daemon %s stopped", VERSION_STRING);
 
 	log_exit();
-
-	//return exit_code;
-
 
 	// service is now stopped
 	service_status.dwControlsAccepted &= ~(SERVICE_ACCEPT_STOP | SERVICE_ACCEPT_SHUTDOWN);
@@ -250,6 +254,8 @@ static void service_run(void) {
 
 		log_error("Could not start service control dispatcher: %s (%d)",
 		          get_errno_name(rc), rc);
+
+		return;
 	}
 }
 
@@ -517,11 +523,8 @@ int main(int argc, char **argv) {
 		log_set_stream(fp);
 
 
-		log_info("brickd %s started", VERSION_STRING);
+		log_info("Brick Daemon %s started", VERSION_STRING);
 
-
-
-		log_info("main: %u", GetCurrentThreadId());
 		service_run();
 	}
 
