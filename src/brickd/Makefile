@@ -6,10 +6,17 @@
 
 CC := gcc
 RM := rm -f --
+PLATFORM := $(shell uname)
 
-SOURCES := brick.c client.c event.c event_posix.c log.c main_linux.c network.c \
-           pipe_posix.c socket_posix.c threads_posix.c transfer.c udev.c \
-           usb.c utils.c
+SOURCES := brick.c client.c event.c event_posix.c log.c network.c pipe_posix.c \
+           socket_posix.c threads_posix.c transfer.c usb.c utils.c
+
+ifeq ($(PLATFORM),Linux)
+	SOURCES += main_linux.c udev.c
+else
+	SOURCES += main_macosx.c
+endif
+
 OBJECTS := ${SOURCES:.c=.o}
 TARGET := brickd
 
@@ -23,7 +30,7 @@ LIBUSB_LIBS := $(shell pkg-config --libs-only-l libusb-1.0)
 CFLAGS += $(LIBUSB_CFLAGS)
 LDFLAGS += $(LIBUSB_LDFLAGS)
 
-ifeq ($(shell uname),Linux)
+ifeq ($(PLATFORM),Linux)
 	LIBUDEV_CFLAGS := $(shell pkg-config --cflags libudev)
 	LIBUDEV_LDFLAGS := $(shell pkg-config --libs-only-other --libs-only-L libudev)
 	LIBUDEV_LIBS := $(shell pkg-config --libs-only-l libudev)
