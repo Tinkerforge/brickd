@@ -20,12 +20,19 @@ LIBUSB_CFLAGS := $(shell pkg-config --cflags libusb-1.0)
 LIBUSB_LDFLAGS := $(shell pkg-config --libs-only-other --libs-only-L libusb-1.0)
 LIBUSB_LIBS := $(shell pkg-config --libs-only-l libusb-1.0)
 
-LIBUDEV_CFLAGS := $(shell pkg-config --cflags libudev)
-LIBUDEV_LDFLAGS := $(shell pkg-config --libs-only-other --libs-only-L libudev)
-LIBUDEV_LIBS := $(shell pkg-config --libs-only-l libudev)
+CFLAGS += $(LIBUSB_CFLAGS)
+LDFLAGS += $(LIBUSB_LDFLAGS)
 
-CFLAGS += $(LIBUSB_CFLAGS) $(LIBUDEV_CFLAGS) -DBRICKD_LOG_ENABLED
-LDFLAGS += $(LIBUSB_LDFLAGS) $(LIBUDEV_LDFLAGS)
+ifeq ($(shell uname),Linux)
+	LIBUDEV_CFLAGS := $(shell pkg-config --cflags libudev)
+	LIBUDEV_LDFLAGS := $(shell pkg-config --libs-only-other --libs-only-L libudev)
+	LIBUDEV_LIBS := $(shell pkg-config --libs-only-l libudev)
+
+	CFLAGS += $(LIBUDEV_CFLAGS)
+	LDFLAGS += $(LIBUDEV_LDFLAGS)
+endif
+
+CFLAGS += -DBRICKD_LOG_ENABLED
 
 .PHONY: all clean
 
