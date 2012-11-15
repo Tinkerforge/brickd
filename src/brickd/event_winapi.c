@@ -400,17 +400,6 @@ cleanup:
 void event_exit_platform(void) {
 	uint8_t byte = 1;
 
-	if (_usb_poller.running && !_usb_poller.stuck) {
-		_usb_poller.running = 0;
-
-		if (usbi_write(_usb_poller.suspend_pipe[1], &byte, 1) < 0) {
-			log_error("Could not write to USB suspend pipe");
-		} else {
-			semaphore_release(&_usb_poller.resume);
-			thread_join(&_usb_poller.thread);
-		}
-	}
-
 	thread_destroy(&_usb_poller.thread);
 
 	semaphore_destroy(&_usb_poller.resume);
@@ -522,6 +511,7 @@ int event_run_platform(Array *event_sources, int *running) {
 		if (usbi_read(_usb_poller.suspend_pipe[0], &byte, 1) < 0) {
 			log_error("Could not read from USB suspend pipe");
 
+			_usb_poller.stuck = 1;
 			*running = 0;
 
 			goto cleanup;
@@ -614,6 +604,19 @@ int event_run_platform(Array *event_sources, int *running) {
 	result = 0;
 
 cleanup:
+	if (_usb_poller.running && !_usb_poller.stuck) {
+		_usb_poller.running = 0;
+
+		log_debug("Stopping USB poll thread");
+
+		if (usbi_write(_usb_poller.suspend_pipe[1], &byte, 1) < 0) {
+			log_error("Could not write to USB suspend pipe");
+		} else {
+			semaphore_release(&_usb_poller.resume);
+			thread_join(&_usb_poller.thread);
+		}
+	}
+
 	event_remove_source(_usb_poller.ready_pipe[0], EVENT_SOURCE_TYPE_GENERIC);
 
 	return result;
