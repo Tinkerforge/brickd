@@ -60,7 +60,10 @@ int array_find(Array *array, void *item);
 void base58_encode(char *str, uint32_t value);
 
 #ifdef __GNUC__
-	#include <features.h>
+	#ifndef __GNUC_PREREQ
+		#define __GNUC_PREREQ(major, minor) \
+			((((__GNUC__) << 16) + (__GNUC_MINOR__)) >= (((major) << 16) + (minor)))
+	#endif
 	#if __GNUC_PREREQ(4, 4)
 		#define ATTRIBUTE_FMT_PRINTF(fmtpos, argpos) \
 			__attribute__((__format__(__gnu_printf__, fmtpos, argpos)))
