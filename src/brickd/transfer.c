@@ -32,32 +32,38 @@ static void LIBUSB_CALL transfer_wrapper(struct libusb_transfer *handle) {
 	Transfer *transfer = handle->user_data;
 
 	if (!transfer->submitted) {
-		log_error("%s transfer %p returned from %s [%s], but was nut submitted before",
+		log_error("%s transfer %p returned from %s [%s], but was not submitted before",
 		          transfer_get_type_name(transfer->type, 1), transfer,
 		          transfer->brick->product, transfer->brick->serial_number);
 
 		return;
 	}
 
-	log_debug("%s transfer %p returned from %s [%s]: %s (%d)",
-	          transfer_get_type_name(transfer->type, 1), transfer,
-	          transfer->brick->product, transfer->brick->serial_number,
-	          get_libusb_transfer_status_name(transfer->handle->status),
-	          transfer->handle->status);
-
 	transfer->submitted = 0;
 	transfer->completed = 1;
 
 	if (handle->status == LIBUSB_TRANSFER_CANCELLED) {
-		log_debug("Cancelled pending %s transfer %p for %s [%s]",
+		log_debug("%s transfer %p for %s [%s] was cancelled",
 		          transfer_get_type_name(transfer->type, 0), transfer,
 		          transfer->brick->product, transfer->brick->serial_number);
 	} else if (handle->status == LIBUSB_TRANSFER_NO_DEVICE) {
-		log_debug("Pending %s transfer %p for %s [%s] aborted, device was disconnected",
+		log_debug("%s transfer %p for %s [%s] was aborted, device got disconnected",
 		          transfer_get_type_name(transfer->type, 0), transfer,
 		          transfer->brick->product, transfer->brick->serial_number);
-	} else if (transfer->function != NULL) {
-		transfer->function(transfer);
+	} else if (handle->status != LIBUSB_TRANSFER_COMPLETED) {
+		log_warn("%s transfer %p returned with an error from %s [%s]: %s (%d)",
+		         transfer_get_type_name(transfer->type, 1), transfer,
+		         transfer->brick->product, transfer->brick->serial_number,
+		         get_libusb_transfer_status_name(transfer->handle->status),
+		         transfer->handle->status);
+	} else {
+		log_debug("%s transfer %p returned successfully from %s [%s]",
+		         transfer_get_type_name(transfer->type, 1), transfer,
+		         transfer->brick->product, transfer->brick->serial_number);
+
+		if (transfer->function != NULL) {
+			transfer->function(transfer);
+		}
 	}
 }
 
@@ -96,11 +102,13 @@ int transfer_create(Transfer *transfer, Brick *brick, TransferType type,
 
 void transfer_destroy(Transfer *transfer) {
 	struct timeval tv;
+	time_t start;
+	time_t now;
 	int rc;
 
-	/*log_debug("Freeing libusb %s transfer for %s [%s]",
-	          transfer_get_type_name(transfer->type, 0),
-	          transfer->brick->product, transfer->brick->serial_number);*/
+	log_debug("Destroying %s transfer %p for %s [%s]",
+	          transfer_get_type_name(transfer->type, 0), transfer,
+	          transfer->brick->product, transfer->brick->serial_number);
 
 	if (transfer->submitted) {
 		transfer->completed = 0;
@@ -110,18 +118,34 @@ void transfer_destroy(Transfer *transfer) {
 		tv.tv_sec = 0;
 		tv.tv_usec = 0;
 
-		while (!transfer->completed) {
-			// FIXME: calling this here might be a problem when using threads
+		start = time(NULL);
+		now = start;
+
+		while (!transfer->completed && now >= start && now < start + 2) {
 			rc = libusb_handle_events_timeout(transfer->brick->context, &tv);
 
 			if (rc < 0) {
 				log_error("Could not handle USB events: %s (%d)",
 				          get_libusb_error_name(rc), rc);
 			}
+
+			now = time(NULL);
+		}
+
+		if (!transfer->completed) {
+			log_warn("Could not cancel pending %s transfer %p for %s [%s]",
+			         transfer_get_type_name(transfer->type, 0), transfer,
+			         transfer->brick->product, transfer->brick->serial_number);
 		}
 	}
 
-	libusb_free_transfer(transfer->handle);
+	if (!transfer->submitted) {
+		libusb_free_transfer(transfer->handle);
+	} else {
+		log_warn("Leaking pending %s transfer %p for %s [%s]",
+		         transfer_get_type_name(transfer->type, 0), transfer,
+		         transfer->brick->product, transfer->brick->serial_number);
+	}
 }
 
 int transfer_submit(Transfer *transfer) {
