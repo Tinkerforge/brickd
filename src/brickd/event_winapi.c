@@ -184,7 +184,7 @@ static void event_poll_usb_events(void *opaque) {
 				continue;
 			}
 
-			log_error("Count not poll on %s event source(s): %s (%d)",
+			log_error("Could not poll on %s event source(s): %s (%d)",
 			          event_get_source_type_name(EVENT_SOURCE_TYPE_USB, 0),
 			          get_errno_name(errno), errno);
 

@@ -44,11 +44,11 @@ static void LIBUSB_CALL transfer_wrapper(struct libusb_transfer *handle) {
 
 	if (handle->status == LIBUSB_TRANSFER_CANCELLED) {
 		log_debug("%s transfer %p for %s [%s] was cancelled",
-		          transfer_get_type_name(transfer->type, 0), transfer,
+		          transfer_get_type_name(transfer->type, 1), transfer,
 		          transfer->brick->product, transfer->brick->serial_number);
 	} else if (handle->status == LIBUSB_TRANSFER_NO_DEVICE) {
 		log_debug("%s transfer %p for %s [%s] was aborted, device got disconnected",
-		          transfer_get_type_name(transfer->type, 0), transfer,
+		          transfer_get_type_name(transfer->type, 1), transfer,
 		          transfer->brick->product, transfer->brick->serial_number);
 	} else if (handle->status != LIBUSB_TRANSFER_COMPLETED) {
 		log_warn("%s transfer %p returned with an error from %s [%s]: %s (%d)",
@@ -113,29 +113,36 @@ void transfer_destroy(Transfer *transfer) {
 	if (transfer->submitted) {
 		transfer->completed = 0;
 
-		libusb_cancel_transfer(transfer->handle);
+		rc = libusb_cancel_transfer(transfer->handle);
 
-		tv.tv_sec = 0;
-		tv.tv_usec = 0;
+		if (rc < 0) {
+			log_warn("Could not cancel pending %s transfer %p for %s [%s]: %s (%d)",
+			         transfer_get_type_name(transfer->type, 0), transfer,
+			         transfer->brick->product, transfer->brick->serial_number,
+			         get_libusb_error_name(rc), rc);
+		} else {
+			tv.tv_sec = 0;
+			tv.tv_usec = 0;
 
-		start = time(NULL);
-		now = start;
+			start = time(NULL);
+			now = start;
 
-		while (!transfer->completed && now >= start && now < start + 2) {
-			rc = libusb_handle_events_timeout(transfer->brick->context, &tv);
+			while (!transfer->completed && now >= start && now < start + 1) {
+				rc = libusb_handle_events_timeout(transfer->brick->context, &tv);
 
-			if (rc < 0) {
-				log_error("Could not handle USB events: %s (%d)",
-				          get_libusb_error_name(rc), rc);
+				if (rc < 0) {
+					log_error("Could not handle USB events: %s (%d)",
+					          get_libusb_error_name(rc), rc);
+				}
+
+				now = time(NULL);
 			}
 
-			now = time(NULL);
-		}
-
-		if (!transfer->completed) {
-			log_warn("Could not cancel pending %s transfer %p for %s [%s]",
-			         transfer_get_type_name(transfer->type, 0), transfer,
-			         transfer->brick->product, transfer->brick->serial_number);
+			if (!transfer->completed) {
+				log_warn("Attempt to cancel pending %s transfer %p for %s [%s] timed out",
+				         transfer_get_type_name(transfer->type, 0), transfer,
+				         transfer->brick->product, transfer->brick->serial_number);
+			}
 		}
 	}
 
