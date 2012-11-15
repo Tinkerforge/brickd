@@ -60,6 +60,7 @@ int array_find(Array *array, void *item);
 void base58_encode(char *str, uint32_t value);
 
 #ifdef __GNUC__
+	#include <features.h>
 	#if __GNUC_PREREQ(4, 4)
 		#define ATTRIBUTE_FMT_PRINTF(fmtpos, argpos) \
 			__attribute__((__format__(__gnu_printf__, fmtpos, argpos)))
@@ -67,8 +68,15 @@ void base58_encode(char *str, uint32_t value);
 		#define ATTRIBUTE_FMT_PRINTF(fmtpos, argpos) \
 			__attribute__((__format__(__printf__, fmtpos, argpos)))
 	#endif
+	#if __GNUC_PREREQ(4, 6)
+		#define STATIC_ASSERT(condition, message) \
+			_Static_assert(condition, message)
+	#else
+		#define STATIC_ASSERT(condition, message) // FIXME
+	#endif
 #else
 	#define ATTRIBUTE_FMT_PRINTF(fmtpos, argpos)
+	#define STATIC_ASSERT(condition, message) // FIXME
 #endif
 
 #endif // BRICKD_UTILS_H
