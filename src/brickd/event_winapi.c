@@ -74,14 +74,15 @@ static EventHandle _stop_pipe[2] = { INVALID_EVENT_HANDLE,
 static USBPoller _usb_poller;
 
 static int event_reserve_socket_set(SocketSet **socket_set, int size) {
-	// FIXME: use better growth pattern
 	SocketSet *bytes;
 
-	if (*socket_set != NULL) {
-		if ((*socket_set)->allocated >= size) {
-			return 0;
-		}
+	if (*socket_set != NULL && (*socket_set)->allocated >= size) {
+		return 0;
+	}
 
+	size = GROW_ALLOCATION(size);
+
+	if (*socket_set != NULL) {
 		bytes = realloc(*socket_set, sizeof(SocketSet) + sizeof(SOCKET) * size);
 	} else {
 		bytes = calloc(1, sizeof(SocketSet) + sizeof(SOCKET) * size);

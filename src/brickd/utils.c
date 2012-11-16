@@ -305,9 +305,7 @@ const char *get_libusb_transfer_status_name(int transfer_status) {
 
 // sets errno on error
 int array_create(Array *array, int reserved, int size) {
-	if (reserved < 1) {
-		reserved = 1;
-	}
+	reserved = GROW_ALLOCATION(reserved);
 
 	array->allocated = 0;
 	array->count = 0;
@@ -345,7 +343,7 @@ int array_reserve(Array *array, int count) {
 		return 0;
 	}
 
-	// FIXME: use better growth pattern
+	count = GROW_ALLOCATION(count);
 	bytes = realloc(array->bytes, count * array->size);
 
 	if (bytes == NULL) {
