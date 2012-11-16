@@ -33,7 +33,7 @@ void mutex_destroy(Mutex *mutex);
 void mutex_lock(Mutex *mutex);
 void mutex_unlock(Mutex *mutex);
 
-void semaphore_create(Semaphore *semaphore);
+int semaphore_create(Semaphore *semaphore);
 void semaphore_destroy(Semaphore *semaphore);
 void semaphore_acquire(Semaphore *semaphore);
 void semaphore_release(Semaphore *semaphore);

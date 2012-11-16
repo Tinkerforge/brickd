@@ -22,6 +22,7 @@
 #include "threads_posix.h"
 
 #include "log.h"
+#include "utils.h"
 
 #define LOG_CATEGORY LOG_CATEGORY_OTHER
 
@@ -51,7 +52,8 @@ void mutex_unlock(Mutex *mutex) {
 	// FIXME: error handling
 }
 
-void semaphore_create(Semaphore *semaphore) {
+// sets errno on error
+int semaphore_create(Semaphore *semaphore) {
 #ifdef __APPLE__
 	// Mac OS X does not support unnamed semaphores, so we fake them. Unlink
 	// first to ensure that there is no existing semaphore with that name.
@@ -64,20 +66,26 @@ void semaphore_create(Semaphore *semaphore) {
 	sem_unlink(name);
 	semaphore->pointer = sem_open(name, O_CREAT | O_EXCL, S_IRWXU, 0);
 	sem_unlink(name);
+
+	if (semaphore->pointer == SEM_FAILED) {
+		return -1;
+	}
 #else
 	semaphore->pointer = &semaphore->object;
 
-	sem_init(semaphore->pointer, 0, 0);
+	if (sem_init(semaphore->pointer, 0, 0) < 0) {
+		return -1;
+	}
 #endif
 
-	// FIXME: error handling
+	return 0;
 }
 
 void semaphore_destroy(Semaphore *semaphore) {
 #ifdef __APPLE__
 	sem_close(semaphore->pointer);
 #else
-	(void)semaphore;
+	sem_destroy(semaphore->pointer);
 #endif
 
 	// FIXME: error handling

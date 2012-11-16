@@ -24,6 +24,7 @@
 #include "threads_winapi.h"
 
 #include "log.h"
+#include "utils.h"
 
 #define LOG_CATEGORY LOG_CATEGORY_OTHER
 
@@ -43,10 +44,17 @@ void mutex_unlock(Mutex *mutex) {
 	LeaveCriticalSection(&mutex->handle);
 }
 
-void semaphore_create(Semaphore *semaphore) {
+// sets errno on error
+int semaphore_create(Semaphore *semaphore) {
 	semaphore->handle = CreateSemaphore(NULL, 0, INT32_MAX, NULL);
 
-	// FIXME: error handling
+	if (semaphore->handle == NULL) {
+		errno = ERRNO_WINAPI_OFFSET + GetLastError();
+
+		return -1;
+	}
+
+	return 0;
 }
 
 void semaphore_destroy(Semaphore *semaphore) {

@@ -364,13 +364,34 @@ int event_init_platform(void) {
 		goto cleanup;
 	}
 
-	semaphore_create(&_usb_poller.resume);
-	semaphore_create(&_usb_poller.suspend);
-
 	phase = 7;
+
+	if (semaphore_create(&_usb_poller.resume) < 0) {
+		log_error("Could not create USB resume semaphore: %s (%d)",
+		          get_errno_name(errno), errno);
+
+		goto cleanup;
+	}
+
+	phase = 8;
+
+	if (semaphore_create(&_usb_poller.suspend) < 0) {
+		log_error("Could not create USB suspend semaphore: %s (%d)",
+		          get_errno_name(errno), errno);
+
+		goto cleanup;
+	}
+
+	phase = 9
 
 cleanup:
 	switch (phase) { // no breaks, all cases fall through intentionally
+	case 8:
+		semaphore_destroy(&_usb_poller.suspend);
+
+	case 7:
+		semaphore_destroy(&_usb_poller.resume);
+
 	case 6:
 		pipe_destroy(_usb_poller.ready_pipe);
 
