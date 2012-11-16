@@ -436,9 +436,9 @@ static const char BASE58_STR[] = "123456789abcdefghijkmnopqrstuvwxyzABCDEFGHJKLM
 
 void base58_encode(char *str, uint32_t value) {
 	uint32_t mod;
-	char reverse_str[MAX_BASE58_STR_SIZE] = {0};
+	char reverse_str[MAX_BASE58_STR_SIZE] = {'\0'};
 	int i = 0;
-	int j = 0;
+	int k = 0;
 
 	while (value >= 58) {
 		mod = value % 58;
@@ -448,19 +448,12 @@ void base58_encode(char *str, uint32_t value) {
 	}
 
 	reverse_str[i] = BASE58_STR[value];
-	i = 0;
 
-	while (reverse_str[MAX_BASE58_STR_SIZE - 1 - i] == '\0') {
-		++i;
+	for (k = 0; k <= i; ++k) {
+		str[k] = reverse_str[i - k];
 	}
 
-	for(j = 0; j < MAX_BASE58_STR_SIZE; ++j) {
-		if (MAX_BASE58_STR_SIZE - i >= 0) {
-			str[j] = reverse_str[MAX_BASE58_STR_SIZE - 1 - i];
-		} else {
-			str[j] = '\0';
-		}
-
-		++i;
+	for (; k < MAX_BASE58_STR_SIZE; ++k) {
+		str[k] = '\0';
 	}
 }
