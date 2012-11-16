@@ -251,7 +251,7 @@ int brick_create(Brick *brick, uint8_t bus_number, uint8_t device_address) {
 
 	// allocate and submit read transfers
 	if (array_create(&brick->read_transfers, MAX_READ_TRANSFERS,
-	                 sizeof(Transfer)) < 0) {
+	                 sizeof(Transfer), 1) < 0) {
 		log_error("Could not create read transfer array: %s (%d)",
 		          get_errno_name(errno), errno);
 
@@ -285,7 +285,7 @@ int brick_create(Brick *brick, uint8_t bus_number, uint8_t device_address) {
 
 	// allocate write transfers
 	if (array_create(&brick->write_transfers, MAX_WRITE_TRANSFERS,
-	                 sizeof(Transfer)) < 0) {
+	                 sizeof(Transfer), 1) < 0) {
 		log_error("Could not create write transfer array: %s (%d)",
 		          get_errno_name(errno), errno);
 
@@ -312,7 +312,7 @@ int brick_create(Brick *brick, uint8_t bus_number, uint8_t device_address) {
 
 	phase = 6;
 
-	if (array_create(&brick->uids, 32, sizeof(uint32_t)) < 0) {
+	if (array_create(&brick->uids, 32, sizeof(uint32_t), 1) < 0) {
 		log_error("Could not create UID array: %s (%d)",
 		          get_errno_name(errno), errno);
 
@@ -321,7 +321,7 @@ int brick_create(Brick *brick, uint8_t bus_number, uint8_t device_address) {
 
 	phase = 7;
 
-	if (array_create(&brick->write_queue, 32, sizeof(Packet)) < 0) {
+	if (array_create(&brick->write_queue, 32, sizeof(Packet), 1) < 0) {
 		log_error("Could not create write queue array: %s (%d)",
 		          get_errno_name(errno), errno);
 

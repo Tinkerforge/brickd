@@ -68,7 +68,7 @@ int event_init_platform(void) {
 	int phase = 0;
 
 	// create pollfd array
-	if (array_create(&_pollfds, 32, sizeof(struct pollfd)) < 0) {
+	if (array_create(&_pollfds, 32, sizeof(struct pollfd), 1) < 0) {
 		log_error("Could not create pollfd array: %s (%d)",
 		          get_errno_name(errno), errno);
 

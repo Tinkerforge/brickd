@@ -304,13 +304,14 @@ const char *get_libusb_transfer_status_name(int transfer_status) {
 }
 
 // sets errno on error
-int array_create(Array *array, int reserved, int size) {
+int array_create(Array *array, int reserved, int size, int relocatable) {
 	reserved = GROW_ALLOCATION(reserved);
 
 	array->allocated = 0;
 	array->count = 0;
 	array->size = size;
-	array->bytes = calloc(reserved, size);
+	array->relocatable = relocatable;
+	array->bytes = calloc(reserved, relocatable ? size : (int)sizeof(void *));
 
 	if (array->bytes == NULL) {
 		errno = ENOMEM;
@@ -325,10 +326,21 @@ int array_create(Array *array, int reserved, int size) {
 
 void array_destroy(Array *array, FreeFunction function) {
 	int i;
+	void *item;
 
 	if (function != NULL) {
 		for (i = 0; i < array->count; ++i) {
-			function(array_get(array, i));
+			item = array_get(array, i);
+
+			function(item);
+
+			if (!array->relocatable) {
+				free(item);
+			}
+		}
+	} else if (!array->relocatable) {
+		for (i = 0; i < array->count; ++i) {
+			free(array_get(array, i));
 		}
 	}
 
@@ -337,6 +349,7 @@ void array_destroy(Array *array, FreeFunction function) {
 
 // sets errno on error
 int array_reserve(Array *array, int count) {
+	int size = array->relocatable ? array->size : (int)sizeof(void *);
 	uint8_t *bytes;
 
 	if (array->allocated >= count) {
@@ -344,10 +357,11 @@ int array_reserve(Array *array, int count) {
 	}
 
 	count = GROW_ALLOCATION(count);
-	bytes = realloc(array->bytes, count * array->size);
+	bytes = realloc(array->bytes, count * size);
 
 	if (bytes == NULL) {
 		errno = ENOMEM;
+
 		return -1;
 	}
 
@@ -360,6 +374,7 @@ int array_reserve(Array *array, int count) {
 int array_resize(Array *array, int count, FreeFunction function) {
 	int rc;
 	int i;
+	void *item;
 
 	if (array->count < count) {
 		rc = array_reserve(array, count);
@@ -370,7 +385,17 @@ int array_resize(Array *array, int count, FreeFunction function) {
 	} else if (array->count > count) {
 		if (function != NULL) {
 			for (i = count; i < array->count; ++i) {
-				function(array_get(array, i));
+				item = array_get(array, i);
+
+				function(item);
+
+				if (!array->relocatable) {
+					free(item);
+				}
+			}
+		} else if (!array->relocatable) {
+			for (i = count; i < array->count; ++i) {
+				free(array_get(array, i));
 			}
 		}
 	}
@@ -390,28 +415,47 @@ void *array_append(Array *array) {
 
 	++array->count;
 
-	item = array_get(array, array->count - 1);
+	if (array->relocatable) {
+		item = array_get(array, array->count - 1);
 
-	memset(item, 0, array->size);
+		memset(item, 0, array->size);
+	} else {
+		item = calloc(1, array->size);
+
+		if (item == NULL) {
+			--array->count;
+
+			errno = ENOMEM;
+
+			return NULL;
+		}
+
+		*(void **)(array->bytes + sizeof(void *) * (array->count - 1)) = item;
+	}
 
 	return item;
 }
 
 void array_remove(Array *array, int i, FreeFunction function) {
 	void *item = array_get(array, i);
+	int size = array->relocatable ? array->size : (int)sizeof(void *);
 	int tail;
 
 	if (function != NULL) {
 		function(item);
 	}
 
-	tail = (array->count - i - 1) * array->size;
-
-	if (tail > 0) {
-		memmove(item, array_get(array, i + 1), tail);
+	if (!array->relocatable) {
+		free(item);
 	}
 
-	memset(array_get(array, array->count - 1), 0, array->size);
+	tail = (array->count - i - 1) * size;
+
+	if (tail > 0) {
+		memmove(array->bytes + size * i, array->bytes + size * (i + 1), tail);
+	}
+
+	memset(array->bytes + size * (array->count - 1), 0, size);
 
 	--array->count;
 }
@@ -421,24 +465,41 @@ void *array_get(Array *array, int i) {
 		return NULL;
 	}
 
-	return array->bytes + array->size * i;
+	if (array->relocatable) {
+		return array->bytes + array->size * i;
+	} else {
+		return *(void **)(array->bytes + sizeof(void *) * i);
+	}
 }
 
 int array_find(Array *array, void *item) {
-	uint8_t *bytes = item;
+	uint8_t *bytes;
+	int i;
 
-	if (bytes < array->bytes ||
-	    bytes > array->bytes + (array->count - 1) * array->size) {
+	if (array->relocatable) {
+		bytes = item;
+
+		if (bytes < array->bytes ||
+		    bytes > array->bytes + (array->count - 1) * array->size) {
+			return -1;
+		}
+
+		if ((bytes - array->bytes) % array->size != 0) {
+			log_error("Misaligned array access");
+
+			return -1;
+		}
+
+		return (bytes - array->bytes) / array->size;
+	} else {
+		for (i = 0; i < array->count; ++i) {
+			if (memcmp(array_get(array, i), item, array->size) == 0) {
+				return i;
+			}
+		}
+
 		return -1;
 	}
-
-	if ((bytes - array->bytes) % array->size != 0) {
-		log_error("Misaligned array access");
-
-		return -1;
-	}
-
-	return (bytes - array->bytes) / array->size;
 }
 
 #define MAX_BASE58_STR_SIZE 8

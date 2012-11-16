@@ -95,7 +95,7 @@ int network_init(void) {
 
 	log_debug("Initializing network subsystem");
 
-	if (array_create(&_clients, 32, sizeof(Client)) < 0) {
+	if (array_create(&_clients, 32, sizeof(Client), 1) < 0) {
 		log_error("Could not create client array: %s (%d)",
 		          get_errno_name(errno), errno);
 

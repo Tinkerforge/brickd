@@ -42,12 +42,13 @@ typedef struct {
 	int allocated;
 	int count;
 	int size;
+	int relocatable;
 	uint8_t *bytes;
 } Array;
 
-#define ARRAY_INITIALIZER { 0, 0, 0, NULL }
+#define ARRAY_INITIALIZER { 0, 0, 0, 1, NULL }
 
-int array_create(Array *array, int reserved, int size);
+int array_create(Array *array, int reserved, int size, int relocatable);
 void array_destroy(Array *array, FreeFunction function);
 
 int array_reserve(Array *array, int count);

@@ -191,7 +191,7 @@ int usb_init(void) {
 	}
 
 	// create Bricks array
-	if (array_create(&_bricks, 32, sizeof(Brick)) < 0) {
+	if (array_create(&_bricks, 32, sizeof(Brick), 0) < 0) {
 		log_error("Could not create Brick array: %s (%d)",
 		          get_errno_name(errno), errno);
 

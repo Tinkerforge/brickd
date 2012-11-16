@@ -54,7 +54,7 @@ const char *event_get_source_type_name(EventSourceType type, int upper) {
 int event_init(void) {
 	log_debug("Initializing event subsystem");
 
-	if (array_create(&_event_sources, 32, sizeof(EventSource)) < 0) {
+	if (array_create(&_event_sources, 32, sizeof(EventSource), 1) < 0) {
 		log_error("Could not create event source array: %s (%d)",
 		          get_errno_name(errno), errno);
 

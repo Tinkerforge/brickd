@@ -130,7 +130,7 @@ int client_create(Client *client, EventHandle socket) {
 	client->packet_used = 0;
 
 	if (array_create(&client->pending_requests, MAX_PENDING_REQUESTS,
-	                 sizeof(PacketHeader)) < 0) {
+	                 sizeof(PacketHeader), 1) < 0) {
 		log_error("Could not create pending request array: %s (%d)",
 		          get_errno_name(errno), errno);
 

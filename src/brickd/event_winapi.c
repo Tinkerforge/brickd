@@ -358,7 +358,7 @@ int event_init_platform(void) {
 
 	phase = 6;
 
-	if (array_create(&_usb_poller.pollfds, 32, sizeof(struct usbi_pollfd)) < 0) {
+	if (array_create(&_usb_poller.pollfds, 32, sizeof(struct usbi_pollfd), 1) < 0) {
 		log_error("Could not create USB pollfd array: %s (%d)",
 		          get_errno_name(errno), errno);
 
