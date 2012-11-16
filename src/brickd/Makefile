@@ -29,6 +29,7 @@ LIBUSB_LIBS := $(shell pkg-config --libs-only-l libusb-1.0)
 
 CFLAGS += $(LIBUSB_CFLAGS)
 LDFLAGS += $(LIBUSB_LDFLAGS)
+LIBS += $(LIBUSB_LIBS)
 
 ifeq ($(PLATFORM),Linux)
 	LIBUDEV_CFLAGS := $(shell pkg-config --cflags libudev)
@@ -37,6 +38,7 @@ ifeq ($(PLATFORM),Linux)
 
 	CFLAGS += $(LIBUDEV_CFLAGS)
 	LDFLAGS += $(LIBUDEV_LDFLAGS)
+	LIBS += $(LIBUDEV_LIBS)
 endif
 
 CFLAGS += -DBRICKD_LOG_ENABLED
@@ -50,7 +52,7 @@ clean:
 
 $(TARGET): $(OBJECTS)
 	@echo "LD   $@"
-	@$(CC) -o $(TARGET) $(LDFLAGS) $(OBJECTS) $(LIBUSB_LIBS) $(LIBUDEV_LIBS)
+	@$(CC) -o $(TARGET) $(LDFLAGS) $(OBJECTS) $(LIBS)
 
 %.o: %.c
 	@echo "CC   $@"
