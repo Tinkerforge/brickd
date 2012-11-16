@@ -24,7 +24,7 @@
 #include "event.h"
 #include "log.h"
 #include "network.h"
-//#include "iokit.h"
+#include "iokit.h"
 #include "usb.h"
 #include "version.h"
 
@@ -78,9 +78,9 @@ int main(int argc, char **argv) {
 		goto error_usb;
 	}
 
-	/*if (iokit_init() < 0) {
+	if (iokit_init() < 0) {
 		goto error_iokit;
-	}*/
+	}
 
 	if (network_init() < 0) {
 		goto error_network;
@@ -96,9 +96,9 @@ error_run:
 	network_exit();
 
 error_network:
-	//iokit_exit();
+	iokit_exit();
 
-//error_iokit:
+error_iokit:
 	usb_exit();
 
 error_usb:

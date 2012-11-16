@@ -14,7 +14,7 @@ SOURCES := brick.c client.c event.c event_posix.c log.c network.c pipe_posix.c \
 ifeq ($(PLATFORM),Linux)
 	SOURCES += main_linux.c udev.c
 else
-	SOURCES += main_macosx.c
+	SOURCES += main_macosx.c iokit.c
 endif
 
 OBJECTS := ${SOURCES:.c=.o}
@@ -39,6 +39,8 @@ ifeq ($(PLATFORM),Linux)
 	CFLAGS += $(LIBUDEV_CFLAGS)
 	LDFLAGS += $(LIBUDEV_LDFLAGS)
 	LIBS += $(LIBUDEV_LIBS)
+else
+	LIBS += -Wl,-framework,IOKit -Wl,-framework,CoreFoundation -lobjc
 endif
 
 CFLAGS += -DBRICKD_LOG_ENABLED
