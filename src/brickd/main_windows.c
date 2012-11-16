@@ -44,7 +44,7 @@ static SERVICE_STATUS_HANDLE service_status_handle = 0;
 static EventHandle _notification_pipe[2] = { INVALID_EVENT_HANDLE,
                                              INVALID_EVENT_HANDLE };
 
-static void handle_notification(void *opaque) {
+static void forward_notifications(void *opaque) {
 	uint8_t byte;
 
 	(void)opaque;
@@ -169,7 +169,7 @@ static void WINAPI service_main(DWORD dwArgc, LPTSTR *lpszArgv) {
 	}
 
 	if (event_add_source(_notification_pipe[0], EVENT_SOURCE_TYPE_GENERIC,
-	                     EVENT_READ, handle_notification, NULL) < 0) {
+	                     EVENT_READ, forward_notifications, NULL) < 0) {
 		goto error_pipe_add;
 	}
 
