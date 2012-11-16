@@ -398,8 +398,6 @@ cleanup:
 }
 
 void event_exit_platform(void) {
-	uint8_t byte = 1;
-
 	thread_destroy(&_usb_poller.thread);
 
 	semaphore_destroy(&_usb_poller.resume);
