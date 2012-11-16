@@ -208,6 +208,8 @@ static void iokit_poll_notifications(void *opaque) {
 
 	CFRunLoopRun();
 
+	log_debug("Stopped notification poll thread");
+
 	semaphore_release(&_stopped);
 
 cleanup:
