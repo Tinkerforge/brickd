@@ -250,11 +250,10 @@ int usb_update(void) {
 	}
 
 	// remove all Bricks that are not marked as connected
-	for (i = 0; i < _bricks.count;) {
+	for (i = _bricks.count - 1; i >= 0; --i) {
 		brick = array_get(&_bricks, i);
 
 		if (brick->connected) {
-			++i;
 			continue;
 		}
 

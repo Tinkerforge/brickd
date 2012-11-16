@@ -184,11 +184,11 @@ void event_cleanup_sources(void) {
 		event_source = array_get(&_event_sources, i);
 
 		if (event_source->state == EVENT_SOURCE_STATE_REMOVED) {
-			array_remove(&_event_sources, i, NULL);
-
 			log_debug("Removed %s event source (handle: %d, events: %d) at index %d",
 			          event_get_source_type_name(event_source->type, 0),
 			          event_source->handle, event_source->events, i);
+
+			array_remove(&_event_sources, i, NULL);
 		} else {
 			event_source->state = EVENT_SOURCE_STATE_NORMAL;
 		}

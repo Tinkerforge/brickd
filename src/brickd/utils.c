@@ -382,25 +382,36 @@ int array_resize(Array *array, int count, FreeFunction function) {
 
 // sets errno on error
 void *array_append(Array *array) {
+	void *item;
+
 	if (array_reserve(array, array->count + 1) < 0) {
 		return NULL;
 	}
 
-	return array_get(array, array->count++);
+	++array->count;
+
+	item = array_get(array, array->count - 1);
+
+	memset(item, 0, array->size);
+
+	return item;
 }
 
 void array_remove(Array *array, int i, FreeFunction function) {
+	void *item = array_get(array, i);
 	int tail;
 
 	if (function != NULL) {
-		function(array_get(array, i));
+		function(item);
 	}
 
 	tail = (array->count - i - 1) * array->size;
 
 	if (tail > 0) {
-		memmove(array_get(array, i), array_get(array, i + 1), tail);
+		memmove(item, array_get(array, i + 1), tail);
 	}
+
+	memset(array_get(array, array->count - 1), 0, array->size);
 
 	--array->count;
 }
