@@ -61,7 +61,7 @@ int semaphore_create(Semaphore *semaphore) {
 	// avoid leaking the name. The semaphore will work fine without a name.
 	char name[100];
 
-	snprintf(name, sizeof(name), "tinkerforge-brickd-internal-%p", semaphore);
+	snprintf(name, sizeof(name), "tf-brickd-%p", semaphore);
 
 	sem_unlink(name);
 	semaphore->pointer = sem_open(name, O_CREAT | O_EXCL, S_IRWXU, 0);
