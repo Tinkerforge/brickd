@@ -383,7 +383,7 @@ int event_init_platform(void) {
 		goto cleanup;
 	}
 
-	phase = 9
+	phase = 9;
 
 cleanup:
 	switch (phase) { // no breaks, all cases fall through intentionally
@@ -416,7 +416,7 @@ cleanup:
 		break;
 	}
 
-	return phase == 7 ? 0 : -1;
+	return phase == 9 ? 0 : -1;
 }
 
 void event_exit_platform(void) {
