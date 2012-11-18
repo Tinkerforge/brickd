@@ -83,7 +83,7 @@ static DWORD WINAPI service_control_handler(DWORD dwControl, DWORD dwEventType,
 	case SERVICE_CONTROL_DEVICEEVENT:
 		switch (dwEventType) {
 		case DBT_DEVICEARRIVAL:
-			log_info("DBT_DEVICEARRIVAL"); // FIXME
+			log_debug("Received device notification (type: arrival)");
 
 			if (pipe_write(_notification_pipe[1], &byte, sizeof(uint8_t)) < 0) {
 				log_error("Could not write to notification pipe: %s (%d)",
@@ -93,7 +93,7 @@ static DWORD WINAPI service_control_handler(DWORD dwControl, DWORD dwEventType,
 			break;
 
 		case DBT_DEVICEREMOVECOMPLETE:
-			log_info("DBT_DEVICEREMOVECOMPLETE"); // FIXME
+			log_debug("Received device notification (type: removal)");
 
 			if (pipe_write(_notification_pipe[1], &byte, sizeof(uint8_t)) < 0) {
 				log_error("Could not write to notification pipe: %s (%d)",

@@ -200,7 +200,7 @@ static void event_poll_usb_events(void *opaque) {
 		pollfd = array_get(&_usb_poller.pollfds, 0);
 
 		if (pollfd->revents != 0) {
-			log_debug("Got suspend signal");
+			log_debug("Received suspend signal");
 
 			--ready; // remove the suspend pipe
 		}
@@ -515,26 +515,28 @@ int event_run_platform(Array *event_sources, int *running) {
 
 		ready = select(0, fd_read_set, fd_write_set, NULL, NULL);
 
-		log_debug("Sending suspend signal");
+		if (_usb_poller.running) {
+			log_debug("Sending suspend signal to USB poll thread");
 
-		if (usbi_write(_usb_poller.suspend_pipe[1], &byte, 1) < 0) {
-			log_error("Could not write to USB suspend pipe");
+			if (usbi_write(_usb_poller.suspend_pipe[1], &byte, 1) < 0) {
+				log_error("Could not write to USB suspend pipe");
 
-			_usb_poller.stuck = 1;
-			*running = 0;
+				_usb_poller.stuck = 1;
+				*running = 0;
 
-			goto cleanup;
-		}
+				goto cleanup;
+			}
 
-		semaphore_acquire(&_usb_poller.suspend);
+			semaphore_acquire(&_usb_poller.suspend);
 
-		if (usbi_read(_usb_poller.suspend_pipe[0], &byte, 1) < 0) {
-			log_error("Could not read from USB suspend pipe");
+			if (usbi_read(_usb_poller.suspend_pipe[0], &byte, 1) < 0) {
+				log_error("Could not read from USB suspend pipe");
 
-			_usb_poller.stuck = 1;
-			*running = 0;
+				_usb_poller.stuck = 1;
+				*running = 0;
 
-			goto cleanup;
+				goto cleanup;
+			}
 		}
 
 		if (ready < 0) {
