@@ -175,21 +175,22 @@ static void event_poll_usb_events(void *opaque) {
 		          _usb_poller.pollfds.count - 1,
 		          event_get_source_type_name(EVENT_SOURCE_TYPE_USB, 0));
 
+	retry:
 		ready = usbi_poll((struct usbi_pollfd *)_usb_poller.pollfds.bytes,
 		                  _usb_poller.pollfds.count, -1);
 
 		if (ready < 0) {
 			if (errno_interrupted()) {
-				log_debug("Poll got interrupted");
+				log_debug("Poll got interrupted, retrying");
 
-				continue;
+				goto retry;
 			}
 
 			log_error("Could not poll on %s event source(s): %s (%d)",
 			          event_get_source_type_name(EVENT_SOURCE_TYPE_USB, 0),
 			          get_errno_name(errno), errno);
 
-			goto cleanup;
+			goto suspend;
 		}
 
 		if (ready == 0) {
