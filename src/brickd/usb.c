@@ -158,7 +158,7 @@ static void usb_handle_events(void *opaque) {
 static void LIBUSB_CALL usb_add_pollfd(int fd, short events, void *opaque) {
 	libusb_context *context = opaque;
 
-	log_debug("Adding libusb pollfd (handle: %d, events: %d)", fd, events);
+	log_debug("Got told to add libusb pollfd (handle: %d, events: %d)", fd, events);
 
 	// FIXME: need to handle libusb timeouts
 	event_add_source(fd, EVENT_SOURCE_TYPE_USB, events, usb_handle_events, context); // FIXME: handle error?
@@ -167,7 +167,7 @@ static void LIBUSB_CALL usb_add_pollfd(int fd, short events, void *opaque) {
 static void LIBUSB_CALL usb_remove_pollfd(int fd, void *opaque) {
 	(void)opaque;
 
-	log_debug("Removing libusb pollfd (handle: %d)", fd);
+	log_debug("Got told to remove libusb pollfd (handle: %d)", fd);
 
 	event_remove_source(fd, EVENT_SOURCE_TYPE_USB); // FIXME: handle error?
 }
@@ -257,7 +257,7 @@ int usb_update(void) {
 			continue;
 		}
 
-		log_info("Removed USB device (bus: %d, device: %d) at index %d: %s [%s]",
+		log_info("Removing USB device (bus: %d, device: %d) at index %d: %s [%s]",
 		         brick->bus_number, brick->device_address, i,
 		         brick->product, brick->serial_number);
 
