@@ -360,6 +360,11 @@ int usb_create_context(libusb_context **context) {
 		goto cleanup;
 	}
 
+#if 0
+	libusb_set_debug(*context, 5);
+	libusb_set_log_stream(log_get_stream());
+#endif
+
 	phase = 1;
 
 	// get pollfds from main libusb context

@@ -52,6 +52,7 @@ typedef unsigned __int32  uint32_t;
 #include <sys/types.h>
 #include <time.h>
 #include <limits.h>
+#include <stdio.h>
 
 #if defined(__linux) || defined(__APPLE__) || defined(__CYGWIN__)
 #include <sys/time.h>
@@ -1499,6 +1500,8 @@ const struct libusb_pollfd ** LIBUSB_CALL libusb_get_pollfds(
 void LIBUSB_CALL libusb_set_pollfd_notifiers(libusb_context *ctx,
 	libusb_pollfd_added_cb added_cb, libusb_pollfd_removed_cb removed_cb,
 	void *user_data);
+
+void LIBUSB_CALL libusb_set_log_stream(FILE *stream);
 
 #ifdef __cplusplus
 }

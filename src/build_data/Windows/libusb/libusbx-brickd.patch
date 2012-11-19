@@ -1,3 +1,62 @@
+diff --git a/libusb/core.c b/libusb/core.c
+index 07b0b04..4a5b5c1 100644
+--- a/libusb/core.c
++++ b/libusb/core.c
+@@ -1799,6 +1799,12 @@ int usbi_gettimeofday(struct timeval *tp, void *tzp)
+ }
+ #endif
+ 
++static FILE *usbi_log_stream = NULL;
++
++void API_EXPORTED libusb_set_log_stream(FILE *stream) {
++	usbi_log_stream = stream;
++}
++
+ void usbi_log_v(struct libusb_context *ctx, enum libusb_log_level level,
+ 	const char *function, const char *format, va_list args)
+ {
+@@ -1807,6 +1813,10 @@ void usbi_log_v(struct libusb_context *ctx, enum libusb_log_level level,
+ 	int global_debug;
+ 	static int has_debug_header_been_displayed = 0;
+ 
++	if (usbi_log_stream == NULL) {
++		usbi_log_stream = stderr;
++	}
++
+ #ifdef ENABLE_DEBUG_LOGGING
+ 	global_debug = 1;
+ 	UNUSED(ctx);
+@@ -1828,8 +1838,8 @@ void usbi_log_v(struct libusb_context *ctx, enum libusb_log_level level,
+ 	usbi_gettimeofday(&now, NULL);
+ 	if ((global_debug) && (!has_debug_header_been_displayed)) {
+ 		has_debug_header_been_displayed = 1;
+-		fprintf(stderr, "[timestamp] [threadID] facility level [function call] <message>\n");
+-		fprintf(stderr, "--------------------------------------------------------------------------------\n");
++		fprintf(usbi_log_stream, "[timestamp] [threadID] facility level [function call] <message>\n");
++		fprintf(usbi_log_stream, "--------------------------------------------------------------------------------\n");
+ 	}
+ 	if (now.tv_usec < timestamp_origin.tv_usec) {
+ 		now.tv_sec--;
+@@ -1859,15 +1869,15 @@ void usbi_log_v(struct libusb_context *ctx, enum libusb_log_level level,
+ 	}
+ 
+ 	if (global_debug) {
+-		fprintf(stderr, "[%2d.%06d] [%08x] libusbx: %s [%s] ",
++		fprintf(usbi_log_stream, "[%2d.%06d] [%08x] libusbx: %s [%s] ",
+ 			(int)now.tv_sec, (int)now.tv_usec, usbi_get_tid(), prefix, function);
+ 	} else {
+-		fprintf(stderr, "libusbx: %s [%s] ", prefix, function);
++		fprintf(usbi_log_stream, "libusbx: %s [%s] ", prefix, function);
+ 	}
+ 
+-	vfprintf(stderr, format, args);
++	vfprintf(usbi_log_stream, format, args);
+ 
+-	fprintf(stderr, "\n");
++	fprintf(usbi_log_stream, "\n");
+ }
+ 
+ void usbi_log(struct libusb_context *ctx, enum libusb_log_level level,
 diff --git a/libusb/io.c b/libusb/io.c
 index 1338981..1cdd67c 100644
 --- a/libusb/io.c
@@ -23,10 +82,10 @@ index 1338981..1cdd67c 100644
  
  /* Backends call this from handle_events to report disconnection of a device.
 diff --git a/libusb/libusb-1.0.def b/libusb/libusb-1.0.def
-index 3aba343..50b994f 100644
+index 3aba343..f73e108 100644
 --- a/libusb/libusb-1.0.def
 +++ b/libusb/libusb-1.0.def
-@@ -124,3 +124,13 @@ EXPORTS
+@@ -124,3 +124,15 @@ EXPORTS
    libusb_unref_device@4 = libusb_unref_device
    libusb_wait_for_event
    libusb_wait_for_event@8 = libusb_wait_for_event
@@ -40,8 +99,10 @@ index 3aba343..50b994f 100644
 +  usbi_read@12 = usbi_read
 +  usbi_close
 +  usbi_close@4 = usbi_close
++  libusb_set_log_stream
++  libusb_set_log_stream@4 = libusb_set_log_stream
 diff --git a/libusb/libusb-1.0.rc b/libusb/libusb-1.0.rc
-index 86cb853..72321da 100644
+index 86cb853..55221ff 100644
 --- a/libusb/libusb-1.0.rc
 +++ b/libusb/libusb-1.0.rc
 @@ -47,7 +47,7 @@ BEGIN
@@ -49,10 +110,39 @@ index 86cb853..72321da 100644
  			VALUE "OriginalFilename", "libusb-1.0.dll\0"
  			VALUE "PrivateBuild", "\0"
 -			VALUE "ProductName", "libusb-1.0\0"
-+			VALUE "ProductName", "libusb-1.0-66db81a41cd64e638795f1da117e912e14d76f7c-tf-5\0"
++			VALUE "ProductName", "libusb-1.0-66db81a41cd64e638795f1da117e912e14d76f7c-tf-6\0"
  			VALUE "ProductVersion", LIBUSB_VERSIONSTRING
  			VALUE "SpecialBuild", "\0"
  		END
+diff --git a/libusb/libusb.h b/libusb/libusb.h
+index da94c9b..1622e16 100644
+--- a/libusb/libusb.h
++++ b/libusb/libusb.h
+@@ -52,6 +52,7 @@ typedef unsigned __int32  uint32_t;
+ #include <sys/types.h>
+ #include <time.h>
+ #include <limits.h>
++#include <stdio.h>
+ 
+ #if defined(__linux) || defined(__APPLE__) || defined(__CYGWIN__)
+ #include <sys/time.h>
+@@ -64,6 +65,7 @@ typedef unsigned __int32  uint32_t;
+  * in your sources, we force windows.h to be included first. */
+ #if defined(_WIN32) || defined(__CYGWIN__)
+ #include <windows.h>
++#include <winsock2.h> // for struct timeval
+ #if defined(interface)
+ #undef interface
+ #endif
+@@ -1499,6 +1501,8 @@ void LIBUSB_CALL libusb_set_pollfd_notifiers(libusb_context *ctx,
+ 	libusb_pollfd_added_cb added_cb, libusb_pollfd_removed_cb removed_cb,
+ 	void *user_data);
+ 
++void LIBUSB_CALL libusb_set_log_stream(FILE *stream);
++
+ #ifdef __cplusplus
+ }
+ #endif
 diff --git a/libusb/os/poll_windows.c b/libusb/os/poll_windows.c
 index 4601a79..dc847ec 100644
 --- a/libusb/os/poll_windows.c
@@ -103,9 +193,18 @@ index 4601a79..dc847ec 100644
  	int _index;
  	ssize_t r = -1;
 diff --git a/libusb/os/poll_windows.h b/libusb/os/poll_windows.h
-index e53af2d..95ab9e1 100644
+index e53af2d..f1ade91 100644
 --- a/libusb/os/poll_windows.h
 +++ b/libusb/os/poll_windows.h
+@@ -43,7 +43,7 @@ enum windows_version {
+ };
+ extern enum windows_version windows_version;
+ 
+-#define MAX_FDS     256
++#define MAX_FDS     1024
+ 
+ #define POLLIN      0x0001    /* There is data to read */
+ #define POLLPRI     0x0002    /* There is urgent data to read */
 @@ -74,11 +74,11 @@ struct winfd {
  };
  extern const struct winfd INVALID_WINFD;
@@ -124,27 +223,24 @@ index e53af2d..95ab9e1 100644
  void init_polling(void);
  void exit_polling(void);
 diff --git a/libusb/os/windows_usb.c b/libusb/os/windows_usb.c
-index 914461d..fc56c48 100644
+index 914461d..8e12ece 100644
 --- a/libusb/os/windows_usb.c
 +++ b/libusb/os/windows_usb.c
-@@ -2060,10 +2060,14 @@ static void windows_transfer_callback(struct usbi_transfer *itransfer, uint32_t
+@@ -2055,8 +2055,12 @@ static void windows_transfer_callback(struct usbi_transfer *itransfer, uint32_t
+ 			status = LIBUSB_TRANSFER_CANCELLED;
+ 		}
+ 		break;
++	case ERROR_FILE_NOT_FOUND:
++		usbi_dbg("detected disconnect");
++		status = LIBUSB_TRANSFER_NO_DEVICE;
++		break;
+ 	default:
+-		usbi_err(ITRANSFER_CTX(itransfer), "detected I/O error: %s", windows_error_str(0));
++		usbi_err(ITRANSFER_CTX(itransfer), "detected I/O error: %s", windows_error_str(io_result));
  		status = LIBUSB_TRANSFER_ERROR;
  		break;
  	}
- 	windows_clear_transfer_priv(itransfer);	// Cancel polling
- 	usbi_handle_transfer_completion(itransfer, (enum libusb_transfer_status)status);
-+
-+	if (status == LIBUSB_TRANSFER_STALL) {
-+		usbi_handle_disconnect(transfer->dev_handle);
-+	}
- }
- 
- static void windows_handle_callback (struct usbi_transfer *itransfer, uint32_t io_result, uint32_t io_size)
- {
- 	struct libusb_transfer *transfer = USBI_TRANSFER_TO_LIBUSB_TRANSFER(itransfer);
-@@ -2128,11 +2132,11 @@ static int windows_handle_events(struct libusb_context *ctx, struct pollfd *fds,
- 			// If you don't use the transfer wfd, you run a risk of trying to free a
- 			// newly allocated wfd that took the place of the one from the transfer.
+@@ -2130,7 +2134,7 @@ static int windows_handle_events(struct libusb_context *ctx, struct pollfd *fds,
  			windows_handle_callback(transfer, io_result, io_size);
  		} else {
  			usbi_err(ctx, "could not find a matching transfer for fd %x", fds[i]);
@@ -153,17 +249,3 @@ index 914461d..fc56c48 100644
  		}
  	}
  
- 	usbi_mutex_unlock(&ctx->open_devs_lock);
- 	return LIBUSB_SUCCESS;
-@@ -3041,10 +3045,11 @@ static int winusbx_abort_transfers(int sub_api, struct usbi_transfer *itransfer)
- 
- 	winusb_handle = handle_priv->interface_handle[current_interface].api_handle;
- 
- 	if (!WinUSBX[sub_api].AbortPipe(winusb_handle, transfer->endpoint)) {
- 		usbi_err(ctx, "AbortPipe failed: %s", windows_error_str(0));
-+		usbi_handle_disconnect(transfer->dev_handle);
- 		return LIBUSB_ERROR_NO_DEVICE;
- 	}
- 
- 	return LIBUSB_SUCCESS;
- }

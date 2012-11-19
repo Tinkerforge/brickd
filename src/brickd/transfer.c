@@ -127,6 +127,7 @@ void transfer_destroy(Transfer *transfer) {
 			start = time(NULL);
 			now = start;
 
+			// FIXME: don't wait 1sec per transfer
 			while (!transfer->completed && now >= start && now < start + 1) {
 				rc = libusb_handle_events_timeout(transfer->brick->context, &tv);
 
