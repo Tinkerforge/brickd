@@ -43,13 +43,19 @@ static void client_handle_receive(void *opaque) {
 	                        sizeof(Packet) - client->packet_used);
 
 	if (length < 0) {
-		if (!errno_would_block() && !errno_interrupted()) {
-			log_error("Could not receive from socket (handle: %d): %s (%d)",
+		if (errno_would_block()) {
+			log_debug("Receiving from socket (handle: %d) would block",
+			          client->socket);
+		} else if (errno_interrupted()) {
+			log_debug("Receiving from socket (handle: %d) got interrupted",
+			          client->socket);
+		} else {
+			log_error("Could not receive from socket (handle: %d), disconnecting it: %s (%d)",
 			          client->socket, get_errno_name(errno), errno);
+
+			network_client_disconnected(client);
 		}
 
-		// FIXME: does this work in case of blocking or interrupted
-		// need to retry on interrupted and blocking should never happend
 		return;
 	}
 
