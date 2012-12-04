@@ -50,8 +50,8 @@ typedef struct {
 	        authentication : 1,
 	        response_expected : 1,
 	        sequence_number : 4;
-	uint8_t error_code : 2,
-	        future_use : 6;
+	uint8_t future_use : 6,
+	        error_code : 2;
 } ATTRIBUTE_PACKED PacketHeader;
 
 typedef struct {
