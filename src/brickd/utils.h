@@ -27,7 +27,6 @@
 #define ERRNO_WINAPI_OFFSET 71000000
 #define ERRNO_WINSOCK2_OFFSET 72000000
 
-int errno_would_block(void);
 int errno_interrupted(void);
 
 const char *get_errno_name(int error_code);

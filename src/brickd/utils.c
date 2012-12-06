@@ -30,14 +30,6 @@
 
 #define LOG_CATEGORY LOG_CATEGORY_OTHER
 
-int errno_would_block(void) {
-#ifdef _WIN32
-	return errno == ERRNO_WINSOCK2_OFFSET + WSAEWOULDBLOCK ? 1 : 0;
-#else
-	return errno == EAGAIN || errno == EWOULDBLOCK ? 1 : 0;
-#endif
-}
-
 int errno_interrupted(void) {
 #ifdef _WIN32
 	return errno == ERRNO_WINSOCK2_OFFSET + WSAEINTR ? 1 : 0;

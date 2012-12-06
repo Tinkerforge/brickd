@@ -26,8 +26,6 @@
 
 #define LOG_CATEGORY LOG_CATEGORY_OTHER
 
-#define MACOSX_SEMAPHORE_NAME
-
 void mutex_create(Mutex *mutex) {
 	pthread_mutex_init(&mutex->handle, NULL);
 

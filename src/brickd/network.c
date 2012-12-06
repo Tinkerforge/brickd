@@ -47,13 +47,11 @@ static void network_handle_accept(void *opaque) {
 
 	// accept new client socket
 	if (socket_accept(_server_socket, &client_socket, NULL, NULL) < 0) {
-		if (!errno_would_block() && !errno_interrupted()) {
+		if (!errno_interrupted()) {
 			log_error("Could not accept new socket: %s (%d)",
 			          get_errno_name(errno), errno);
 		}
 
-		// FIXME: does this work in case of blocking or interrupted
-		// need to retry on interrupted and blocking should never happend
 		return;
 	}
 
@@ -142,7 +140,6 @@ int network_init(void) {
 		goto cleanup;
 	}
 
-	// FIXME: do we really need this?
 	if (socket_set_non_blocking(_server_socket, 1) < 0) {
 		log_error("Could not enable non-blocking mode for server socket: %s (%d)",
 		          get_errno_name(errno), errno);

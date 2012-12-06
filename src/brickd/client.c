@@ -43,10 +43,7 @@ static void client_handle_receive(void *opaque) {
 	                        sizeof(Packet) - client->packet_used);
 
 	if (length < 0) {
-		if (errno_would_block()) {
-			log_debug("Receiving from socket (handle: %d) would block",
-			          client->socket);
-		} else if (errno_interrupted()) {
+		if (errno_interrupted()) {
 			log_debug("Receiving from socket (handle: %d) got interrupted",
 			          client->socket);
 		} else {
