@@ -89,9 +89,11 @@ int main(int argc, char **argv) {
 		goto error_usb;
 	}
 
+#ifdef BRICKD_WITH_LIBUDEV
 	if (udev_init() < 0) {
 		goto error_udev;
 	}
+#endif
 
 	if (network_init() < 0) {
 		goto error_network;
@@ -107,9 +109,11 @@ error_run:
 	network_exit();
 
 error_network:
+#ifdef BRICKD_WITH_LIBUDEV
 	udev_exit();
 
 error_udev:
+#endif
 	usb_exit();
 
 error_usb:

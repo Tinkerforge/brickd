@@ -4,17 +4,34 @@
 #
 # apt-get install libusb-1.0-0-dev libudev-dev
 
+## CONFIG #####################################################################
+
 CC := gcc
 RM := rm -f --
 PLATFORM := $(shell uname)
+WITH_LIBUDEV := check
+
+## RULES ######################################################################
+
+ifeq ($(WITH_LIBUDEV),check)
+ifeq ($(PLATFORM),Linux)
+	WITH_LIBUDEV := yes
+else
+	WITH_LIBUDEV := no
+endif
+endif
 
 SOURCES := brick.c client.c event.c event_posix.c log.c network.c pipe_posix.c \
            socket_posix.c threads_posix.c transfer.c usb.c utils.c
 
 ifeq ($(PLATFORM),Linux)
-	SOURCES += main_linux.c udev.c
+	SOURCES += main_linux.c
 else
 	SOURCES += main_macosx.c iokit.c
+endif
+
+ifeq ($(WITH_LIBUDEV),yes)
+	SOURCES += udev.c
 endif
 
 OBJECTS := ${SOURCES:.c=.o}
@@ -31,15 +48,17 @@ CFLAGS += $(LIBUSB_CFLAGS)
 LDFLAGS += $(LIBUSB_LDFLAGS)
 LIBS += $(LIBUSB_LIBS)
 
-ifeq ($(PLATFORM),Linux)
+ifeq ($(WITH_LIBUDEV),yes)
 	LIBUDEV_CFLAGS := $(shell pkg-config --cflags libudev)
 	LIBUDEV_LDFLAGS := $(shell pkg-config --libs-only-other --libs-only-L libudev)
 	LIBUDEV_LIBS := $(shell pkg-config --libs-only-l libudev)
 
-	CFLAGS += $(LIBUDEV_CFLAGS)
+	CFLAGS += $(LIBUDEV_CFLAGS) -DBRICKD_WITH_LIBUDEV
 	LDFLAGS += $(LIBUDEV_LDFLAGS)
 	LIBS += $(LIBUDEV_LIBS)
-else
+endif
+
+ifeq ($(PLATFORM),Darwin)
 	LIBS += -Wl,-framework,IOKit -Wl,-framework,CoreFoundation -lobjc
 endif
 
