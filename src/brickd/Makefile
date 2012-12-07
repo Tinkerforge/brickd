@@ -8,17 +8,26 @@
 
 CC := gcc
 RM := rm -f --
+V := 0
 PLATFORM := $(shell uname)
 WITH_LIBUDEV := check
 
 ## RULES ######################################################################
 
-ifeq ($(WITH_LIBUDEV),check)
+ifneq ($(V),0)
+	E :=
+else
+	E := @
+endif
+
 ifeq ($(PLATFORM),Linux)
+ifeq ($(WITH_LIBUDEV),check)
 	WITH_LIBUDEV := yes
 else
 	WITH_LIBUDEV := no
 endif
+else
+	WITH_LIBUDEV := no
 endif
 
 SOURCES := brick.c client.c event.c event_posix.c log.c network.c pipe_posix.c \
@@ -69,19 +78,19 @@ CFLAGS += -DBRICKD_LOG_ENABLED
 all: $(TARGET)
 
 clean:
-	@$(RM) $(OBJECTS) $(TARGET)
+	$(E)$(RM) $(OBJECTS) $(TARGET)
 
 $(TARGET): $(OBJECTS)
 	@echo "LD   $@"
-	@$(CC) -o $(TARGET) $(LDFLAGS) $(OBJECTS) $(LIBS)
+	$(E)$(CC) -o $(TARGET) $(LDFLAGS) $(OBJECTS) $(LIBS)
 
 %.o: %.c
 	@echo "CC   $@"
-	@$(CC) $(CFLAGS) -c -o $@ $<
+	$(E)$(CC) $(CFLAGS) -c -o $@ $<
 
 -include $(subst .c,.d,$(SOURCES))
 
 %.d: %.c
-	@$(CC) -M $(CFLAGS) $< > $@.tmp; \
+	$(E)$(CC) -M $(CFLAGS) $< > $@.tmp; \
 	sed 's,\($*\)\.o[ :]*,\1.o $@ : ,g' < $@.tmp > $@; \
 	rm -f $@.tmp
