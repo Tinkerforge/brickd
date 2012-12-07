@@ -44,6 +44,7 @@ ifeq ($(WITH_LIBUDEV),yes)
 endif
 
 OBJECTS := ${SOURCES:.c=.o}
+DEPENDS := ${SOURCES:.c=.d}
 TARGET := brickd
 
 CFLAGS += -O0 -g -ggdb -Wall -Wextra
@@ -75,22 +76,25 @@ CFLAGS += -DBRICKD_LOG_ENABLED
 
 .PHONY: all clean
 
-all: $(TARGET)
+all: $(TARGET) Makefile
 
-clean:
+clean: Makefile
 	$(E)$(RM) $(OBJECTS) $(TARGET)
 
-$(TARGET): $(OBJECTS)
+clean-depend: Makefile
+	$(E)$(RM) $(DEPENDS)
+
+$(TARGET): $(OBJECTS) Makefile
 	@echo "LD   $@"
 	$(E)$(CC) -o $(TARGET) $(LDFLAGS) $(OBJECTS) $(LIBS)
 
-%.o: %.c
+%.o: %.c Makefile
 	@echo "CC   $@"
 	$(E)$(CC) $(CFLAGS) -c -o $@ $<
 
 -include $(subst .c,.d,$(SOURCES))
 
-%.d: %.c
+%.d: %.c Makefile
 	$(E)$(CC) -M $(CFLAGS) $< > $@.tmp; \
 	sed 's,\($*\)\.o[ :]*,\1.o $@ : ,g' < $@.tmp > $@; \
 	rm -f $@.tmp
