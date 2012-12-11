@@ -40,6 +40,7 @@
  log.c^
  main_windows.c^
  network.c^
+ packet.c^
  pipe_winapi.c^
  socket_winapi.c^
  threads_winapi.c^

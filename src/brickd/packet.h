@@ -79,4 +79,7 @@ typedef struct {
 STATIC_ASSERT(sizeof(PacketHeader) == 8, "PacketHeader has invalid size");
 STATIC_ASSERT(sizeof(Packet) == 80, "Packet has invalid size");
 
+int packet_header_is_valid_for_request(PacketHeader *header,
+                                       const char **message);
+
 #endif // BRICKD_PACKET_H

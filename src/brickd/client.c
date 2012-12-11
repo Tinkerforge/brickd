@@ -35,6 +35,7 @@
 
 static void client_handle_receive(void *opaque) {
 	Client *client = opaque;
+	const char *message = NULL;
 	int length;
 	PacketHeader *pending_request;
 
@@ -79,45 +80,61 @@ static void client_handle_receive(void *opaque) {
 			break;
 		}
 
-		log_debug("Got request (U: %u, L: %u, F: %u, S: %u, R: %u) from socket (handle: %d)",
-		          client->packet.header.uid,
-		          client->packet.header.length,
-		          client->packet.header.function_id,
-		          client->packet.header.sequence_number,
-		          client->packet.header.response_expected,
-		          client->socket);
+		if (!packet_header_is_valid_for_request(&client->packet.header, &message)) {
+			log_warn("Got invalid request (U: %u, L: %u, F: %u, S: %u, R: %u) from socket (handle: %d): %s",
+			         client->packet.header.uid,
+			         client->packet.header.length,
+			         client->packet.header.function_id,
+			         client->packet.header.sequence_number,
+			         client->packet.header.response_expected,
+			         client->socket,
+			         message);
 
-		if (client->packet.header.response_expected) {
-			if (client->pending_requests.count >= MAX_PENDING_REQUESTS) {
-				log_warn("Dropping %d items from pending request array of client (socket: %d)",
-				         client->pending_requests.count - MAX_PENDING_REQUESTS + 1,
-				         client->socket);
-
-				while (client->pending_requests.count >= MAX_PENDING_REQUESTS) {
-					array_remove(&client->pending_requests, 0, NULL);
-				}
+			if (length < (int)sizeof(PacketHeader)) {
+				// ship the complete header if length was too small
+				length = sizeof(PacketHeader);
 			}
-
-			pending_request = array_append(&client->pending_requests);
-
-			if (pending_request == NULL) {
-				log_error("Could not append to pending request array: %s (%d)",
-				          get_errno_name(errno), errno);
-
-				return;
-			}
-
-			memcpy(pending_request, &client->packet.header, sizeof(PacketHeader));
-
-			log_debug("Added pending request (U: %u, L: %u, F: %u, S: %u) for client (socket: %d)",
-			          pending_request->uid,
-			          pending_request->length,
-			          pending_request->function_id,
-			          pending_request->sequence_number,
+		} else {
+			log_debug("Got request (U: %u, L: %u, F: %u, S: %u, R: %u) from socket (handle: %d)",
+			          client->packet.header.uid,
+			          client->packet.header.length,
+			          client->packet.header.function_id,
+			          client->packet.header.sequence_number,
+			          client->packet.header.response_expected,
 			          client->socket);
-		}
 
-		usb_dispatch_packet(&client->packet);
+			if (client->packet.header.response_expected) {
+				if (client->pending_requests.count >= MAX_PENDING_REQUESTS) {
+					log_warn("Dropping %d items from pending request array of client (socket: %d)",
+					         client->pending_requests.count - MAX_PENDING_REQUESTS + 1,
+					         client->socket);
+
+					while (client->pending_requests.count >= MAX_PENDING_REQUESTS) {
+						array_remove(&client->pending_requests, 0, NULL);
+					}
+				}
+
+				pending_request = array_append(&client->pending_requests);
+
+				if (pending_request == NULL) {
+					log_error("Could not append to pending request array: %s (%d)",
+					          get_errno_name(errno), errno);
+
+					return;
+				}
+
+				memcpy(pending_request, &client->packet.header, sizeof(PacketHeader));
+
+				log_debug("Added pending request (U: %u, L: %u, F: %u, S: %u) for client (socket: %d)",
+				          pending_request->uid,
+				          pending_request->length,
+				          pending_request->function_id,
+				          pending_request->sequence_number,
+				          client->socket);
+			}
+
+			usb_dispatch_packet(&client->packet);
+		}
 
 		memmove(&client->packet, (uint8_t *)&client->packet + length,
 		        client->packet_used - length);
