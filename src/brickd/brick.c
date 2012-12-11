@@ -35,6 +35,7 @@
 
 #define MAX_READ_TRANSFERS 5
 #define MAX_WRITE_TRANSFERS 5
+#define MAX_QUEUED_WRITES 256
 
 static void read_transfer_callback(Transfer *transfer) {
 	if (transfer->handle->actual_length < (int)sizeof(PacketHeader)) {
@@ -454,11 +455,21 @@ int brick_dispatch_packet(Brick *brick, Packet *packet, int force) {
 		}
 
 		if (!submitted) {
-			// FIXME: need to limit size of write queue
+			if (brick->write_queue.count >= MAX_QUEUED_WRITES) {
+				log_warn("Dropping %d items from write queue array of %s [%s]",
+				         brick->write_queue.count - MAX_QUEUED_WRITES + 1,
+				         brick->product, brick->serial_number);
+
+				while (brick->write_queue.count >= MAX_QUEUED_WRITES) {
+					array_remove(&brick->write_queue, 0, NULL);
+				}
+			}
+
 			queued_packet = array_append(&brick->write_queue);
 
 			if (queued_packet == NULL) {
-				log_error("Could not append to write queue array: %s (%d)",
+				log_error("Could not append to write queue array of %s [%s]: %s (%d)",
+				          brick->product, brick->serial_number,
 				          get_errno_name(errno), errno);
 
 				goto cleanup;
