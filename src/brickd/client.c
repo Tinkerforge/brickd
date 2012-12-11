@@ -31,7 +31,7 @@
 
 #define LOG_CATEGORY LOG_CATEGORY_NETWORK
 
-#define MAX_PENDING_REQUESTS 32
+#define MAX_PENDING_REQUESTS 256
 
 static void client_handle_receive(void *opaque) {
 	Client *client = opaque;
@@ -149,8 +149,7 @@ int client_create(Client *client, EventHandle socket) {
 	client->socket = socket;
 	client->packet_used = 0;
 
-	if (array_create(&client->pending_requests, MAX_PENDING_REQUESTS,
-	                 sizeof(PacketHeader), 1) < 0) {
+	if (array_create(&client->pending_requests, 32, sizeof(PacketHeader), 1) < 0) {
 		log_error("Could not create pending request array: %s (%d)",
 		          get_errno_name(errno), errno);
 
