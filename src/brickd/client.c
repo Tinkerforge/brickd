@@ -80,7 +80,7 @@ static void client_handle_receive(void *opaque) {
 			break;
 		}
 
-		if (!packet_header_is_valid_for_request(&client->packet.header, &message)) {
+		if (!packet_header_is_valid_request(&client->packet.header, &message)) {
 			log_warn("Got invalid request (U: %u, L: %u, F: %u, S: %u, R: %u) from socket (handle: %d): %s",
 			         client->packet.header.uid,
 			         client->packet.header.length,

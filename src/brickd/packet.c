@@ -23,8 +23,7 @@
 
 #include "log.h"
 
-int packet_header_is_valid_for_request(PacketHeader *header,
-                                       const char **message) {
+int packet_header_is_valid_request(PacketHeader *header, const char **message) {
 	if (header->length < (int)sizeof(PacketHeader)) {
 		*message = "Length is too small";
 
@@ -39,6 +38,34 @@ int packet_header_is_valid_for_request(PacketHeader *header,
 
 	if (header->sequence_number == 0) {
 		*message = "Invalid sequence number";
+
+		return 0;
+	}
+
+	return 1;
+}
+
+int packet_header_is_valid_response(PacketHeader *header, const char **message) {
+	if (header->length < (int)sizeof(PacketHeader)) {
+		*message = "Length is too small";
+
+		return 0;
+	}
+
+	if (header->uid == 0) {
+		*message = "Invalid UID";
+
+		return 0;
+	}
+
+	if (header->function_id == 0) {
+		*message = "Invalid function ID";
+
+		return 0;
+	}
+
+	if (!header->response_expected) {
+		*message = "Invalid response expected bit";
 
 		return 0;
 	}
