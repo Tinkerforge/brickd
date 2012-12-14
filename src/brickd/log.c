@@ -52,7 +52,11 @@ LogLevel log_get_level(LogCategory category) {
 }
 
 void log_set_stream(FILE *stream) {
+	mutex_lock(&_mutex);
+
 	_stream = stream;
+
+	mutex_unlock(&_mutex);
 }
 
 FILE *log_get_stream(void) {

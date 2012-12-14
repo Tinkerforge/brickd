@@ -35,27 +35,27 @@ static void print_usage(const char *binary) {
 }
 
 int main(int argc, char **argv) {
-	int exit_code = 2;
+	int exit_code = EXIT_FAILURE;
 
 	if (argc > 2) {
 		print_usage(argv[0]);
 
-		return 1;
+		return EXIT_FAILURE;
 	}
 
 	if (argc > 1) {
 		if (strcmp(argv[1], "--help") == 0) {
 			print_usage(argv[0]);
 
-			return 0;
+			return EXIT_SUCCESS;
 		} else if (strcmp(argv[1], "--version") == 0) {
 			printf("%s\n", VERSION_STRING);
 
-			return 0;
+			return EXIT_SUCCESS;
 		} else {
 			print_usage(argv[0]);
 
-			return 1;
+			return EXIT_FAILURE;
 		}
 	}
 
@@ -90,7 +90,7 @@ int main(int argc, char **argv) {
 		goto error_run;
 	}
 
-	exit_code = 0;
+	exit_code = EXIT_SUCCESS;
 
 error_run:
 	network_exit();

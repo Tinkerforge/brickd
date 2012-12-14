@@ -42,6 +42,8 @@ static void LIBUSB_CALL transfer_wrapper(struct libusb_transfer *handle) {
 	transfer->submitted = 0;
 	transfer->completed = 1;
 
+	// FIXME: try to recover overflow error
+
 	if (handle->status == LIBUSB_TRANSFER_CANCELLED) {
 		log_debug("%s transfer %p for %s [%s] was cancelled",
 		          transfer_get_type_name(transfer->type, 1), transfer,
