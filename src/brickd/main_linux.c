@@ -22,8 +22,8 @@
 #include <errno.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/stat.h>
 #include <sys/types.h>
+#include <sys/stat.h>
 #include <sys/wait.h>
 #include <unistd.h>
 #include <fcntl.h>
@@ -31,6 +31,7 @@
 #include "event.h"
 #include "log.h"
 #include "network.h"
+#include "pidfile.h"
 #include "udev.h"
 #include "usb.h"
 #include "version.h"
@@ -41,83 +42,7 @@
 #define LOGFILE "/var/log/brickd.log"
 
 static void print_usage(const char *binary) {
-	printf("Usage: %s [--help|--version|--daemon|--debug]\n", binary);
-}
-
-static int pidfile_acquire(pid_t pid) {
-	int fd = -1;
-	struct stat stat1;
-	struct stat stat2;
-	struct flock flock;
-	char buffer[64];
-
-	while (1) {
-		fd = open(PIDFILE, O_WRONLY | O_CREAT, 0644);
-
-		if (fd < 0) {
-			fprintf(stderr, "Could not open PID file '%s': %s %d\n",
-			        PIDFILE, get_errno_name(errno), errno);
-
-			return -1;
-		}
-
-		if (fstat(fd, &stat1) < 0) {
-			fprintf(stderr, "Could not get status of PID file '%s': %s %d\n",
-			        PIDFILE, get_errno_name(errno), errno);
-
-			close(fd);
-
-			return -1;
-		}
-
-		flock.l_type = F_WRLCK;
-		flock.l_whence = SEEK_SET;
-		flock.l_start = 0;
-		flock.l_len = 1;
-
-		if (fcntl(fd, F_SETLK, &flock) < 0) {
-			if (errno != EAGAIN) {
-				fprintf(stderr, "Could not lock PID file '%s': %s %d\n",
-				        PIDFILE, get_errno_name(errno), errno);
-			}
-
-			close(fd);
-
-			return errno == EAGAIN ? -2 : -1;
-		}
-
-		if (stat(PIDFILE, &stat2) < 0) {
-			close(fd);
-
-			continue;
-		}
-
-		if (stat1.st_ino != stat2.st_ino) {
-			close(fd);
-
-			continue;
-		}
-
-		break;
-	}
-
-	snprintf(buffer, sizeof(buffer), "%lld", (long long)pid);
-
-	if (write(fd, buffer, strlen(buffer)) < 0) {
-		fprintf(stderr, "Could not write to PID file '%s': %s %d\n",
-		        PIDFILE, get_errno_name(errno), errno);
-
-		close(fd);
-
-		return -1;
-	}
-
-	return fd;
-}
-
-static void pidfile_release(int fd) {
-	unlink(PIDFILE);
-	close(fd);
+	printf("Usage: %s [--help|--version|--daemon] [--debug]\n", binary);
 }
 
 static int parent(pid_t child, int status_read) {
@@ -224,7 +149,7 @@ static int daemonize(void) {
 	}
 
 	// second child, write pid
-	pidfile = pidfile_acquire(getpid());
+	pidfile = pidfile_acquire(PIDFILE, getpid());
 
 	if (pidfile < 0) {
 		if (pidfile < -1) {
@@ -297,6 +222,7 @@ int main(int argc, char **argv) {
 			debug = 1;
 		} else {
 			fprintf(stderr, "Unknown option '%s'\n", argv[i]);
+			print_usage(argv[0]);
 
 			return EXIT_FAILURE;
 		}
@@ -390,7 +316,7 @@ error_log:
 	log_exit();
 
 	if (pidfile >= 0) {
-		pidfile_release(pidfile);
+		pidfile_release(PIDFILE, pidfile);
 	}
 
 	return exit_code;
