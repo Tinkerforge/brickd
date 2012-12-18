@@ -101,7 +101,7 @@ static int pidfile_acquire(pid_t pid) {
 		break;
 	}
 
-	snprintf(buffer, sizeof(buffer), "%ld", (int64_t)pid);
+	snprintf(buffer, sizeof(buffer), "%lld", (long long)pid);
 
 	if (write(fd, buffer, strlen(buffer)) < 0) {
 		fprintf(stderr, "Could not write to PID file '%s': %s %d\n",
