@@ -244,10 +244,16 @@ int main(int argc, char **argv) {
 
 	if (daemon) {
 		pidfile = daemonize();
+	} else {
+		pidfile = pidfile_acquire(PIDFILE, getpid());
+	}
 
-		if (pidfile < 0) {
-			goto error_log;
+	if (pidfile < 0) {
+		if (!daemon && pidfile < -1) {
+			fprintf(stderr, "Already running according to %s\n", PIDFILE);
 		}
+
+		goto error_log;
 	}
 
 	if (debug) {
