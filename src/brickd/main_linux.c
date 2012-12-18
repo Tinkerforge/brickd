@@ -168,7 +168,7 @@ static int daemonize(void) {
 	int status_pipe[2];
 	pid_t pid;
 	int8_t status = 0;
-	FILE *log_stream;
+	FILE *logfile;
 	int pidfile = -1;
 	int stdin;
 	int stdout;
@@ -235,16 +235,16 @@ static int daemonize(void) {
 	}
 
 	// open log file
-	log_stream = fopen(LOGFILE, "a+");
+	logfile = fopen(LOGFILE, "a+");
 
-	if (log_stream == NULL) {
+	if (logfile == NULL) {
 		fprintf(stderr, "Could not open logfile '%s': %s (%d)\n",
 		        LOGFILE, get_errno_name(errno), errno);
 
 		goto cleanup;
 	}
 
-	log_set_stream(log_stream);
+	log_set_file(logfile);
 
 	// redirect standard file descriptors
 	// FIXME: report errors

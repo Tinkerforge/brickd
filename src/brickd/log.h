@@ -76,8 +76,8 @@ void log_exit(void);
 void log_set_level(LogCategory category, LogLevel level);
 LogLevel log_get_level(LogCategory category);
 
-void log_set_stream(FILE *stream);
-FILE *log_get_stream(void);
+void log_set_file(FILE *file);
+FILE *log_get_file(void);
 
 void log_set_extra_handler(LogHandler handler);
 LogHandler log_get_extra_handler(void);

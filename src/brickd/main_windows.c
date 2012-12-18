@@ -520,7 +520,7 @@ int main(int argc, char **argv) {
 		log_set_level(LOG_CATEGORY_NETWORK, LOG_LEVEL_DEBUG);
 		log_set_level(LOG_CATEGORY_HOTPLUG, LOG_LEVEL_DEBUG);
 		log_set_level(LOG_CATEGORY_OTHER, LOG_LEVEL_DEBUG);
-		log_set_stream(fp);
+		log_set_file(fp);
 
 
 		log_info("Brick Daemon %s started", VERSION_STRING);

@@ -27,16 +27,16 @@
 
 #include "threads.h"
 
-static Mutex _mutex; // protects writing to _stream and calling of _extra_handler
+static Mutex _mutex; // protects writing to _file and calling of _extra_handler
 static LogLevel _levels[5] = { LOG_LEVEL_NONE, LOG_LEVEL_NONE, LOG_LEVEL_NONE,
                                LOG_LEVEL_NONE, LOG_LEVEL_NONE };
-static FILE *_stream = NULL;
+static FILE *_file = NULL;
 static LogHandler _extra_handler = NULL;
 
 void log_init(void) {
 	mutex_create(&_mutex);
 
-	_stream = stderr;
+	_file = stderr;
 }
 
 void log_exit(void) {
@@ -51,16 +51,16 @@ LogLevel log_get_level(LogCategory category) {
 	return _levels[category];
 }
 
-void log_set_stream(FILE *stream) {
+void log_set_file(FILE *file) {
 	mutex_lock(&_mutex);
 
-	_stream = stream;
+	_file = file;
 
 	mutex_unlock(&_mutex);
 }
 
-FILE *log_get_stream(void) {
-	return _stream;
+FILE *log_get_file(void) {
+	return _file;
 }
 
 void log_set_extra_handler(LogHandler handler) {
@@ -71,9 +71,9 @@ LogHandler log_get_extra_handler(void) {
 	return _extra_handler;
 }
 
-static void log_stream_handler(LogLevel level, const char *file, int line,
-                               const char *function, const char *format,
-                               va_list arguments)
+static void log_file_handler(LogLevel level, const char *file, int line,
+                             const char *function, const char *format,
+                             va_list arguments)
 {
 	struct timeval tv;
 	struct tm lt;
@@ -82,8 +82,8 @@ static void log_stream_handler(LogLevel level, const char *file, int line,
 
 	(void)function;
 
-	// check stream
-	if (_stream == NULL) {
+	// check file
+	if (_file == NULL) {
 		return;
 	}
 
@@ -107,13 +107,13 @@ static void log_stream_handler(LogLevel level, const char *file, int line,
 	};
 
 	// print prefix
-	fprintf(_stream, "%s.%06d <%c> <%s:%d> ",
+	fprintf(_file, "%s.%06d <%c> <%s:%d> ",
 	        lt_str, (int)tv.tv_usec, level_c, file, line);
 
 	// print message
-	vfprintf(_stream, format, arguments);
-	fprintf(_stream, "\n");
-	fflush(_stream);
+	vfprintf(_file, format, arguments);
+	fprintf(_file, "\n");
+	fflush(_file);
 }
 
 void log_message(LogCategory category, LogLevel level,
@@ -129,7 +129,7 @@ void log_message(LogCategory category, LogLevel level,
 	va_start(arguments, format);
 	mutex_lock(&_mutex);
 
-	log_stream_handler(level, file, line, function, format, arguments);
+	log_file_handler(level, file, line, function, format, arguments);
 
 	if (_extra_handler != NULL) {
 		_extra_handler(level, file, line, function, format, arguments);
