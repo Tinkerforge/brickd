@@ -41,7 +41,7 @@
 #define LOGFILE "/var/log/brickd.log"
 
 static void print_usage(const char *binary) {
-	printf("Usage: %s [--help|--version|--daemon]\n", binary);
+	printf("Usage: %s [--help|--version|--daemon|--debug]\n", binary);
 }
 
 static int pidfile_acquire(pid_t pid) {
@@ -279,31 +279,39 @@ cleanup:
 
 int main(int argc, char **argv) {
 	int exit_code = EXIT_FAILURE;
+	int i;
+	int help = 0;
+	int version = 0;
 	int daemon = 0;
+	int debug = 0;
 	int pidfile = -1;
 
-	if (argc > 2) {
-		print_usage(argv[0]);
-
-		return EXIT_FAILURE;
-	}
-
-	if (argc > 1) {
-		if (strcmp(argv[1], "--help") == 0) {
-			print_usage(argv[0]);
-
-			return EXIT_SUCCESS;
-		} else if (strcmp(argv[1], "--version") == 0) {
-			printf("%s\n", VERSION_STRING);
-
-			return EXIT_SUCCESS;
-		} else if (strcmp(argv[1], "--daemon") == 0) {
+	for (i = 1; i < argc; ++i) {
+		if (strcmp(argv[i], "--help") == 0) {
+			help = 1;
+		} else if (strcmp(argv[i], "--version") == 0) {
+			version = 1;
+		} else if (strcmp(argv[i], "--daemon") == 0) {
 			daemon = 1;
+		} else if (strcmp(argv[i], "--debug") == 0) {
+			debug = 1;
 		} else {
-			print_usage(argv[0]);
+			fprintf(stderr, "Unknown option '%s'\n", argv[i]);
 
 			return EXIT_FAILURE;
 		}
+	}
+
+	if (help) {
+		print_usage(argv[0]);
+
+		return EXIT_SUCCESS;
+	}
+
+	if (version) {
+		printf("%s\n", VERSION_STRING);
+
+		return EXIT_SUCCESS;
 	}
 
 	log_init();
@@ -316,12 +324,20 @@ int main(int argc, char **argv) {
 		}
 	}
 
-	// FIXME: read config
-	log_set_level(LOG_CATEGORY_EVENT, LOG_LEVEL_DEBUG);
-	log_set_level(LOG_CATEGORY_USB, LOG_LEVEL_DEBUG);
-	log_set_level(LOG_CATEGORY_NETWORK, LOG_LEVEL_DEBUG);
-	log_set_level(LOG_CATEGORY_HOTPLUG, LOG_LEVEL_DEBUG);
-	log_set_level(LOG_CATEGORY_OTHER, LOG_LEVEL_DEBUG);
+	if (debug) {
+		log_set_level(LOG_CATEGORY_EVENT, LOG_LEVEL_DEBUG);
+		log_set_level(LOG_CATEGORY_USB, LOG_LEVEL_DEBUG);
+		log_set_level(LOG_CATEGORY_NETWORK, LOG_LEVEL_DEBUG);
+		log_set_level(LOG_CATEGORY_HOTPLUG, LOG_LEVEL_DEBUG);
+		log_set_level(LOG_CATEGORY_OTHER, LOG_LEVEL_DEBUG);
+	} else {
+		// FIXME: read config
+		log_set_level(LOG_CATEGORY_EVENT, LOG_LEVEL_INFO);
+		log_set_level(LOG_CATEGORY_USB, LOG_LEVEL_INFO);
+		log_set_level(LOG_CATEGORY_NETWORK, LOG_LEVEL_INFO);
+		log_set_level(LOG_CATEGORY_HOTPLUG, LOG_LEVEL_INFO);
+		log_set_level(LOG_CATEGORY_OTHER, LOG_LEVEL_INFO);
+	}
 
 	if (daemon) {
 		log_info("Brick Daemon %s started (daemonized)", VERSION_STRING);
