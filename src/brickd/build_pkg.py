@@ -29,17 +29,6 @@ import shutil
 import subprocess
 import re
 
-def get_changelog_version(path):
-    r = re.compile('^(\d+)\.(\d+)\.(\d+):')
-    last = None
-    for line in file(path, 'rb').readlines():
-        m = r.match(line)
-
-        if m is not None:
-            last = (m.group(1), m.group(2), m.group(3))
-
-    return last
-
 def build_macosx_pkg():
     os.system('make clean')
     os.system('make')
@@ -139,33 +128,33 @@ def build_linux_pkg():
         sys.stderr.write("build_pkg for Linux has to be started as root, exiting\n")
         sys.exit(1)
 
-    version = '.'.join(get_changelog_version('../../changelog'))
     architecture = subprocess.check_output(['dpkg', '--print-architecture']).replace('\n', '')
     
-    print 'Building version ' + version + ' for ' + architecture
+    print 'Building version for ' + architecture
 
     os.system('make clean')
     os.system('make')
+
+    version = subprocess.check_output(['./brickd', '--version']).replace('\n', '').replace(' ', '-')
 
     dist_dir = os.path.join(os.getcwd(), 'dist')
     if os.path.exists(dist_dir):
         shutil.rmtree(dist_dir)
 
-    build_data_dir = os.path.join(os.getcwd(), '..', 'build_data', 'linux', 'brickd')
+    build_data_dir = os.path.join(os.getcwd(), '..', 'build_data', 'linux')
     shutil.copytree(build_data_dir, dist_dir)
 
     bin_dir = os.path.join(os.getcwd(), 'dist', 'usr', 'bin')
     os.makedirs(bin_dir)
     shutil.copy('brickd', bin_dir)
-    os.system('make clean')
-    os.system('make clean-depend')
 
+    control_name = os.path.join(os.getcwd(), 'dist', 'DEBIAN', 'control')
     lines = []
-    for line in file(os.path.join(os.getcwd(), 'dist', 'DEBIAN', 'control'), 'rb').readlines():
+    for line in file(control_name, 'rb').readlines():
         line = line.replace('<<BRICKD_VERSION>>', version)
         line = line.replace('<<BRICKD_ARCHITECTURE>>', architecture)
         lines.append(line)
-    file(os.path.join(os.getcwd(), 'dist', 'DEBIAN', 'control'), 'wb').writelines(lines)
+    file(control_name, 'wb').writelines(lines)
 
     os.system('chown -R root:root dist/usr')
     os.system('chown -R root:root dist/etc')
@@ -176,6 +165,9 @@ def build_linux_pkg():
     os.system('chmod 0755 dist/DEBIAN/prerm')
 
     os.system('dpkg -b dist brickd-' + version + '_' + architecture + '.deb')
+
+    os.system('make clean')
+    os.system('make clean-depend')
 
 
 # call python build_pkg.py windows/linux/macosx to build the windows/linux/macosx package
