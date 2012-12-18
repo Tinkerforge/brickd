@@ -70,6 +70,7 @@ ifeq ($(WITH_LIBUDEV),yes)
 endif
 
 ifeq ($(PLATFORM),Darwin)
+	LDFLAGS += -Wl,-headerpad_max_install_names
 	LIBS += -Wl,-framework,IOKit -Wl,-framework,CoreFoundation -lobjc
 endif
 

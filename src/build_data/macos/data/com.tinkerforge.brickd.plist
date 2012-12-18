@@ -7,7 +7,8 @@
   <string>com.tinkerforge.brickd</string>
   <key>ProgramArguments</key>
   <array>
-    <string>/usr/libexec/brickd.app/Contents/MacOS/brickd_macosx</string>
+    <string>/usr/libexec/brickd.app/Contents/MacOS/brickd</string>
+    <string>--daemon</string>
   </array>
   <key>RunAtLoad</key>
   <true/>

@@ -3,7 +3,7 @@
 # uninstall old
 if test -d /usr/libexec/brickd.app
 then
-	launchctl unload com.tinkerforge.brickd
+	launchctl unload /System/Library/LaunchDaemons/com.tinkerforge.brickd.plist
 	rm /System/Library/LaunchDaemons/com.tinkerforge.brickd.plist
 	rm -rf /usr/libexec/brickd.app
 fi
