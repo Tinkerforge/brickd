@@ -44,7 +44,18 @@ import os
 import glob
 import shutil
 import subprocess
- 
+import re
+
+def get_changelog_version(path):
+    r = re.compile('^(\d+)\.(\d+)\.(\d+):')
+    last = None
+    for line in file(path, 'rb').readlines():
+        m = r.match(line)
+
+        if m is not None:
+            last = (m.group(1), m.group(2), m.group(3))
+
+    return last
 
 def build_macos_pkg():
     from setuptools import setup, find_packages
@@ -221,61 +232,51 @@ def build_windows_pkg():
     print "run:", run
     print "data:", data
     os.system(run + data)
-    
+
 def build_linux_pkg():
     if os.geteuid() != 0:
         sys.stderr.write("build_pkg for Linux has to be started as root, exiting\n")
         sys.exit(1)
 
-    src_path = os.getcwd()
-    build_dir = 'build_data/linux/brickd/usr/share/brickd'
-    dest_path = os.path.join(os.path.split(src_path)[0], build_dir)
-    if os.path.isdir(dest_path):
-        shutil.rmtree(dest_path)
-
-    shutil.copytree(src_path, dest_path)
+    version = '.'.join(get_changelog_version('../../changelog'))
+    architecture = subprocess.check_output(['dpkg', '--print-architecture']).replace('\n', '')
     
-    build_data_path = os.path.join(os.path.split(src_path)[0], 'build_data/linux')
-    os.chdir(build_data_path)
+    print 'Building version ' + version + ' for ' + architecture
 
-    STEXT = 'Version:'
-    RTEXT = 'Version: {0}\n'.format(config.BRICKD_VERSION)
+    os.system('make clean')
+    os.system('make')
 
-    f = open('brickd/DEBIAN/control', 'r')
-    lines = f.readlines()
-    f.close()
+    dist_dir = os.path.join(os.getcwd(), 'dist')
+    if os.path.exists(dist_dir):
+        shutil.rmtree(dist_dir)
 
-    f = open('brickd/DEBIAN/control', 'w')
-    for line in lines:
-        if not line.find(STEXT) == -1:
-            line = RTEXT
-        f.write(line)
-    f.close()
+    build_data_dir = os.path.join(os.getcwd(), '..', 'build_data', 'linux', 'brickd')
+    shutil.copytree(build_data_dir, dist_dir)
 
-    os.system('chown -R root brickd/usr')
-    os.system('chgrp -R root brickd/usr')
-    os.system('chown -R root brickd/etc')
-    os.system('chgrp -R root brickd/etc')
+    bin_dir = os.path.join(os.getcwd(), 'dist', 'usr', 'bin')
+    os.makedirs(bin_dir)
+    shutil.copy('brickd', bin_dir)
+    os.system('make clean')
+    os.system('make clean-depend')
 
-    os.system('chmod 0644 brickd/DEBIAN/md5sums')
-    os.system('chmod 0755 brickd/DEBIAN/preinst')
-    os.system('chmod 0755 brickd/DEBIAN/postinst')
-    os.system('chmod 0755 brickd/DEBIAN/prerm')
+    lines = []
+    for line in file(os.path.join(os.getcwd(), 'dist', 'DEBIAN', 'control'), 'rb').readlines():
+        line = line.replace('<<BRICKD_VERSION>>', version)
+        line = line.replace('<<BRICKD_ARCHITECTURE>>', architecture)
+        lines.append(line)
+    file(os.path.join(os.getcwd(), 'dist', 'DEBIAN', 'control'), 'wb').writelines(lines)
 
-    files = ['control', 'md5sums', 'preinst', 'postinst', 'prerm']
+    os.system('chown -R root:root dist/usr')
+    os.system('chown -R root:root dist/etc')
 
-    for f in files:
-        os.chown('brickd/DEBIAN/{0}'.format(f), 0, 0)
+    os.system('chmod 0644 dist/DEBIAN/md5sums')
+    os.system('chmod 0755 dist/DEBIAN/preinst')
+    os.system('chmod 0755 dist/DEBIAN/postinst')
+    os.system('chmod 0755 dist/DEBIAN/prerm')
 
-    os.system('dpkg -b brickd/ brickd-' + config.BRICKD_VERSION + '_all.deb')
+    os.system('dpkg -b dist brickd-' + version + '_' + architecture + '.deb')
 
-    for f in files:
-        os.chown('brickd/DEBIAN/{0}'.format(f), 1000, 1000)
-    os.chown('brickd/etc/init.d/brickd'.format(f), 1000, 1000)
-
-
-# call python build_pkg.py windows/linux to build the windows/linux package
-    
+# call python build_pkg.py windows/linux/macosx to build the windows/linux/macosx package
 if __name__ == "__main__":
     if len(sys.argv) < 2:
         print "error: specify platform"

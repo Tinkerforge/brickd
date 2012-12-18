@@ -32,6 +32,7 @@
 
 PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
 DAEMON=/usr/bin/brickd
+OPTIONS=--daemon
 NAME=brickd
 PIDFILE=/var/run/$NAME.pid
 DESC="Brick Daemon"
@@ -43,19 +44,19 @@ set -e
 case "$1" in
   start)
 	echo -n "Starting $DESC: "
-	start-stop-daemon --start --quiet --pidfile $PIDFILE --exec $DAEMON
+	start-stop-daemon --quiet --pidfile $PIDFILE --exec $DAEMON --start -- $OPTIONS
 	echo "$NAME"
 	;;
   stop)
 	echo -n "Stopping $DESC: "
-	start-stop-daemon --stop --quiet --pidfile $PIDFILE
+	start-stop-daemon --quiet --pidfile $PIDFILE --stop
 	echo "$NAME"
 	;;
   restart|force-reload)
 	echo -n "Restarting $DESC: "
-	start-stop-daemon --stop --quiet --pidfile $PIDFILE
+	start-stop-daemon --quiet --pidfile $PIDFILE --stop
 	sleep 1
-	start-stop-daemon --start --quiet --pidfile $PIDFILE --exec $DAEMON
+	start-stop-daemon --quiet --pidfile $PIDFILE --exec $DAEMON --start -- $OPTIONS
 	echo "$NAME"
 	;;
   status)
