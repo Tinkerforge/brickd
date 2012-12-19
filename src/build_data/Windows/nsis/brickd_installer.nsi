@@ -1,43 +1,52 @@
-Name "Brickv <<BRICKV_DOT_VERSION>>"
+Name "Brick Daemon <<BRICKD_DOT_VERSION>>"
 
-OutFile "brickv_windows_<<BRICKV_UNDERSCORE_VERSION>>.exe"
+OutFile "brickd_windows_<<BRICKD_UNDERSCORE_VERSION>>.exe"
 
 XPStyle on
 
 ; The default installation directory
-InstallDir $PROGRAMFILES\Tinkerforge\Brickv
+InstallDir $PROGRAMFILES\Tinkerforge\Brickd
 
 ; Registry key to check for directory (so if you install again, it will
 ; overwrite the old one automatically)
-InstallDirRegKey HKLM "Software\Tinkerforge\Brickv" "Install_Dir"
+InstallDirRegKey HKLM "Software\Tinkerforge\Brickd" "Install_Dir"
 
 ; Request application privileges for Windows Vista
 RequestExecutionLevel admin
 
 ;--------------------------------
 
-!define BRICKV_VERSION <<BRICKV_DOT_VERSION>>
+!define BRICKD_VERSION <<BRICKD_DOT_VERSION>>
 
 ;--------------------------------
 
 !macro macrouninstall
 
+  ; Remove service
+  IfFileExists "$INSTDIR\brickd_windows.exe" v1 v2
+  v1:
+  ExecWait '"$INSTDIR\brickd_windows.exe" stop' $0
+  ExecWait '"$INSTDIR\brickd_windows.exe" stop' $1
+  ExecWait '"$INSTDIR\brickd_windows.exe" remove' $2
+  DetailPrint "$0 $1 $2"
+  Goto remove_done
+  v2:
+  ExecWait '"$INSTDIR\brickd.exe" --uninstall' $0
+  DetailPrint "$0"
+  remove_done:
+
   ; Remove registry keys
-  DeleteRegKey HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Brickv" ; Remove old key too
-  DeleteRegKey HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Tinkerforge Brickv"
-  DeleteRegKey HKLM "Software\Tinkerforge\Brickv"
+  DeleteRegKey HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Tinkerforge" ; Remove old key too
+  DeleteRegKey HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Tinkerforge Brickd"
+  DeleteRegKey HKLM "Software\Tinkerforge\Brickd"
+
+  Delete $INSTDIR\drivers\*
+
+  ; Remove files and uninstaller
+  Delete $INSTDIR\*
 
   ; Remove directories used
-  RMDir /R $INSTDIR\drivers
-  RMDir /R $INSTDIR\imageformats
-  RMDir /R $INSTDIR\OpenGL
-  RMDir /R $INSTDIR\OpenGL_accelerate
-  RMDir /R $INSTDIR\plugin_system
-  RMDir /R $INSTDIR\tcl
   RMDir /R "$INSTDIR"
-
-  ; Remove menu shortcuts
-  RMDir /R "$SMPROGRAMS\Tinkerforge"
 
 !macroend
 
@@ -56,16 +65,16 @@ UninstPage instfiles
 !insertmacro VersionCompare
 
 ; The stuff to install
-Section "Install Brickv ${BRICKV_VERSION} Program"
+Section "Install Brick Daemon ${BRICKD_VERSION} Program"
 
-; Check to see if already installed
+  ; Check to see if already installed
   ClearErrors
-  ReadRegStr $0 HKLM "Software\Tinkerforge\Brickv" "Version"
-  IfErrors install ;Version not set, install
-  ${VersionCompare} $0 ${BRICKV_VERSION} $1
+  ReadRegStr $0 HKLM "Software\Tinkerforge\Brickd" "Version"
+  IfErrors install ; Version not set, install
+  ${VersionCompare} $0 ${BRICKD_VERSION} $1
   IntCmp $1 2 uninstall
-    MessageBox MB_YESNO|MB_ICONQUESTION "Brickv version $0 seems to be already installed on your system.$\n\
-    Would you like to proceed with the installation of version ${BRICKV_VERSION}?$\n\
+    MessageBox MB_YESNO|MB_ICONQUESTION "Brick Daemon version $0 seems to be already installed on your system.$\n\
+    Would you like to proceed with the installation of version ${BRICKD_VERSION}? $\n\
     Old version will be uninstalled first." \
         /SD IDYES IDYES uninstall IDNO quit
 
@@ -83,33 +92,33 @@ Section "Install Brickv ${BRICKV_VERSION} Program"
   SetOutPath $INSTDIR\drivers
   File /r "..\drivers\*"
 
-  SetOutPath $INSTDIR\imageformats
-  File /r "..\imageformats\*"
-
-  SetOutPath $INSTDIR\OpenGL
-  File /r "..\OpenGL\*"
-
-  SetOutPath $INSTDIR\plugin_system
-  File /r "..\plugin_system\*"
-
   ; Write the installation path into the registry
-  WriteRegStr HKLM "Software\Tinkerforge\Brickv" "Install_Dir" "$INSTDIR"
-  WriteRegStr HKLM "Software\Tinkerforge\Brickv" "Version" ${BRICKV_VERSION}
+  WriteRegStr HKLM "Software\Tinkerforge\Brickd" "Install_Dir" "$INSTDIR"
+  WriteRegStr HKLM "Software\Tinkerforge\Brickd" "Version" ${BRICKD_VERSION}
 
   ; Write the uninstall keys for Windows
-  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Tinkerforge Brickv" "DisplayName" "Tinkerforge Brickv ${BRICKV_VERSION}"
-  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Tinkerforge Brickv" "DisplayIcon" '"$INSTDIR\brickv-icon.ico"'
-  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Tinkerforge Brickv" "DisplayVersion" "${BRICKV_VERSION}"
-  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Tinkerforge Brickv" "Publisher" "Tinkerforge GmbH"
-  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Tinkerforge Brickv" "UninstallString" '"$INSTDIR\uninstall.exe"'
-  WriteRegDWORD HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Tinkerforge Brickv" "NoModify" 1
-  WriteRegDWORD HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Tinkerforge Brickv" "NoRepair" 1
+  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Tinkerforge Brickd" "DisplayName" "Tinkerforge Brick Daemon ${BRICKD_VERSION}"
+  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Tinkerforge Brickd" "DisplayVersion" "${BRICKD_VERSION}"
+  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Tinkerforge Brickd" "Publisher" "Tinkerforge GmbH"
+  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Tinkerforge Brickd" "UninstallString" '"$INSTDIR\uninstall.exe"'
+  WriteRegDWORD HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Tinkerforge Brickd" "NoModify" 1
+  WriteRegDWORD HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Tinkerforge Brickd" "NoRepair" 1
   WriteUninstaller "uninstall.exe"
 
-  ; Create start menu shortcut
-  SetOutPath $INSTDIR\ ; set working directory for main.exe
-  createDirectory "$SMPROGRAMS\Tinkerforge"
-  createShortCut "$SMPROGRAMS\Tinkerforge\Brickv ${BRICKV_VERSION}.lnk" "$INSTDIR\main.exe"
+SectionEnd
+
+Section "Register Brick Daemon ${BRICKD_VERSION} Service"
+
+  ; Install service
+  ExecWait '"$INSTDIR\brickd.exe" --install' $0
+  DetailPrint "$0"
+
+  MessageBox MB_OK "A driver installation might be necessary when devices will be connected.$\n\
+    Please choose manually the driver folder in your brickd installation to install the drivers." /SD IDOK
+
+  MessageBox MB_YESNO "A reboot is required to finish the installation. Do you wish to reboot now?" /SD IDNO IDNO quit
+    Reboot
+  quit:
 
 SectionEnd
 
