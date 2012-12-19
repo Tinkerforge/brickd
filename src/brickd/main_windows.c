@@ -273,8 +273,8 @@ static int service_install(void) {
 	if (service_control_manager == NULL) {
 		rc = ERRNO_WINAPI_OFFSET + GetLastError();
 
-		printf("Could not open service control manager: %s (%d)\n",
-		       get_errno_name(rc), rc);
+		fprintf(stderr, "Could not open service control manager: %s (%d)\n",
+		        get_errno_name(rc), rc);
 
 		return -1;
 	}
@@ -282,8 +282,8 @@ static int service_install(void) {
 	if (GetModuleFileName(NULL, path, sizeof(path)) == 0) {
 		rc = ERRNO_WINAPI_OFFSET + GetLastError();
 
-		printf("Could not get module file name: %s (%d)\n",
-		       get_errno_name(rc), rc);
+		fprintf(stderr, "Could not get module file name: %s (%d)\n",
+		        get_errno_name(rc), rc);
 
 		CloseServiceHandle(service_control_manager);
 
@@ -302,7 +302,7 @@ static int service_install(void) {
 		if (rc != ERROR_SERVICE_EXISTS) {
 			rc += ERRNO_WINAPI_OFFSET;
 
-			printf("Could not install '%s' service: %s (%d)\n",
+			fprintf(stderr, "Could not install '%s' service: %s (%d)\n",
 			        _service_name, get_errno_name(rc), rc);
 
 			CloseServiceHandle(service_control_manager);
@@ -317,7 +317,7 @@ static int service_install(void) {
 			if (service == NULL) {
 				rc = ERRNO_WINAPI_OFFSET + GetLastError();
 
-				printf("Could not open '%s' service: %s (%d)\n",
+				fprintf(stderr, "Could not open '%s' service: %s (%d)\n",
 				        _service_name, get_errno_name(rc), rc);
 
 				CloseServiceHandle(service_control_manager);
@@ -336,7 +336,7 @@ static int service_install(void) {
 	                          &description)) {
 		rc = ERRNO_WINAPI_OFFSET + GetLastError();
 
-		printf("Could not update description of '%s' service: %s (%d)\n",
+		fprintf(stderr, "Could not update description of '%s' service: %s (%d)\n",
 		        _service_name, get_errno_name(rc), rc);
 
 		CloseServiceHandle(service);
@@ -352,7 +352,7 @@ static int service_install(void) {
 		if (rc != ERROR_SERVICE_ALREADY_RUNNING) {
 			rc += ERRNO_WINAPI_OFFSET;
 
-			printf("Could not start '%s' service: %s (%d)\n",
+			fprintf(stderr, "Could not start '%s' service: %s (%d)\n",
 			        _service_name, get_errno_name(rc), rc);
 
 			CloseServiceHandle(service);
@@ -385,8 +385,8 @@ static int service_uninstall(void) {
 	if (service_control_manager == NULL) {
 		rc = ERRNO_WINAPI_OFFSET + GetLastError();
 
-		printf("Could not open service control manager: %s (%d)\n",
-		       get_errno_name(rc), rc);
+		fprintf(stderr, "Could not open service control manager: %s (%d)\n",
+		        get_errno_name(rc), rc);
 
 		return -1;
 	}
@@ -399,7 +399,7 @@ static int service_uninstall(void) {
 		rc = GetLastError();
 
 		if (rc == ERROR_SERVICE_DOES_NOT_EXIST) {
-			printf("'%s' service is not installed\n", service_name);
+			fprintf(stderr, "'%s' service is not installed\n", _service_name);
 
 			CloseServiceHandle(service_control_manager);
 
@@ -408,7 +408,7 @@ static int service_uninstall(void) {
 
 		rc += ERRNO_WINAPI_OFFSET;
 
-		printf("Could not open '%s' service: %s (%d)\n",
+		fprintf(stderr, "Could not open '%s' service: %s (%d)\n",
 		        _service_name, get_errno_name(rc), rc);
 
 		CloseServiceHandle(service_control_manager);
@@ -420,7 +420,7 @@ static int service_uninstall(void) {
 	if (!QueryServiceStatus(service, &service_status)) {
 		rc = ERRNO_WINAPI_OFFSET + GetLastError();
 
-		printf("Could not query status of '%s' service: %s (%d)\n",
+		fprintf(stderr, "Could not query status of '%s' service: %s (%d)\n",
 		        _service_name, get_errno_name(rc), rc);
 
 		CloseServiceHandle(service);
@@ -434,7 +434,7 @@ static int service_uninstall(void) {
 		if (!ControlService(service, SERVICE_CONTROL_STOP, &service_status)) {
 			rc = ERRNO_WINAPI_OFFSET + GetLastError();
 
-			printf("Could not send stop control code to '%s' service: %s (%d)\n",
+			fprintf(stderr, "Could not send stop control code to '%s' service: %s (%d)\n",
 			        _service_name, get_errno_name(rc), rc);
 
 			CloseServiceHandle(service);
@@ -447,7 +447,7 @@ static int service_uninstall(void) {
 			if (!QueryServiceStatus(service, &service_status)) {
 				rc = ERRNO_WINAPI_OFFSET + GetLastError();
 
-				printf("Could not query status of '%s' service: %s (%d)\n",
+				fprintf(stderr, "Could not query status of '%s' service: %s (%d)\n",
 				        _service_name, get_errno_name(rc), rc);
 
 				CloseServiceHandle(service);
@@ -462,7 +462,7 @@ static int service_uninstall(void) {
 		}
 
 		if (service_status.dwCurrentState != SERVICE_STOPPED) {
-			printf("Could not stop '%s' service after 30 seconds\n",
+			fprintf(stderr, "Could not stop '%s' service after 30 seconds\n",
 			        _service_name);
 
 			CloseServiceHandle(service);
@@ -478,7 +478,7 @@ static int service_uninstall(void) {
 	if (!DeleteService(service)) {
 		rc = ERRNO_WINAPI_OFFSET + GetLastError();
 
-		printf("Could not uninstall '%s' service: %s (%d)\n",
+		fprintf(stderr, "Could not uninstall '%s' service: %s (%d)\n",
 		        _service_name, get_errno_name(rc), rc);
 
 		CloseServiceHandle(service);
