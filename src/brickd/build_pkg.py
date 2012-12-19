@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-  
+# -*- coding: utf-8 -*-
 """
 brickd (Brick Daemon)
 Copyright (C) 2012 Matthias Bolte <matthias@tinkerforge.com>
@@ -8,8 +8,8 @@ Copyright (C) 2011 Bastian Nordmeyer <bastian@tinkerforge.com>
 brickd_pkg.py: Package builder for Brick Daemon
 
 This program is free software; you can redistribute it and/or
-modify it under the terms of the GNU General Public License 
-as published by the Free Software Foundation; either version 2 
+modify it under the terms of the GNU General Public License
+as published by the Free Software Foundation; either version 2
 of the License, or (at your option) any later version.
 
 This program is distributed in the hope that it will be useful,
@@ -23,11 +23,12 @@ Free Software Foundation, Inc., 59 Temple Place - Suite 330,
 Boston, MA 02111-1307, USA.
 """
 
-import sys  
+import sys
 import os
 import shutil
 import subprocess
 import re
+import glob
 
 def build_macosx_pkg():
     os.system('make clean')
@@ -54,73 +55,34 @@ def build_macosx_pkg():
 
     os.system('install_name_tool -change /opt/local/lib/libusb-1.0.0.dylib @executable_path/libusb-1.0.0.dylib dist/data/brickd.app/Contents/MacOS/brickd')
 
- 
+
 DESCRIPTION = 'Brickd for Windows'
 NAME = 'Brickd'
 
 def build_windows_pkg():
-    PWD = os.path.dirname(os.path.realpath(__file__))
-    BUILD_PATH = os.path.join(PWD, "build")
-    DIST_PATH = os.path.join(PWD, "dist")
-    if os.path.exists(BUILD_PATH):
-        shutil.rmtree(BUILD_PATH)
-    if os.path.exists(DIST_PATH):
-        shutil.rmtree(DIST_PATH)
+    dist_dir = os.path.join(os.getcwd(), 'dist')
+    if os.path.exists(dist_dir):
+        shutil.rmtree(dist_dir)
+    os.makedirs(dist_dir)
 
-    import py2exe
-    data_files = []
+    os.system('build_exe.bat')
 
+    version = subprocess.check_output(['brickd.exe', '--version']).replace('\r\n', '')
+
+    nsis_dir = os.path.join(os.getcwd(), 'dist', 'nsis')
+    os.makedirs(nsis_dir)
     lines = []
-    for line in file('../build_data/Windows/nsis/brickd_installer_windows.nsi.template', 'rb').readlines():
-        line = line.replace('<<BRICKD_DOT_VERSION>>', config.BRICKD_VERSION)
-        line = line.replace('<<BRICKD_UNDERSCORE_VERSION>>', config.BRICKD_VERSION.replace('.', '_'))
+    for line in file('../build_data/Windows/nsis/brickd_installer.nsi', 'rb').readlines():
+        line = line.replace('<<BRICKD_DOT_VERSION>>', version)
+        line = line.replace('<<BRICKD_UNDERSCORE_VERSION>>', version.replace('.', '_'))
         lines.append(line)
-    file('../build_data/Windows/nsis/brickd_installer_windows.nsi', 'wb').writelines(lines)
+    file('dist/nsis/brickd_installer.nsi', 'wb').writelines(lines)
 
-    def visitor(arg, dirname, names):
-        for n in names:
-            if os.path.isfile(os.path.join(dirname, n)):
-                if arg[0] == 'y': # replace first folder name
-                    data_files.append((os.path.join(dirname.replace(arg[1],"")) , [os.path.join(dirname, n)]))
-                else:
-                    data_files.append((os.path.join(dirname) , [os.path.join(dirname, n)]))
-    
-    os.path.walk("..\\build_data\Windows\\", visitor, ('y',"..\\build_data\Windows\\"))
+    drivers_dir = os.path.join(os.getcwd(), '..', 'build_data', 'Windows', 'drivers')
+    dist_drivers_dir = os.path.join(os.getcwd(), 'dist', 'drivers')
+    shutil.copytree(drivers_dir, dist_drivers_dir)
 
-    setup(name = NAME,
-          description = DESCRIPTION,
-          version = config.BRICKD_VERSION,
-          service = [{
-                    'modules': ["brickd_windows"],
-                    'cmdline_style': 'custom',
-                    'dll_excludes': ["mswsock.dll", "powrprof.dll"]
-                    }],
-          zipfile = None,
-          data_files = data_files,
-          options = {
-                     "py2exe" : {
-                     "packages" : "encodings",
-                     "includes" : ["win32com",
-                                   "win32service",
-                                   "win32serviceutil",
-                                   "win32event"],
-                     "excludes" : ["distutils",
-                                   "email",
-                                   "doctest",
-                                   "difflib",
-                                   "pdb",
-                                   "unittest",
-                                   "ctypes.macholib"],
-                     "optimize" : '2'},
-          },
-    )
-    
-    # build nsis
-    run = "\"" + os.path.join("C:\Program Files\NSIS\makensis.exe") + "\""
-    data = " dist\\nsis\\brickd_installer_windows.nsi"
-    print "run:", run
-    print "data:", data
-    os.system(run + data)
+    os.system('"C:\\Program Files\\NSIS\\makensis.exe" dist\\nsis\\brickd_installer.nsi')
 
 
 def build_linux_pkg():
@@ -129,7 +91,7 @@ def build_linux_pkg():
         sys.exit(1)
 
     architecture = subprocess.check_output(['dpkg', '--print-architecture']).replace('\n', '')
-    
+
     print 'Building version for ' + architecture
 
     os.system('make clean')
