@@ -21,6 +21,7 @@
 
 #include <errno.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <windows.h>
 #include <dbt.h>
 
@@ -39,6 +40,7 @@ static const GUID GUID_DEVINTERFACE_USB_DEVICE =
 
 static char *_service_name = "Brick Daemon";
 static char *_service_description = "Brick Daemon is a bridge between USB devices (Bricks) and TCP/IP sockets. It can be used to read out and control Bricks.";
+static HANDLE _event_log_handle = NULL;
 static SERVICE_STATUS _service_status;
 static SERVICE_STATUS_HANDLE _service_status_handle = 0;
 static EventHandle _notification_pipe[2] = { INVALID_EVENT_HANDLE,
@@ -110,12 +112,65 @@ static DWORD WINAPI service_control_handler(DWORD control, DWORD eventType,
 }
 
 static void WINAPI service_main(DWORD argc, LPTSTR *argv) {
+	DWORD i;
+	int debug = 0;
+	char path[1024];
 	int rc;
+	FILE *logfile = NULL;
 	WSADATA wsa_data;
 	DEV_BROADCAST_DEVICEINTERFACE notification_filter;
 	HDEVNOTIFY notification_handle;
 
-	// initialise service status
+	for (i = 1; i < argc; ++i) {
+		if (strcmp(argv[i], "--debug") == 0) {
+			debug = 1;
+		} else {
+			log_warn("Unknown option '%s'", argv[i]);
+		}
+	}
+
+	// open debug log
+	if (debug) {
+		if (GetModuleFileName(NULL, path, sizeof(path)) == 0) {
+			rc = ERRNO_WINAPI_OFFSET + GetLastError();
+
+			log_warn("Could not get module file name: %s (%d)",
+			         get_errno_name(rc), rc);
+		} else {
+			i = strlen(path);
+
+			if (i < 4) {
+				log_warn("Module file name '%s' is too short", path);
+			} else {
+				strcpy(path + i - 3, "log");
+
+				logfile = fopen(path, "a+");
+
+				if (logfile == NULL) {
+					log_warn("Could not open logfile '%s'", path);
+				} else {
+					log_set_file(logfile);
+				}
+			}
+		}
+
+		log_set_level(LOG_CATEGORY_EVENT, LOG_LEVEL_DEBUG);
+		log_set_level(LOG_CATEGORY_USB, LOG_LEVEL_DEBUG);
+		log_set_level(LOG_CATEGORY_NETWORK, LOG_LEVEL_DEBUG);
+		log_set_level(LOG_CATEGORY_HOTPLUG, LOG_LEVEL_DEBUG);
+		log_set_level(LOG_CATEGORY_OTHER, LOG_LEVEL_DEBUG);
+	} else {
+		// FIXME: read config
+		log_set_level(LOG_CATEGORY_EVENT, LOG_LEVEL_INFO);
+		log_set_level(LOG_CATEGORY_USB, LOG_LEVEL_INFO);
+		log_set_level(LOG_CATEGORY_NETWORK, LOG_LEVEL_INFO);
+		log_set_level(LOG_CATEGORY_HOTPLUG, LOG_LEVEL_INFO);
+		log_set_level(LOG_CATEGORY_OTHER, LOG_LEVEL_INFO);
+	}
+
+	log_info("Brick Daemon %s started", VERSION_STRING);
+
+	// initialize service status
 	_service_status.dwServiceType = SERVICE_WIN32_OWN_PROCESS;
 	_service_status.dwCurrentState = SERVICE_STOPPED;
 	_service_status.dwControlsAccepted = 0;
@@ -230,6 +285,7 @@ error_usb:
 error_event:
 	log_info("Brick Daemon %s stopped", VERSION_STRING);
 
+	log_set_extra_handler(NULL);
 	log_exit();
 
 	// service is now stopped
@@ -238,6 +294,8 @@ error_event:
 
 	SetServiceStatus(_service_status_handle, &_service_status);
 
+	// close event log
+	CloseEventLog(_event_log_handle);
 }
 
 static void service_run(void) {
@@ -260,12 +318,22 @@ static void service_run(void) {
 	}
 }
 
-static int service_install(void) {
+static int service_install(int debug) {
 	SC_HANDLE service_control_manager;
 	int rc;
 	char path[1024];
 	SC_HANDLE service;
 	SERVICE_DESCRIPTION description;
+	LPCTSTR debug_argv[1];
+	DWORD argc = 0;
+	LPCTSTR *argv = NULL;
+
+	if (debug) {
+		debug_argv[0] = "--debug";
+
+		argc = 1;
+		argv = debug_argv;
+	}
 
 	// open service control manager
 	service_control_manager = OpenSCManager(0, 0, SC_MANAGER_CREATE_SERVICE);
@@ -346,7 +414,7 @@ static int service_install(void) {
 	}
 
 	// start service
-	if (!StartService(service, 0, NULL)) {
+	if (!StartService(service, argc, argv)) {
 		rc = GetLastError();
 
 		if (rc != ERROR_SERVICE_ALREADY_RUNNING) {
@@ -363,7 +431,11 @@ static int service_install(void) {
 			printf("'%s' service is already running\n", _service_name);
 		}
 	} else {
-		printf("Started '%s' service\n", service_name);
+		if (debug) {
+			printf("Started '%s' service with --debug option\n", _service_name);
+		} else {
+			printf("Started '%s' service\n", _service_name);
+		}
 	}
 
 	CloseServiceHandle(service);
@@ -495,87 +567,84 @@ static int service_uninstall(void) {
 	return 0;
 }
 
+static void print_usage(const char *binary) {
+	printf("Usage: %s [--help|--version|--install|--uninstall] [--debug]\n", binary);
+}
+
 int main(int argc, char **argv) {
-	if ( argc > 1 && strcmp( argv[1], "install" ) == 0 )
-	{
-		if (service_install() < 0) {
-			return 1;
+	int i;
+	int help = 0;
+	int version = 0;
+	int install = 0;
+	int uninstall = 0;
+	int debug = 0;
+	int rc;
+
+	for (i = 1; i < argc; ++i) {
+		if (strcmp(argv[i], "--help") == 0) {
+			help = 1;
+		} else if (strcmp(argv[i], "--version") == 0) {
+			version = 1;
+		} else if (strcmp(argv[i], "--install") == 0) {
+			install = 1;
+		} else if (strcmp(argv[i], "--uninstall") == 0) {
+			uninstall = 1;
+		} else if (strcmp(argv[i], "--debug") == 0) {
+			debug = 1;
+		} else {
+			fprintf(stderr, "Unknown option '%s'\n", argv[i]);
+			print_usage(argv[0]);
+
+			return EXIT_FAILURE;
 		}
 	}
-	else if ( argc > 1 && strcmp( argv[1], "uninstall" ) == 0 )
-	{
+
+	if (help) {
+		print_usage(argv[0]);
+
+		return EXIT_SUCCESS;
+	}
+
+	if (version) {
+		printf("%s\n", VERSION_STRING);
+
+		return EXIT_SUCCESS;
+	}
+
+	if (install && uninstall) {
+		fprintf(stderr, "Invalid option combination\n");
+		print_usage(argv[0]);
+
+		return EXIT_FAILURE;
+	}
+
+	if (install) {
+		if (service_install(debug) < 0) {
+			return EXIT_FAILURE;
+		}
+	} else if (uninstall) {
 		if (service_uninstall() < 0) {
-			return 1;
+			return EXIT_FAILURE;
 		}
-	}
-	else
-	{
-
-
-
-		FILE *fp = fopen("C:\\tf\\brickd.log", "a+");
-
+	} else {
 		log_init();
-		log_set_level(LOG_CATEGORY_EVENT, LOG_LEVEL_DEBUG);
-		log_set_level(LOG_CATEGORY_USB, LOG_LEVEL_DEBUG);
-		log_set_level(LOG_CATEGORY_NETWORK, LOG_LEVEL_DEBUG);
-		log_set_level(LOG_CATEGORY_HOTPLUG, LOG_LEVEL_DEBUG);
-		log_set_level(LOG_CATEGORY_OTHER, LOG_LEVEL_DEBUG);
-		log_set_file(fp);
 
+		// open event log
+		_event_log_handle = OpenEventLog(NULL, "Application");
 
-		log_info("Brick Daemon %s started", VERSION_STRING);
+		if (_event_log_handle == NULL) {
+			rc = ERRNO_WINAPI_OFFSET + GetLastError();
+
+			fprintf(stderr, "Could not open event log: %s (%d)",
+			        get_errno_name(rc), rc);
+
+			return EXIT_FAILURE;
+		}
+
+		//log_set_extra_handler(event_log_handler); // FIXME
 
 		service_run();
 	}
 
-	return 0;
+	return EXIT_SUCCESS;
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-/*
-
-
-
-
-static void print_usage(void) {
-	printf("Usage: brickd.exe --version\n");
-}
-
-int __main(int argc, char **argv) {
-	log_init();
-	log_set_level(LOG_LEVEL_DEBUG);
-
-	if (argc < 2) {
-		print_usage();
-		return 0;
-	}
-
-	log_info("Brick Daemon %s started", VERSION_STRING);
-
-	if (usb_init() < 0) {
-		// FIXME: handle error
-	}
-
-
-
-
-
-	usb_exit();
-
-	log_info("Brick Daemon %s stopped", VERSION_STRING);
-
-	return 0;
-}*/
