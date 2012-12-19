@@ -37,10 +37,10 @@
 static const GUID GUID_DEVINTERFACE_USB_DEVICE =
 { 0xA5DCBF10L, 0x6530, 0x11D2, { 0x90, 0x1F, 0x00, 0xC0, 0x4F, 0xB9, 0x51, 0xED } };
 
-static char *service_name = "Brick Daemon";
-static char *service_description = "Brick Daemon is a bridge between USB devices (Bricks) and TCP/IP sockets. It can be used to read out and control Bricks.";
-static SERVICE_STATUS service_status;
-static SERVICE_STATUS_HANDLE service_status_handle = 0;
+static char *_service_name = "Brick Daemon";
+static char *_service_description = "Brick Daemon is a bridge between USB devices (Bricks) and TCP/IP sockets. It can be used to read out and control Bricks.";
+static SERVICE_STATUS _service_status;
+static SERVICE_STATUS_HANDLE _service_status_handle = 0;
 static EventHandle _notification_pipe[2] = { INVALID_EVENT_HANDLE,
                                              INVALID_EVENT_HANDLE };
 
@@ -59,29 +59,29 @@ static void forward_notifications(void *opaque) {
 	usb_update();
 }
 
-static DWORD WINAPI service_control_handler(DWORD dwControl, DWORD dwEventType,
-                                            LPVOID lpEventData, LPVOID lpContext) {
+static DWORD WINAPI service_control_handler(DWORD control, DWORD eventType,
+                                            LPVOID eventData, LPVOID context) {
 	uint8_t byte = 0;
 
-	(void)lpEventData;
-	(void)lpContext;
+	(void)eventData;
+	(void)context;
 
-	switch (dwControl) {
+	switch (control) {
 	case SERVICE_CONTROL_INTERROGATE:
 		return NO_ERROR;
 
 	case SERVICE_CONTROL_SHUTDOWN:
 	case SERVICE_CONTROL_STOP:
-		service_status.dwCurrentState = SERVICE_STOP_PENDING;
+		_service_status.dwCurrentState = SERVICE_STOP_PENDING;
 
-		SetServiceStatus(service_status_handle, &service_status);
+		SetServiceStatus(_service_status_handle, &_service_status);
 
 		event_stop();
 
 		return NO_ERROR;
 
 	case SERVICE_CONTROL_DEVICEEVENT:
-		switch (dwEventType) {
+		switch (eventType) {
 		case DBT_DEVICEARRIVAL:
 			log_debug("Received device notification (type: arrival)");
 
@@ -109,26 +109,26 @@ static DWORD WINAPI service_control_handler(DWORD dwControl, DWORD dwEventType,
 	return ERROR_CALL_NOT_IMPLEMENTED;
 }
 
-static void WINAPI service_main(DWORD dwArgc, LPTSTR *lpszArgv) {
+static void WINAPI service_main(DWORD argc, LPTSTR *argv) {
 	int rc;
 	WSADATA wsa_data;
 	DEV_BROADCAST_DEVICEINTERFACE notification_filter;
 	HDEVNOTIFY notification_handle;
 
 	// initialise service status
-	service_status.dwServiceType = SERVICE_WIN32_OWN_PROCESS;
-	service_status.dwCurrentState = SERVICE_STOPPED;
-	service_status.dwControlsAccepted = 0;
-	service_status.dwWin32ExitCode = NO_ERROR;
-	service_status.dwServiceSpecificExitCode = NO_ERROR;
-	service_status.dwCheckPoint = 0;
-	service_status.dwWaitHint = 0;
+	_service_status.dwServiceType = SERVICE_WIN32_OWN_PROCESS;
+	_service_status.dwCurrentState = SERVICE_STOPPED;
+	_service_status.dwControlsAccepted = 0;
+	_service_status.dwWin32ExitCode = NO_ERROR;
+	_service_status.dwServiceSpecificExitCode = NO_ERROR;
+	_service_status.dwCheckPoint = 0;
+	_service_status.dwWaitHint = 0;
 
-	service_status_handle = RegisterServiceCtrlHandlerEx(service_name,
-	                                                     service_control_handler,
-	                                                     NULL);
+	_service_status_handle = RegisterServiceCtrlHandlerEx(_service_name,
+	                                                      service_control_handler,
+	                                                      NULL);
 
-	if (service_status_handle == NULL) {
+	if (_service_status_handle == NULL) {
 		rc = ERRNO_WINAPI_OFFSET + GetLastError();
 
 		log_error("Could not register service control handler: %s (%d)",
@@ -138,9 +138,9 @@ static void WINAPI service_main(DWORD dwArgc, LPTSTR *lpszArgv) {
 	}
 
 	// service is starting
-	service_status.dwCurrentState = SERVICE_START_PENDING;
+	_service_status.dwCurrentState = SERVICE_START_PENDING;
 
-	SetServiceStatus(service_status_handle, &service_status);
+	SetServiceStatus(_service_status_handle, &_service_status);
 
 	// initialize Winsock2
 	if (WSAStartup(MAKEWORD(2, 2), &wsa_data) != 0) {
@@ -180,7 +180,7 @@ static void WINAPI service_main(DWORD dwArgc, LPTSTR *lpszArgv) {
 	notification_filter.dbcc_devicetype = DBT_DEVTYP_DEVICEINTERFACE;
 	notification_filter.dbcc_classguid = GUID_DEVINTERFACE_USB_DEVICE;
 
-	notification_handle = RegisterDeviceNotification(service_status_handle,
+	notification_handle = RegisterDeviceNotification(_service_status_handle,
 	                                                 &notification_filter,
 	                                                 DEVICE_NOTIFY_SERVICE_HANDLE);
 
@@ -198,16 +198,16 @@ static void WINAPI service_main(DWORD dwArgc, LPTSTR *lpszArgv) {
 	}
 
 	// running
-	service_status.dwControlsAccepted |= SERVICE_ACCEPT_STOP | SERVICE_ACCEPT_SHUTDOWN;
-	service_status.dwCurrentState = SERVICE_RUNNING;
+	_service_status.dwControlsAccepted |= SERVICE_ACCEPT_STOP | SERVICE_ACCEPT_SHUTDOWN;
+	_service_status.dwCurrentState = SERVICE_RUNNING;
 
-	SetServiceStatus(service_status_handle, &service_status);
+	SetServiceStatus(_service_status_handle, &_service_status);
 
 	if (event_run() < 0) {
 		goto error_run;
 	}
 
-	//exit_code = 0;
+	//exit_code = 0; // FIXME
 
 error_run:
 	network_exit();
@@ -233,17 +233,18 @@ error_event:
 	log_exit();
 
 	// service is now stopped
-	service_status.dwControlsAccepted &= ~(SERVICE_ACCEPT_STOP | SERVICE_ACCEPT_SHUTDOWN);
-	service_status.dwCurrentState = SERVICE_STOPPED;
+	_service_status.dwControlsAccepted &= ~(SERVICE_ACCEPT_STOP | SERVICE_ACCEPT_SHUTDOWN);
+	_service_status.dwCurrentState = SERVICE_STOPPED;
 
-	SetServiceStatus(service_status_handle, &service_status);
+	SetServiceStatus(_service_status_handle, &_service_status);
+
 }
 
 static void service_run(void) {
 	SERVICE_TABLE_ENTRY service_table[2];
 	int rc;
 
-	service_table[0].lpServiceName = service_name;
+	service_table[0].lpServiceName = _service_name;
 	service_table[0].lpServiceProc = service_main;
 
 	service_table[1].lpServiceName = NULL;
@@ -290,7 +291,7 @@ static int service_install(void) {
 	}
 
 	// install service
-	service = CreateService(service_control_manager, service_name, service_name,
+	service = CreateService(service_control_manager, _service_name, _service_name,
 	                        SERVICE_ALL_ACCESS, SERVICE_WIN32_OWN_PROCESS,
 	                        SERVICE_AUTO_START, SERVICE_ERROR_NORMAL, path,
 	                        NULL, NULL, NULL, NULL, NULL);
@@ -302,22 +303,22 @@ static int service_install(void) {
 			rc += ERRNO_WINAPI_OFFSET;
 
 			printf("Could not install '%s' service: %s (%d)\n",
-			       service_name, get_errno_name(rc), rc);
+			        _service_name, get_errno_name(rc), rc);
 
 			CloseServiceHandle(service_control_manager);
 
 			return -1;
 		} else {
-			printf("'%s' service is already installed\n", service_name);
+			printf("'%s' service is already installed\n", _service_name);
 
-			service = OpenService(service_control_manager, service_name,
+			service = OpenService(service_control_manager, _service_name,
 			                      SERVICE_CHANGE_CONFIG | SERVICE_START);
 
 			if (service == NULL) {
 				rc = ERRNO_WINAPI_OFFSET + GetLastError();
 
 				printf("Could not open '%s' service: %s (%d)\n",
-				       service_name, get_errno_name(rc), rc);
+				        _service_name, get_errno_name(rc), rc);
 
 				CloseServiceHandle(service_control_manager);
 
@@ -325,18 +326,18 @@ static int service_install(void) {
 			}
 		}
 	} else {
-		printf("Installed '%s' service\n", service_name);
+		printf("Installed '%s' service\n", _service_name);
 	}
 
 	// update description
-	description.lpDescription = service_description;
+	description.lpDescription = _service_description;
 
 	if (!ChangeServiceConfig2(service, SERVICE_CONFIG_DESCRIPTION,
 	                          &description)) {
 		rc = ERRNO_WINAPI_OFFSET + GetLastError();
 
 		printf("Could not update description of '%s' service: %s (%d)\n",
-		       service_name, get_errno_name(rc), rc);
+		        _service_name, get_errno_name(rc), rc);
 
 		CloseServiceHandle(service);
 		CloseServiceHandle(service_control_manager);
@@ -352,14 +353,14 @@ static int service_install(void) {
 			rc += ERRNO_WINAPI_OFFSET;
 
 			printf("Could not start '%s' service: %s (%d)\n",
-			       service_name, get_errno_name(rc), rc);
+			        _service_name, get_errno_name(rc), rc);
 
 			CloseServiceHandle(service);
 			CloseServiceHandle(service_control_manager);
 
 			return -1;
 		} else {
-			printf("'%s' service is already running\n", service_name);
+			printf("'%s' service is already running\n", _service_name);
 		}
 	} else {
 		printf("Started '%s' service\n", service_name);
@@ -391,7 +392,7 @@ static int service_uninstall(void) {
 	}
 
 	// open service
-	service = OpenService(service_control_manager, service_name,
+	service = OpenService(service_control_manager, _service_name,
 	                      SERVICE_QUERY_STATUS | SERVICE_STOP | DELETE);
 
 	if (service == NULL) {
@@ -408,7 +409,7 @@ static int service_uninstall(void) {
 		rc += ERRNO_WINAPI_OFFSET;
 
 		printf("Could not open '%s' service: %s (%d)\n",
-		       service_name, get_errno_name(rc), rc);
+		        _service_name, get_errno_name(rc), rc);
 
 		CloseServiceHandle(service_control_manager);
 
@@ -420,7 +421,7 @@ static int service_uninstall(void) {
 		rc = ERRNO_WINAPI_OFFSET + GetLastError();
 
 		printf("Could not query status of '%s' service: %s (%d)\n",
-		       service_name, get_errno_name(rc), rc);
+		        _service_name, get_errno_name(rc), rc);
 
 		CloseServiceHandle(service);
 		CloseServiceHandle(service_control_manager);
@@ -434,7 +435,7 @@ static int service_uninstall(void) {
 			rc = ERRNO_WINAPI_OFFSET + GetLastError();
 
 			printf("Could not send stop control code to '%s' service: %s (%d)\n",
-			       service_name, get_errno_name(rc), rc);
+			        _service_name, get_errno_name(rc), rc);
 
 			CloseServiceHandle(service);
 			CloseServiceHandle(service_control_manager);
@@ -447,7 +448,7 @@ static int service_uninstall(void) {
 				rc = ERRNO_WINAPI_OFFSET + GetLastError();
 
 				printf("Could not query status of '%s' service: %s (%d)\n",
-				       service_name, get_errno_name(rc), rc);
+				        _service_name, get_errno_name(rc), rc);
 
 				CloseServiceHandle(service);
 				CloseServiceHandle(service_control_manager);
@@ -462,7 +463,7 @@ static int service_uninstall(void) {
 
 		if (service_status.dwCurrentState != SERVICE_STOPPED) {
 			printf("Could not stop '%s' service after 30 seconds\n",
-			       service_name);
+			        _service_name);
 
 			CloseServiceHandle(service);
 			CloseServiceHandle(service_control_manager);
@@ -470,7 +471,7 @@ static int service_uninstall(void) {
 			return -1;
 		}
 
-		printf("Stopped '%s' service\n", service_name);
+		printf("Stopped '%s' service\n", _service_name);
 	}
 
 	// uninstall service
@@ -478,7 +479,7 @@ static int service_uninstall(void) {
 		rc = ERRNO_WINAPI_OFFSET + GetLastError();
 
 		printf("Could not uninstall '%s' service: %s (%d)\n",
-		       service_name, get_errno_name(rc), rc);
+		        _service_name, get_errno_name(rc), rc);
 
 		CloseServiceHandle(service);
 		CloseServiceHandle(service_control_manager);
@@ -486,7 +487,7 @@ static int service_uninstall(void) {
 		return -1;
 	}
 
-	printf("Uninstalled '%s' service\n", service_name);
+	printf("Uninstalled '%s' service\n", _service_name);
 
 	CloseServiceHandle(service);
 	CloseServiceHandle(service_control_manager);
