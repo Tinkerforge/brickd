@@ -1,6 +1,3 @@
 *.d
 *.o
-*.pyc
-src/brickd/build
 src/brickd/dist
-src/build_data/Windows/nsis/brickd_installer_windows.nsi
