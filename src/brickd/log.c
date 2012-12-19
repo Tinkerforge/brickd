@@ -28,8 +28,8 @@
 #include "threads.h"
 
 static Mutex _mutex; // protects writing to _file and calling of _extra_handler
-static LogLevel _levels[5] = { LOG_LEVEL_NONE, LOG_LEVEL_NONE, LOG_LEVEL_NONE,
-                               LOG_LEVEL_NONE, LOG_LEVEL_NONE };
+static LogLevel _levels[5] = { LOG_LEVEL_INFO, LOG_LEVEL_INFO, LOG_LEVEL_INFO,
+                               LOG_LEVEL_INFO, LOG_LEVEL_INFO };
 static FILE *_file = NULL;
 static LogHandler _extra_handler = NULL;
 
