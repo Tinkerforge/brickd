@@ -1,3 +1,4 @@
 *.d
 *.o
 src/brickd/dist
+src/brickd/brickd
