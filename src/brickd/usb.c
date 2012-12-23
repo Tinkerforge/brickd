@@ -190,7 +190,8 @@ int usb_init(void) {
 		log_debug("libusb can handle timeouts on its own");
 	}
 
-	// create Bricks array
+	// create Bricks array, the Brick struct is not relocatable, because its
+	// Transfers keep a pointer to it
 	if (array_create(&_bricks, 32, sizeof(Brick), 0) < 0) {
 		log_error("Could not create Brick array: %s (%d)",
 		          get_errno_name(errno), errno);
