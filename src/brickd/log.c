@@ -21,8 +21,6 @@
 
 #ifndef _WIN32
 	#include <sys/time.h>
-#else
-	#include <time.h>
 #endif
 
 #include "log.h"
