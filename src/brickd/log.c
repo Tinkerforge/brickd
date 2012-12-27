@@ -21,6 +21,8 @@
 
 #ifndef _WIN32
 	#include <sys/time.h>
+#else
+	#include <time.h>
 #endif
 
 #include "log.h"
@@ -32,6 +34,71 @@ static LogLevel _levels[5] = { LOG_LEVEL_INFO, LOG_LEVEL_INFO, LOG_LEVEL_INFO,
                                LOG_LEVEL_INFO, LOG_LEVEL_INFO };
 static FILE *_file = NULL;
 static LogHandler _extra_handler = NULL;
+
+#ifdef _WIN32
+#include <time.h>
+#include <winsock2.h>
+
+#if defined(_MSC_VER) || defined(_MSC_EXTENSIONS)
+  #define DELTA_EPOCH_IN_MICROSECS  11644473600000000Ui64
+#else
+  #define DELTA_EPOCH_IN_MICROSECS  11644473600000000ULL
+#endif
+
+struct timezone
+{
+	long  tz_minuteswest;
+	int   tz_dsttime;
+};
+
+struct tm* localtime_r (const time_t *clock, struct tm *result) 
+{
+	errno_t err = localtime_s(result, clock);
+	if (err) {
+		return NULL;
+	}
+
+	return result;
+}
+
+int gettimeofday(struct timeval *tv, struct timezone *tz)
+{
+    FILETIME ft;
+    unsigned __int64 tmpres = 0;
+    static int tzflag = 0;
+
+    if (NULL != tv)
+    {
+        GetSystemTimeAsFileTime(&ft);
+
+        tmpres |= ft.dwHighDateTime;
+        tmpres <<= 32;
+        tmpres |= ft.dwLowDateTime;
+
+        tmpres /= 10;  // convert into microseconds
+
+        // converting file time to unix epoch
+        tmpres -= DELTA_EPOCH_IN_MICROSECS;
+        tv->tv_sec = (long)(tmpres / 1000000UL);
+        tv->tv_usec = (long)(tmpres % 1000000UL);
+    }
+
+    if (NULL != tz)
+    {
+        if (!tzflag)
+        {
+            _tzset();
+            tzflag++;
+        }
+
+        _get_timezone(&tz->tz_minuteswest);
+		tz->tz_minuteswest /= 60;
+        _get_daylight(&tz->tz_dsttime);
+    }
+
+    return 0;
+}
+#endif
 
 void log_init(void) {
 	mutex_create(&_mutex);
@@ -92,7 +159,7 @@ static void log_file_handler(LogLevel level, const char *file, int line,
 	tv.tv_usec = 0;
 
 	if (gettimeofday(&tv, NULL) == 0) {
-		if (localtime_r(&tv.tv_sec, &lt) != NULL) {
+		if (localtime_r((time_t *)&tv.tv_sec, &lt) != NULL) {
 			strftime(lt_str, sizeof(lt_str), "%Y-%m-%d %H:%M:%S", &lt);
 		}
 	}

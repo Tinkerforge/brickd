@@ -142,9 +142,9 @@ static void WINAPI service_main(DWORD argc, LPTSTR *argv) {
 			if (i < 4) {
 				log_warn("Module file name '%s' is too short", path);
 			} else {
-				strcpy(path + i - 3, "log");
+				strncpy_s(path + i - 3, 1024, "log", 3);
 
-				logfile = fopen(path, "a+");
+				fopen_s(&logfile, path, "a+");
 
 				if (logfile == NULL) {
 					log_warn("Could not open logfile '%s'", path);
