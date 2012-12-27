@@ -67,7 +67,7 @@ def build_windows_pkg():
 
     os.system('build_exe.bat')
 
-    version = subprocess.check_output(['brickd.exe', '--version']).replace('\r\n', '')
+    version = subprocess.check_output(['dist\\brickd.exe', '--version']).replace('\r\n', '')
 
     nsis_dir = os.path.join(os.getcwd(), 'dist', 'nsis')
     os.makedirs(nsis_dir)
