@@ -136,11 +136,13 @@ LogHandler log_get_extra_handler(void) {
 	return _extra_handler;
 }
 
+// NOTE: assume that _mutex is locked
 static void log_file_handler(LogLevel level, const char *file, int line,
                              const char *function, const char *format,
                              va_list arguments)
 {
 	struct timeval tv;
+	time_t t;
 	struct tm lt;
 	char lt_str[64] = "<unknown>";
 	char level_c = 'U';
@@ -157,7 +159,14 @@ static void log_file_handler(LogLevel level, const char *file, int line,
 	tv.tv_usec = 0;
 
 	if (gettimeofday(&tv, NULL) == 0) {
-		if (localtime_r((time_t *)&tv.tv_sec, &lt) != NULL) {
+		// copy value to time_t variable because timeval.tv_sec and time_t
+		// can have different sizes between different compilers and compiler
+		// version and platforms. for example with WDK 7 both are 4 byte in
+		// size, but with MSVC 2010 time_t is 8 byte in size but timeval.tv_sec
+		// is still 4 byte in size.
+		t = tv.tv_sec;
+
+		if (localtime_r(&t, &lt) != NULL) {
 			strftime(lt_str, sizeof(lt_str), "%Y-%m-%d %H:%M:%S", &lt);
 		}
 	}
