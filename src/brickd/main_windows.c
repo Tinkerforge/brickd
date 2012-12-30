@@ -74,6 +74,12 @@ static DWORD WINAPI service_control_handler(DWORD control, DWORD eventType,
 
 	case SERVICE_CONTROL_SHUTDOWN:
 	case SERVICE_CONTROL_STOP:
+		if (control == SERVICE_CONTROL_SHUTDOWN) {
+			log_info("Received shutdown command");
+		} else {
+			log_info("Received stop command");
+		}
+
 		_service_status.dwCurrentState = SERVICE_STOP_PENDING;
 
 		SetServiceStatus(_service_status_handle, &_service_status);
@@ -117,6 +123,7 @@ static void WINAPI service_main(DWORD argc, LPTSTR *argv) {
 	char path[1024];
 	int rc;
 	FILE *logfile = NULL;
+	errno_t error;
 	WSADATA wsa_data;
 	DEV_BROADCAST_DEVICEINTERFACE notification_filter;
 	HDEVNOTIFY notification_handle;
@@ -142,12 +149,13 @@ static void WINAPI service_main(DWORD argc, LPTSTR *argv) {
 			if (i < 4) {
 				log_warn("Module file name '%s' is too short", path);
 			} else {
-				strncpy_s(path + i - 3, 1024, "log", 3);
+				strncpy_s(path + i - 3, sizeof(path) - i + 3, "log", 3);
 
-				fopen_s(&logfile, path, "a+");
+				error = fopen_s(&logfile, path, "a+");
 
-				if (logfile == NULL) {
-					log_warn("Could not open logfile '%s'", path);
+				if (error != 0) {
+					log_warn("Could not open logfile '%s': %s (%d)",
+					         path, get_errno_name(error), error);
 				} else {
 					log_set_file(logfile);
 				}
@@ -261,8 +269,6 @@ static void WINAPI service_main(DWORD argc, LPTSTR *argv) {
 	if (event_run() < 0) {
 		goto error_run;
 	}
-
-	//exit_code = 0; // FIXME
 
 error_run:
 	network_exit();
