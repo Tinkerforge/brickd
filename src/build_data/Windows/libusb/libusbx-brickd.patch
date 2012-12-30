@@ -1,62 +1,70 @@
 diff --git a/libusb/core.c b/libusb/core.c
-index 07b0b04..4a5b5c1 100644
+index 729bce3..03e08d3 100644
 --- a/libusb/core.c
 +++ b/libusb/core.c
-@@ -1799,6 +1799,12 @@ int usbi_gettimeofday(struct timeval *tp, void *tzp)
+@@ -1796,6 +1796,12 @@ int usbi_gettimeofday(struct timeval *tp, void *tzp)
  }
  #endif
  
-+static FILE *usbi_log_stream = NULL;
++static FILE *usbi_log_file = NULL;
 +
-+void API_EXPORTED libusb_set_log_stream(FILE *stream) {
-+	usbi_log_stream = stream;
++void API_EXPORTED libusb_set_log_file(FILE *file) {
++	usbi_log_file = file;
 +}
 +
  void usbi_log_v(struct libusb_context *ctx, enum libusb_log_level level,
  	const char *function, const char *format, va_list args)
  {
-@@ -1807,6 +1813,10 @@ void usbi_log_v(struct libusb_context *ctx, enum libusb_log_level level,
+@@ -1804,6 +1810,10 @@ void usbi_log_v(struct libusb_context *ctx, enum libusb_log_level level,
  	int global_debug;
  	static int has_debug_header_been_displayed = 0;
  
-+	if (usbi_log_stream == NULL) {
-+		usbi_log_stream = stderr;
++	if (usbi_log_file == NULL) {
++		usbi_log_file = stderr;
 +	}
 +
  #ifdef ENABLE_DEBUG_LOGGING
  	global_debug = 1;
  	UNUSED(ctx);
-@@ -1828,8 +1838,8 @@ void usbi_log_v(struct libusb_context *ctx, enum libusb_log_level level,
+@@ -1825,8 +1835,8 @@ void usbi_log_v(struct libusb_context *ctx, enum libusb_log_level level,
  	usbi_gettimeofday(&now, NULL);
  	if ((global_debug) && (!has_debug_header_been_displayed)) {
  		has_debug_header_been_displayed = 1;
 -		fprintf(stderr, "[timestamp] [threadID] facility level [function call] <message>\n");
 -		fprintf(stderr, "--------------------------------------------------------------------------------\n");
-+		fprintf(usbi_log_stream, "[timestamp] [threadID] facility level [function call] <message>\n");
-+		fprintf(usbi_log_stream, "--------------------------------------------------------------------------------\n");
++		fprintf(usbi_log_file, "[timestamp] [threadID] facility level [function call] <message>\n");
++		fprintf(usbi_log_file, "--------------------------------------------------------------------------------\n");
  	}
  	if (now.tv_usec < timestamp_origin.tv_usec) {
  		now.tv_sec--;
-@@ -1859,15 +1869,15 @@ void usbi_log_v(struct libusb_context *ctx, enum libusb_log_level level,
+@@ -1856,15 +1866,15 @@ void usbi_log_v(struct libusb_context *ctx, enum libusb_log_level level,
  	}
  
  	if (global_debug) {
 -		fprintf(stderr, "[%2d.%06d] [%08x] libusbx: %s [%s] ",
-+		fprintf(usbi_log_stream, "[%2d.%06d] [%08x] libusbx: %s [%s] ",
++		fprintf(usbi_log_file, "[%2d.%06d] [%08x] libusbx: %s [%s] ",
  			(int)now.tv_sec, (int)now.tv_usec, usbi_get_tid(), prefix, function);
  	} else {
 -		fprintf(stderr, "libusbx: %s [%s] ", prefix, function);
-+		fprintf(usbi_log_stream, "libusbx: %s [%s] ", prefix, function);
++		fprintf(usbi_log_file, "libusbx: %s [%s] ", prefix, function);
  	}
  
 -	vfprintf(stderr, format, args);
-+	vfprintf(usbi_log_stream, format, args);
++	vfprintf(usbi_log_file, format, args);
  
 -	fprintf(stderr, "\n");
-+	fprintf(usbi_log_stream, "\n");
++	fprintf(usbi_log_file, "\n");
  }
  
  void usbi_log(struct libusb_context *ctx, enum libusb_log_level level,
+@@ -1946,3 +1956,7 @@ const struct libusb_version * LIBUSB_CALL libusb_get_version(void)
+ {
+ 	return &libusb_version_internal;
+ }
++
++void API_EXPORTED libusb_free(void *ptr) {
++	free(ptr);
++}
 diff --git a/libusb/io.c b/libusb/io.c
 index 1338981..1cdd67c 100644
 --- a/libusb/io.c
@@ -82,10 +90,10 @@ index 1338981..1cdd67c 100644
  
  /* Backends call this from handle_events to report disconnection of a device.
 diff --git a/libusb/libusb-1.0.def b/libusb/libusb-1.0.def
-index 3aba343..f73e108 100644
+index 3aba343..012b6e0 100644
 --- a/libusb/libusb-1.0.def
 +++ b/libusb/libusb-1.0.def
-@@ -124,3 +124,15 @@ EXPORTS
+@@ -124,3 +124,17 @@ EXPORTS
    libusb_unref_device@4 = libusb_unref_device
    libusb_wait_for_event
    libusb_wait_for_event@8 = libusb_wait_for_event
@@ -99,10 +107,12 @@ index 3aba343..f73e108 100644
 +  usbi_read@12 = usbi_read
 +  usbi_close
 +  usbi_close@4 = usbi_close
-+  libusb_set_log_stream
-+  libusb_set_log_stream@4 = libusb_set_log_stream
++  libusb_set_log_file
++  libusb_set_log_file@4 = libusb_set_log_file
++  libusb_free
++  libusb_free@4 = libusb_free
 diff --git a/libusb/libusb-1.0.rc b/libusb/libusb-1.0.rc
-index 86cb853..55221ff 100644
+index 86cb853..92eb49d 100644
 --- a/libusb/libusb-1.0.rc
 +++ b/libusb/libusb-1.0.rc
 @@ -47,7 +47,7 @@ BEGIN
@@ -110,12 +120,12 @@ index 86cb853..55221ff 100644
  			VALUE "OriginalFilename", "libusb-1.0.dll\0"
  			VALUE "PrivateBuild", "\0"
 -			VALUE "ProductName", "libusb-1.0\0"
-+			VALUE "ProductName", "libusb-1.0-66db81a41cd64e638795f1da117e912e14d76f7c-tf-6\0"
++			VALUE "ProductName", "libusb-1.0-ce75e9af3f9242ec328b0dc2336b69ff24287a3c-tf-7\0"
  			VALUE "ProductVersion", LIBUSB_VERSIONSTRING
  			VALUE "SpecialBuild", "\0"
  		END
 diff --git a/libusb/libusb.h b/libusb/libusb.h
-index da94c9b..1622e16 100644
+index da94c9b..2802cfc 100644
 --- a/libusb/libusb.h
 +++ b/libusb/libusb.h
 @@ -52,6 +52,7 @@ typedef unsigned __int32  uint32_t;
@@ -134,11 +144,15 @@ index da94c9b..1622e16 100644
  #if defined(interface)
  #undef interface
  #endif
-@@ -1499,6 +1501,8 @@ void LIBUSB_CALL libusb_set_pollfd_notifiers(libusb_context *ctx,
+@@ -1499,6 +1501,12 @@ void LIBUSB_CALL libusb_set_pollfd_notifiers(libusb_context *ctx,
  	libusb_pollfd_added_cb added_cb, libusb_pollfd_removed_cb removed_cb,
  	void *user_data);
  
-+void LIBUSB_CALL libusb_set_log_stream(FILE *stream);
++void LIBUSB_CALL libusb_set_log_file(FILE *file);
++
++#define LIBUSBX_EXPORTS_FREE_FUNCTION 1
++
++void LIBUSB_CALL libusb_free(void *ptr);
 +
  #ifdef __cplusplus
  }

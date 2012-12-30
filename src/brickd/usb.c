@@ -363,7 +363,7 @@ int usb_create_context(libusb_context **context) {
 
 #if 0
 	libusb_set_debug(*context, 5);
-	libusb_set_log_stream(log_get_stream());
+	libusb_set_log_file(log_get_file());
 #endif
 
 	phase = 1;
@@ -408,7 +408,11 @@ cleanup:
 		break;
 	}
 
+#ifdef LIBUSBX_EXPORTS_FREE_FUNCTION
+	libusb_free(pollfds); // avoid possible heap-mismatch on Windows
+#else
 	free(pollfds);
+#endif
 
 	return phase == 3 ? 0 : -1;
 }
@@ -428,7 +432,11 @@ void usb_destroy_context(libusb_context *context) {
 			event_remove_source((*pollfd)->fd, EVENT_SOURCE_TYPE_USB);
 		}
 
+#ifdef LIBUSBX_EXPORTS_FREE_FUNCTION
+		libusb_free(pollfds); // avoid possible heap-mismatch on Windows
+#else
 		free(pollfds);
+#endif
 	}
 
 	libusb_exit(context);

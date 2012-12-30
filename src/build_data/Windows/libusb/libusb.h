@@ -1501,7 +1501,11 @@ void LIBUSB_CALL libusb_set_pollfd_notifiers(libusb_context *ctx,
 	libusb_pollfd_added_cb added_cb, libusb_pollfd_removed_cb removed_cb,
 	void *user_data);
 
-void LIBUSB_CALL libusb_set_log_stream(FILE *stream);
+void LIBUSB_CALL libusb_set_log_file(FILE *file);
+
+#define LIBUSBX_EXPORTS_FREE_FUNCTION 1
+
+void LIBUSB_CALL libusb_free(void *ptr);
 
 #ifdef __cplusplus
 }

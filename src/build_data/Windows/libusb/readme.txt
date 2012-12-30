@@ -1,6 +1,6 @@
-special version of libusbx for brickd
+special version of libusbx for brickd build with WDK 7 for x86
 
-based on libusbx github.org commit 66db81a41cd64e638795f1da117e912e14d76f7c
+based on libusbx github.org commit ce75e9af3f9242ec328b0dc2336b69ff24287a3c
 with the libusbx-brickd.patch applied to it
 
 known issues:
