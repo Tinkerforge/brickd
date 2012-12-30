@@ -2,7 +2,7 @@
  * brickd
  * Copyright (C) 2012 Matthias Bolte <matthias@tinkerforge.com>
  *
- * wdkfixes.c: Fixes for problems in the Windows Driver Kit headers and libs
+ * msvcfixes.c: Fixes for problems with the MSVC/WDK headers and libs
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,40 +19,17 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-#ifdef BRICKD_WDK_BUILD
+#ifdef _MSC_VER
 
-// stop system header from defining _wstat
-#define _WSTAT_DEFINED
-
-#include <errno.h>
 #include <stdint.h>
-#include <sys/types.h>
-#include <sys/stat.h>
+#include <time.h>
 #include <windows.h>
 
-#include "wdkfixes.h"
+#include "msvcfixes.h"
 
-// difference between Unix epoch and January 1, 1601 in 100-nanoseconds
-#define DELTA_EPOCH 116444736000000000ULL
+#ifdef BRICKD_WDK_BUILD
 
-// getpid is missing in WDK's msvcrt.lib, only in libcmt.lib
-int __cdecl getpid(void) {
-	return GetCurrentProcessId();
-}
-
-// _getpid is missing in WDK's msvcrt.lib, only in libcmt.lib
-int __cdecl _getpid(void) {
-	return GetCurrentProcessId();
-}
-
-// _wstat32 is missing in WDK's msvcrt.lib, only in libcmt.lib
-int __cdecl _wstat(const wchar_t *path, struct _stat *buffer);
-
-int __cdecl _wstat32(const wchar_t *path, struct _stat *buffer) {
-	return _wstat(path, buffer);
-}
-
-// implement localtime_r based on localtime
+// implement localtime_r based on localtime, the WDK is missing localtime_s
 struct tm *localtime_r(const time_t *timep, struct tm *result) {
 	struct tm *temp;
 
@@ -68,6 +45,24 @@ struct tm *localtime_r(const time_t *timep, struct tm *result) {
 
 	return result;
 }
+
+#else // BRICKD_WDK_BUILD
+
+// implement localtime_r based on localtime_s
+struct tm *localtime_r(const time_t *timep, struct tm *result) {
+	// localtime_s is thread-safe, it uses thread local storage for its
+	// return value on Windows
+	if (localtime_s(result, timep) == 0) {
+		return result;
+	} else {
+		return NULL;
+	}
+}
+
+#endif // BRICKD_WDK_BUILD
+
+// difference between Unix epoch and January 1, 1601 in 100-nanoseconds
+#define DELTA_EPOCH 116444736000000000ULL
 
 // implement gettimeofday based on GetSystemTimeAsFileTime
 int gettimeofday(struct timeval *tv, struct timezone *tz) {
@@ -89,4 +84,4 @@ int gettimeofday(struct timeval *tv, struct timezone *tz) {
 	return 0;
 }
 
-#endif // BRICKD_WDK_BUILD
+#endif // _MSC_VER

@@ -8,7 +8,7 @@
  goto done
 )
 
-@set CC=cl /nologo /c /MD /O2 /W4 /wd4200 /wd4214 /FIwdkfixes.h^
+@set CC=cl /nologo /c /MD /O2 /W4 /wd4200 /wd4214 /FImsvcfixes.h^
  /DBRICKD_LOG_ENABLED /DWIN32_LEAN_AND_MEAN
 @set RC=rc /dWIN32 /r
 @set LD=link /nologo /opt:ref /opt:icf /release
@@ -22,7 +22,7 @@
  set RC=%RC% /i%CRT_INC_PATH%
  echo WDK build
 ) else (
- echo MSVC build
+ echo non-WDK build
 )
 
 @del *.obj *.res *.exp *.manifest *.exe
@@ -39,6 +39,7 @@
  event_winapi.c^
  log.c^
  main_windows.c^
+ msvcfixes.c^
  network.c^
  packet.c^
  pipe_winapi.c^
@@ -46,8 +47,7 @@
  threads_winapi.c^
  transfer.c^
  usb.c^
- utils.c^
- wdkfixes.c
+ utils.c
 
 %RC% /fobrickd.res brickd.rc
 

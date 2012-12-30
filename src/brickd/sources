@@ -18,6 +18,7 @@ SOURCES=brick.c \
 	event_winapi.c \
 	log.c \
 	main_windows.c \
+	msvcfixes.c \
 	network.c \
 	packet.c \
 	pipe_winapi.c \
@@ -25,5 +26,4 @@ SOURCES=brick.c \
 	threads_winapi.c \
 	transfer.c \
 	usb.c \
-	utils.c \
-	wdkfixes.c
+	utils.c

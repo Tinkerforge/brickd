@@ -2,7 +2,7 @@
  * brickd
  * Copyright (C) 2012 Matthias Bolte <matthias@tinkerforge.com>
  *
- * wdkfixes.h: Fixes for problems in the Windows Driver Kit headers and libs
+ * msvcfixes.h: Fixes for problems with the MSVC/WDK headers and libs
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,10 +19,10 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-#ifndef BRICKD_WDKFIXES_H
-#define BRICKD_WDKFIXES_H
+#ifndef BRICKD_MSVCFIXES_H
+#define BRICKD_MSVCFIXES_H
 
-#ifdef BRICKD_WDK_BUILD
+#ifdef _MSC_VER
 
 #include <time.h>
 #include <winsock2.h> // for struct timeval
@@ -36,6 +36,6 @@ struct tm *localtime_r(const time_t *timep, struct tm *result);
 
 int gettimeofday(struct timeval *tv, struct timezone *tz);
 
-#endif // BRICKD_WDK_BUILD
+#endif // _MSC_VER
 
-#endif // BRICKD_WDKFIXES_H
+#endif // BRICKD_MSVCFIXES_H
