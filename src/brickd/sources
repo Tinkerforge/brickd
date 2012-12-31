@@ -7,10 +7,10 @@ MSC_WARNING_LEVEL=/W3
 !ENDIF
 USE_MSVCRT=1
 UMTYPE=console
-INCLUDES=..\build_data\Windows\libusb;$(DDK_INC_PATH)
+INCLUDES=..\build_data\Windows;..\build_data\Windows\libusb;$(DDK_INC_PATH)
 UMLIBS=..\build_data\Windows\libusb\libusb-1.0.lib
-C_DEFINES=$(C_DEFINES) /DBRICKD_LOG_ENABLED /DWIN32_LEAN_AND_MEAN /DBRICKD_WDK_BUILD
-USER_C_FLAGS=$(USER_C_FLAGS) /O2 /wd4200 /wd4214 /FIwdkfixes.h
+C_DEFINES=$(C_DEFINES) /DWIN32_LEAN_AND_MEAN /DBRICKD_WDK_BUILD /DBRICKD_LOG_ENABLED
+USER_C_FLAGS=$(USER_C_FLAGS) /O2 /wd4200 /wd4214 /FImsvcfixes.h
 TARGETLIBS=$(SDK_LIB_PATH)\advapi32.lib $(SDK_LIB_PATH)\user32.lib $(SDK_LIB_PATH)\ws2_32.lib
 SOURCES=brick.c \
 	client.c \

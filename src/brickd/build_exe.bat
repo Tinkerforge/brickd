@@ -29,7 +29,7 @@
 
 @rem @set CC=%CC% /D_CRT_SECURE_NO_WARNINGS /wd4996
 
-@set CC=%CC% /I..\build_data\Windows\libusb
+@set CC=%CC% /I..\build_data\Windows /I..\build_data\Windows\libusb
 @set LD=%LD% /libpath:..\build_data\Windows\libusb
 
 %CC%^
