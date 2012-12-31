@@ -185,7 +185,7 @@ int usb_init(void) {
 	phase = 1;
 
 	if (!libusb_pollfds_handle_timeouts(_context)) {
-		log_warn("libusb requires special timeout handling"); // FIXME
+		log_info("libusb requires special timeout handling"); // FIXME
 	} else {
 		log_debug("libusb can handle timeouts on its own");
 	}

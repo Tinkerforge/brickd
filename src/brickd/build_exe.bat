@@ -38,6 +38,7 @@
  event.c^
  event_winapi.c^
  log.c^
+ log_winapi.c^
  main_windows.c^
  msvcfixes.c^
  network.c^

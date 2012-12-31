@@ -31,50 +31,17 @@ static Mutex _mutex; // protects writing to _file and calling of _extra_handler
 static LogLevel _levels[5] = { LOG_LEVEL_INFO, LOG_LEVEL_INFO, LOG_LEVEL_INFO,
                                LOG_LEVEL_INFO, LOG_LEVEL_INFO };
 static FILE *_file = NULL;
-static LogHandler _extra_handler = NULL;
 
-void log_init(void) {
-	mutex_create(&_mutex);
-
-	_file = stderr;
-}
-
-void log_exit(void) {
-	mutex_destroy(&_mutex);
-}
-
-void log_set_level(LogCategory category, LogLevel level) {
-	_levels[category] = level;
-}
-
-LogLevel log_get_level(LogCategory category) {
-	return _levels[category];
-}
-
-void log_set_file(FILE *file) {
-	mutex_lock(&_mutex);
-
-	_file = file;
-
-	mutex_unlock(&_mutex);
-}
-
-FILE *log_get_file(void) {
-	return _file;
-}
-
-void log_set_extra_handler(LogHandler handler) {
-	_extra_handler = handler;
-}
-
-LogHandler log_get_extra_handler(void) {
-	return _extra_handler;
-}
+extern void log_init_platform(void);
+extern void log_exit_platform(void);
+extern void log_handler_platform(LogLevel level, const char *file, int line,
+                                 const char *function, const char *format,
+                                 va_list arguments);
 
 // NOTE: assumes that _mutex is locked
-static void log_file_handler(LogLevel level, const char *file, int line,
-                             const char *function, const char *format,
-                             va_list arguments)
+static void log_handler(LogLevel level, const char *file, int line,
+                        const char *function, const char *format,
+                        va_list arguments)
 {
 	struct timeval tv;
 	time_t t;
@@ -113,7 +80,7 @@ static void log_file_handler(LogLevel level, const char *file, int line,
 	case LOG_LEVEL_WARN:  level_c = 'W'; break;
 	case LOG_LEVEL_INFO:  level_c = 'I'; break;
 	case LOG_LEVEL_DEBUG: level_c = 'D'; break;
-	};
+	}
 
 	// print prefix
 	fprintf(_file, "%s.%06d <%c> <%s:%d> ",
@@ -123,6 +90,40 @@ static void log_file_handler(LogLevel level, const char *file, int line,
 	vfprintf(_file, format, arguments);
 	fprintf(_file, "\n");
 	fflush(_file);
+}
+
+void log_init(void) {
+	mutex_create(&_mutex);
+
+	_file = stderr;
+
+	log_init_platform();
+}
+
+void log_exit(void) {
+	log_exit_platform();
+
+	mutex_destroy(&_mutex);
+}
+
+void log_set_level(LogCategory category, LogLevel level) {
+	_levels[category] = level;
+}
+
+LogLevel log_get_level(LogCategory category) {
+	return _levels[category];
+}
+
+void log_set_file(FILE *file) {
+	mutex_lock(&_mutex);
+
+	_file = file;
+
+	mutex_unlock(&_mutex);
+}
+
+FILE *log_get_file(void) {
+	return _file;
 }
 
 void log_message(LogCategory category, LogLevel level,
@@ -138,11 +139,8 @@ void log_message(LogCategory category, LogLevel level,
 	va_start(arguments, format);
 	mutex_lock(&_mutex);
 
-	log_file_handler(level, file, line, function, format, arguments);
-
-	if (_extra_handler != NULL) {
-		_extra_handler(level, file, line, function, format, arguments);
-	}
+	log_handler(level, file, line, function, format, arguments);
+	log_handler_platform(level, file, line, function, format, arguments);
 
 	mutex_unlock(&_mutex);
 	va_end(arguments);

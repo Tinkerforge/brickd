@@ -40,7 +40,6 @@ static const GUID GUID_DEVINTERFACE_USB_DEVICE =
 
 static char *_service_name = "Brick Daemon";
 static char *_service_description = "Brick Daemon is a bridge between USB devices (Bricks) and TCP/IP sockets. It can be used to read out and control Bricks.";
-static HANDLE _event_log_handle = NULL;
 static SERVICE_STATUS _service_status;
 static SERVICE_STATUS_HANDLE _service_status_handle = 0;
 static EventHandle _notification_pipe[2] = { INVALID_EVENT_HANDLE,
@@ -291,7 +290,6 @@ error_usb:
 error_event:
 	log_info("Brick Daemon %s stopped", VERSION_STRING);
 
-	log_set_extra_handler(NULL);
 	log_exit();
 
 	// service is now stopped
@@ -299,9 +297,6 @@ error_event:
 	_service_status.dwCurrentState = SERVICE_STOPPED;
 
 	SetServiceStatus(_service_status_handle, &_service_status);
-
-	// close event log
-	CloseEventLog(_event_log_handle);
 }
 
 static void service_run(void) {
@@ -584,7 +579,6 @@ int main(int argc, char **argv) {
 	int install = 0;
 	int uninstall = 0;
 	int debug = 0;
-	int rc;
 
 	for (i = 1; i < argc; ++i) {
 		if (strcmp(argv[i], "--help") == 0) {
@@ -634,20 +628,6 @@ int main(int argc, char **argv) {
 		}
 	} else {
 		log_init();
-
-		// open event log
-		_event_log_handle = OpenEventLog(NULL, "Application");
-
-		if (_event_log_handle == NULL) {
-			rc = ERRNO_WINAPI_OFFSET + GetLastError();
-
-			fprintf(stderr, "Could not open event log: %s (%d)",
-			        get_errno_name(rc), rc);
-
-			return EXIT_FAILURE;
-		}
-
-		//log_set_extra_handler(event_log_handler); // FIXME
 
 		service_run();
 	}

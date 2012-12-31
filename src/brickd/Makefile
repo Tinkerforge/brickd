@@ -30,9 +30,9 @@ else
 	WITH_LIBUDEV := no
 endif
 
-SOURCES := brick.c client.c event.c event_posix.c log.c network.c packet.c \
-           pidfile.c pipe_posix.c socket_posix.c threads_posix.c transfer.c \
-           usb.c utils.c
+SOURCES := brick.c client.c event.c event_posix.c log.c log_posix.c network.c \
+           packet.c pidfile.c pipe_posix.c socket_posix.c threads_posix.c \
+           transfer.c usb.c utils.c
 
 ifeq ($(PLATFORM),Linux)
 	SOURCES += main_linux.c

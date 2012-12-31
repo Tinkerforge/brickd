@@ -79,9 +79,6 @@ LogLevel log_get_level(LogCategory category);
 void log_set_file(FILE *file);
 FILE *log_get_file(void);
 
-void log_set_extra_handler(LogHandler handler);
-LogHandler log_get_extra_handler(void);
-
 void log_message(LogCategory category, LogLevel level,
                  const char *file, int line, const char *function,
                  const char *format, ...) ATTRIBUTE_FMT_PRINTF(6, 7);
