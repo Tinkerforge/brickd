@@ -23,6 +23,7 @@
 
 #include "log.h"
 
+#include "log_messages.h"
 #include "utils.h"
 
 #define LOG_CATEGORY LOG_CATEGORY_OTHER
@@ -53,6 +54,7 @@ void log_handler_platform(LogLevel level, const char *file, int line,
                           const char *function, const char *format,
                           va_list arguments) {
 	WORD type;
+	DWORD event_id;
 	char message[512 + 1] = "<unknown>";
 	LPSTR insert_strings[1];
 
@@ -67,10 +69,12 @@ void log_handler_platform(LogLevel level, const char *file, int line,
 	switch (level) {
 	case LOG_LEVEL_ERROR:
 		type = EVENTLOG_ERROR_TYPE;
+		event_id = BRICKD_GENERIC_ERROR;
 		break;
 
 	case LOG_LEVEL_WARN:
 		type = EVENTLOG_WARNING_TYPE;
+		event_id = BRICKD_GENERIC_WARNING;
 		break;
 
 	default:
@@ -82,5 +86,5 @@ void log_handler_platform(LogLevel level, const char *file, int line,
 
 	insert_strings[0] = message;
 
-	ReportEvent(_event_log, type, 0, 0, NULL, 1, 0, insert_strings, NULL);
+	ReportEvent(_event_log, type, 0, event_id, NULL, 1, 0, insert_strings, NULL);
 }

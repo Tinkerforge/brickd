@@ -10,6 +10,7 @@
 
 @set CC=cl /nologo /c /MD /O2 /W4 /wd4200 /wd4214 /FImsvcfixes.h^
  /DBRICKD_LOG_ENABLED /DWIN32_LEAN_AND_MEAN
+@set MC=mc
 @set RC=rc /dWIN32 /r
 @set LD=link /nologo /opt:ref /opt:icf /release
 @set AR=link /lib /nologo
@@ -25,9 +26,7 @@
  echo non-WDK build
 )
 
-@del *.obj *.res *.exp *.manifest *.exe
-
-@rem @set CC=%CC% /D_CRT_SECURE_NO_WARNINGS /wd4996
+@del *.obj *.res *.bin *.exp *.manifest *.exe
 
 @set CC=%CC% /I..\build_data\Windows /I..\build_data\Windows\libusb
 @set LD=%LD% /libpath:..\build_data\Windows\libusb
@@ -50,14 +49,17 @@
  usb.c^
  utils.c
 
+%MC% -A -b log_messages.mc
+
+%RC% /folog_messages.res log_messages.rc
 %RC% /fobrickd.res brickd.rc
 
-%LD% /out:brickd.exe *.obj libusb-1.0.lib brickd.res advapi32.lib user32.lib ws2_32.lib
+%LD% /out:brickd.exe *.obj *.res libusb-1.0.lib advapi32.lib user32.lib ws2_32.lib
 
 @if exist brickd.exe.manifest^
  %MT% /manifest brickd.exe.manifest -outputresource:brickd.exe
 
-@del *.obj *.res *.exp *.manifest
+@del *.obj *.res *.bin *.exp *.manifest
 
 @if not exist dist mkdir dist
 copy brickd.exe dist\

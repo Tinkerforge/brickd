@@ -40,6 +40,7 @@ static const GUID GUID_DEVINTERFACE_USB_DEVICE =
 
 static char *_service_name = "Brick Daemon";
 static char *_service_description = "Brick Daemon is a bridge between USB devices (Bricks) and TCP/IP sockets. It can be used to read out and control Bricks.";
+static char *_event_log_key_name = "SYSTEM\\CurrentControlSet\\Services\\EventLog\\Application\\Brick Daemon";
 static SERVICE_STATUS _service_status;
 static SERVICE_STATUS_HANDLE _service_status_handle = 0;
 static EventHandle _notification_pipe[2] = { INVALID_EVENT_HANDLE,
@@ -323,6 +324,8 @@ static int service_install(int debug) {
 	SC_HANDLE service_control_manager;
 	int rc;
 	char path[1024];
+	HKEY key = NULL;
+	DWORD types = EVENTLOG_ERROR_TYPE | EVENTLOG_WARNING_TYPE;
 	SC_HANDLE service;
 	SERVICE_DESCRIPTION description;
 	LPCTSTR debug_argv[1];
@@ -336,6 +339,22 @@ static int service_install(int debug) {
 		argv = debug_argv;
 	}
 
+	if (GetModuleFileName(NULL, path, sizeof(path)) == 0) {
+		rc = ERRNO_WINAPI_OFFSET + GetLastError();
+
+		fprintf(stderr, "Could not get module file name: %s (%d)\n",
+		        get_errno_name(rc), rc);
+
+		return -1;
+	}
+
+	// register message catalog for event log
+	if (RegCreateKey(HKEY_LOCAL_MACHINE, _event_log_key_name, &key) == ERROR_SUCCESS) {
+		RegSetValueEx(key, "EventMessageFile", 0, REG_EXPAND_SZ, (PBYTE)path, strlen(path));
+		RegSetValueEx(key, "TypesSupported",  0, REG_DWORD, (LPBYTE)&types, sizeof(DWORD));
+		RegCloseKey(key);
+	}
+
 	// open service control manager
 	service_control_manager = OpenSCManager(0, 0, SC_MANAGER_CREATE_SERVICE);
 
@@ -344,17 +363,6 @@ static int service_install(int debug) {
 
 		fprintf(stderr, "Could not open service control manager: %s (%d)\n",
 		        get_errno_name(rc), rc);
-
-		return -1;
-	}
-
-	if (GetModuleFileName(NULL, path, sizeof(path)) == 0) {
-		rc = ERRNO_WINAPI_OFFSET + GetLastError();
-
-		fprintf(stderr, "Could not get module file name: %s (%d)\n",
-		        get_errno_name(rc), rc);
-
-		CloseServiceHandle(service_control_manager);
 
 		return -1;
 	}
@@ -564,6 +572,9 @@ static int service_uninstall(void) {
 
 	CloseServiceHandle(service);
 	CloseServiceHandle(service_control_manager);
+
+	// unregister message catalog for event log
+	RegDeleteKey(HKEY_LOCAL_MACHINE, _event_log_key_name);
 
 	return 0;
 }

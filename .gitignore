@@ -2,3 +2,6 @@
 *.o
 src/brickd/dist
 src/brickd/brickd
+src/brickd/brickd.exe
+src/brickd/log_messages.h
+src/brickd/log_messages.rc
