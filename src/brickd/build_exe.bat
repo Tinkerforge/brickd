@@ -31,6 +31,8 @@
 @set CC=%CC% /I..\build_data\Windows /I..\build_data\Windows\libusb
 @set LD=%LD% /libpath:..\build_data\Windows\libusb
 
+%MC% -A -b log_messages.mc
+
 %CC%^
  brick.c^
  client.c^
@@ -48,8 +50,6 @@
  transfer.c^
  usb.c^
  utils.c
-
-%MC% -A -b log_messages.mc
 
 %RC% /folog_messages.res log_messages.rc
 %RC% /fobrickd.res brickd.rc
