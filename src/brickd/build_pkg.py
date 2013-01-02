@@ -43,21 +43,25 @@ def build_macosx_pkg():
     build_data_dir = os.path.join(os.getcwd(), '..', 'build_data', 'macos')
     shutil.copytree(build_data_dir, dist_dir)
 
-    macos_dir = os.path.join(os.getcwd(), 'dist', 'data', 'brickd.app', 'Contents', 'MacOS')
+    contents_dir = os.path.join(os.getcwd(), 'dist', 'data', 'brickd.app', 'Contents')
+    macos_dir = os.path.join(contents_dir, 'MacOS')
+    os.makedirs(macos_dir)
     shutil.copy('brickd', macos_dir)
 
-    plist_name = os.path.join(os.getcwd(), 'dist', 'data', 'brickd.app', 'Contents', 'Info.plist')
+    plist_name = os.path.join(contents_dir, 'Info.plist')
     lines = []
     for line in file(plist_name, 'rb').readlines():
         line = line.replace('<<BRICKD_VERSION>>', version)
         lines.append(line)
     file(plist_name, 'wb').writelines(lines)
 
-    os.system('install_name_tool -change /opt/local/lib/libusb-1.0.0.dylib @executable_path/libusb-1.0.0.dylib dist/data/brickd.app/Contents/MacOS/brickd')
+    libusb_path = subprocess.check_output("otool -L brickd | grep libusb | awk '{ print $1 }'", shell=True).replace('\n', '')
+    libusb_name = os.path.split(libusb_path)[1]
 
+    shutil.copy(libusb_path, macos_dir)
 
-DESCRIPTION = 'Brickd for Windows'
-NAME = 'Brickd'
+    os.system('install_name_tool -change {0} @executable_path/{1} {2}'.format(libusb_path, libusb_name, os.path.join(macos_dir, 'brickd')))
+
 
 def build_windows_pkg():
     dist_dir = os.path.join(os.getcwd(), 'dist')
