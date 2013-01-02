@@ -136,15 +136,15 @@ def build_linux_pkg():
     os.system('make clean-depend')
 
 
-# call python build_pkg.py windows/linux/macosx to build the windows/linux/macosx package
+# call python build_pkg.py to build the windows/linux/macosx package
 if __name__ == "__main__":
-    if len(sys.argv) < 2:
-        print "error: specify platform"
-    elif sys.argv[1] == "windows":
-        build_windows_pkg()
-    elif sys.argv[1] == "linux":
+    if sys.hexversion < 0x02070000:
+        print 'error: requiring Python >= 2.7'
+    if sys.platform.startswith('linux'):
         build_linux_pkg()
-    elif sys.argv[1] == "macosx":
+    elif sys.platform == 'win32':
+        build_windows_pkg()
+    elif sys.platform == 'darwin':
         build_macosx_pkg()
     else:
-        print "error: unknown platform: " + sys.argv[1]
+        print "error: unsupported platform: " + sys.platform
