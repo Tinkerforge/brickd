@@ -123,7 +123,6 @@ static void WINAPI service_main(DWORD argc, LPTSTR *argv) {
 	char path[1024];
 	int rc;
 	FILE *logfile = NULL;
-	errno_t error;
 	WSADATA wsa_data;
 	DEV_BROADCAST_DEVICEINTERFACE notification_filter;
 	HDEVNOTIFY notification_handle;
@@ -149,13 +148,12 @@ static void WINAPI service_main(DWORD argc, LPTSTR *argv) {
 			if (i < 4) {
 				log_warn("Module file name '%s' is too short", path);
 			} else {
-				strncpy_s(path + i - 3, sizeof(path) - i + 3, "log", 3);
+				strcpy(path + i - 3, "log");
 
-				error = fopen_s(&logfile, path, "a+");
+				logfile = fopen(path, "a+");
 
-				if (error != 0) {
-					log_warn("Could not open logfile '%s': %s (%d)",
-					         path, get_errno_name(error), error);
+				if (logfile == NULL) {
+					log_warn("Could not open logfile '%s'", path);
 				} else {
 					log_set_file(logfile);
 				}
