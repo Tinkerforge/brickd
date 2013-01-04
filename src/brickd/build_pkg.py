@@ -144,7 +144,7 @@ def build_linux_pkg():
 if __name__ == "__main__":
     if sys.hexversion < 0x02070000:
         print 'error: requiring Python >= 2.7'
-    if sys.platform.startswith('linux'):
+    elif sys.platform.startswith('linux'):
         build_linux_pkg()
     elif sys.platform == 'win32':
         build_windows_pkg()
