@@ -28,6 +28,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 
+#include "config.h"
 #include "event.h"
 #include "log.h"
 #include "network.h"
@@ -38,11 +39,12 @@
 
 #define LOG_CATEGORY LOG_CATEGORY_OTHER
 
-#define PIDFILE "/var/run/brickd.pid"
-#define LOGFILE "/var/log/brickd.log"
+#define CONFIG_FILE "/etc/brickd.conf"
+#define PID_FILE "/var/run/brickd.pid"
+#define LOG_FILE "/var/log/brickd.log"
 
 static void print_usage(const char *binary) {
-	printf("Usage: %s [--help|--version|--daemon] [--debug]\n", binary);
+	printf("Usage: %s [--help|--version|--check-config|--daemon] [--debug]\n", binary);
 }
 
 static int daemonize(void) {
@@ -53,11 +55,11 @@ static int daemonize(void) {
 	int stdout;
 
 	// write pid
-	pidfile = pidfile_acquire(PIDFILE, getpid());
+	pidfile = pidfile_acquire(PID_FILE, getpid());
 
 	if (pidfile < 0) {
 		if (pidfile < -1) {
-			fprintf(stderr, "Already running according to %s\n", PIDFILE);
+			fprintf(stderr, "Already running according to %s\n", PID_FILE);
 
 			status = 2;
 		}
@@ -66,11 +68,11 @@ static int daemonize(void) {
 	}
 
 	// open log file
-	logfile = fopen(LOGFILE, "a+");
+	logfile = fopen(LOG_FILE, "a+");
 
 	if (logfile == NULL) {
 		fprintf(stderr, "Could not open logfile '%s': %s (%d)\n",
-		        LOGFILE, get_errno_name(errno), errno);
+		        LOG_FILE, get_errno_name(errno), errno);
 
 		goto cleanup;
 	}
@@ -108,6 +110,7 @@ int main(int argc, char **argv) {
 	int i;
 	int help = 0;
 	int version = 0;
+	int check_config = 0;
 	int daemon = 0;
 	int debug = 0;
 	int pidfile = -1;
@@ -117,6 +120,8 @@ int main(int argc, char **argv) {
 			help = 1;
 		} else if (strcmp(argv[i], "--version") == 0) {
 			version = 1;
+		} else if (strcmp(argv[i], "--check-config") == 0) {
+			check_config = 1;
 		} else if (strcmp(argv[i], "--daemon") == 0) {
 			daemon = 1;
 		} else if (strcmp(argv[i], "--debug") == 0) {
@@ -141,17 +146,23 @@ int main(int argc, char **argv) {
 		return EXIT_SUCCESS;
 	}
 
+	if (check_config) {
+		return config_check(CONFIG_FILE) < 0 ? EXIT_FAILURE : EXIT_SUCCESS;
+	}
+
+	config_init(CONFIG_FILE);
+
 	log_init();
 
 	if (daemon) {
 		pidfile = daemonize();
 	} else {
-		pidfile = pidfile_acquire(PIDFILE, getpid());
+		pidfile = pidfile_acquire(PID_FILE, getpid());
 	}
 
 	if (pidfile < 0) {
 		if (!daemon && pidfile < -1) {
-			fprintf(stderr, "Already running according to %s\n", PIDFILE);
+			fprintf(stderr, "Already running according to %s\n", PID_FILE);
 		}
 
 		goto error_log;
@@ -164,12 +175,11 @@ int main(int argc, char **argv) {
 		log_set_level(LOG_CATEGORY_HOTPLUG, LOG_LEVEL_DEBUG);
 		log_set_level(LOG_CATEGORY_OTHER, LOG_LEVEL_DEBUG);
 	} else {
-		// FIXME: read config
-		log_set_level(LOG_CATEGORY_EVENT, LOG_LEVEL_INFO);
-		log_set_level(LOG_CATEGORY_USB, LOG_LEVEL_INFO);
-		log_set_level(LOG_CATEGORY_NETWORK, LOG_LEVEL_INFO);
-		log_set_level(LOG_CATEGORY_HOTPLUG, LOG_LEVEL_INFO);
-		log_set_level(LOG_CATEGORY_OTHER, LOG_LEVEL_INFO);
+		log_set_level(LOG_CATEGORY_EVENT, config_get_log_level(LOG_CATEGORY_EVENT));
+		log_set_level(LOG_CATEGORY_USB, config_get_log_level(LOG_CATEGORY_USB));
+		log_set_level(LOG_CATEGORY_NETWORK, config_get_log_level(LOG_CATEGORY_NETWORK));
+		log_set_level(LOG_CATEGORY_HOTPLUG, config_get_log_level(LOG_CATEGORY_HOTPLUG));
+		log_set_level(LOG_CATEGORY_OTHER, config_get_log_level(LOG_CATEGORY_OTHER));
 	}
 
 	if (daemon) {
@@ -219,8 +229,10 @@ error_log:
 	log_exit();
 
 	if (pidfile >= 0) {
-		pidfile_release(PIDFILE, pidfile);
+		pidfile_release(PID_FILE, pidfile);
 	}
+
+	config_exit();
 
 	return exit_code;
 }

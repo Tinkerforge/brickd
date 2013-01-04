@@ -37,6 +37,7 @@
 %CC%^
  brick.c^
  client.c^
+ config.c^
  event.c^
  event_winapi.c^
  log.c^

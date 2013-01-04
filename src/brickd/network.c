@@ -20,13 +20,16 @@
  */
 
 #include <errno.h>
+#include <stdint.h>
 #include <string.h>
 #ifndef _WIN32
+	#include <netdb.h>
 	#include <unistd.h>
 #endif
 
 #include "network.h"
 
+#include "config.h"
 #include "event.h"
 #include "log.h"
 #include "packet.h"
@@ -89,9 +92,13 @@ static void network_handle_accept(void *opaque) {
 
 int network_init(void) {
 	int phase = 0;
+	const char *listen_address = config_get_listen_address();
+	struct hostent *entry;
 	struct sockaddr_in server_address;
 
 	log_debug("Initializing network subsystem");
+
+	_port = config_get_listen_port();
 
 	// the Client struct is not relocatable, because it is passed by reference
 	// as opaque parameter to the event subsystem
@@ -124,23 +131,34 @@ int network_init(void) {
 	memset(&server_address, 0, sizeof(struct sockaddr_in));
 
 	server_address.sin_family = AF_INET;
-	server_address.sin_addr.s_addr = htonl(INADDR_ANY);
 	server_address.sin_port = htons(_port);
+
+	entry = gethostbyname(listen_address);
+
+	if (entry == NULL) {
+		log_error("Could not resolve listen address '%s'", listen_address);
+
+		goto cleanup;
+	}
+
+	memcpy(&server_address.sin_addr, entry->h_addr_list[0], entry->h_length);
 
 	if (socket_bind(_server_socket, (struct sockaddr *)&server_address,
 	                sizeof(struct sockaddr_in)) < 0) {
-		log_error("Could not bind server socket to port %u: %s (%d)",
-		          _port, get_errno_name(errno), errno);
+		log_error("Could not bind server socket to '%s' on port %u: %s (%d)",
+		          listen_address, _port, get_errno_name(errno), errno);
 
 		goto cleanup;
 	}
 
 	if (socket_listen(_server_socket, 10) < 0) {
-		log_error("Could not listen to server socket on port %u: %s (%d)",
-		          _port, get_errno_name(errno), errno);
+		log_error("Could not listen to server socket bound to '%s' on port %u: %s (%d)",
+		          listen_address, _port, get_errno_name(errno), errno);
 
 		goto cleanup;
 	}
+
+	log_debug("Started listening to '%s' on port %u", listen_address, _port);
 
 	if (socket_set_non_blocking(_server_socket, 1) < 0) {
 		log_error("Could not enable non-blocking mode for server socket: %s (%d)",

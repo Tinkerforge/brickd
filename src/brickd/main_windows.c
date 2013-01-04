@@ -25,6 +25,7 @@
 #include <windows.h>
 #include <dbt.h>
 
+#include "config.h"
 #include "event.h"
 #include "log.h"
 #include "network.h"
@@ -119,6 +120,7 @@ static DWORD WINAPI service_control_handler(DWORD control, DWORD eventType,
 
 static void WINAPI service_main(DWORD argc, LPTSTR *argv) {
 	DWORD i;
+	int log_to_file = 0;
 	int debug = 0;
 	char path[1024];
 	int rc;
@@ -128,15 +130,16 @@ static void WINAPI service_main(DWORD argc, LPTSTR *argv) {
 	HDEVNOTIFY notification_handle;
 
 	for (i = 1; i < argc; ++i) {
-		if (strcmp(argv[i], "--debug") == 0) {
+		if (strcmp(argv[i], "--log-to-file") == 0) {
+			log_to_file = 1;
+		} else if (strcmp(argv[i], "--debug") == 0) {
 			debug = 1;
 		} else {
-			log_warn("Unknown option '%s'", argv[i]);
+			log_warn("Unknown start parameter '%s'", argv[i]);
 		}
 	}
 
-	// open debug log
-	if (debug) {
+	if (log_to_file) {
 		if (GetModuleFileName(NULL, path, sizeof(path)) == 0) {
 			rc = ERRNO_WINAPI_OFFSET + GetLastError();
 
@@ -159,19 +162,20 @@ static void WINAPI service_main(DWORD argc, LPTSTR *argv) {
 				}
 			}
 		}
+	}
 
+	if (debug) {
 		log_set_level(LOG_CATEGORY_EVENT, LOG_LEVEL_DEBUG);
 		log_set_level(LOG_CATEGORY_USB, LOG_LEVEL_DEBUG);
 		log_set_level(LOG_CATEGORY_NETWORK, LOG_LEVEL_DEBUG);
 		log_set_level(LOG_CATEGORY_HOTPLUG, LOG_LEVEL_DEBUG);
 		log_set_level(LOG_CATEGORY_OTHER, LOG_LEVEL_DEBUG);
 	} else {
-		// FIXME: read config
-		log_set_level(LOG_CATEGORY_EVENT, LOG_LEVEL_INFO);
-		log_set_level(LOG_CATEGORY_USB, LOG_LEVEL_INFO);
-		log_set_level(LOG_CATEGORY_NETWORK, LOG_LEVEL_INFO);
-		log_set_level(LOG_CATEGORY_HOTPLUG, LOG_LEVEL_INFO);
-		log_set_level(LOG_CATEGORY_OTHER, LOG_LEVEL_INFO);
+		log_set_level(LOG_CATEGORY_EVENT, config_get_log_level(LOG_CATEGORY_EVENT));
+		log_set_level(LOG_CATEGORY_USB, config_get_log_level(LOG_CATEGORY_USB));
+		log_set_level(LOG_CATEGORY_NETWORK, config_get_log_level(LOG_CATEGORY_NETWORK));
+		log_set_level(LOG_CATEGORY_HOTPLUG, config_get_log_level(LOG_CATEGORY_HOTPLUG));
+		log_set_level(LOG_CATEGORY_OTHER, config_get_log_level(LOG_CATEGORY_OTHER));
 	}
 
 	log_info("Brick Daemon %s started", VERSION_STRING);
@@ -298,7 +302,7 @@ error_event:
 	SetServiceStatus(_service_status_handle, &_service_status);
 }
 
-static void service_run(void) {
+static int service_run(void) {
 	SERVICE_TABLE_ENTRY service_table[2];
 	int rc;
 
@@ -314,11 +318,13 @@ static void service_run(void) {
 		log_error("Could not start service control dispatcher: %s (%d)",
 		          get_errno_name(rc), rc);
 
-		return;
+		return -1;
 	}
+
+	return 0;
 }
 
-static int service_install(int debug) {
+static int service_install(int log_to_file, int debug) {
 	SC_HANDLE service_control_manager;
 	int rc;
 	char path[1024];
@@ -326,14 +332,17 @@ static int service_install(int debug) {
 	DWORD types = EVENTLOG_ERROR_TYPE | EVENTLOG_WARNING_TYPE;
 	SC_HANDLE service;
 	SERVICE_DESCRIPTION description;
-	LPCTSTR debug_argv[1];
+	LPCTSTR debug_argv[2];
 	DWORD argc = 0;
 	LPCTSTR *argv = NULL;
 
-	if (debug) {
-		debug_argv[0] = "--debug";
+	if (log_to_file) {
+		debug_argv[argc++] = "--log-to-file";
+		argv = debug_argv;
+	}
 
-		argc = 1;
+	if (debug) {
+		debug_argv[argc++] = "--debug";
 		argv = debug_argv;
 	}
 
@@ -438,7 +447,11 @@ static int service_install(int debug) {
 			printf("'%s' service is already running\n", _service_name);
 		}
 	} else {
-		if (debug) {
+		if (log_to_file && debug) {
+			printf("Started '%s' service with --log-to-file and --debug option\n", _service_name);
+		} else if (log_to_file) {
+			printf("Started '%s' service with --log-to-file option\n", _service_name);
+		} else if (debug) {
 			printf("Started '%s' service with --debug option\n", _service_name);
 		} else {
 			printf("Started '%s' service\n", _service_name);
@@ -578,26 +591,34 @@ static int service_uninstall(void) {
 }
 
 static void print_usage(const char *binary) {
-	printf("Usage: %s [--help|--version|--install|--uninstall] [--debug]\n", binary);
+	printf("Usage: %s [--help|--version|--check-config|--install|--uninstall] [--log-to-file] [--debug]\n", binary);
 }
 
 int main(int argc, char **argv) {
 	int i;
 	int help = 0;
 	int version = 0;
+	int check_config = 0;
 	int install = 0;
 	int uninstall = 0;
+	int log_to_file = 0;
 	int debug = 0;
+	char path[1024];
+	int rc;
 
 	for (i = 1; i < argc; ++i) {
 		if (strcmp(argv[i], "--help") == 0) {
 			help = 1;
 		} else if (strcmp(argv[i], "--version") == 0) {
 			version = 1;
+		} else if (strcmp(argv[i], "--check-config") == 0) {
+			check_config = 1;
 		} else if (strcmp(argv[i], "--install") == 0) {
 			install = 1;
 		} else if (strcmp(argv[i], "--uninstall") == 0) {
 			uninstall = 1;
+		} else if (strcmp(argv[i], "--log-to-file") == 0) {
+			log_to_file = 1;
 		} else if (strcmp(argv[i], "--debug") == 0) {
 			debug = 1;
 		} else {
@@ -620,6 +641,29 @@ int main(int argc, char **argv) {
 		return EXIT_SUCCESS;
 	}
 
+	if (GetModuleFileName(NULL, path, sizeof(path)) == 0) {
+		rc = ERRNO_WINAPI_OFFSET + GetLastError();
+
+		fprintf(stderr, "Could not get module file name: %s (%d)\n",
+		        get_errno_name(rc), rc);
+
+		return EXIT_FAILURE;
+	}
+
+	i = strlen(path);
+
+	if (i < 4) {
+		fprintf(stderr, "Module file name '%s' is too short", path);
+
+		return EXIT_FAILURE;
+	}
+
+	strcpy(path + i - 3, "ini");
+
+	if (check_config) {
+		return config_check(path) < 0 ? EXIT_FAILURE : EXIT_SUCCESS;
+	}
+
 	if (install && uninstall) {
 		fprintf(stderr, "Invalid option combination\n");
 		print_usage(argv[0]);
@@ -628,7 +672,7 @@ int main(int argc, char **argv) {
 	}
 
 	if (install) {
-		if (service_install(debug) < 0) {
+		if (service_install(log_to_file, debug) < 0) {
 			return EXIT_FAILURE;
 		}
 	} else if (uninstall) {
@@ -636,9 +680,17 @@ int main(int argc, char **argv) {
 			return EXIT_FAILURE;
 		}
 	} else {
+		config_init(path);
+
 		log_init();
 
-		service_run();
+		if (service_run() < 0) {
+			log_exit();
+
+			config_exit();
+
+			return EXIT_FAILURE;
+		}
 	}
 
 	return EXIT_SUCCESS;

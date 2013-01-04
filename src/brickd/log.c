@@ -27,9 +27,12 @@
 
 #include "threads.h"
 
-static Mutex _mutex; // protects writing to _file and calling of _extra_handler
-static LogLevel _levels[5] = { LOG_LEVEL_INFO, LOG_LEVEL_INFO, LOG_LEVEL_INFO,
-                               LOG_LEVEL_INFO, LOG_LEVEL_INFO };
+static Mutex _mutex; // protects writing to _file
+static LogLevel _levels[5] = { LOG_LEVEL_INFO,
+                               LOG_LEVEL_INFO,
+                               LOG_LEVEL_INFO,
+                               LOG_LEVEL_INFO,
+                               LOG_LEVEL_INFO };
 static FILE *_file = NULL;
 
 extern void log_init_platform(void);
