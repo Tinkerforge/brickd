@@ -270,7 +270,7 @@ int usb_update(void) {
 			enumerate_callback.header.uid = uid;
 			enumerate_callback.header.length = sizeof(EnumerateCallback);
 			enumerate_callback.header.function_id = CALLBACK_ENUMERATE;
-			enumerate_callback.header.sequence_number = 0; // FIXME
+			enumerate_callback.header.sequence_number = 0;
 
 			base58_encode(enumerate_callback.uid, uid);
 			enumerate_callback.enumeration_type = ENUMERATION_TYPE_DISCONNECTED;
