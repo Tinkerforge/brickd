@@ -51,8 +51,8 @@ static int daemonize(void) {
 	int8_t status = 0;
 	FILE *logfile;
 	int pidfile = -1;
-	int stdin;
-	int stdout;
+	int stdin = -1;
+	int stdout = -1;
 
 	// write pid
 	pidfile = pidfile_acquire(PID_FILE, getpid());
@@ -80,28 +80,56 @@ static int daemonize(void) {
 	log_set_file(logfile);
 
 	// redirect standard file descriptors
-	// FIXME: report errors
 	stdin = open("/dev/null", O_RDONLY);
-	stdout = open("/dev/null", O_RDONLY);
 
-	if (stdin < 0)
+	if (stdin < 0) {
+		fprintf(stderr, "Could not open /dev/null to redirect stdin to: %s (%d)\n",
+		        get_errno_name(errno), errno);
+
 		goto cleanup;
-	if (stdout < 0)
+	}
+
+	stdout = open("/dev/null", O_WRONLY);
+
+	if (stdout < 0) {
+		fprintf(stderr, "Could not open /dev/null to redirect stdout/stderr to: %s (%d)\n",
+		        get_errno_name(errno), errno);
+
 		goto cleanup;
-	if (dup2(stdin, STDIN_FILENO) != STDIN_FILENO)
+	}
+
+	if (dup2(stdin, STDIN_FILENO) != STDIN_FILENO) {
+		fprintf(stderr, "Could not redirect stdin: %s (%d)\n",
+		        get_errno_name(errno), errno);
+
 		goto cleanup;
-	if (dup2(stdout, STDOUT_FILENO) != STDOUT_FILENO)
+	}
+
+	if (dup2(stdout, STDOUT_FILENO) != STDOUT_FILENO) {
+		fprintf(stderr, "Could not redirect stdout: %s (%d)\n",
+		        get_errno_name(errno), errno);
+
 		goto cleanup;
-	if (dup2(stdout, STDERR_FILENO) != STDERR_FILENO)
+	}
+
+	if (dup2(stdout, STDERR_FILENO) != STDERR_FILENO) {
+		fprintf(stderr, "Could not redirect stderr: %s (%d)\n",
+		        get_errno_name(errno), errno);
+
 		goto cleanup;
-	if (stdin > STDERR_FILENO && close(stdin) < 0)
-		goto cleanup;
-	if (stdout > STDERR_FILENO && close(stdout) < 0)
-		goto cleanup;
+	}
 
 	status = 1;
 
 cleanup:
+	if (stdin > STDERR_FILENO) {
+		close(stdin);
+	}
+
+	if (stdout > STDERR_FILENO) {
+		close(stdout);
+	}
+
 	return status == 1 ? pidfile : -1;
 }
 
