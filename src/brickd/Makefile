@@ -48,7 +48,8 @@ OBJECTS := ${SOURCES:.c=.o}
 DEPENDS := ${SOURCES:.c=.d}
 TARGET := brickd
 
-CFLAGS += -O0 -g -ggdb -Wall -Wextra
+#CFLAGS += -O0 -g -ggdb
+CFLAGS += -Wall -Wextra
 LDFLAGS += -pthread
 
 LIBUSB_CFLAGS := $(shell pkg-config --cflags libusb-1.0)
