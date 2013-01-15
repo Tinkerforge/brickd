@@ -41,18 +41,19 @@ static void read_transfer_callback(Transfer *transfer) {
 	const char *message = NULL;
 
 	if (transfer->handle->actual_length < (int)sizeof(PacketHeader)) {
-		log_error("Read transfer returned response with incomplete header from %s [%s]",
+		log_error("Read transfer %p returned response with incomplete header (actual: %u < minimum: %d) from %s [%s]",
+		          transfer, transfer->handle->actual_length, (int)sizeof(PacketHeader),
 		          transfer->brick->product, transfer->brick->serial_number);
 
-		goto resubmit;
+		return;
 	}
 
 	if (transfer->handle->actual_length != transfer->packet.header.length) {
-		log_error("Read transfer returned response with length mismatch (actual: %u != expected: %u) from %s [%s]",
-		          transfer->handle->actual_length, transfer->packet.header.length,
+		log_error("Read transfer %p returned response with length mismatch (actual: %u != expected: %u) from %s [%s]",
+		          transfer, transfer->handle->actual_length, transfer->packet.header.length,
 		          transfer->brick->product, transfer->brick->serial_number);
 
-		goto resubmit;
+		return;
 	}
 
 	if (!packet_header_is_valid_response(&transfer->packet.header, &message)) {
@@ -65,7 +66,7 @@ static void read_transfer_callback(Transfer *transfer) {
 		          transfer->brick->product, transfer->brick->serial_number,
 		          message);
 
-		goto resubmit;
+		return;
 	}
 
 	if (transfer->packet.header.sequence_number == 0) {
@@ -85,13 +86,10 @@ static void read_transfer_callback(Transfer *transfer) {
 	}
 
 	if (brick_add_uid(transfer->brick, transfer->packet.header.uid) < 0) {
-		goto resubmit;
+		return;
 	}
 
 	network_dispatch_packet(&transfer->packet);
-
-resubmit:
-	transfer_submit(transfer);
 }
 
 static void write_transfer_callback(Transfer *transfer) {
@@ -318,7 +316,8 @@ int brick_create(Brick *brick, uint8_t bus_number, uint8_t device_address) {
 			goto cleanup;
 		}
 
-		if (transfer_create(transfer, brick, TRANSFER_TYPE_WRITE, NULL) < 0) {
+		if (transfer_create(transfer, brick, TRANSFER_TYPE_WRITE,
+		                    write_transfer_callback) < 0) {
 			array_remove(&brick->write_transfers,
 			             brick->write_transfers.count -1, NULL);
 
@@ -453,8 +452,6 @@ int brick_dispatch_packet(Brick *brick, Packet *packet, int force) {
 			if (transfer->submitted) {
 				continue;
 			}
-
-			transfer->function = write_transfer_callback;
 
 			memcpy(&transfer->packet, packet, packet->header.length);
 

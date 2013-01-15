@@ -42,16 +42,24 @@ static void LIBUSB_CALL transfer_wrapper(struct libusb_transfer *handle) {
 	transfer->submitted = 0;
 	transfer->completed = 1;
 
-	// FIXME: try to recover overflow error
-
 	if (handle->status == LIBUSB_TRANSFER_CANCELLED) {
 		log_debug("%s transfer %p for %s [%s] was cancelled",
 		          transfer_get_type_name(transfer->type, 1), transfer,
 		          transfer->brick->product, transfer->brick->serial_number);
+
+		return;
 	} else if (handle->status == LIBUSB_TRANSFER_NO_DEVICE) {
 		log_debug("%s transfer %p for %s [%s] was aborted, device got disconnected",
 		          transfer_get_type_name(transfer->type, 1), transfer,
 		          transfer->brick->product, transfer->brick->serial_number);
+
+		return;
+	} else if (handle->status == LIBUSB_TRANSFER_STALL) {
+		log_debug("%s transfer %p for %s [%s] got stalled",
+		          transfer_get_type_name(transfer->type, 1), transfer,
+		          transfer->brick->product, transfer->brick->serial_number);
+
+		return;
 	} else if (handle->status != LIBUSB_TRANSFER_COMPLETED) {
 		log_warn("%s transfer %p returned with an error from %s [%s]: %s (%d)",
 		         transfer_get_type_name(transfer->type, 1), transfer,
@@ -66,6 +74,10 @@ static void LIBUSB_CALL transfer_wrapper(struct libusb_transfer *handle) {
 		if (transfer->function != NULL) {
 			transfer->function(transfer);
 		}
+	}
+
+	if (transfer->type == TRANSFER_TYPE_READ) {
+		transfer_submit(transfer);
 	}
 }
 
