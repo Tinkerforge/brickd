@@ -29,6 +29,7 @@
 
 #define USB_VENDOR_ID 0x16D0
 #define USB_PRODUCT_ID 0x063D
+#define USB_DEVICE_RELEASE ((1 << 8) | (1 << 4) | (0 << 0)) /* 1.10 */
 
 #define USB_CONFIGURATION 1
 #define USB_INTERFACE 0

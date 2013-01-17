@@ -46,6 +46,8 @@ static int usb_enumerate(USBEnumerateFunction function) {
 	libusb_device *device;
 	int i = 0;
 	struct libusb_device_descriptor descriptor;
+	uint8_t bus_number;
+	uint8_t device_address;
 
 	// get all devices
 	rc = libusb_get_device_list(_context, &devices);
@@ -59,17 +61,27 @@ static int usb_enumerate(USBEnumerateFunction function) {
 
 	// check for Bricks
 	for (device = devices[0]; device != NULL; device = devices[i++]) {
+		bus_number = libusb_get_bus_number(device);
+		device_address = libusb_get_device_address(device);
+
 		rc = libusb_get_device_descriptor(device, &descriptor);
 
 		if (rc < 0) {
-			log_info("Could not get USB device descriptor, ignoring this device: %s (%d)",
-			         get_libusb_error_name(rc), rc);
+			log_info("Could not get descriptor for USB device (bus: %u, device: %u), ignoring it: %s (%d)",
+			         bus_number, device_address, get_libusb_error_name(rc), rc);
 
 			continue;
 		}
 
 		if (descriptor.idVendor != USB_VENDOR_ID ||
 		    descriptor.idProduct != USB_PRODUCT_ID) {
+			continue;
+		}
+
+		if (descriptor.bcdDevice < USB_DEVICE_RELEASE) {
+			log_info("USB device (bus: %u, device: %u) has protocol 1.0 firmware, ignoring it",
+			         bus_number, device_address);
+
 			continue;
 		}
 
