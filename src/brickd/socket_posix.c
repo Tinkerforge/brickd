@@ -19,7 +19,9 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
+#include <errno.h>
 #include <fcntl.h>
+#include <netinet/tcp.h>
 #include <sys/socket.h>
 #include <unistd.h>
 
@@ -27,9 +29,27 @@
 
 // sets errno on error
 int socket_create(EventHandle *handle, int domain, int type, int protocol) {
+	int flag = 1;
+	int saved_errno;
+
 	*handle = socket(domain, type, protocol);
 
-	return *handle < 0 ? -1 : 0;
+	if (*handle < 0) {
+		return -1;
+	}
+
+	if (setsockopt(*handle, IPPROTO_TCP, TCP_NODELAY, &flag,
+	               sizeof(flag)) < 0) {
+		saved_errno = errno;
+
+		close(*handle);
+
+		errno = saved_errno;
+
+		return -1;
+	}
+
+	return 0;
 }
 
 void socket_destroy(EventHandle handle) {

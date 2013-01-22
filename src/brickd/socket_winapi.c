@@ -28,10 +28,21 @@
 
 // sets errno on error
 int socket_create(EventHandle *handle, int domain, int type, int protocol) {
+	BOOL flag = 1;
+
 	*handle = socket(domain, type, protocol);
 
 	if (*handle == INVALID_SOCKET) {
 		errno = ERRNO_WINSOCK2_OFFSET + WSAGetLastError();
+
+		return -1;
+	}
+
+	if (setsockopt(*handle, IPPROTO_TCP, TCP_NODELAY, (const char *)&flag,
+	               sizeof(flag)) == SOCKET_ERROR) {
+		errno = ERRNO_WINSOCK2_OFFSET + WSAGetLastError();
+
+		closesocket(*handle);
 
 		return -1;
 	}
