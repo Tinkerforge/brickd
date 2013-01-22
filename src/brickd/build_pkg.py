@@ -62,6 +62,12 @@ def build_macosx_pkg():
 
     os.system('install_name_tool -change {0} @executable_path/{1} {2}'.format(libusb_path, libusb_name, os.path.join(macos_dir, 'brickd')))
 
+    rc = os.system('./_build_dmg.sh')
+
+    if rc != 0:
+        print "============================================="
+        print "   Run ./_build_dmg.sh to create .dmg file"
+        print "============================================="
 
 def build_windows_pkg():
     dist_dir = os.path.join(os.getcwd(), 'dist')
