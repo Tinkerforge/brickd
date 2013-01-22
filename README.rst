@@ -3,36 +3,64 @@ Brick Daemon
 
 This repository contains the source code of the Brick Daemon.
 
-Usage
------
-
-You should be able to start brickd from source with the
-``python brickd_linux.py``, ``python brickd_windows.py`` or
-``python brickd_macosx.py`` scripts in the ``src/brickd/`` directory.
+Compiling the Source
+--------------------
 
 The following libraries are required:
 
-* libusb-1.0
-* python-twisted
-* python-gudev (Linux only)
-* pywin32 (Windows only)
+* libusb-1.0-0-dev
+* libudev-dev (Linux only)
 
 On Debian based Linux distributions try::
 
- sudo apt-get install python-twisted python-gudev libusb-1.0-0
+ sudo apt-get install libusb-1.0-0-dev libudev-dev
+
+For Windows and Mac OS X a suitable pre-compiled libusb binary is part of this
+repository.
+
+Linux
+^^^^^
+
+A Makefile is provided to compile the source code using GCC::
+
+ cd src/brickd
+ make
+
+The ``brickd`` binary is created in ``src/brickd``.
+
+Windows
+^^^^^^^
+
+A batch file ``build_exe.bat`` is provided to compile the source code using
+the Visual Studio (MSVC) or Windows Driver Kit (WDK) compiler. Open a MSVC or
+WDK command prompt::
+
+ cd src\brickd
+ build_exe.bat
+
+The ``brickd`` binary is created in ``src\brickd\dist``.
+
+Mac OS X
+^^^^^^^^
+
+A Makefile is provided to compile the source code using GCC::
+
+ cd src/brickd
+ make
+
+The ``brickd`` binary is created in ``src/brickd``.
 
 Building Packages
 -----------------
 
 The Python script ``src/brickd/build_pkg.py`` can build a Debian package for
-Linux, a ``setup.exe`` for Windows and a Disk Image for Mac OS X. Try::
+Linux, a NSIS based ``setup.exe`` for Windows and a Disk Image for Mac OS X.
+Run::
 
- python build_pkg.py linux
+ python build_pkg.py
 
-or::
+On Linux this has to be executed as ``root`` and on Windows this has to be
+executed from a MSVC or WDK command prompt because it invokes the platform
+specific commands to compile the source code.
 
- python build_pkg.py windows
-
-or::
-
- python build_pkg.py macosx
+The installer/package is created in ``src/brickd``.
