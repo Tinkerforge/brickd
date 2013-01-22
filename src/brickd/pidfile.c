@@ -42,14 +42,14 @@ int pidfile_acquire(const char *name, pid_t pid) {
 		fd = open(name, O_WRONLY | O_CREAT, 0644);
 
 		if (fd < 0) {
-			fprintf(stderr, "Could not open PID file '%s': %s %d\n",
+			fprintf(stderr, "Could not open PID file '%s': %s (%d)\n",
 			        name, get_errno_name(errno), errno);
 
 			return -1;
 		}
 
 		if (fstat(fd, &stat1) < 0) {
-			fprintf(stderr, "Could not get status of PID file '%s': %s %d\n",
+			fprintf(stderr, "Could not get status of PID file '%s': %s (%d)\n",
 			        name, get_errno_name(errno), errno);
 
 			close(fd);
@@ -64,7 +64,7 @@ int pidfile_acquire(const char *name, pid_t pid) {
 
 		if (fcntl(fd, F_SETLK, &flock) < 0) {
 			if (errno != EAGAIN) {
-				fprintf(stderr, "Could not lock PID file '%s': %s %d\n",
+				fprintf(stderr, "Could not lock PID file '%s': %s (%d)\n",
 				        name, get_errno_name(errno), errno);
 			}
 
@@ -91,7 +91,7 @@ int pidfile_acquire(const char *name, pid_t pid) {
 	snprintf(buffer, sizeof(buffer), "%lld", (long long)pid);
 
 	if (write(fd, buffer, strlen(buffer)) < 0) {
-		fprintf(stderr, "Could not write to PID file '%s': %s %d\n",
+		fprintf(stderr, "Could not write to PID file '%s': %s (%d)\n",
 		        name, get_errno_name(errno), errno);
 
 		close(fd);
