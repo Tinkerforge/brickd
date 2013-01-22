@@ -98,6 +98,9 @@ def build_windows_pkg():
 
     os.system('"C:\\Program Files\\NSIS\\makensis.exe" dist\\nsis\\brickd_installer.nsi')
 
+    dist_nsis_dir = os.path.join(dist_dir, 'nsis')
+    shutil.move(os.path.join(dist_nsis_dir, 'brickd_windows_{0}.exe'.format(version.replace('.', '_'))), os.getcwd())
+
 
 def build_linux_pkg():
     if os.geteuid() != 0:
