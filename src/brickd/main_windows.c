@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2012 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2012-2013 Matthias Bolte <matthias@tinkerforge.com>
  *
  * main_windows.c: Brick Daemon starting point for Windows
  *
@@ -209,7 +209,7 @@ static void WINAPI service_main(DWORD argc, LPTSTR *argv) {
 
 	// initialize Winsock2
 	if (WSAStartup(MAKEWORD(2, 2), &wsa_data) != 0) {
-		rc = ERRNO_WINSOCK2_OFFSET + WSAGetLastError();
+		rc = ERRNO_WINAPI_OFFSET + WSAGetLastError();
 
 		log_error("Could not initialize Windows Sockets 2.2: %s (%d)",
 		          get_errno_name(rc), rc);

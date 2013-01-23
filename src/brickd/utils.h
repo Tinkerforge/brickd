@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2012 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2012-2013 Matthias Bolte <matthias@tinkerforge.com>
  *
  * utils.h: Utility functions
  *
@@ -25,7 +25,6 @@
 #include <stdint.h>
 
 #define ERRNO_WINAPI_OFFSET 71000000
-#define ERRNO_WINSOCK2_OFFSET 72000000
 
 int errno_interrupted(void);
 

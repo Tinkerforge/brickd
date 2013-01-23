@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2012 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2012-2013 Matthias Bolte <matthias@tinkerforge.com>
  *
  * pipe_winapi.h: WinAPI based pipe implementation
  *
@@ -93,7 +93,7 @@ error:
 	closesocket(handles[0]);
 	closesocket(handles[1]);
 
-	errno = ERRNO_WINSOCK2_OFFSET + rc;
+	errno = ERRNO_WINAPI_OFFSET + rc;
 
 	return -1;
 }
@@ -109,7 +109,7 @@ int pipe_read(EventHandle handle, void *buffer, int length) {
 	length = recv(handle, (char *)buffer, length, 0);
 
 	if (length == SOCKET_ERROR) {
-		errno = ERRNO_WINSOCK2_OFFSET + WSAGetLastError();
+		errno = ERRNO_WINAPI_OFFSET + WSAGetLastError();
 	}
 
 	return length;
@@ -121,7 +121,7 @@ int pipe_write(EventHandle handle, void *buffer, int length) {
 	length = send(handle, (const char *)buffer, length, 0);
 
 	if (length == SOCKET_ERROR) {
-		errno = ERRNO_WINSOCK2_OFFSET + WSAGetLastError();
+		errno = ERRNO_WINAPI_OFFSET + WSAGetLastError();
 	}
 
 	return length;

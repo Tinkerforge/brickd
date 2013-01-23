@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2012 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2012-2013 Matthias Bolte <matthias@tinkerforge.com>
  *
  * socket_winapi.h: WinAPI based socket implementation
  *
@@ -33,14 +33,14 @@ int socket_create(EventHandle *handle, int domain, int type, int protocol) {
 	*handle = socket(domain, type, protocol);
 
 	if (*handle == INVALID_SOCKET) {
-		errno = ERRNO_WINSOCK2_OFFSET + WSAGetLastError();
+		errno = ERRNO_WINAPI_OFFSET + WSAGetLastError();
 
 		return -1;
 	}
 
 	if (setsockopt(*handle, IPPROTO_TCP, TCP_NODELAY, (const char *)&flag,
 	               sizeof(flag)) == SOCKET_ERROR) {
-		errno = ERRNO_WINSOCK2_OFFSET + WSAGetLastError();
+		errno = ERRNO_WINAPI_OFFSET + WSAGetLastError();
 
 		closesocket(*handle);
 
@@ -62,7 +62,7 @@ int socket_bind(EventHandle handle, const struct sockaddr *address,
 
 	if (rc == SOCKET_ERROR) {
 		rc = -1;
-		errno = ERRNO_WINSOCK2_OFFSET + WSAGetLastError();
+		errno = ERRNO_WINAPI_OFFSET + WSAGetLastError();
 	}
 
 	return rc;
@@ -74,7 +74,7 @@ int socket_listen(EventHandle handle, int backlog) {
 
 	if (rc == SOCKET_ERROR) {
 		rc = -1;
-		errno = ERRNO_WINSOCK2_OFFSET + WSAGetLastError();
+		errno = ERRNO_WINAPI_OFFSET + WSAGetLastError();
 	}
 
 	return rc;
@@ -86,7 +86,7 @@ int socket_accept(EventHandle handle, EventHandle *accepted_handle,
 	*accepted_handle = accept(handle, address, length);
 
 	if (*accepted_handle == INVALID_SOCKET) {
-		errno = ERRNO_WINSOCK2_OFFSET + WSAGetLastError();
+		errno = ERRNO_WINAPI_OFFSET + WSAGetLastError();
 
 		return -1;
 	}
@@ -100,7 +100,7 @@ int socket_receive(EventHandle handle, void *buffer, int length) {
 
 	if (length == SOCKET_ERROR) {
 		length = -1;
-		errno = ERRNO_WINSOCK2_OFFSET + WSAGetLastError();
+		errno = ERRNO_WINAPI_OFFSET + WSAGetLastError();
 	}
 
 	return length;
@@ -112,7 +112,7 @@ int socket_send(EventHandle handle, void *buffer, int length) {
 
 	if (length == SOCKET_ERROR) {
 		length = -1;
-		errno = ERRNO_WINSOCK2_OFFSET + WSAGetLastError();
+		errno = ERRNO_WINAPI_OFFSET + WSAGetLastError();
 	}
 
 	return length;
@@ -125,7 +125,7 @@ int socket_set_non_blocking(EventHandle handle, int non_blocking) {
 
 	if (rc == SOCKET_ERROR) {
 		rc = -1;
-		errno = ERRNO_WINSOCK2_OFFSET + WSAGetLastError();
+		errno = ERRNO_WINAPI_OFFSET + WSAGetLastError();
 	}
 
 	return rc;
@@ -139,7 +139,7 @@ int socket_set_address_reuse(EventHandle handle, int address_reuse) {
 
 	if (rc == SOCKET_ERROR) {
 		rc = -1;
-		errno = ERRNO_WINSOCK2_OFFSET + WSAGetLastError();
+		errno = ERRNO_WINAPI_OFFSET + WSAGetLastError();
 	}
 
 	return rc;

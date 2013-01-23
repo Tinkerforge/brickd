@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2012 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2012-2013 Matthias Bolte <matthias@tinkerforge.com>
  *
  * event_winapi.c: Select based event loop
  *
@@ -541,13 +541,11 @@ int event_run_platform(Array *event_sources, int *running) {
 		}
 
 		if (ready < 0) {
-			rc = WSAGetLastError();
+			rc = ERRNO_WINAPI_OFFSET + WSAGetLastError();
 
-			if (rc == WSAEINTR) {
+			if (rc == ERRNO_WINAPI_OFFSET + WSAEINTR) {
 				continue;
 			}
-
-			rc += ERRNO_WINSOCK2_OFFSET;
 
 			log_error("Could not select on %s event sources: %s (%d)",
 			          event_get_source_type_name(EVENT_SOURCE_TYPE_GENERIC, 0),
