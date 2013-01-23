@@ -21,6 +21,9 @@
 
 #include <errno.h>
 #include <libusb.h>
+#ifndef _WIN32
+	#include <netdb.h>
+#endif
 #include <stdlib.h>
 #include <string.h>
 
@@ -41,6 +44,11 @@ int errno_interrupted(void) {
 const char *get_errno_name(int error_code) {
 	#define ERRNO_NAME(code) case code: return #code
 	#define WINAPI_ERROR_NAME(code) case ERRNO_WINAPI_OFFSET + code: return #code
+#if !defined _WIN32 && EAI_AGAIN < 0
+	#define ADDRINFO_ERROR_NAME(code) case ERRNO_ADDRINFO_OFFSET - code: return #code
+#else
+	#define ADDRINFO_ERROR_NAME(code) case ERRNO_ADDRINFO_OFFSET + code: return #code
+#endif
 
 	switch (error_code) {
 	ERRNO_NAME(EPERM);
@@ -204,6 +212,7 @@ const char *get_errno_name(int error_code) {
 	WINAPI_ERROR_NAME(ERROR_SERVICE_DOES_NOT_EXIST);
 	WINAPI_ERROR_NAME(ERROR_SERVICE_EXISTS);
 	WINAPI_ERROR_NAME(ERROR_SERVICE_MARKED_FOR_DELETE);
+	WINAPI_ERROR_NAME(ERROR_INSUFFICIENT_BUFFER);
 
 	WINAPI_ERROR_NAME(WSAEINTR);
 	WINAPI_ERROR_NAME(WSAEBADF);
@@ -248,6 +257,22 @@ const char *get_errno_name(int error_code) {
 	WINAPI_ERROR_NAME(WSAEDQUOT);
 	WINAPI_ERROR_NAME(WSAESTALE);
 	WINAPI_ERROR_NAME(WSAEREMOTE);
+
+	WINAPI_ERROR_NAME(WSATRY_AGAIN);
+	WINAPI_ERROR_NAME(WSANO_RECOVERY);
+	WINAPI_ERROR_NAME(WSA_NOT_ENOUGH_MEMORY);
+	WINAPI_ERROR_NAME(WSAHOST_NOT_FOUND);
+#endif
+
+#ifndef _WIN32
+	ADDRINFO_ERROR_NAME(EAI_AGAIN);
+	ADDRINFO_ERROR_NAME(EAI_BADFLAGS);
+	ADDRINFO_ERROR_NAME(EAI_FAIL);
+	ADDRINFO_ERROR_NAME(EAI_FAMILY);
+	ADDRINFO_ERROR_NAME(EAI_MEMORY);
+	ADDRINFO_ERROR_NAME(EAI_NONAME);
+	ADDRINFO_ERROR_NAME(EAI_OVERFLOW);
+	ADDRINFO_ERROR_NAME(EAI_SYSTEM);
 #endif
 
 	// FIXME

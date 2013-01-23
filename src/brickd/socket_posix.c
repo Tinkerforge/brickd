@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2012 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2012-2013 Matthias Bolte <matthias@tinkerforge.com>
  *
  * socket_posix.c: POSIX based socket implementation
  *
@@ -21,11 +21,15 @@
 
 #include <errno.h>
 #include <fcntl.h>
+#include <netdb.h>
 #include <netinet/tcp.h>
+#include <string.h>
 #include <sys/socket.h>
 #include <unistd.h>
 
 #include "socket.h"
+
+#include "utils.h"
 
 // sets errno on error
 int socket_create(EventHandle *handle, int domain, int type, int protocol) {
@@ -107,4 +111,34 @@ int socket_set_non_blocking(EventHandle handle, int non_blocking) {
 int socket_set_address_reuse(EventHandle handle, int address_reuse) {
 	return setsockopt(handle, SOL_SOCKET, SO_REUSEADDR,
 	                  &address_reuse, sizeof(int));
+}
+
+// sets errno on error
+char *resolve_address(struct sockaddr_in *address, socklen_t length) {
+	int rc;
+	char buffer[NI_MAXHOST];
+	char *name;
+
+	rc = getnameinfo((struct sockaddr *)address, length, buffer, NI_MAXHOST,
+	                 NULL, 0, 0);
+
+	if (rc != 0) {
+#if EAI_AGAIN < 0
+		errno = ERRNO_ADDRINFO_OFFSET - rc;
+#else
+		errno = ERRNO_ADDRINFO_OFFSET + rc;
+#endif
+
+		return NULL;
+	}
+
+	name = strdup(buffer);
+
+	if (name == NULL) {
+		errno = ENOMEM;
+
+		return NULL;
+	}
+
+	return name;
 }

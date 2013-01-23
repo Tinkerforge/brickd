@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2012 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2012-2013 Matthias Bolte <matthias@tinkerforge.com>
  *
  * client.c: Client specific functions
  *
@@ -20,6 +20,7 @@
  */
 
 #include <errno.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "client.h"
@@ -45,11 +46,11 @@ static void client_handle_receive(void *opaque) {
 
 	if (length < 0) {
 		if (errno_interrupted()) {
-			log_debug("Receiving from socket (handle: %d) got interrupted",
-			          client->socket);
+			log_debug("Receiving from client (socket: %d, peer: %s), got interrupted",
+			          client->socket, client->peer);
 		} else {
-			log_error("Could not receive from socket (handle: %d), disconnecting it: %s (%d)",
-			          client->socket, get_errno_name(errno), errno);
+			log_error("Could not receive from client (socket: %d, peer: %s), disconnecting it: %s (%d)",
+			          client->socket, client->peer, get_errno_name(errno), errno);
 
 			network_client_disconnected(client);
 		}
@@ -58,7 +59,8 @@ static void client_handle_receive(void *opaque) {
 	}
 
 	if (length == 0) {
-		log_info("Socket (handle: %d) disconnected by client", client->socket);
+		log_info("Client (socket: %d, peer: %s) disconnected by peer",
+		         client->socket, client->peer);
 
 		network_client_disconnected(client);
 
@@ -81,13 +83,13 @@ static void client_handle_receive(void *opaque) {
 		}
 
 		if (!packet_header_is_valid_request(&client->packet.header, &message)) {
-			log_warn("Got invalid request (U: %u, L: %u, F: %u, S: %u, R: %u) from socket (handle: %d): %s",
+			log_warn("Got invalid request (U: %u, L: %u, F: %u, S: %u, R: %u) from client (socket: %d, peer: %s): %s",
 			         client->packet.header.uid,
 			         client->packet.header.length,
 			         client->packet.header.function_id,
 			         client->packet.header.sequence_number,
 			         client->packet.header.response_expected,
-			         client->socket,
+			         client->socket, client->peer,
 			         message);
 
 			if (length < (int)sizeof(PacketHeader)) {
@@ -95,19 +97,19 @@ static void client_handle_receive(void *opaque) {
 				length = sizeof(PacketHeader);
 			}
 		} else {
-			log_debug("Got request (U: %u, L: %u, F: %u, S: %u, R: %u) from socket (handle: %d)",
+			log_debug("Got request (U: %u, L: %u, F: %u, S: %u, R: %u) from client (socket: %d, peer: %s)",
 			          client->packet.header.uid,
 			          client->packet.header.length,
 			          client->packet.header.function_id,
 			          client->packet.header.sequence_number,
 			          client->packet.header.response_expected,
-			          client->socket);
+			          client->socket, client->peer);
 
 			if (client->packet.header.response_expected) {
 				if (client->pending_requests.count >= MAX_PENDING_REQUESTS) {
-					log_warn("Dropping %d items from pending request array of client (socket: %d)",
+					log_warn("Dropping %d items from pending request array of client (socket: %d, peer: %s)",
 					         client->pending_requests.count - MAX_PENDING_REQUESTS + 1,
-					         client->socket);
+					         client->socket, client->peer);
 
 					while (client->pending_requests.count >= MAX_PENDING_REQUESTS) {
 						array_remove(&client->pending_requests, 0, NULL);
@@ -125,12 +127,12 @@ static void client_handle_receive(void *opaque) {
 
 				memcpy(pending_request, &client->packet.header, sizeof(PacketHeader));
 
-				log_debug("Added pending request (U: %u, L: %u, F: %u, S: %u) for client (socket: %d)",
+				log_debug("Added pending request (U: %u, L: %u, F: %u, S: %u) for client (socket: %d, peer: %s)",
 				          pending_request->uid,
 				          pending_request->length,
 				          pending_request->function_id,
 				          pending_request->sequence_number,
-				          client->socket);
+				          client->socket, client->peer);
 			}
 
 			usb_dispatch_packet(&client->packet);
@@ -143,21 +145,38 @@ static void client_handle_receive(void *opaque) {
 	}
 }
 
-int client_create(Client *client, EventHandle socket) {
+int client_create(Client *client, EventHandle socket,
+                  struct sockaddr_in *address, socklen_t length) {
 	log_debug("Creating client from socket (handle: %d)", socket);
 
 	client->socket = socket;
 	client->packet_used = 0;
 
-	if (array_create(&client->pending_requests, 32, sizeof(PacketHeader), 1) < 0) {
+	// create pending request array
+	if (array_create(&client->pending_requests, 32,
+	                 sizeof(PacketHeader), 1) < 0) {
 		log_error("Could not create pending request array: %s (%d)",
 		          get_errno_name(errno), errno);
 
 		return -1;
 	}
 
+	// get peer name
+	client->peer = resolve_address(address, length);
+
+	if (client->peer == NULL) {
+		array_destroy(&client->pending_requests, NULL);
+
+		log_error("Could not get peer name of client (socket: %d): %s (%d)",
+		          socket, get_errno_name(errno), errno);
+
+		return -1;
+	}
+
+	// add socket as event source
 	if (event_add_source(client->socket, EVENT_SOURCE_TYPE_GENERIC, EVENT_READ,
 	                     client_handle_receive, client) < 0) {
+		free(client->peer);
 		array_destroy(&client->pending_requests, NULL);
 
 		return -1;
@@ -169,6 +188,7 @@ int client_create(Client *client, EventHandle socket) {
 void client_destroy(Client *client) {
 	event_remove_source(client->socket, EVENT_SOURCE_TYPE_GENERIC);
 	socket_destroy(client->socket);
+	free(client->peer);
 	array_destroy(&client->pending_requests, NULL);
 }
 
@@ -194,17 +214,18 @@ int client_dispatch_packet(Client *client, Packet *packet, int force) {
 
 	if (force || found >= 0) {
 		if (socket_send(client->socket, packet, packet->header.length) < 0) {
-			log_error("Could not send response to client (socket: %d): %s (%d)",
-			          client->socket, get_errno_name(errno), errno);
+			log_error("Could not send response to client (socket: %d, peer: %s): %s (%d)",
+			          client->socket, client->peer, get_errno_name(errno), errno);
 
 			goto cleanup;
 		}
 
 		if (force) {
-			log_debug("Forced to sent response to client (socket: %d)",
-			          client->socket);
+			log_debug("Forced to sent response to client (socket: %d, peer: %s)",
+			          client->socket, client->peer);
 		} else {
-			log_debug("Sent response to client (socket: %d)", client->socket);
+			log_debug("Sent response to client (socket: %d, peer: %s)",
+			          client->socket, client->peer);
 		}
 	}
 

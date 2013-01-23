@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2012 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2012-2013 Matthias Bolte <matthias@tinkerforge.com>
  *
  * network.c: Network specific functions
  *
@@ -44,12 +44,15 @@ static EventHandle _server_socket = INVALID_EVENT_HANDLE;
 
 static void network_handle_accept(void *opaque) {
 	EventHandle client_socket;
+	struct sockaddr_in address;
+	socklen_t length = sizeof(struct sockaddr_in);
 	Client *client;
 
 	(void)opaque;
 
 	// accept new client socket
-	if (socket_accept(_server_socket, &client_socket, NULL, NULL) < 0) {
+	if (socket_accept(_server_socket, &client_socket,
+	                  (struct sockaddr *)&address, &length) < 0) {
 		if (!errno_interrupted()) {
 			log_error("Could not accept new socket: %s (%d)",
 			          get_errno_name(errno), errno);
@@ -80,14 +83,15 @@ static void network_handle_accept(void *opaque) {
 		return;
 	}
 
-	if (client_create(client, client_socket) < 0) {
+	if (client_create(client, client_socket, &address, length) < 0) {
 		array_remove(&_clients, _clients.count - 1, NULL);
 		socket_destroy(client_socket);
 
 		return;
 	}
 
-	log_info("Added new client (socket: %d)", client->socket);
+	log_info("Added new client (socket: %d, peer: %s)",
+	         client->socket, client->peer);
 }
 
 int network_init(void) {
@@ -203,7 +207,8 @@ void network_client_disconnected(Client *client) {
 	int i = array_find(&_clients, client);
 
 	if (i < 0) {
-		log_error("Client (socket: %d) not found in client array", client->socket);
+		log_error("Client (socket: %d, peer: %s) not found in client array",
+		          client->socket, client->peer);
 	} else {
 		array_remove(&_clients, i, (FreeFunction)client_destroy);
 	}

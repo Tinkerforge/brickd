@@ -25,6 +25,7 @@
 #include <stdint.h>
 
 #define ERRNO_WINAPI_OFFSET 71000000
+#define ERRNO_ADDRINFO_OFFSET 72000000
 
 int errno_interrupted(void);
 

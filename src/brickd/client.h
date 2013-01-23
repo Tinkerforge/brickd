@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2012 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2012-2013 Matthias Bolte <matthias@tinkerforge.com>
  *
  * client.h: Client specific functions
  *
@@ -22,18 +22,26 @@
 #ifndef BRICKD_CLIENT_H
 #define BRICKD_CLIENT_H
 
+#ifdef _WIN32
+	#include <ws2tcpip.h>
+#else
+	#include <netdb.h>
+#endif
+
 #include "event.h"
 #include "packet.h"
 #include "utils.h"
 
 typedef struct {
 	EventHandle socket;
+	char *peer;
 	Packet packet;
 	int packet_used;
 	Array pending_requests;
 } Client;
 
-int client_create(Client *client, EventHandle socket);
+int client_create(Client *client, EventHandle socket,
+                  struct sockaddr_in *address, socklen_t length);
 void client_destroy(Client *client);
 
 int client_dispatch_packet(Client *client, Packet *packet, int force);

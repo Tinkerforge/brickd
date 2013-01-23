@@ -144,3 +144,26 @@ int socket_set_address_reuse(EventHandle handle, int address_reuse) {
 
 	return rc;
 }
+
+// sets errno on error
+char *resolve_address(struct sockaddr_in *address, socklen_t length) {
+	char buffer[NI_MAXHOST];
+	char *name;
+
+	if (getnameinfo((struct sockaddr *)address, length, buffer, NI_MAXHOST,
+	                NULL, 0, 0) != 0) {
+		errno = ERRNO_WINAPI_OFFSET + WSAGetLastError();
+
+		return NULL;
+	}
+
+	name = strdup(buffer);
+
+	if (name == NULL) {
+		errno = ENOMEM;
+
+		return NULL;
+	}
+
+	return name;
+}
