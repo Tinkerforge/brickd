@@ -85,7 +85,13 @@ static void config_lower_string(char *string) {
 
 static int config_parse_int(char *string, int *value) {
 	char *end = NULL;
-	long tmp = strtol(string, &end, 10);
+	long tmp;
+
+	if (*string == '\0') {
+		return -1;
+	}
+
+	tmp = strtol(string, &end, 10);
 
 	if (end == NULL || *end != '\0') {
 		return -1;
