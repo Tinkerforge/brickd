@@ -31,6 +31,7 @@
 
 static int _check = 0;
 static int _error = 0;
+static const char *_default_listen_address = "0.0.0.0";
 static char *_listen_address = NULL;
 static uint16_t _listen_port = 4223;
 static LogLevel _log_levels[5] = { LOG_LEVEL_INFO,
@@ -163,8 +164,19 @@ static void config_parse(char *string) {
 			config_error("Empty value is not allowed for listen.address option");
 		}
 
-		free(_listen_address);
+		if (_listen_address != _default_listen_address) {
+			free(_listen_address);
+		}
+
 		_listen_address = strdup(value);
+
+		if (_listen_address == NULL) {
+			_listen_address = _default_listen_address;
+
+			config_error("Could not duplicate listen.address value '%s'", value);
+
+			return;
+		}
 	} else if (strcmp(option, "listen.port") == 0) {
 		if (config_parse_int(value, &port) < 0) {
 			config_error("Value '%s' for listen.port option is not an integer", value);
@@ -237,7 +249,7 @@ void config_init(const char *name) {
 	int length = 0;
 	int skip = 0;
 
-	_listen_address = strdup("0.0.0.0");
+	_listen_address = (char *)_default_listen_address;
 
 	file = fopen(name, "rb");
 
@@ -268,7 +280,9 @@ void config_init(const char *name) {
 }
 
 void config_exit(void) {
-	free(_listen_address);
+	if (_listen_address != _default_listen_address) {
+		free(_listen_address);
+	}
 }
 
 const char *config_get_listen_address(void) {
