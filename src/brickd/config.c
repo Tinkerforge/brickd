@@ -39,7 +39,9 @@ static LogLevel _log_levels[5] = { LOG_LEVEL_INFO,
                                    LOG_LEVEL_INFO,
                                    LOG_LEVEL_INFO };
 
-static void config_error(const char *format, ...)/* ATTRIBUTE_FMT_PRINTF(1, 2)*/ {
+static void config_error(const char *format, ...) ATTRIBUTE_FMT_PRINTF(1, 2);
+
+static void config_error(const char *format, ...) {
 	va_list arguments;
 
 	if (!_check) {
@@ -158,7 +160,7 @@ static void config_parse(char *string) {
 	// check option
 	if (strcmp(option, "listen.address") == 0) {
 		if (strlen(value) < 1) {
-			config_error("Empty value is not allowed for listen.address option", value);
+			config_error("Empty value is not allowed for listen.address option");
 		}
 
 		free(_listen_address);
