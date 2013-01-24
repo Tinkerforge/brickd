@@ -26,10 +26,12 @@
 
 #include "log.h"
 
-int config_check(const char *name);
+int config_check(const char *filename);
 
-void config_init(const char *name);
+void config_init(const char *filename);
 void config_exit(void);
+
+int config_has_error(void);
 
 const char *config_get_listen_address(void);
 uint16_t config_get_listen_port(void);

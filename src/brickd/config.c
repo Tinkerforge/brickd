@@ -29,8 +29,9 @@
 
 #include "utils.h"
 
-static int _check = 0;
-static int _error = 0;
+static int _check_only = 0;
+static int _has_error = 0;
+static int _using_default_values = 1;
 static const char *_default_listen_address = "0.0.0.0";
 static char *_listen_address = NULL;
 static uint16_t _listen_port = 4223;
@@ -45,11 +46,11 @@ static void config_error(const char *format, ...) ATTRIBUTE_FMT_PRINTF(1, 2);
 static void config_error(const char *format, ...) {
 	va_list arguments;
 
-	if (!_check) {
+	_has_error = 1;
+
+	if (!_check_only) {
 		return;
 	}
-
-	_error = 1;
 
 	va_start(arguments, format);
 
@@ -171,7 +172,7 @@ static void config_parse(char *string) {
 		_listen_address = strdup(value);
 
 		if (_listen_address == NULL) {
-			_listen_address = _default_listen_address;
+			_listen_address = (char *)_default_listen_address;
 
 			config_error("Could not duplicate listen.address value '%s'", value);
 
@@ -222,27 +223,30 @@ static void config_parse(char *string) {
 			return;
 		}
 	} else {
-		config_error("Ignoring unknown option '%s'", option);
+		config_error("Unknown option '%s'", option);
 	}
 }
 
-int config_check(const char *name) {
-	_check = 1;
-	_error = 0;
+int config_check(const char *filename) {
+	_check_only = 1;
 
-	config_init(name);
+	config_init(filename);
 	config_exit();
 
-	if (_error) {
-		return -1;
-	} else {
-		printf("No errors in config found\n");
+	if (_has_error) {
+		fprintf(stderr, "Errors found in config file '%s'\n", filename);
 
-		return 0;
+		return -1;
 	}
+
+	if (!_using_default_values) {
+		printf("No errors found in config file '%s'\n", filename);
+	}
+
+	return 0;
 }
 
-void config_init(const char *name) {
+void config_init(const char *filename) {
 	FILE *file;
 	char c;
 	char line[128] = "";
@@ -251,11 +255,17 @@ void config_init(const char *name) {
 
 	_listen_address = (char *)_default_listen_address;
 
-	file = fopen(name, "rb");
+	file = fopen(filename, "rb");
 
 	if (file == NULL) {
+		if (_check_only) {
+			printf("Config file '%s' not found, using default values\n", filename);
+		}
+
 		return;
 	}
+
+	_using_default_values = 0;
 
 	while (!feof(file)) {
 		fread(&c, 1, 1, file);
@@ -283,6 +293,10 @@ void config_exit(void) {
 	if (_listen_address != _default_listen_address) {
 		free(_listen_address);
 	}
+}
+
+int config_has_error(void) {
+	return _has_error;
 }
 
 const char *config_get_listen_address(void) {

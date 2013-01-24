@@ -39,6 +39,7 @@
 static const GUID GUID_DEVINTERFACE_USB_DEVICE =
 { 0xA5DCBF10L, 0x6530, 0x11D2, { 0x90, 0x1F, 0x00, 0xC0, 0x4F, 0xB9, 0x51, 0xED } };
 
+static char _config_filename[1024];
 static char *_service_name = "Brick Daemon";
 static char *_service_description = "Brick Daemon is a bridge between USB devices (Bricks) and TCP/IP sockets. It can be used to read out and control Bricks.";
 static char *_event_log_key_name = "SYSTEM\\CurrentControlSet\\Services\\EventLog\\Application\\Brick Daemon";
@@ -122,7 +123,7 @@ static void WINAPI service_main(DWORD argc, LPTSTR *argv) {
 	DWORD i;
 	int log_to_file = 0;
 	int debug = 0;
-	char path[1024];
+	char filename[1024];
 	int rc;
 	FILE *logfile = NULL;
 	WSADATA wsa_data;
@@ -140,23 +141,23 @@ static void WINAPI service_main(DWORD argc, LPTSTR *argv) {
 	}
 
 	if (log_to_file) {
-		if (GetModuleFileName(NULL, path, sizeof(path)) == 0) {
+		if (GetModuleFileName(NULL, filename, sizeof(filename)) == 0) {
 			rc = ERRNO_WINAPI_OFFSET + GetLastError();
 
 			log_warn("Could not get module file name: %s (%d)",
 			         get_errno_name(rc), rc);
 		} else {
-			i = strlen(path);
+			i = strlen(filename);
 
 			if (i < 4) {
-				log_warn("Module file name '%s' is too short", path);
+				log_warn("Module file name '%s' is too short", filename);
 			} else {
-				strcpy(path + i - 3, "log");
+				strcpy(filename + i - 3, "log");
 
-				logfile = fopen(path, "a+");
+				logfile = fopen(filename, "a+");
 
 				if (logfile == NULL) {
-					log_warn("Could not open logfile '%s'", path);
+					log_warn("Could not open logfile '%s'", filename);
 				} else {
 					log_set_file(logfile);
 				}
@@ -179,6 +180,10 @@ static void WINAPI service_main(DWORD argc, LPTSTR *argv) {
 	}
 
 	log_info("Brick Daemon %s started", VERSION_STRING);
+
+	if (config_has_error()) {
+		log_warn("Errors found in config file '%s', run with --check-config option for details", _config_filename);
+	}
 
 	// initialize service status
 	_service_status.dwServiceType = SERVICE_WIN32_OWN_PROCESS;
@@ -327,7 +332,7 @@ static int service_run(void) {
 static int service_install(int log_to_file, int debug) {
 	SC_HANDLE service_control_manager;
 	int rc;
-	char path[1024];
+	char filename[1024];
 	HKEY key = NULL;
 	DWORD types = EVENTLOG_ERROR_TYPE | EVENTLOG_WARNING_TYPE;
 	SC_HANDLE service;
@@ -346,7 +351,7 @@ static int service_install(int log_to_file, int debug) {
 		argv = debug_argv;
 	}
 
-	if (GetModuleFileName(NULL, path, sizeof(path)) == 0) {
+	if (GetModuleFileName(NULL, filename, sizeof(filename)) == 0) {
 		rc = ERRNO_WINAPI_OFFSET + GetLastError();
 
 		fprintf(stderr, "Could not get module file name: %s (%d)\n",
@@ -357,8 +362,10 @@ static int service_install(int log_to_file, int debug) {
 
 	// register message catalog for event log
 	if (RegCreateKey(HKEY_LOCAL_MACHINE, _event_log_key_name, &key) == ERROR_SUCCESS) {
-		RegSetValueEx(key, "EventMessageFile", 0, REG_EXPAND_SZ, (PBYTE)path, strlen(path));
-		RegSetValueEx(key, "TypesSupported",  0, REG_DWORD, (LPBYTE)&types, sizeof(DWORD));
+		RegSetValueEx(key, "EventMessageFile", 0, REG_EXPAND_SZ,
+		              (PBYTE)filename, strlen(filename));
+		RegSetValueEx(key, "TypesSupported", 0, REG_DWORD,
+		              (LPBYTE)&types, sizeof(DWORD));
 		RegCloseKey(key);
 	}
 
@@ -377,7 +384,7 @@ static int service_install(int log_to_file, int debug) {
 	// install service
 	service = CreateService(service_control_manager, _service_name, _service_name,
 	                        SERVICE_ALL_ACCESS, SERVICE_WIN32_OWN_PROCESS,
-	                        SERVICE_AUTO_START, SERVICE_ERROR_NORMAL, path,
+	                        SERVICE_AUTO_START, SERVICE_ERROR_NORMAL, filename,
 	                        NULL, NULL, NULL, NULL, NULL);
 
 	if (service == NULL) {
@@ -603,7 +610,6 @@ int main(int argc, char **argv) {
 	int uninstall = 0;
 	int log_to_file = 0;
 	int debug = 0;
-	char path[1024];
 	int rc;
 
 	for (i = 1; i < argc; ++i) {
@@ -641,7 +647,7 @@ int main(int argc, char **argv) {
 		return EXIT_SUCCESS;
 	}
 
-	if (GetModuleFileName(NULL, path, sizeof(path)) == 0) {
+	if (GetModuleFileName(NULL, _config_filename, sizeof(_config_filename)) == 0) {
 		rc = ERRNO_WINAPI_OFFSET + GetLastError();
 
 		fprintf(stderr, "Could not get module file name: %s (%d)\n",
@@ -650,18 +656,18 @@ int main(int argc, char **argv) {
 		return EXIT_FAILURE;
 	}
 
-	i = strlen(path);
+	i = strlen(_config_filename);
 
 	if (i < 4) {
-		fprintf(stderr, "Module file name '%s' is too short", path);
+		fprintf(stderr, "Module file name '%s' is too short", _config_filename);
 
 		return EXIT_FAILURE;
 	}
 
-	strcpy(path + i - 3, "ini");
+	strcpy(_config_filename + i - 3, "ini");
 
 	if (check_config) {
-		return config_check(path) < 0 ? EXIT_FAILURE : EXIT_SUCCESS;
+		return config_check(_config_filename) < 0 ? EXIT_FAILURE : EXIT_SUCCESS;
 	}
 
 	if (install && uninstall) {
@@ -680,7 +686,7 @@ int main(int argc, char **argv) {
 			return EXIT_FAILURE;
 		}
 	} else {
-		config_init(path);
+		config_init(_config_filename);
 
 		log_init();
 

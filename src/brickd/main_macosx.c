@@ -216,6 +216,10 @@ int main(int argc, char **argv) {
 		log_info("Brick Daemon %s started", VERSION_STRING);
 	}
 
+	if (config_has_error()) {
+		log_warn("Errors found in config file '%s', run with --check-config option for details", CONFIG_FILE);
+	}
+
 	if (event_init() < 0) {
 		goto error_event;
 	}
