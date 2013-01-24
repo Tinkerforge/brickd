@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2012 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2012-2013 Matthias Bolte <matthias@tinkerforge.com>
  *
  * pidfile.h: PID file specific functions
  *
@@ -22,7 +22,7 @@
 #ifndef BRICKD_PIDFILE_H
 #define BRICKD_PIDFILE_H
 
-int pidfile_acquire(const char *name, pid_t pid);
-void pidfile_release(const char *name, int fd);
+int pidfile_acquire(const char *filename, pid_t pid);
+void pidfile_release(const char *filename, int fd);
 
 #endif // BRICKD_PIDFILE_H

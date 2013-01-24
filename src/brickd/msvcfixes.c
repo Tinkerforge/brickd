@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2012 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2012-2013 Matthias Bolte <matthias@tinkerforge.com>
  *
  * msvcfixes.c: Fixes for problems with the MSVC/WDK headers and libs
  *

@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2012 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2012-2013 Matthias Bolte <matthias@tinkerforge.com>
  *
  * pidfile.c: PID file specific functions
  *
@@ -31,7 +31,7 @@
 
 #include "utils.h"
 
-int pidfile_acquire(const char *name, pid_t pid) {
+int pidfile_acquire(const char *filename, pid_t pid) {
 	int fd = -1;
 	struct stat stat1;
 	struct stat stat2;
@@ -39,18 +39,18 @@ int pidfile_acquire(const char *name, pid_t pid) {
 	char buffer[64];
 
 	while (1) {
-		fd = open(name, O_WRONLY | O_CREAT, 0644);
+		fd = open(filename, O_WRONLY | O_CREAT, 0644);
 
 		if (fd < 0) {
 			fprintf(stderr, "Could not open PID file '%s': %s (%d)\n",
-			        name, get_errno_name(errno), errno);
+			        filename, get_errno_name(errno), errno);
 
 			return -1;
 		}
 
 		if (fstat(fd, &stat1) < 0) {
 			fprintf(stderr, "Could not get status of PID file '%s': %s (%d)\n",
-			        name, get_errno_name(errno), errno);
+			        filename, get_errno_name(errno), errno);
 
 			close(fd);
 
@@ -65,7 +65,7 @@ int pidfile_acquire(const char *name, pid_t pid) {
 		if (fcntl(fd, F_SETLK, &flock) < 0) {
 			if (errno != EAGAIN) {
 				fprintf(stderr, "Could not lock PID file '%s': %s (%d)\n",
-				        name, get_errno_name(errno), errno);
+				        filename, get_errno_name(errno), errno);
 			}
 
 			close(fd);
@@ -73,7 +73,7 @@ int pidfile_acquire(const char *name, pid_t pid) {
 			return errno == EAGAIN ? -2 : -1;
 		}
 
-		if (stat(name, &stat2) < 0) {
+		if (stat(filename, &stat2) < 0) {
 			close(fd);
 
 			continue;
@@ -92,7 +92,7 @@ int pidfile_acquire(const char *name, pid_t pid) {
 
 	if (write(fd, buffer, strlen(buffer)) < 0) {
 		fprintf(stderr, "Could not write to PID file '%s': %s (%d)\n",
-		        name, get_errno_name(errno), errno);
+		        filename, get_errno_name(errno), errno);
 
 		close(fd);
 
@@ -102,7 +102,7 @@ int pidfile_acquire(const char *name, pid_t pid) {
 	return fd;
 }
 
-void pidfile_release(const char *name, int fd) {
-	unlink(name);
+void pidfile_release(const char *filename, int fd) {
+	unlink(filename);
 	close(fd);
 }

@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2012 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2012-2013 Matthias Bolte <matthias@tinkerforge.com>
  *
  * usb.c: USB specific functions
  *

@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2012 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2012-2013 Matthias Bolte <matthias@tinkerforge.com>
  *
  * main_linux.c: Brick Daemon starting point for Linux
  *
@@ -39,9 +39,9 @@
 
 #define LOG_CATEGORY LOG_CATEGORY_OTHER
 
-#define CONFIG_FILE "/etc/brickd.conf"
-#define PID_FILE "/var/run/brickd.pid"
-#define LOG_FILE "/var/log/brickd.log"
+static char _config_filename[1024] = "/etc/brickd.conf";
+static char _pid_filename[1024] = "/var/run/brickd.pid";
+static char _log_filename[1024] = "/var/log/brickd.log";
 
 static void print_usage(const char *binary) {
 	printf("Usage: %s [--help|--version|--check-config|--daemon] [--debug]\n", binary);
@@ -78,7 +78,7 @@ static int parent(pid_t child, int status_read) {
 
 	if (status != 1) {
 		if (status == 2) {
-			fprintf(stderr, "Already running according to %s\n", PID_FILE);
+			fprintf(stderr, "Already running according to '%s'\n", _pid_filename);
 		} else {
 			fprintf(stderr, "Second child process exited with an error (status: %d)\n",
 			        status);
@@ -95,10 +95,10 @@ static int daemonize(void) {
 	int status_pipe[2];
 	pid_t pid;
 	int8_t status = 0;
-	FILE *logfile;
-	int pidfile = -1;
-	int stdin = -1;
-	int stdout = -1;
+	FILE *log_file;
+	int pid_fd = -1;
+	int stdin_fd = -1;
+	int stdout_fd = -1;
 
 	// create status pipe
 	if (pipe(status_pipe) < 0) {
@@ -151,10 +151,10 @@ static int daemonize(void) {
 	}
 
 	// second child, write pid
-	pidfile = pidfile_acquire(PID_FILE, getpid());
+	pid_fd = pidfile_acquire(_pid_filename, getpid());
 
-	if (pidfile < 0) {
-		if (pidfile < -1) {
+	if (pid_fd < 0) {
+		if (pid_fd < -1) {
 			status = 2;
 		}
 
@@ -162,51 +162,51 @@ static int daemonize(void) {
 	}
 
 	// open log file
-	logfile = fopen(LOG_FILE, "a+");
+	log_file = fopen(_log_filename, "a+");
 
-	if (logfile == NULL) {
-		fprintf(stderr, "Could not open logfile '%s': %s (%d)\n",
-		        LOG_FILE, get_errno_name(errno), errno);
+	if (log_file == NULL) {
+		fprintf(stderr, "Could not open log file '%s': %s (%d)\n",
+		        _log_filename, get_errno_name(errno), errno);
 
 		goto cleanup;
 	}
 
-	log_set_file(logfile);
+	log_set_file(log_file);
 
 	// redirect standard file descriptors
-	stdin = open("/dev/null", O_RDONLY);
+	stdin_fd = open("/dev/null", O_RDONLY);
 
-	if (stdin < 0) {
+	if (stdin_fd < 0) {
 		fprintf(stderr, "Could not open /dev/null to redirect stdin to: %s (%d)\n",
 		        get_errno_name(errno), errno);
 
 		goto cleanup;
 	}
 
-	stdout = open("/dev/null", O_WRONLY);
+	stdout_fd = open("/dev/null", O_WRONLY);
 
-	if (stdout < 0) {
+	if (stdout_fd < 0) {
 		fprintf(stderr, "Could not open /dev/null to redirect stdout/stderr to: %s (%d)\n",
 		        get_errno_name(errno), errno);
 
 		goto cleanup;
 	}
 
-	if (dup2(stdin, STDIN_FILENO) != STDIN_FILENO) {
+	if (dup2(stdin_fd, STDIN_FILENO) != STDIN_FILENO) {
 		fprintf(stderr, "Could not redirect stdin: %s (%d)\n",
 		        get_errno_name(errno), errno);
 
 		goto cleanup;
 	}
 
-	if (dup2(stdout, STDOUT_FILENO) != STDOUT_FILENO) {
+	if (dup2(stdout_fd, STDOUT_FILENO) != STDOUT_FILENO) {
 		fprintf(stderr, "Could not redirect stdout: %s (%d)\n",
 		        get_errno_name(errno), errno);
 
 		goto cleanup;
 	}
 
-	if (dup2(stdout, STDERR_FILENO) != STDERR_FILENO) {
+	if (dup2(stdout_fd, STDERR_FILENO) != STDERR_FILENO) {
 		fprintf(stderr, "Could not redirect stderr: %s (%d)\n",
 		        get_errno_name(errno), errno);
 
@@ -216,12 +216,12 @@ static int daemonize(void) {
 	status = 1;
 
 cleanup:
-	if (stdin > STDERR_FILENO) {
-		close(stdin);
+	if (stdin_fd > STDERR_FILENO) {
+		close(stdin_fd);
 	}
 
-	if (stdout > STDERR_FILENO) {
-		close(stdout);
+	if (stdout_fd > STDERR_FILENO) {
+		close(stdout_fd);
 	}
 
 	while (write(status_pipe[1], &status, 1) < 0 && errno == EINTR) {
@@ -229,7 +229,7 @@ cleanup:
 
 	close(status_pipe[1]);
 
-	return status == 1 ? pidfile : -1;
+	return status == 1 ? pid_fd : -1;
 }
 
 int main(int argc, char **argv) {
@@ -240,7 +240,7 @@ int main(int argc, char **argv) {
 	int check_config = 0;
 	int daemon = 0;
 	int debug = 0;
-	int pidfile = -1;
+	int pid_fd = -1;
 
 	for (i = 1; i < argc; ++i) {
 		if (strcmp(argv[i], "--help") == 0) {
@@ -274,22 +274,22 @@ int main(int argc, char **argv) {
 	}
 
 	if (check_config) {
-		return config_check(CONFIG_FILE) < 0 ? EXIT_FAILURE : EXIT_SUCCESS;
+		return config_check(_config_filename) < 0 ? EXIT_FAILURE : EXIT_SUCCESS;
 	}
 
-	config_init(CONFIG_FILE);
+	config_init(_config_filename);
 
 	log_init();
 
 	if (daemon) {
-		pidfile = daemonize();
+		pid_fd = daemonize();
 	} else {
-		pidfile = pidfile_acquire(PID_FILE, getpid());
+		pid_fd = pidfile_acquire(_pid_filename, getpid());
 	}
 
-	if (pidfile < 0) {
-		if (!daemon && pidfile < -1) {
-			fprintf(stderr, "Already running according to %s\n", PID_FILE);
+	if (pid_fd < 0) {
+		if (!daemon && pid_fd < -1) {
+			fprintf(stderr, "Already running according to '%s'\n", _pid_filename);
 		}
 
 		goto error_log;
@@ -316,7 +316,8 @@ int main(int argc, char **argv) {
 	}
 
 	if (config_has_error()) {
-		log_warn("Errors found in config file '%s', run with --check-config option for details", CONFIG_FILE);
+		log_warn("Errors found in config file '%s', run with --check-config option for details",
+		         _config_filename);
 	}
 
 	if (event_init() < 0) {
@@ -363,8 +364,8 @@ error_event:
 error_log:
 	log_exit();
 
-	if (pidfile >= 0) {
-		pidfile_release(PID_FILE, pidfile);
+	if (pid_fd >= 0) {
+		pidfile_release(_pid_filename, pid_fd);
 	}
 
 	config_exit();
