@@ -40,7 +40,7 @@ static void event_handle_signal(void *opaque) {
 
 	(void)opaque;
 
-	if (pipe_read(_signal_pipe[0], &signal_number, sizeof(int)) < 0) {
+	if (pipe_read(_signal_pipe[0], &signal_number, sizeof(signal_number)) < 0) {
 		log_error("Could not read from signal pipe: %s (%d)",
 		          get_errno_name(errno), errno);
 
@@ -61,7 +61,7 @@ static void event_handle_signal(void *opaque) {
 }
 
 static void event_forward_signal(int signal_number) {
-	pipe_write(_signal_pipe[1], &signal_number, sizeof(int));
+	pipe_write(_signal_pipe[1], &signal_number, sizeof(signal_number));
 }
 
 int event_init_platform(void) {

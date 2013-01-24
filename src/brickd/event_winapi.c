@@ -214,7 +214,7 @@ static void event_poll_usb_events(void *opaque) {
 		          ready,
 		          event_get_source_type_name(EVENT_SOURCE_TYPE_USB, 0));
 
-		if (pipe_write(_usb_poller.ready_pipe[1], &ready, sizeof(int)) < 0) {
+		if (pipe_write(_usb_poller.ready_pipe[1], &ready, sizeof(ready)) < 0) {
 			log_error("Could not write to USB ready pipe: %s (%d)",
 			          get_errno_name(errno), errno);
 
@@ -246,7 +246,7 @@ static void event_forward_usb_events(void *opaque) {
 
 	(void)opaque;
 
-	if (pipe_read(_usb_poller.ready_pipe[0], &ready, sizeof(int)) < 0) {
+	if (pipe_read(_usb_poller.ready_pipe[0], &ready, sizeof(ready)) < 0) {
 		log_error("Could not read from USB ready pipe: %s (%d)",
 		          get_errno_name(errno), errno);
 
@@ -646,7 +646,7 @@ cleanup:
 int event_stop_platform(void) {
 	uint8_t byte = 0;
 
-	if (pipe_write(_stop_pipe[1], &byte, sizeof(uint8_t)) < 0) {
+	if (pipe_write(_stop_pipe[1], &byte, sizeof(byte)) < 0) {
 		log_error("Could not write to stop pipe: %s (%d)",
 		          get_errno_name(errno), errno);
 

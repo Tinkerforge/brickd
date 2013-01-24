@@ -72,7 +72,7 @@ static void iokit_forward_notifications(void *opaque) {
 
 	(void)opaque;
 
-	if (pipe_read(_notification_pipe[0], &byte, sizeof(uint8_t)) < 0) {
+	if (pipe_read(_notification_pipe[0], &byte, sizeof(byte)) < 0) {
 		log_error("Could not read from notification pipe: %s (%d)",
 		          get_errno_name(errno), errno);
 
@@ -101,7 +101,7 @@ static void iokit_handle_notifications(void *opaque, io_iterator_t iterator) {
 	if (found) {
 		log_debug("Received IOKit notification (type: %s)", type);
 
-		if (pipe_write(_notification_pipe[1], &byte, sizeof(uint8_t)) < 0) {
+		if (pipe_write(_notification_pipe[1], &byte, sizeof(byte)) < 0) {
 			log_error("Could not write to notification pipe: %s (%d)",
 			          get_errno_name(errno), errno);
 		}

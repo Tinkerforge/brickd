@@ -30,7 +30,7 @@
 int pipe_create(EventHandle handles[2]) {
 	SOCKET listener;
 	struct sockaddr_in address;
-	int length = sizeof(struct sockaddr_in);
+	int length = sizeof(address);
 	int rc;
 
 	handles[0] = INVALID_SOCKET;

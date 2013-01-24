@@ -41,7 +41,7 @@ struct tm *localtime_r(const time_t *timep, struct tm *result) {
 		return NULL;
 	}
 
-	memcpy(result, temp, sizeof(struct tm));
+	memcpy(result, temp, sizeof(*result));
 
 	return result;
 }

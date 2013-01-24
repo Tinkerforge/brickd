@@ -45,7 +45,7 @@ static EventHandle _server_socket = INVALID_EVENT_HANDLE;
 static void network_handle_accept(void *opaque) {
 	EventHandle client_socket;
 	struct sockaddr_in address;
-	socklen_t length = sizeof(struct sockaddr_in);
+	socklen_t length = sizeof(address);
 	Client *client;
 
 	(void)opaque;
@@ -132,7 +132,7 @@ int network_init(void) {
 		goto cleanup;
 	}
 
-	memset(&server_address, 0, sizeof(struct sockaddr_in));
+	memset(&server_address, 0, sizeof(server_address));
 
 	server_address.sin_family = AF_INET;
 	server_address.sin_port = htons(_port);
@@ -148,7 +148,7 @@ int network_init(void) {
 	memcpy(&server_address.sin_addr, entry->h_addr_list[0], entry->h_length);
 
 	if (socket_bind(_server_socket, (struct sockaddr *)&server_address,
-	                sizeof(struct sockaddr_in)) < 0) {
+	                sizeof(server_address)) < 0) {
 		log_error("Could not bind server socket to '%s' on port %u: %s (%d)",
 		          listen_address, _port, get_errno_name(errno), errno);
 

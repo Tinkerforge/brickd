@@ -277,10 +277,10 @@ int usb_update(void) {
 		for (k = 0; k < brick->uids.count; ++k) {
 			uid = *(uint32_t *)array_get(&brick->uids, k);
 
-			memset(&enumerate_callback, 0, sizeof(EnumerateCallback));
+			memset(&enumerate_callback, 0, sizeof(enumerate_callback));
 
 			enumerate_callback.header.uid = uid;
-			enumerate_callback.header.length = sizeof(EnumerateCallback);
+			enumerate_callback.header.length = sizeof(enumerate_callback);
 			enumerate_callback.header.function_id = CALLBACK_ENUMERATE;
 			enumerate_callback.header.sequence_number = 0;
 

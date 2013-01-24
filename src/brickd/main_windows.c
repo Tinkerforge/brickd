@@ -53,7 +53,7 @@ static void forward_notifications(void *opaque) {
 
 	(void)opaque;
 
-	if (pipe_read(_notification_pipe[0], &byte, sizeof(uint8_t)) < 0) {
+	if (pipe_read(_notification_pipe[0], &byte, sizeof(byte)) < 0) {
 		log_error("Could not read from notification pipe: %s (%d)",
 		          get_errno_name(errno), errno);
 
@@ -95,7 +95,7 @@ static DWORD WINAPI service_control_handler(DWORD control, DWORD eventType,
 		case DBT_DEVICEARRIVAL:
 			log_debug("Received device notification (type: arrival)");
 
-			if (pipe_write(_notification_pipe[1], &byte, sizeof(uint8_t)) < 0) {
+			if (pipe_write(_notification_pipe[1], &byte, sizeof(byte)) < 0) {
 				log_error("Could not write to notification pipe: %s (%d)",
 				          get_errno_name(errno), errno);
 			}
@@ -105,7 +105,7 @@ static DWORD WINAPI service_control_handler(DWORD control, DWORD eventType,
 		case DBT_DEVICEREMOVECOMPLETE:
 			log_debug("Received device notification (type: removal)");
 
-			if (pipe_write(_notification_pipe[1], &byte, sizeof(uint8_t)) < 0) {
+			if (pipe_write(_notification_pipe[1], &byte, sizeof(byte)) < 0) {
 				log_error("Could not write to notification pipe: %s (%d)",
 				          get_errno_name(errno), errno);
 			}
@@ -182,7 +182,8 @@ static void WINAPI service_main(DWORD argc, LPTSTR *argv) {
 	log_info("Brick Daemon %s started", VERSION_STRING);
 
 	if (config_has_error()) {
-		log_warn("Errors found in config file '%s', run with --check-config option for details", _config_filename);
+		log_warn("Errors found in config file '%s', run with --check-config option for details",
+		         _config_filename);
 	}
 
 	// initialize service status
@@ -244,9 +245,9 @@ static void WINAPI service_main(DWORD argc, LPTSTR *argv) {
 	}
 
 	// register device notification
-	ZeroMemory(&notification_filter, sizeof(DEV_BROADCAST_DEVICEINTERFACE));
+	ZeroMemory(&notification_filter, sizeof(notification_filter));
 
-	notification_filter.dbcc_size = sizeof(DEV_BROADCAST_DEVICEINTERFACE);
+	notification_filter.dbcc_size = sizeof(notification_filter);
 	notification_filter.dbcc_devicetype = DBT_DEVTYP_DEVICEINTERFACE;
 	notification_filter.dbcc_classguid = GUID_DEVINTERFACE_USB_DEVICE;
 
