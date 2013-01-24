@@ -184,7 +184,7 @@ static void config_parse(char *string) {
 			return;
 		}
 
-		if (port < 0 || port > UINT16_MAX) {
+		if (port < 1 || port > UINT16_MAX) {
 			config_error("Value %d for listen.port option is out-of-range", port);
 
 			return;
