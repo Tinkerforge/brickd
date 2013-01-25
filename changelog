@@ -24,3 +24,7 @@
         Update libusb-1.0.dll to support the 2nd generation of Renesas USB 3.0 controllers
         Lock the PID file on Linux to prohibit starting multiple instances
 2.0.0: Complete rewrite in C for protocol 2.0
+2.0.1: Add socket peer name to related log messages
+       Don't accept an empty string as valid integer value in config file
+       Reject 0 as port number in config file
+       Report config errors to log file
