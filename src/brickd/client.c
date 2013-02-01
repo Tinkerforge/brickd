@@ -34,6 +34,8 @@
 
 #define MAX_PENDING_REQUESTS 256
 
+static const char *_unknown_peer_name = "<unknown>";
+
 static void client_handle_receive(void *opaque) {
 	Client *client = opaque;
 	const char *message = NULL;
@@ -93,7 +95,7 @@ static void client_handle_receive(void *opaque) {
 			         message);
 
 			if (length < (int)sizeof(PacketHeader)) {
-				// ship the complete header if length was too small
+				// skip the complete header if length was too small
 				length = sizeof(PacketHeader);
 			}
 		} else {
@@ -165,18 +167,19 @@ int client_create(Client *client, EventHandle socket,
 	client->peer = resolve_address(address, length);
 
 	if (client->peer == NULL) {
-		array_destroy(&client->pending_requests, NULL);
+		log_warn("Could not get peer name of client (socket: %d): %s (%d)",
+		         socket, get_errno_name(errno), errno);
 
-		log_error("Could not get peer name of client (socket: %d): %s (%d)",
-		          socket, get_errno_name(errno), errno);
-
-		return -1;
+		client->peer = (char *)_unknown_peer_name;
 	}
 
 	// add socket as event source
 	if (event_add_source(client->socket, EVENT_SOURCE_TYPE_GENERIC, EVENT_READ,
 	                     client_handle_receive, client) < 0) {
-		free(client->peer);
+		if (client->peer != _unknown_peer_name) {
+			free(client->peer);
+		}
+
 		array_destroy(&client->pending_requests, NULL);
 
 		return -1;
@@ -188,7 +191,11 @@ int client_create(Client *client, EventHandle socket,
 void client_destroy(Client *client) {
 	event_remove_source(client->socket, EVENT_SOURCE_TYPE_GENERIC);
 	socket_destroy(client->socket);
-	free(client->peer);
+
+	if (client->peer != _unknown_peer_name) {
+		free(client->peer);
+	}
+
 	array_destroy(&client->pending_requests, NULL);
 }
 
