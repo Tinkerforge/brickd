@@ -120,7 +120,7 @@ char *resolve_address(struct sockaddr_in *address, socklen_t length) {
 	char *name;
 
 	rc = getnameinfo((struct sockaddr *)address, length, buffer, NI_MAXHOST,
-	                 NULL, 0, 0);
+	                 NULL, 0, NI_NUMERICHOST);
 
 	if (rc != 0) {
 #if EAI_AGAIN < 0
