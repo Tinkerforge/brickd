@@ -25,6 +25,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/wait.h>
+#include <pwd.h>
 #include <unistd.h>
 #include <fcntl.h>
 
@@ -43,11 +44,70 @@ static char _config_filename[1024] = "/etc/brickd.conf";
 static char _pid_filename[1024] = "/var/run/brickd.pid";
 static char _log_filename[1024] = "/var/log/brickd.log";
 
+static int prepare_paths(void) {
+	char *home;
+	struct passwd *pwd;
+	char brickd_dirname[1024];
+	struct stat st;
+
+	if (getuid() == 0) {
+		return 0;
+	}
+
+	home = getenv("HOME");
+
+	if (home == NULL || *home == '\0') {
+		pwd = getpwuid(getuid());
+
+		if (pwd == NULL) {
+			fprintf(stderr, "Could not determine home directory: %s (%d)\n",
+			        get_errno_name(errno), errno);
+
+			return -1;
+		}
+
+		home = pwd->pw_dir;
+	}
+
+	if (strlen(home) + strlen("/.brickd/brickd.conf") >= sizeof(brickd_dirname)) {
+		fprintf(stderr, "Home directory name is too long\n");
+
+		return -1;
+	}
+
+	snprintf(brickd_dirname, sizeof(brickd_dirname), "%s/.brickd", home);
+	snprintf(_config_filename, sizeof(_config_filename), "%s/.brickd/brickd.conf", home);
+	snprintf(_pid_filename, sizeof(_pid_filename), "%s/.brickd/brickd.pid", home);
+	snprintf(_log_filename, sizeof(_log_filename), "%s/.brickd/brickd.log", home);
+
+	if (stat(brickd_dirname, &st) < 0) {
+		if (errno != ENOENT) {
+			fprintf(stderr, "Could not stat '%s': %s (%d)\n",
+			        brickd_dirname, get_errno_name(errno), errno);
+
+			return -1;
+		}
+
+		if (mkdir(brickd_dirname, 0700) < 0 && errno != EEXIST) {
+			fprintf(stderr, "Could not create '%s': %s (%d)\n",
+			        brickd_dirname, get_errno_name(errno), errno);
+
+			return -1;
+		}
+	} else if (!S_ISDIR(st.st_mode)) {
+		fprintf(stderr, "'%s' is not a directory\n", brickd_dirname);
+
+		return -1;
+	}
+
+	return 0;
+}
+
 static void print_usage(const char *binary) {
 	printf("Usage: %s [--help|--version|--check-config|--daemon] [--debug]\n", binary);
 }
 
-static int parent(pid_t child, int status_read) {
+static int daemon_parent(pid_t child, int status_read) {
 	int8_t status = -1;
 
 	// wait for first child to exit
@@ -91,7 +151,7 @@ static int parent(pid_t child, int status_read) {
 	exit(EXIT_SUCCESS);
 }
 
-static int daemonize(void) {
+static int daemon_start(void) {
 	int status_pipe[2];
 	pid_t pid;
 	int8_t status = 0;
@@ -123,7 +183,7 @@ static int daemonize(void) {
 	if (pid > 0) { // first parent
 		close(status_pipe[1]);
 
-		parent(pid, status_pipe[0]);
+		daemon_parent(pid, status_pipe[0]);
 	}
 
 	// first child, decouple from parent environment
@@ -273,6 +333,8 @@ int main(int argc, char **argv) {
 		return EXIT_SUCCESS;
 	}
 
+	prepare_paths();
+
 	if (check_config) {
 		return config_check(_config_filename) < 0 ? EXIT_FAILURE : EXIT_SUCCESS;
 	}
@@ -282,7 +344,7 @@ int main(int argc, char **argv) {
 	log_init();
 
 	if (daemon) {
-		pid_fd = daemonize();
+		pid_fd = daemon_start();
 	} else {
 		pid_fd = pidfile_acquire(_pid_filename, getpid());
 	}
