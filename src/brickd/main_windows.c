@@ -30,6 +30,7 @@
 #include "log.h"
 #include "network.h"
 #include "pipe.h"
+#include "threads.h"
 #include "usb.h"
 #include "utils.h"
 #include "version.h"
@@ -43,10 +44,14 @@ static char _config_filename[1024];
 static char *_service_name = "Brick Daemon";
 static char *_service_description = "Brick Daemon is a bridge between USB devices (Bricks) and TCP/IP sockets. It can be used to read out and control Bricks.";
 static char *_event_log_key_name = "SYSTEM\\CurrentControlSet\\Services\\EventLog\\Application\\Brick Daemon";
+static int _run_as_service = 1;
 static SERVICE_STATUS _service_status;
 static SERVICE_STATUS_HANDLE _service_status_handle = 0;
 static EventHandle _notification_pipe[2] = { INVALID_EVENT_HANDLE,
                                              INVALID_EVENT_HANDLE };
+static HWND _message_pump_hwnd = NULL;
+static Thread _message_pump_thread;
+static int _message_pump_running = 0;
 
 static void forward_notifications(void *opaque) {
 	uint8_t byte;
@@ -63,11 +68,188 @@ static void forward_notifications(void *opaque) {
 	usb_update();
 }
 
-static DWORD WINAPI service_control_handler(DWORD control, DWORD eventType,
-                                            LPVOID eventData, LPVOID context) {
+static void handle_device_event(DWORD event_type) {
 	uint8_t byte = 0;
 
-	(void)eventData;
+	switch (event_type) {
+	case DBT_DEVICEARRIVAL:
+		log_debug("Received device notification (type: arrival)");
+
+		if (pipe_write(_notification_pipe[1], &byte, sizeof(byte)) < 0) {
+			log_error("Could not write to notification pipe: %s (%d)",
+			          get_errno_name(errno), errno);
+		}
+
+		break;
+
+	case DBT_DEVICEREMOVEPENDING:
+		log_debug("Received device notification (type: removal)");
+
+		if (pipe_write(_notification_pipe[1], &byte, sizeof(byte)) < 0) {
+			log_error("Could not write to notification pipe: %s (%d)",
+			          get_errno_name(errno), errno);
+		}
+
+		break;
+	}
+}
+
+static LRESULT CALLBACK message_pump_window_proc(HWND hwnd, UINT msg,
+                                                 WPARAM wparam, LPARAM lparam) {
+	int rc;
+
+	switch (msg) {
+	case WM_USER:
+		log_debug("Destroying message pump window");
+
+		if (!DestroyWindow(hwnd)) {
+			rc = ERRNO_WINAPI_OFFSET + GetLastError();
+
+			log_warn("Could not destroy message pump window: %s (%d)",
+			         get_errno_name(rc), rc);
+		}
+
+		return 0;
+
+	case WM_DESTROY:
+		log_debug("Posting quit message message loop");
+
+		PostQuitMessage(0);
+
+		return 0;
+
+	case WM_DEVICECHANGE:
+		handle_device_event(wparam);
+
+		return TRUE;
+	}
+
+	return DefWindowProc(hwnd, msg, wparam, lparam);
+}
+
+static void message_pump_thread_proc(void *opaque) {
+	const char *class_name = "brickd_message_pump";
+	Semaphore *handshake = opaque;
+	WNDCLASSEX wc;
+	int rc;
+	MSG msg;
+
+	log_debug("Started message pump thread");
+
+	ZeroMemory(&wc, sizeof(wc));
+
+	wc.cbSize = sizeof(wc);
+	wc.style = CS_HREDRAW | CS_VREDRAW;
+	wc.lpfnWndProc = (WNDPROC)message_pump_window_proc;
+	wc.cbClsExtra = 0;
+	wc.cbWndExtra = 0;
+	wc.hInstance = NULL;
+	wc.hIcon = NULL;
+	wc.hCursor = LoadCursor(NULL, IDC_ARROW);
+	wc.hbrBackground = (HBRUSH)COLOR_WINDOW;
+	wc.lpszMenuName = NULL;
+	wc.lpszClassName = class_name;
+	wc.hIconSm = NULL;
+
+	if (RegisterClassEx(&wc) == 0) {
+		rc = ERRNO_WINAPI_OFFSET + GetLastError();
+
+		log_error("Could not register message pump window class: %s (%d)",
+		          get_errno_name(rc), rc);
+
+		return;
+	}
+
+	_message_pump_hwnd = CreateWindowEx(0, class_name, "brickd message pump",
+	                                    0, 0, 0, 0, 0, HWND_MESSAGE,
+	                                    NULL, NULL, NULL);
+
+	if (_message_pump_hwnd == NULL) {
+		rc = ERRNO_WINAPI_OFFSET + GetLastError();
+
+		log_error("Could not create message pump window: %s (%d)",
+		          get_errno_name(rc), rc);
+
+		return;
+	}
+
+	_message_pump_running = 1;
+
+	semaphore_release(handshake);
+
+	while (_message_pump_running &&
+	       (rc = GetMessage(&msg, _message_pump_hwnd, 0, 0)) != 0) {
+		if (rc < 0) {
+			rc = ERRNO_WINAPI_OFFSET + GetLastError();
+
+			if (rc == ERRNO_WINAPI_OFFSET + ERROR_INVALID_WINDOW_HANDLE) {
+				log_debug("Message pump window seems to be destroyed");
+
+				break;
+			}
+
+			log_warn("Could not get window message: %s (%d)",
+			          get_errno_name(rc), rc);
+		} else {
+			TranslateMessage(&msg);
+			DispatchMessage(&msg);
+		}
+	}
+
+	log_debug("Stopped message pump thread");
+
+	_message_pump_running = 0;
+}
+
+static int message_pump_start(void) {
+	Semaphore handshake;
+
+	log_debug("Starting message pump");
+
+	semaphore_create(&handshake);
+
+	thread_create(&_message_pump_thread, message_pump_thread_proc, &handshake);
+
+	semaphore_acquire(&handshake);
+	semaphore_destroy(&handshake);
+
+	return _message_pump_hwnd == NULL ? -1 : 0;
+}
+
+static void message_pump_stop(void) {
+	int rc;
+
+	log_debug("Stopping message pump");
+
+	_message_pump_running = 0;
+
+	if (!PostMessage(_message_pump_hwnd, WM_USER, 0, 0)) {
+		rc = ERRNO_WINAPI_OFFSET + GetLastError();
+
+		log_warn("Could not trigger destruction of message pump window: %s (%d)",
+		         get_errno_name(rc), rc);
+	} else {
+		thread_join(&_message_pump_thread);
+	}
+
+	thread_destroy(&_message_pump_thread);
+}
+
+static void service_set_status(DWORD status) {
+	_service_status.dwCurrentState = status;
+
+	if (status == SERVICE_RUNNING) {
+		_service_status.dwControlsAccepted |= SERVICE_ACCEPT_STOP | SERVICE_ACCEPT_SHUTDOWN;
+	} else if (status == SERVICE_STOPPED) {
+		_service_status.dwControlsAccepted &= ~(SERVICE_ACCEPT_STOP | SERVICE_ACCEPT_SHUTDOWN);
+	}
+
+	SetServiceStatus(_service_status_handle, &_service_status);
+}
+
+static DWORD WINAPI service_control_handler(DWORD control, DWORD event_type,
+                                            LPVOID event_data, LPVOID context) {
+	(void)event_data;
 	(void)context;
 
 	switch (control) {
@@ -82,36 +264,14 @@ static DWORD WINAPI service_control_handler(DWORD control, DWORD eventType,
 			log_info("Received stop command");
 		}
 
-		_service_status.dwCurrentState = SERVICE_STOP_PENDING;
-
-		SetServiceStatus(_service_status_handle, &_service_status);
+		service_set_status(SERVICE_STOP_PENDING);
 
 		event_stop();
 
 		return NO_ERROR;
 
 	case SERVICE_CONTROL_DEVICEEVENT:
-		switch (eventType) {
-		case DBT_DEVICEARRIVAL:
-			log_debug("Received device notification (type: arrival)");
-
-			if (pipe_write(_notification_pipe[1], &byte, sizeof(byte)) < 0) {
-				log_error("Could not write to notification pipe: %s (%d)",
-				          get_errno_name(errno), errno);
-			}
-
-			break;
-
-		case DBT_DEVICEREMOVECOMPLETE:
-			log_debug("Received device notification (type: removal)");
-
-			if (pipe_write(_notification_pipe[1], &byte, sizeof(byte)) < 0) {
-				log_error("Could not write to notification pipe: %s (%d)",
-				          get_errno_name(errno), errno);
-			}
-
-			break;
-		}
+		handle_device_event(event_type);
 
 		return NO_ERROR;
 	}
@@ -119,25 +279,54 @@ static DWORD WINAPI service_control_handler(DWORD control, DWORD eventType,
 	return ERROR_CALL_NOT_IMPLEMENTED;
 }
 
-static void WINAPI service_main(DWORD argc, LPTSTR *argv) {
-	DWORD i;
-	int log_to_file = 0;
-	int debug = 0;
-	char filename[1024];
+static BOOL WINAPI console_ctrl_handler(DWORD ctrl_type) {
+	switch (ctrl_type) {
+	case CTRL_C_EVENT:
+		log_info("Received CTRL_C_EVENT");
+		break;
+
+	case CTRL_CLOSE_EVENT:
+		log_info("Received CTRL_CLOSE_EVENT");
+		break;
+
+	case CTRL_BREAK_EVENT:
+		log_info("Received CTRL_BREAK_EVENT");
+		break;
+
+	case CTRL_LOGOFF_EVENT:
+		log_info("Received CTRL_LOGOFF_EVENT");
+		break;
+
+	case CTRL_SHUTDOWN_EVENT:
+		log_info("Received CTRL_SHUTDOWN_EVENT");
+		break;
+
+	default:
+		log_info("Received unknown event %u", (uint32_t)ctrl_type);
+		return FALSE;
+	}
+
+	event_stop();
+
+	return TRUE;
+}
+
+static int generic_main(int log_to_file, int debug) {
+	int exit_code = EXIT_FAILURE;
 	int rc;
+	char filename[1024];
+	int i;
 	FILE *logfile = NULL;
 	WSADATA wsa_data;
 	DEV_BROADCAST_DEVICEINTERFACE notification_filter;
 	HDEVNOTIFY notification_handle;
 
-	for (i = 1; i < argc; ++i) {
-		if (strcmp(argv[i], "--log-to-file") == 0) {
-			log_to_file = 1;
-		} else if (strcmp(argv[i], "--debug") == 0) {
-			debug = 1;
-		} else {
-			log_warn("Unknown start parameter '%s'", argv[i]);
-		}
+	if (!_run_as_service &&
+	    !SetConsoleCtrlHandler(console_ctrl_handler, TRUE)) {
+		rc = ERRNO_WINAPI_OFFSET + GetLastError();
+
+		log_warn("Could not set console control handler: %s (%d)",
+		          get_errno_name(rc), rc);
 	}
 
 	if (log_to_file) {
@@ -187,31 +376,31 @@ static void WINAPI service_main(DWORD argc, LPTSTR *argv) {
 	}
 
 	// initialize service status
-	_service_status.dwServiceType = SERVICE_WIN32_OWN_PROCESS;
-	_service_status.dwCurrentState = SERVICE_STOPPED;
-	_service_status.dwControlsAccepted = 0;
-	_service_status.dwWin32ExitCode = NO_ERROR;
-	_service_status.dwServiceSpecificExitCode = NO_ERROR;
-	_service_status.dwCheckPoint = 0;
-	_service_status.dwWaitHint = 0;
+	if (_run_as_service) {
+		_service_status.dwServiceType = SERVICE_WIN32_OWN_PROCESS;
+		_service_status.dwCurrentState = SERVICE_STOPPED;
+		_service_status.dwControlsAccepted = 0;
+		_service_status.dwWin32ExitCode = NO_ERROR;
+		_service_status.dwServiceSpecificExitCode = NO_ERROR;
+		_service_status.dwCheckPoint = 0;
+		_service_status.dwWaitHint = 0;
 
-	_service_status_handle = RegisterServiceCtrlHandlerEx(_service_name,
-	                                                      service_control_handler,
-	                                                      NULL);
+		_service_status_handle = RegisterServiceCtrlHandlerEx(_service_name,
+		                                                      service_control_handler,
+		                                                      NULL);
 
-	if (_service_status_handle == NULL) {
-		rc = ERRNO_WINAPI_OFFSET + GetLastError();
+		if (_service_status_handle == NULL) {
+			rc = ERRNO_WINAPI_OFFSET + GetLastError();
 
-		log_error("Could not register service control handler: %s (%d)",
-		          get_errno_name(rc), rc);
+			log_error("Could not register service control handler: %s (%d)",
+			         get_errno_name(rc), rc);
 
-		return;
+			goto error;
+		}
+
+		// service is starting
+		service_set_status(SERVICE_START_PENDING);
 	}
-
-	// service is starting
-	_service_status.dwCurrentState = SERVICE_START_PENDING;
-
-	SetServiceStatus(_service_status_handle, &_service_status);
 
 	// initialize Winsock2
 	if (WSAStartup(MAKEWORD(2, 2), &wsa_data) != 0) {
@@ -251,9 +440,19 @@ static void WINAPI service_main(DWORD argc, LPTSTR *argv) {
 	notification_filter.dbcc_devicetype = DBT_DEVTYP_DEVICEINTERFACE;
 	notification_filter.dbcc_classguid = GUID_DEVINTERFACE_USB_DEVICE;
 
-	notification_handle = RegisterDeviceNotification(_service_status_handle,
-	                                                 &notification_filter,
-	                                                 DEVICE_NOTIFY_SERVICE_HANDLE);
+	if (_run_as_service) {
+		notification_handle = RegisterDeviceNotification(_service_status_handle,
+		                                                 &notification_filter,
+		                                                 DEVICE_NOTIFY_SERVICE_HANDLE);
+	} else {
+		if (message_pump_start() < 0) {
+			goto error_pipe_add;
+		}
+
+		notification_handle = RegisterDeviceNotification(_message_pump_hwnd,
+		                                                 &notification_filter,
+		                                                 DEVICE_NOTIFY_WINDOW_HANDLE);
+	}
 
 	if (notification_handle == NULL) {
 		rc = ERRNO_WINAPI_OFFSET + GetLastError();
@@ -269,14 +468,15 @@ static void WINAPI service_main(DWORD argc, LPTSTR *argv) {
 	}
 
 	// running
-	_service_status.dwControlsAccepted |= SERVICE_ACCEPT_STOP | SERVICE_ACCEPT_SHUTDOWN;
-	_service_status.dwCurrentState = SERVICE_RUNNING;
-
-	SetServiceStatus(_service_status_handle, &_service_status);
+	if (_run_as_service) {
+		service_set_status(SERVICE_RUNNING);
+	}
 
 	if (event_run() < 0) {
 		goto error_run;
 	}
+
+	exit_code = EXIT_SUCCESS;
 
 error_run:
 	network_exit();
@@ -285,6 +485,10 @@ error_network:
 	UnregisterDeviceNotification(notification_handle);
 
 error_notification:
+	if (!_run_as_service) {
+		message_pump_stop();
+	}
+
 	event_remove_source(_notification_pipe[0], EVENT_SOURCE_TYPE_GENERIC);
 
 error_pipe_add:
@@ -299,16 +503,38 @@ error_usb:
 error_event:
 	log_info("Brick Daemon %s stopped", VERSION_STRING);
 
+error:
 	log_exit();
 
-	// service is now stopped
-	_service_status.dwControlsAccepted &= ~(SERVICE_ACCEPT_STOP | SERVICE_ACCEPT_SHUTDOWN);
-	_service_status.dwCurrentState = SERVICE_STOPPED;
+	config_exit();
 
-	SetServiceStatus(_service_status_handle, &_service_status);
+	// service is now stopped
+	if (_run_as_service) {
+		service_set_status(SERVICE_STOPPED);
+	}
+
+	return exit_code;
 }
 
-static int service_run(void) {
+static void WINAPI service_main(DWORD argc, LPTSTR *argv) {
+	DWORD i;
+	int log_to_file = 0;
+	int debug = 0;
+
+	for (i = 1; i < argc; ++i) {
+		if (strcmp(argv[i], "--log-to-file") == 0) {
+			log_to_file = 1;
+		} else if (strcmp(argv[i], "--debug") == 0) {
+			debug = 1;
+		} else {
+			log_warn("Unknown start parameter '%s'", argv[i]);
+		}
+	}
+
+	generic_main(log_to_file, debug);
+}
+
+static int service_run(int log_to_file, int debug) {
 	SERVICE_TABLE_ENTRY service_table[2];
 	int rc;
 
@@ -321,13 +547,25 @@ static int service_run(void) {
 	if (!StartServiceCtrlDispatcher(service_table)) {
 		rc = ERRNO_WINAPI_OFFSET + GetLastError();
 
-		log_error("Could not start service control dispatcher: %s (%d)",
-		          get_errno_name(rc), rc);
+		if (rc == ERRNO_WINAPI_OFFSET + ERROR_FAILED_SERVICE_CONTROLLER_CONNECT) {
+			log_info("Could not start as service, starting as console application");
 
-		return -1;
+			_run_as_service = 0;
+
+			return generic_main(log_to_file, debug);
+		} else {
+			log_error("Could not start service control dispatcher: %s (%d)",
+			          get_errno_name(rc), rc);
+
+			log_exit();
+
+			config_exit();
+
+			return EXIT_FAILURE;
+		}
 	}
 
-	return 0;
+	return EXIT_SUCCESS;
 }
 
 static int service_install(int log_to_file, int debug) {
@@ -599,7 +837,7 @@ static int service_uninstall(void) {
 }
 
 static void print_usage(const char *binary) {
-	printf("Usage: %s [--help|--version|--check-config|--install|--uninstall] [--log-to-file] [--debug]\n", binary);
+	printf("Usage: %s [--help|--version|--check-config|--install|--uninstall|--console] [--log-to-file] [--debug]\n", binary);
 }
 
 int main(int argc, char **argv) {
@@ -609,6 +847,7 @@ int main(int argc, char **argv) {
 	int check_config = 0;
 	int install = 0;
 	int uninstall = 0;
+	int console = 0;
 	int log_to_file = 0;
 	int debug = 0;
 	int rc;
@@ -624,6 +863,8 @@ int main(int argc, char **argv) {
 			install = 1;
 		} else if (strcmp(argv[i], "--uninstall") == 0) {
 			uninstall = 1;
+		} else if (strcmp(argv[i], "--console") == 0) {
+			console = 1;
 		} else if (strcmp(argv[i], "--log-to-file") == 0) {
 			log_to_file = 1;
 		} else if (strcmp(argv[i], "--debug") == 0) {
@@ -691,12 +932,12 @@ int main(int argc, char **argv) {
 
 		log_init();
 
-		if (service_run() < 0) {
-			log_exit();
+		if (console) {
+			_run_as_service = 0;
 
-			config_exit();
-
-			return EXIT_FAILURE;
+			return generic_main(log_to_file, debug);
+		} else {
+			return service_run(log_to_file, debug);
 		}
 	}
 
