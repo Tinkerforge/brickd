@@ -8,15 +8,15 @@ Compiling the Source
 
 The following libraries are required:
 
-* libusb-1.0-0-dev
-* libudev-dev (Linux only)
+* libusb-1.0
+* libudev (Linux only)
 
 On Debian based Linux distributions try::
 
  sudo apt-get install libusb-1.0-0-dev libudev-dev
 
-For Windows and Mac OS X a suitable pre-compiled libusb binary is part of this
-repository.
+For Windows a suitable pre-compiled libusb binary is part of this repository.
+For Mac OS X a suitable libusb version can be obtained via MacPorts or Homebrew.
 
 Linux
 ^^^^^
@@ -38,7 +38,14 @@ WDK command prompt::
  cd src\brickd
  build_exe.bat
 
-The ``brickd`` binary is created in ``src\brickd\dist``.
+The ``brickd.exe`` binary is created in ``src\brickd\dist``.
+
+There is also a Makefile to compile the source code using MinGW::
+
+ cd src\brickd
+ mingw32-make
+
+The ``brickd.exe`` binary is created in ``src\brickd\dist``.
 
 Mac OS X
 ^^^^^^^^

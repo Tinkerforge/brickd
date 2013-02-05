@@ -56,7 +56,7 @@ void log_handler_platform(LogLevel level, const char *file, int line,
 	WORD type;
 	DWORD event_id;
 	char message[512 + 1] = "<unknown>";
-	LPSTR insert_strings[1];
+	LPCSTR insert_strings[1];
 
 	(void)file;
 	(void)line;
@@ -82,7 +82,11 @@ void log_handler_platform(LogLevel level, const char *file, int line,
 		return;
 	}
 
+#ifdef _MSC_VER
 	_vsnprintf_s(message, sizeof(message), sizeof(message) - 1, format, arguments);
+#else
+	vsnprintf(message, sizeof(message), format, arguments);
+#endif
 
 	insert_strings[0] = message;
 

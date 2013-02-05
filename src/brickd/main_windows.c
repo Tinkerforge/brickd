@@ -22,6 +22,7 @@
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <winsock2.h>
 #include <windows.h>
 #include <dbt.h>
 
@@ -389,7 +390,7 @@ static int generic_main(int log_to_file, int debug) {
 		                                                      service_control_handler,
 		                                                      NULL);
 
-		if (_service_status_handle == NULL) {
+		if (_service_status_handle == 0) {
 			rc = ERRNO_WINAPI_OFFSET + GetLastError();
 
 			log_error("Could not register service control handler: %s (%d)",
@@ -441,7 +442,7 @@ static int generic_main(int log_to_file, int debug) {
 	notification_filter.dbcc_classguid = GUID_DEVINTERFACE_USB_DEVICE;
 
 	if (_run_as_service) {
-		notification_handle = RegisterDeviceNotification(_service_status_handle,
+		notification_handle = RegisterDeviceNotification((HANDLE)_service_status_handle,
 		                                                 &notification_filter,
 		                                                 DEVICE_NOTIFY_SERVICE_HANDLE);
 	} else {

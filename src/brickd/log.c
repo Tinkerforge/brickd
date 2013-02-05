@@ -19,7 +19,7 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-#ifndef _WIN32
+#ifndef _MSC_VER
 	#include <sys/time.h>
 #endif
 

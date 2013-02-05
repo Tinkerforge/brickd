@@ -136,14 +136,14 @@ index da94c9b..2802cfc 100644
  
  #if defined(__linux) || defined(__APPLE__) || defined(__CYGWIN__)
  #include <sys/time.h>
-@@ -64,6 +65,7 @@ typedef unsigned __int32  uint32_t;
+@@ -63,6 +64,7 @@ typedef unsigned __int32  uint32_t;
+  * As this can be problematic if you include windows.h after libusb.h
   * in your sources, we force windows.h to be included first. */
  #if defined(_WIN32) || defined(__CYGWIN__)
- #include <windows.h>
 +#include <winsock2.h> // for struct timeval
+ #include <windows.h>
  #if defined(interface)
  #undef interface
- #endif
 @@ -1499,6 +1501,12 @@ void LIBUSB_CALL libusb_set_pollfd_notifiers(libusb_context *ctx,
  	libusb_pollfd_added_cb added_cb, libusb_pollfd_removed_cb removed_cb,
  	void *user_data);

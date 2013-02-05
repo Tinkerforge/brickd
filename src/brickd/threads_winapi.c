@@ -99,7 +99,7 @@ void thread_destroy(Thread *thread) {
 
 void thread_join(Thread *thread) {
 	if (thread->id == GetCurrentThreadId()) {
-		log_error("Thread with ID %u is joining itself", thread->id);
+		log_error("Thread with ID %u is joining itself", (uint32_t)thread->id);
 	}
 
 	WaitForSingleObject(thread->handle, INFINITE);
