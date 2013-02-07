@@ -44,20 +44,17 @@ set -e
 case "$1" in
   start)
 	echo -n "Starting $DESC: "
-	start-stop-daemon --quiet --pidfile $PIDFILE --exec $DAEMON --start -- $OPTIONS
-	echo "$NAME"
+	start-stop-daemon --verbose --pidfile $PIDFILE --exec $DAEMON --start -- $OPTIONS
 	;;
   stop)
 	echo -n "Stopping $DESC: "
-	start-stop-daemon --quiet --pidfile $PIDFILE --stop
-	echo "$NAME"
+	start-stop-daemon --verbose --pidfile $PIDFILE --stop
 	;;
   restart|force-reload)
-	echo -n "Restarting $DESC: "
-	start-stop-daemon --quiet --pidfile $PIDFILE --stop
+	echo "Restarting $DESC: "
+	start-stop-daemon --verbose --pidfile $PIDFILE --stop
 	sleep 1
-	start-stop-daemon --quiet --pidfile $PIDFILE --exec $DAEMON --start -- $OPTIONS
-	echo "$NAME"
+	start-stop-daemon --verbose --pidfile $PIDFILE --exec $DAEMON --start -- $OPTIONS
 	;;
   status)
 	echo -n "Status of $DESC: "
@@ -65,9 +62,9 @@ case "$1" in
 		PID=`cat "$PIDFILE"`
 		if [ -n "${PID:-}" ]; then
 			if $(kill -0 "${PID:-}" 2> /dev/null); then
-				echo "running, $PID"
+				echo "running (pid $PID)"
 			elif ps "${PID:-}" > /dev/null 2>&1; then
-				echo "running, $PID"
+				echo "running (pid $PID)"
 			else
 				echo "stopped"
 			fi
