@@ -71,3 +71,26 @@ executed from a MSVC or WDK command prompt because it invokes the platform
 specific commands to compile the source code.
 
 The installer/package is created in ``src/brickd``.
+
+Commandline Options
+-------------------
+
+Common:
+
+**--help**: Show help
+
+**--version**: Show version number
+
+**--check-config**: Check config file for errors
+
+**--debug**: Set all log levels to debug
+
+Windows only:
+
+**--install**: Register as a service and start it
+
+**--uninstall**: Stop service and unregister it
+
+**--console**: Force start as console application
+
+**--log-to-file**: Write log messages to file

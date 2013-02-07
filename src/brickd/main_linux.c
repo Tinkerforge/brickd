@@ -103,8 +103,16 @@ static int prepare_paths(void) {
 	return 0;
 }
 
-static void print_usage(const char *binary) {
-	printf("Usage: %s [--help|--version|--check-config|--daemon] [--debug]\n", binary);
+static void print_usage(void) {
+	printf("Usage:\n"
+	       "  brickd [--help|--version|--check-config|--daemon] [--debug]\n"
+	       "\n"
+	       "Options:\n"
+	       "  --help          Show this help\n"
+	       "  --version       Show version number\n"
+	       "  --check-config  Check config file for errors\n"
+	       "  --daemon        Run as daemon and write PID file\n"
+	       "  --debug         Set all log levels to debug\n");
 }
 
 static int daemon_parent(pid_t child, int status_read) {
@@ -314,15 +322,15 @@ int main(int argc, char **argv) {
 		} else if (strcmp(argv[i], "--debug") == 0) {
 			debug = 1;
 		} else {
-			fprintf(stderr, "Unknown option '%s'\n", argv[i]);
-			print_usage(argv[0]);
+			fprintf(stderr, "Unknown option '%s'\n\n", argv[i]);
+			print_usage();
 
 			return EXIT_FAILURE;
 		}
 	}
 
 	if (help) {
-		print_usage(argv[0]);
+		print_usage();
 
 		return EXIT_SUCCESS;
 	}

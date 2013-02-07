@@ -369,7 +369,11 @@ static int generic_main(int log_to_file, int debug) {
 		log_set_level(LOG_CATEGORY_OTHER, config_get_log_level(LOG_CATEGORY_OTHER));
 	}
 
-	log_info("Brick Daemon %s started", VERSION_STRING);
+	if (_run_as_service) {
+		log_error("Brick Daemon %s started (as service)", VERSION_STRING);
+	} else {
+		log_error("Brick Daemon %s started", VERSION_STRING);
+	}
 
 	if (config_has_error()) {
 		log_warn("Errors found in config file '%s', run with --check-config option for details",
@@ -837,8 +841,20 @@ static int service_uninstall(void) {
 	return 0;
 }
 
-static void print_usage(const char *binary) {
-	printf("Usage: %s [--help|--version|--check-config|--install|--uninstall|--console] [--log-to-file] [--debug]\n", binary);
+static void print_usage(void) {
+	printf("Usage:\n"
+	       "  brickd [--help|--version|--check-config|--install|--uninstall|--console]\n"
+	       "         [--log-to-file] [--debug]\n"
+	       "\n"
+	       "Options:\n"
+	       "  --help          Show this help\n"
+	       "  --version       Show version number\n"
+	       "  --check-config  Check config file for errors\n"
+	       "  --install       Register as a service and start it\n"
+	       "  --uninstall     Stop service and unregister it\n"
+	       "  --console       Force start as console application\n"
+	       "  --log-to-file   Write log messages to file\n"
+	       "  --debug         Set all log levels to debug\n");
 }
 
 int main(int argc, char **argv) {
@@ -871,15 +887,15 @@ int main(int argc, char **argv) {
 		} else if (strcmp(argv[i], "--debug") == 0) {
 			debug = 1;
 		} else {
-			fprintf(stderr, "Unknown option '%s'\n", argv[i]);
-			print_usage(argv[0]);
+			fprintf(stderr, "Unknown option '%s'\n\n", argv[i]);
+			print_usage();
 
 			return EXIT_FAILURE;
 		}
 	}
 
 	if (help) {
-		print_usage(argv[0]);
+		print_usage();
 
 		return EXIT_SUCCESS;
 	}
@@ -915,7 +931,7 @@ int main(int argc, char **argv) {
 
 	if (install && uninstall) {
 		fprintf(stderr, "Invalid option combination\n");
-		print_usage(argv[0]);
+		print_usage();
 
 		return EXIT_FAILURE;
 	}
