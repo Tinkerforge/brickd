@@ -28,3 +28,8 @@
        Don't accept an empty string as valid integer value in config file
        Reject 0 as port number in config file
        Report config errors to log file
+2.0.2: Make errors during client peer name lookup non-fatal
+       Support running as normal console application on Windows
+       Support MinGW as compiler on Windows
+       Support running as non-root on Linux
+       Improve --help output
