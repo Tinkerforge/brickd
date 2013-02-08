@@ -33,3 +33,4 @@
        Support MinGW as compiler on Windows
        Support running as non-root on Linux
        Improve --help output
+2.0.3: Fix USB unplug detection on Windows

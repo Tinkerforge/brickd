@@ -83,7 +83,7 @@ static void handle_device_event(DWORD event_type) {
 
 		break;
 
-	case DBT_DEVICEREMOVEPENDING:
+	case DBT_DEVICEREMOVECOMPLETE:
 		log_debug("Received device notification (type: removal)");
 
 		if (pipe_write(_notification_pipe[1], &byte, sizeof(byte)) < 0) {
