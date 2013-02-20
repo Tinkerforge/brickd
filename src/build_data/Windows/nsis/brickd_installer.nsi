@@ -172,7 +172,7 @@ v2:
   nsExec::Exec '"$INSTDIR\brickd.exe" --uninstall'
 
 unregister_done:
-  DetailPrint "Uninstall Brick Dameon..."
+  DetailPrint "Uninstall Brick Daemon..."
 
   Delete "$INSTDIR\drivers\*"
 
