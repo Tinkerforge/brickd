@@ -209,7 +209,7 @@ SectionEnd
 ;--------------------------------
 
 ; The stuff to install
-Section "Install Brick Daemon ${BRICKD_VERSION} Program"
+Section "Install Brick Daemon ${BRICKD_VERSION}"
   SectionIn RO
 
   DetailPrint "Install Brick Daemon..."
@@ -237,9 +237,9 @@ SectionEnd
 
 ;--------------------------------
 
-Section "Register Brick Daemon ${BRICKD_VERSION} Service"
+Section "Register Brick Daemon ${BRICKD_VERSION} as Service"
 
-  DetailPrint "Register service..."
+  DetailPrint "Register as service..."
   nsExec::ExecToStack '"$INSTDIR\brickd.exe" --install'
   Pop $0 # return value/error/timeout
   Pop $1 # printed text, up to ${NSIS_MAX_STRLEN}
@@ -282,7 +282,7 @@ not_installed:
 
  ; install driver only on systems < Windows 8
 ${If} ${AtMostWin2008R2}
-  SectionSetText ${SEC_INSTALL_DRIVER} "Install Brick Driver" ; make item visible
+  SectionSetText ${SEC_INSTALL_DRIVER} "Install/Update Brick Driver" ; make item visible
   SectionSetFlags ${SEC_INSTALL_DRIVER} ${SF_SELECTED}
 ${EndIf}
 
