@@ -347,7 +347,7 @@ void usb_dispatch_packet(Packet *packet) {
 			return;
 		}
 
-		log_debug("Broadcasting request because no Brick knows the UID");
+		log_debug("Broadcasting request because UID is currently unknown");
 
 		for (i = 0; i < _bricks.count; ++i) {
 			brick = array_get(&_bricks, i);
