@@ -72,3 +72,23 @@ int packet_header_is_valid_response(PacketHeader *header, const char **message) 
 
 	return 1;
 }
+
+const char *packet_get_callback_type(Packet *packet) {
+	if (packet->header.function_id == CALLBACK_ENUMERATE) {
+		switch (((EnumerateCallback *)packet)->enumeration_type) {
+		case ENUMERATION_TYPE_AVAILABLE:
+			return "enumerate-available ";
+
+		case ENUMERATION_TYPE_CONNECTED:
+			return "enumerate-connected ";
+
+		case ENUMERATION_TYPE_DISCONNECTED:
+			return "enumerate-disconnected ";
+
+		default:
+			return "enumerate-<unknown> ";
+		}
+	} else {
+		return "";
+	}
+}

@@ -287,7 +287,7 @@ int usb_update(void) {
 			base58_encode(enumerate_callback.uid, uid);
 			enumerate_callback.enumeration_type = ENUMERATION_TYPE_DISCONNECTED;
 
-			log_debug("Sending enumeration-disconnected callback (uid: %s)",
+			log_debug("Sending enumerate-disconnected callback (uid: %s)",
 			          enumerate_callback.uid);
 
 			network_dispatch_packet((Packet *)&enumerate_callback);

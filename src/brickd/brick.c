@@ -70,7 +70,8 @@ static void read_transfer_callback(Transfer *transfer) {
 	}
 
 	if (transfer->packet.header.sequence_number == 0) {
-		log_debug("Got callback (U: %u, L: %u, F: %u) from %s [%s]",
+		log_debug("Got %scallback (U: %u, L: %u, F: %u) from %s [%s]",
+		          packet_get_callback_type(&transfer->packet),
 		          transfer->packet.header.uid,
 		          transfer->packet.header.length,
 		          transfer->packet.header.function_id,
@@ -113,7 +114,7 @@ static void write_transfer_callback(Transfer *transfer) {
 
 		array_remove(&transfer->brick->write_queue, 0, NULL);
 
-		log_debug("Sent queued request (U: %u, L: %u, F: %u, S: %u, R: %u) to %s [%s], %d packets left in queue",
+		log_debug("Sent queued request (U: %u, L: %u, F: %u, S: %u, R: %u) to %s [%s], %d requests left in queue",
 		          packet->header.uid, packet->header.length,
 		          packet->header.function_id, packet->header.sequence_number,
 		          packet->header.response_expected,

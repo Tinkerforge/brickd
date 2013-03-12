@@ -222,7 +222,8 @@ void network_dispatch_packet(Packet *packet) {
 
 	if (_clients.count == 0) {
 		if (packet->header.sequence_number == 0) {
-			log_debug("No clients connected, dropping callback (U: %u, L: %u, F: %u)",
+			log_debug("No clients connected, dropping %scallback (U: %u, L: %u, F: %u)",
+			          packet_get_callback_type(packet),
 			          packet->header.uid,
 			          packet->header.length,
 			          packet->header.function_id);
@@ -239,7 +240,8 @@ void network_dispatch_packet(Packet *packet) {
 	}
 
 	if (packet->header.sequence_number == 0) {
-		log_debug("Broadcasting callback (U: %u, L: %u, F: %u) to %d client(s)",
+		log_debug("Broadcasting %scallback (U: %u, L: %u, F: %u) to %d client(s)",
+		          packet_get_callback_type(packet),
 		          packet->header.uid,
 		          packet->header.length,
 		          packet->header.function_id,

@@ -26,9 +26,15 @@
 
 #include "utils.h"
 
-#define CALLBACK_ENUMERATE 253
+enum {
+	CALLBACK_ENUMERATE = 253
+};
 
-#define ENUMERATION_TYPE_DISCONNECTED 2
+enum {
+	ENUMERATION_TYPE_AVAILABLE = 0,
+	ENUMERATION_TYPE_CONNECTED = 1,
+	ENUMERATION_TYPE_DISCONNECTED = 2
+};
 
 #if defined _MSC_VER || defined __BORLANDC__
 	#pragma pack(push)
@@ -80,5 +86,7 @@ STATIC_ASSERT(sizeof(Packet) == 80, "Packet has invalid size");
 int packet_header_is_valid_request(PacketHeader *header, const char **message);
 
 int packet_header_is_valid_response(PacketHeader *header, const char **message);
+
+const char *packet_get_callback_type(Packet *packet);
 
 #endif // BRICKD_PACKET_H
