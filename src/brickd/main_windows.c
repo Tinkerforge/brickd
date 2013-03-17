@@ -370,9 +370,9 @@ static int generic_main(int log_to_file, int debug) {
 	}
 
 	if (_run_as_service) {
-		log_error("Brick Daemon %s started (as service)", VERSION_STRING);
+		log_info("Brick Daemon %s started (as service)", VERSION_STRING);
 	} else {
-		log_error("Brick Daemon %s started", VERSION_STRING);
+		log_info("Brick Daemon %s started", VERSION_STRING);
 	}
 
 	if (config_has_error()) {
