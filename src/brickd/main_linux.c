@@ -40,9 +40,9 @@
 
 #define LOG_CATEGORY LOG_CATEGORY_OTHER
 
-static char _config_filename[1024] = "/etc/brickd.conf";
-static char _pid_filename[1024] = "/var/run/brickd.pid";
-static char _log_filename[1024] = "/var/log/brickd.log";
+static char _config_filename[1024] = SYSCONFDIR"/brickd.conf";
+static char _pid_filename[1024] = LOCALSTATEDIR"/run/brickd.pid";
+static char _log_filename[1024] = LOCALSTATEDIR"/log/brickd.log";
 
 static int prepare_paths(void) {
 	char *home;

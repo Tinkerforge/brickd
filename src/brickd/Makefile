@@ -21,6 +21,32 @@ ifeq ($(OS),Windows_NT)
 else
 	PLATFORM := $(shell uname)
 	RM := rm -f --
+	INSTALL := install
+
+ifndef prefix
+	prefix := /usr
+endif
+
+ifndef bindir
+	bindir := $(prefix)/bin
+endif
+
+ifndef sysconfdir
+ifeq ($(prefix),/usr)
+	sysconfdir := /etc
+else
+	sysconfdir := $(prefix)/etc
+endif
+endif
+
+ifndef localstatedir
+ifeq ($(prefix),/usr)
+	localstatedir := /var
+else
+	localstatedir := $(prefix)/var
+endif
+endif
+
 endif
 
 ifneq ($(findstring $(MAKEFLAGS),s),s)
@@ -86,6 +112,7 @@ ifeq ($(PLATFORM),Windows)
 	LDFLAGS += -Wl,-subsystem,console
 	LIBS += -lws2_32
 else
+	CFLAGS += -DSYSCONFDIR="\"$(sysconfdir)\"" -DLOCALSTATEDIR="\"$(localstatedir)\""
 	LDFLAGS += -pthread
 endif
 
@@ -133,9 +160,9 @@ all: $(DIST) $(TARGET) Makefile
 
 dist\brickd.exe: $(TARGET) Makefile
 	$(E)if not exist dist mkdir dist
-	@echo CP   brickd.exe
+	@echo CP brickd.exe
 	$(E)copy brickd.exe "dist\"
-	@echo CP   libusb-1.0.dll
+	@echo CP libusb-1.0.dll
 	$(E)copy "..\build_data\Windows\libusb\libusb-1.0.dll" "dist\"
 
 clean: Makefile
@@ -145,19 +172,40 @@ clean-depend: Makefile
 	$(E)$(RM) $(DEPENDS)
 
 $(TARGET): $(OBJECTS) Makefile
-	@echo LD   $@
+	@echo LD $@
 	$(E)$(CC) -o $(TARGET) $(LDFLAGS) $(OBJECTS) $(LIBS)
 
+install: all
+ifneq ($(PLATFORM),Windows)
+	@echo "MD $(bindir)"
+	$(E)$(INSTALL) -d -m 755 $(bindir)
+	@echo "MD $(sysconfdir)"
+	$(E)$(INSTALL) -d -m 755 $(sysconfdir)
+	@echo "MD $(sysconfdir)/init.d"
+	$(E)$(INSTALL) -d -m 755 $(sysconfdir)/init.d
+	@echo "MD $(localstatedir)/log"
+	$(E)$(INSTALL) -d -m 755 $(localstatedir)/log
+	@echo "MD $(localstatedir)/run"
+	$(E)$(INSTALL) -d -m 755 $(localstatedir)/run
+
+	@echo "CP brickd"
+	$(E)$(INSTALL) -m 755 brickd $(bindir)
+	@echo "CP brickd.conf"
+	$(E)$(INSTALL) -m 644 ../build_data/linux/etc/brickd.conf $(sysconfdir)
+	@echo "CP brickd (init script)"
+	$(E)$(INSTALL) -m 755 ../build_data/linux/etc/init.d/brickd $(sysconfdir)/init.d
+endif
+
 log_messages.h log_messages.rc: log_messages.mc Makefile
-	@echo GEN  $@
+	@echo GEN $@
 	$(E)windmc -A -b log_messages.mc
 
 %.o: %.c $(GENERATED) Makefile
-	@echo CC   $@
+	@echo CC $@
 	$(E)$(CC) $(CFLAGS) -c -o $@ $<
 
 %.o: %.rc Makefile
-	@echo GEN  $@
+	@echo GEN $@
 	$(E)windres $< $@
 
 # FIXME: make dependency handling work for MinGW

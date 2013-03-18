@@ -13,7 +13,7 @@ The following libraries are required:
 
 On Debian based Linux distributions try::
 
- sudo apt-get install libusb-1.0-0-dev libudev-dev
+ sudo apt-get install build-essential libusb-1.0-0-dev libudev-dev
 
 For Windows a suitable pre-compiled libusb binary is part of this repository.
 For Mac OS X a suitable libusb version can be obtained via MacPorts or Homebrew.
@@ -21,12 +21,18 @@ For Mac OS X a suitable libusb version can be obtained via MacPorts or Homebrew.
 Linux
 ^^^^^
 
-A Makefile is provided to compile the source code using GCC::
+A Makefile is provided to compile the source code using GCC and install the
+result::
 
  cd src/brickd
  make
+ sudo make install
 
-The ``brickd`` binary is created in ``src/brickd``.
+Run the following commands to register brickd for autostart on Debian based
+Linux distribution and start it::
+
+ update-rc.d brickd defaults
+ /etc/init.d/brickd start
 
 Windows
 ^^^^^^^
@@ -50,7 +56,8 @@ The ``brickd.exe`` binary is created in ``src\brickd\dist``.
 Mac OS X
 ^^^^^^^^
 
-A Makefile is provided to compile the source code using GCC::
+A Makefile is provided to compile the source code using GCC and install the
+result::
 
  cd src/brickd
  make

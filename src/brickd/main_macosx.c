@@ -39,9 +39,9 @@
 
 #define LOG_CATEGORY LOG_CATEGORY_OTHER
 
-#define CONFIG_FILENAME "/etc/brickd.conf"
-#define PID_FILENAME "/var/run/brickd.pid"
-#define LOG_FILENAME "/var/log/brickd.log"
+#define CONFIG_FILENAME SYSCONFDIR"/brickd.conf"
+#define PID_FILENAME LOCALSTATEDIR"/run/brickd.pid"
+#define LOG_FILENAME LOCALSTATEDIR"/log/brickd.log"
 
 static void print_usage(void) {
 	printf("Usage:\n"
