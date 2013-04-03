@@ -1,5 +1,5 @@
 
-# Makefile for GCC builds on Linux and Mac OS X and MinGW builds on Windows
+# Makefile for GCC builds on Linux and Mac OS X, and MinGW builds on Windows
 #
 # libusb-1.0-0-dev >= 1.0.8
 # libudev-dev >= 173
@@ -176,7 +176,7 @@ $(TARGET): $(OBJECTS) Makefile
 	$(E)$(CC) -o $(TARGET) $(LDFLAGS) $(OBJECTS) $(LIBS)
 
 install: all
-ifneq ($(PLATFORM),Windows)
+ifeq ($(PLATFORM),Linux)
 	@echo "MD $(bindir)"
 	$(E)$(INSTALL) -d -m 755 $(bindir)
 	@echo "MD $(sysconfdir)"

@@ -56,8 +56,7 @@ The ``brickd.exe`` binary is created in ``src\brickd\dist``.
 Mac OS X
 ^^^^^^^^
 
-A Makefile is provided to compile the source code using GCC and install the
-result::
+A Makefile is provided to compile the source code using GCC::
 
  cd src/brickd
  make
