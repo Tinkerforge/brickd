@@ -126,21 +126,21 @@ static void client_handle_receive(void *opaque) {
 				if (pending_request == NULL) {
 					log_error("Could not append to pending request array: %s (%d)",
 					          get_errno_name(errno), errno);
+				} else {
+					memcpy(pending_request, &client->packet.header, sizeof(PacketHeader));
 
-					return;
+					log_debug("Added pending request (U: %u, L: %u, F: %u, S: %u) for client (socket: %d, peer: %s)",
+					          pending_request->uid,
+					          pending_request->length,
+					          pending_request->function_id,
+					          pending_request->sequence_number,
+					          client->socket, client->peer);
+
+					usb_dispatch_packet(&client->packet);
 				}
-
-				memcpy(pending_request, &client->packet.header, sizeof(PacketHeader));
-
-				log_debug("Added pending request (U: %u, L: %u, F: %u, S: %u) for client (socket: %d, peer: %s)",
-				          pending_request->uid,
-				          pending_request->length,
-				          pending_request->function_id,
-				          pending_request->sequence_number,
-				          client->socket, client->peer);
+			} else {
+				usb_dispatch_packet(&client->packet);
 			}
-
-			usb_dispatch_packet(&client->packet);
 		}
 
 		memmove(&client->packet, (uint8_t *)&client->packet + length,
