@@ -98,6 +98,9 @@ static void client_handle_receive(void *opaque) {
 				// skip the complete header if length was too small
 				length = sizeof(PacketHeader);
 			}
+		} else if (client->packet.header.function_id == FUNCTION_DISCONNECT_PROBE) {
+			log_debug("Got disconnect probe from client (socket: %d, peer: %s), dropping it",
+			          client->socket, client->peer);
 		} else {
 			log_debug("Got request (U: %u, L: %u, F: %u, S: %u, R: %u) from client (socket: %d, peer: %s)",
 			          client->packet.header.uid,

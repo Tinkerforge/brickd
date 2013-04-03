@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2012 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2012-2013 Matthias Bolte <matthias@tinkerforge.com>
  *
  * packet.h: Packet definiton for protocol version 2
  *
@@ -27,6 +27,7 @@
 #include "utils.h"
 
 enum {
+	FUNCTION_DISCONNECT_PROBE = 128,
 	CALLBACK_ENUMERATE = 253
 };
 
