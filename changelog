@@ -34,3 +34,8 @@
        Support running as non-root on Linux
        Improve --help output
 2.0.3: Fix USB unplug detection on Windows
+2.0.4: NSIS installer automatically installs/updates the WinUSB driver on Windows < 8
+       Improve callback related log messages
+       Fix wrong log level of startup greeting on Windows
+       Drop incoming disconnect probe requests
+       Fix packet buffer handling in unlikely error case
