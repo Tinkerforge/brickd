@@ -15,6 +15,11 @@ On Debian based Linux distributions try::
 
  sudo apt-get install build-essential libusb-1.0-0-dev libudev-dev
 
+On Fedora Linux try::
+
+ sudo yum groupinstall "Development Tools"
+ sudo yum install libusb1-devel libudev-devel
+
 For Windows a suitable pre-compiled libusb binary is part of this repository.
 For Mac OS X a suitable libusb version can be obtained via MacPorts or Homebrew.
 

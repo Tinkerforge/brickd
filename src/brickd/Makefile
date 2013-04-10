@@ -1,10 +1,13 @@
-
+#
 # Makefile for GCC builds on Linux and Mac OS X, and MinGW builds on Windows
 #
-# libusb-1.0-0-dev >= 1.0.8
-# libudev-dev >= 173
+# Debian/Ubuntu:
+# sudo apt-get install build-essential libusb-1.0-0-dev libudev-dev
 #
-# apt-get install libusb-1.0-0-dev libudev-dev
+# Fedora:
+# sudo yum groupinstall "Development Tools"
+# sudo yum install libusb1-devel libudev-devel
+#
 
 ## CONFIG #####################################################################
 
