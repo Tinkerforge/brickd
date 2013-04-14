@@ -58,7 +58,7 @@ static void read_transfer_callback(Transfer *transfer) {
 
 	if (!packet_header_is_valid_response(&transfer->packet.header, &message)) {
 		log_debug("Got invalid response (U: %u, L: %u, F: %u, S: %u, E: %u) from %s [%s]: %s",
-		          transfer->packet.header.uid,
+		          uint32_from_le(transfer->packet.header.uid),
 		          transfer->packet.header.length,
 		          transfer->packet.header.function_id,
 		          packet_header_get_sequence_number(&transfer->packet.header),
@@ -72,13 +72,13 @@ static void read_transfer_callback(Transfer *transfer) {
 	if (packet_header_get_sequence_number(&transfer->packet.header) == 0) {
 		log_debug("Got %scallback (U: %u, L: %u, F: %u) from %s [%s]",
 		          packet_get_callback_type(&transfer->packet),
-		          transfer->packet.header.uid,
+		          uint32_from_le(transfer->packet.header.uid),
 		          transfer->packet.header.length,
 		          transfer->packet.header.function_id,
 		          transfer->brick->product, transfer->brick->serial_number);
 	} else {
 		log_debug("Got response (U: %u, L: %u, F: %u, S: %u, E: %u) from %s [%s]",
-		          transfer->packet.header.uid,
+		          uint32_from_le(transfer->packet.header.uid),
 		          transfer->packet.header.length,
 		          transfer->packet.header.function_id,
 		          packet_header_get_sequence_number(&transfer->packet.header),
@@ -103,7 +103,7 @@ static void write_transfer_callback(Transfer *transfer) {
 
 		if (transfer_submit(transfer) < 0) {
 			log_error("Could not send queued request (U: %u, L: %u, F: %u, S: %u, R: %u) to %s [%s]: %s (%d)",
-			          packet->header.uid,
+			          uint32_from_le(packet->header.uid),
 			          packet->header.length,
 			          packet->header.function_id,
 			          packet_header_get_sequence_number(&packet->header),
@@ -117,7 +117,7 @@ static void write_transfer_callback(Transfer *transfer) {
 		array_remove(&transfer->brick->write_queue, 0, NULL);
 
 		log_debug("Sent queued request (U: %u, L: %u, F: %u, S: %u, R: %u) to %s [%s], %d requests left in queue",
-		          packet->header.uid,
+		          uint32_from_le(packet->header.uid),
 		          packet->header.length,
 		          packet->header.function_id,
 		          packet_header_get_sequence_number(&packet->header),
@@ -401,7 +401,7 @@ void brick_destroy(Brick *brick) {
 	          brick->bus_number, brick->device_address);
 }
 
-int brick_add_uid(Brick *brick, uint32_t uid) {
+int brick_add_uid(Brick *brick, uint32_t uid /* allways little endian */) {
 	int i;
 	uint32_t known_uid;
 	uint32_t *new_uid;
@@ -428,7 +428,7 @@ int brick_add_uid(Brick *brick, uint32_t uid) {
 	return 0;
 }
 
-int brick_knows_uid(Brick *brick, uint32_t uid) {
+int brick_knows_uid(Brick *brick, uint32_t uid /* allways little endian */) {
 	int i;
 	uint32_t known_uid;
 

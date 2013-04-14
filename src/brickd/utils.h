@@ -24,6 +24,8 @@
 
 #include <stdint.h>
 
+#include "endian.h"
+
 #define ERRNO_WINAPI_OFFSET 71000000
 #define ERRNO_ADDRINFO_OFFSET 72000000
 
@@ -60,6 +62,12 @@ void *array_get(Array *array, int i);
 int array_find(Array *array, void *item);
 
 void base58_encode(char *str, uint32_t value);
+
+#if BYTE_ORDER_IS_LITTLE_ENDIAN
+	#define uint32_from_le(value) (value)
+#else
+uint32_t uint32_from_le(uint32_t value);
+#endif
 
 #ifdef __GNUC__
 	#ifndef __GNUC_PREREQ

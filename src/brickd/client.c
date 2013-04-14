@@ -38,8 +38,8 @@ static const char *_unknown_peer_name = "<unknown>";
 
 static void client_handle_receive(void *opaque) {
 	Client *client = opaque;
-	const char *message = NULL;
 	int length;
+	const char *message = NULL;
 	PacketHeader *pending_request;
 
 	length = socket_receive(client->socket,
@@ -86,7 +86,7 @@ static void client_handle_receive(void *opaque) {
 
 		if (!packet_header_is_valid_request(&client->packet.header, &message)) {
 			log_warn("Got invalid request (U: %u, L: %u, F: %u, S: %u, R: %u) from client (socket: %d, peer: %s): %s",
-			         client->packet.header.uid,
+			         uint32_from_le(client->packet.header.uid),
 			         client->packet.header.length,
 			         client->packet.header.function_id,
 			         packet_header_get_sequence_number(&client->packet.header),
@@ -103,7 +103,7 @@ static void client_handle_receive(void *opaque) {
 			          client->socket, client->peer);
 		} else {
 			log_debug("Got request (U: %u, L: %u, F: %u, S: %u, R: %u) from client (socket: %d, peer: %s)",
-			          client->packet.header.uid,
+			          uint32_from_le(client->packet.header.uid),
 			          client->packet.header.length,
 			          client->packet.header.function_id,
 			          packet_header_get_sequence_number(&client->packet.header),
@@ -130,7 +130,7 @@ static void client_handle_receive(void *opaque) {
 					memcpy(pending_request, &client->packet.header, sizeof(PacketHeader));
 
 					log_debug("Added pending request (U: %u, L: %u, F: %u, S: %u) for client (socket: %d, peer: %s)",
-					          pending_request->uid,
+					          uint32_from_le(pending_request->uid),
 					          pending_request->length,
 					          pending_request->function_id,
 					          packet_header_get_sequence_number(pending_request),

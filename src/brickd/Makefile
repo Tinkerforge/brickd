@@ -102,9 +102,11 @@ ifeq ($(PLATFORM),Windows)
 	OBJECTS += brickd.o log_messages.o
 	TARGET := brickd.exe
 	DIST := dist\brickd.exe
+	ENDIANDETECT = endiandetect.exe
 else
 	TARGET := brickd
 	DIST :=
+	ENDIANDETECT = endiandetect
 endif
 
 #CFLAGS += -O0 -g -ggdb
@@ -153,8 +155,10 @@ ifeq ($(WITH_LOGGING),yes)
 	CFLAGS += -DBRICKD_LOG_ENABLED
 endif
 
+GENERATED := endian.h
+
 ifeq ($(PLATFORM),Windows)
-	GENERATED := log_messages.h log_messages.rc
+	GENERATED += log_messages.h log_messages.rc
 endif
 
 .PHONY: all clean
@@ -169,7 +173,7 @@ dist\brickd.exe: $(TARGET) Makefile
 	$(E)copy "..\build_data\Windows\libusb\libusb-1.0.dll" "dist\"
 
 clean: Makefile
-	$(E)$(RM) $(GENERATED) $(OBJECTS) $(TARGET)
+	$(E)$(RM) $(GENERATED) $(OBJECTS) $(TARGET) $(ENDIANDETECT)
 
 clean-depend: Makefile
 	$(E)$(RM) $(DEPENDS)
@@ -202,6 +206,14 @@ endif
 log_messages.h log_messages.rc: log_messages.mc Makefile
 	@echo GEN $@
 	$(E)windmc -A -b log_messages.mc
+
+$(ENDIANDETECT): endiandetect.c Makefile
+	@echo CC/LD $@
+	$(E)$(CC) $(CFLAGS) -o $@ $<
+
+endian.h: $(ENDIANDETECT) Makefile
+	@echo GEN $@
+	$(E)./$(ENDIANDETECT) > $@
 
 %.o: %.c $(GENERATED) Makefile
 	@echo CC $@

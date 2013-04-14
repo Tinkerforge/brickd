@@ -224,12 +224,12 @@ void network_dispatch_packet(Packet *packet) {
 		if (packet_header_get_sequence_number(&packet->header) == 0) {
 			log_debug("No clients connected, dropping %scallback (U: %u, L: %u, F: %u)",
 			          packet_get_callback_type(packet),
-			          packet->header.uid,
+			          uint32_from_le(packet->header.uid),
 			          packet->header.length,
 			          packet->header.function_id);
 		} else {
 			log_debug("No clients connected, dropping response (U: %u, L: %u, F: %u, S: %u, E: %u)",
-			          packet->header.uid,
+			          uint32_from_le(packet->header.uid),
 			          packet->header.length,
 			          packet->header.function_id,
 			          packet_header_get_sequence_number(&packet->header),
@@ -242,7 +242,7 @@ void network_dispatch_packet(Packet *packet) {
 	if (packet_header_get_sequence_number(&packet->header) == 0) {
 		log_debug("Broadcasting %scallback (U: %u, L: %u, F: %u) to %d client(s)",
 		          packet_get_callback_type(packet),
-		          packet->header.uid,
+		          uint32_from_le(packet->header.uid),
 		          packet->header.length,
 		          packet->header.function_id,
 		          _clients.count);
@@ -254,7 +254,7 @@ void network_dispatch_packet(Packet *packet) {
 		}
 	} else {
 		log_debug("Dispatching response (U: %u, L: %u, F: %u, S: %u, E: %u) to %d client(s)",
-		          packet->header.uid,
+		          uint32_from_le(packet->header.uid),
 		          packet->header.length,
 		          packet->header.function_id,
 		          packet_header_get_sequence_number(&packet->header),

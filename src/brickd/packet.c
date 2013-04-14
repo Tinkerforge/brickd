@@ -52,7 +52,7 @@ int packet_header_is_valid_response(PacketHeader *header, const char **message) 
 		return 0;
 	}
 
-	if (header->uid == 0) {
+	if (uint32_from_le(header->uid) == 0) {
 		*message = "Invalid UID";
 
 		return 0;

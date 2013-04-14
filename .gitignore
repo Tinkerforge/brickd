@@ -1,6 +1,9 @@
 *.d
 *.o
 src/brickd/dist
+src/brickd/endiandetect
+src/brickd/endiandetect.exe
+src/brickd/endian.h
 src/brickd/brickd
 src/brickd/brickd.exe
 src/brickd/log_messages.h

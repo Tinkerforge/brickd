@@ -547,3 +547,14 @@ void base58_encode(char *str, uint32_t value) {
 		str[k] = '\0';
 	}
 }
+
+#if !BYTE_ORDER_IS_LITTLE_ENDIAN
+
+uint32_t uint32_from_le(uint32_t value)
+{
+	uint8_t *bytes = (uint8_t *)&value;
+
+	return ((uint32_t)bytes[3] << 24) | ((uint32_t)bytes[2] << 16) | ((uint32_t)bytes[1] << 8) | (uint32_t)bytes[0];
+}
+
+#endif
