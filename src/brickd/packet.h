@@ -51,12 +51,8 @@ typedef struct {
 	uint32_t uid;
 	uint8_t length;
 	uint8_t function_id;
-	uint8_t other_options : 2,
-	        authentication : 1,
-	        response_expected : 1,
-	        sequence_number : 4;
-	uint8_t future_use : 6,
-	        error_code : 2;
+	uint8_t sequence_number_and_options;
+	uint8_t error_code_and_future_use;
 } ATTRIBUTE_PACKED PacketHeader;
 
 typedef struct {
@@ -87,6 +83,14 @@ STATIC_ASSERT(sizeof(Packet) == 80, "Packet has invalid size");
 int packet_header_is_valid_request(PacketHeader *header, const char **message);
 
 int packet_header_is_valid_response(PacketHeader *header, const char **message);
+
+uint8_t packet_header_get_sequence_number(PacketHeader *header);
+
+void packet_header_set_sequence_number(PacketHeader *header, uint8_t sequence_number);
+
+uint8_t packet_header_get_response_expected(PacketHeader *header);
+
+uint8_t packet_header_get_error_code(PacketHeader *header);
 
 const char *packet_get_callback_type(Packet *packet);
 

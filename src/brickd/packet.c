@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2012 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2012-2013 Matthias Bolte <matthias@tinkerforge.com>
  *
  * packet.c: Packet definiton for protocol version 2
  *
@@ -36,7 +36,7 @@ int packet_header_is_valid_request(PacketHeader *header, const char **message) {
 		return 0;
 	}
 
-	if (header->sequence_number == 0) {
+	if (packet_header_get_sequence_number(header) == 0) {
 		*message = "Invalid sequence number";
 
 		return 0;
@@ -64,13 +64,29 @@ int packet_header_is_valid_response(PacketHeader *header, const char **message) 
 		return 0;
 	}
 
-	if (!header->response_expected) {
+	if (!packet_header_get_response_expected(header)) {
 		*message = "Invalid response expected bit";
 
 		return 0;
 	}
 
 	return 1;
+}
+
+uint8_t packet_header_get_sequence_number(PacketHeader *header) {
+	return (header->sequence_number_and_options >> 4) & 0x0F;
+}
+
+void packet_header_set_sequence_number(PacketHeader *header, uint8_t sequence_number) {
+	header->sequence_number_and_options |= (sequence_number << 4) & 0xF0;
+}
+
+uint8_t packet_header_get_response_expected(PacketHeader *header) {
+	return (header->sequence_number_and_options >> 3) & 0x01;
+}
+
+uint8_t packet_header_get_error_code(PacketHeader *header) {
+	return (header->error_code_and_future_use >> 6) & 0x03;
 }
 
 const char *packet_get_callback_type(Packet *packet) {

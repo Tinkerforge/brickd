@@ -282,7 +282,7 @@ int usb_update(void) {
 			enumerate_callback.header.uid = uid;
 			enumerate_callback.header.length = sizeof(enumerate_callback);
 			enumerate_callback.header.function_id = CALLBACK_ENUMERATE;
-			enumerate_callback.header.sequence_number = 0;
+			packet_header_set_sequence_number(&enumerate_callback.header, 0);
 
 			base58_encode(enumerate_callback.uid, uid);
 			enumerate_callback.enumeration_type = ENUMERATION_TYPE_DISCONNECTED;
@@ -307,18 +307,23 @@ void usb_dispatch_packet(Packet *packet) {
 
 	if (_bricks.count == 0) {
 		log_debug("No Bricks connected, dropping request (U: %u, L: %u, F: %u, S: %u, R: %u)",
-		          packet->header.uid, packet->header.length,
-		          packet->header.function_id, packet->header.sequence_number,
-		          packet->header.response_expected);
+		          packet->header.uid,
+		          packet->header.length,
+		          packet->header.function_id,
+		          packet_header_get_sequence_number(&packet->header),
+		          packet_header_get_response_expected(&packet->header));
 
 		return;
 	}
 
 	if (packet->header.uid == 0) {
 		log_debug("Broadcasting request (U: %u, L: %u, F: %u, S: %u, R: %u) to %d Brick(s)",
-		          packet->header.uid, packet->header.length,
-		          packet->header.function_id, packet->header.sequence_number,
-		          packet->header.response_expected, _bricks.count);
+		          packet->header.uid,
+		          packet->header.length,
+		          packet->header.function_id,
+		          packet_header_get_sequence_number(&packet->header),
+		          packet_header_get_response_expected(&packet->header),
+		          _bricks.count);
 
 		for (i = 0; i < _bricks.count; ++i) {
 			brick = array_get(&_bricks, i);
@@ -327,9 +332,12 @@ void usb_dispatch_packet(Packet *packet) {
 		}
 	} else {
 		log_debug("Dispatching request (U: %u, L: %u, F: %u, S: %u, R: %u) to %d Brick(s)",
-		          packet->header.uid, packet->header.length,
-		          packet->header.function_id, packet->header.sequence_number,
-		          packet->header.response_expected, _bricks.count);
+		          packet->header.uid,
+		          packet->header.length,
+		          packet->header.function_id,
+		          packet_header_get_sequence_number(&packet->header),
+		          packet_header_get_response_expected(&packet->header),
+		          _bricks.count);
 
 		for (i = 0; i < _bricks.count; ++i) {
 			brick = array_get(&_bricks, i);

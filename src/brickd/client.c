@@ -89,8 +89,8 @@ static void client_handle_receive(void *opaque) {
 			         client->packet.header.uid,
 			         client->packet.header.length,
 			         client->packet.header.function_id,
-			         client->packet.header.sequence_number,
-			         client->packet.header.response_expected,
+			         packet_header_get_sequence_number(&client->packet.header),
+			         packet_header_get_response_expected(&client->packet.header),
 			         client->socket, client->peer,
 			         message);
 
@@ -106,11 +106,11 @@ static void client_handle_receive(void *opaque) {
 			          client->packet.header.uid,
 			          client->packet.header.length,
 			          client->packet.header.function_id,
-			          client->packet.header.sequence_number,
-			          client->packet.header.response_expected,
+			          packet_header_get_sequence_number(&client->packet.header),
+			          packet_header_get_response_expected(&client->packet.header),
 			          client->socket, client->peer);
 
-			if (client->packet.header.response_expected) {
+			if (packet_header_get_response_expected(&client->packet.header)) {
 				if (client->pending_requests.count >= MAX_PENDING_REQUESTS) {
 					log_warn("Dropping %d items from pending request array of client (socket: %d, peer: %s)",
 					         client->pending_requests.count - MAX_PENDING_REQUESTS + 1,
@@ -133,7 +133,7 @@ static void client_handle_receive(void *opaque) {
 					          pending_request->uid,
 					          pending_request->length,
 					          pending_request->function_id,
-					          pending_request->sequence_number,
+					          packet_header_get_sequence_number(pending_request),
 					          client->socket, client->peer);
 
 					usb_dispatch_packet(&client->packet);
@@ -214,7 +214,8 @@ int client_dispatch_packet(Client *client, Packet *packet, int force) {
 
 			if (pending_request->header.uid == packet->header.uid &&
 			    pending_request->header.function_id == packet->header.function_id &&
-			    pending_request->header.sequence_number == packet->header.sequence_number) {
+			    packet_header_get_sequence_number(&pending_request->header) ==
+			    packet_header_get_sequence_number(&packet->header)) {
 				found = i;
 
 				break;

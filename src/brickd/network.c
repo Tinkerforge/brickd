@@ -221,7 +221,7 @@ void network_dispatch_packet(Packet *packet) {
 	int dispatched = 0;
 
 	if (_clients.count == 0) {
-		if (packet->header.sequence_number == 0) {
+		if (packet_header_get_sequence_number(&packet->header) == 0) {
 			log_debug("No clients connected, dropping %scallback (U: %u, L: %u, F: %u)",
 			          packet_get_callback_type(packet),
 			          packet->header.uid,
@@ -232,14 +232,14 @@ void network_dispatch_packet(Packet *packet) {
 			          packet->header.uid,
 			          packet->header.length,
 			          packet->header.function_id,
-			          packet->header.sequence_number,
-			          packet->header.error_code);
+			          packet_header_get_sequence_number(&packet->header),
+			          packet_header_get_error_code(&packet->header));
 		}
 
 		return;
 	}
 
-	if (packet->header.sequence_number == 0) {
+	if (packet_header_get_sequence_number(&packet->header) == 0) {
 		log_debug("Broadcasting %scallback (U: %u, L: %u, F: %u) to %d client(s)",
 		          packet_get_callback_type(packet),
 		          packet->header.uid,
@@ -257,8 +257,8 @@ void network_dispatch_packet(Packet *packet) {
 		          packet->header.uid,
 		          packet->header.length,
 		          packet->header.function_id,
-		          packet->header.sequence_number,
-		          packet->header.error_code,
+		          packet_header_get_sequence_number(&packet->header),
+		          packet_header_get_error_code(&packet->header),
 		          _clients.count);
 
 		for (i = 0; i < _clients.count; ++i) {

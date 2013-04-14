@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2012 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2012-2013 Matthias Bolte <matthias@tinkerforge.com>
  *
  * brick.c: Brick specific functions
  *
@@ -61,15 +61,15 @@ static void read_transfer_callback(Transfer *transfer) {
 		          transfer->packet.header.uid,
 		          transfer->packet.header.length,
 		          transfer->packet.header.function_id,
-		          transfer->packet.header.sequence_number,
-		          transfer->packet.header.error_code,
+		          packet_header_get_sequence_number(&transfer->packet.header),
+		          packet_header_get_error_code(&transfer->packet.header),
 		          transfer->brick->product, transfer->brick->serial_number,
 		          message);
 
 		return;
 	}
 
-	if (transfer->packet.header.sequence_number == 0) {
+	if (packet_header_get_sequence_number(&transfer->packet.header) == 0) {
 		log_debug("Got %scallback (U: %u, L: %u, F: %u) from %s [%s]",
 		          packet_get_callback_type(&transfer->packet),
 		          transfer->packet.header.uid,
@@ -81,8 +81,8 @@ static void read_transfer_callback(Transfer *transfer) {
 		          transfer->packet.header.uid,
 		          transfer->packet.header.length,
 		          transfer->packet.header.function_id,
-		          transfer->packet.header.sequence_number,
-		          transfer->packet.header.error_code,
+		          packet_header_get_sequence_number(&transfer->packet.header),
+		          packet_header_get_error_code(&transfer->packet.header),
 		          transfer->brick->product, transfer->brick->serial_number);
 	}
 
@@ -103,9 +103,11 @@ static void write_transfer_callback(Transfer *transfer) {
 
 		if (transfer_submit(transfer) < 0) {
 			log_error("Could not send queued request (U: %u, L: %u, F: %u, S: %u, R: %u) to %s [%s]: %s (%d)",
-			          packet->header.uid, packet->header.length,
-			          packet->header.function_id, packet->header.sequence_number,
-			          packet->header.response_expected,
+			          packet->header.uid,
+			          packet->header.length,
+			          packet->header.function_id,
+			          packet_header_get_sequence_number(&packet->header),
+			          packet_header_get_response_expected(&packet->header),
 			          transfer->brick->product, transfer->brick->serial_number,
 			          get_errno_name(errno), errno);
 
@@ -115,9 +117,11 @@ static void write_transfer_callback(Transfer *transfer) {
 		array_remove(&transfer->brick->write_queue, 0, NULL);
 
 		log_debug("Sent queued request (U: %u, L: %u, F: %u, S: %u, R: %u) to %s [%s], %d requests left in queue",
-		          packet->header.uid, packet->header.length,
-		          packet->header.function_id, packet->header.sequence_number,
-		          packet->header.response_expected,
+		          packet->header.uid,
+		          packet->header.length,
+		          packet->header.function_id,
+		          packet_header_get_sequence_number(&packet->header),
+		          packet_header_get_response_expected(&packet->header),
 		          transfer->brick->product, transfer->brick->serial_number,
 		          transfer->brick->write_queue.count);
 	}
