@@ -27,9 +27,11 @@ void log_init_platform(void) {
 void log_exit_platform(void) {
 }
 
-void log_handler_platform(LogLevel level, const char *file, int line,
+void log_handler_platform(LogCategory category, LogLevel level,
+                          const char *file, int line,
                           const char *function, const char *format,
                           va_list arguments) {
+	(void)category;
 	(void)level;
 	(void)file;
 	(void)line;

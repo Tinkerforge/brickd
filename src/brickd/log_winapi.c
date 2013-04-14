@@ -50,7 +50,8 @@ void log_exit_platform(void) {
 	}
 }
 
-void log_handler_platform(LogLevel level, const char *file, int line,
+void log_handler_platform(LogCategory category, LogLevel level,
+                          const char *file, int line,
                           const char *function, const char *format,
                           va_list arguments) {
 	WORD type;
@@ -58,6 +59,7 @@ void log_handler_platform(LogLevel level, const char *file, int line,
 	char message[512 + 1] = "<unknown>";
 	LPCSTR insert_strings[1];
 
+	(void)category;
 	(void)file;
 	(void)line;
 	(void)function;

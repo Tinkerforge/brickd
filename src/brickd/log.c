@@ -37,13 +37,14 @@ static FILE *_file = NULL;
 
 extern void log_init_platform(void);
 extern void log_exit_platform(void);
-extern void log_handler_platform(LogLevel level, const char *file, int line,
+extern void log_handler_platform(LogCategory category, LogLevel level,
+                                 const char *file, int line,
                                  const char *function, const char *format,
                                  va_list arguments);
 
 // NOTE: assumes that _mutex is locked
-static void log_handler(LogLevel level, const char *file, int line,
-                        const char *function, const char *format,
+static void log_handler(LogCategory category, LogLevel level, const char *file,
+                        int line, const char *function, const char *format,
                         va_list arguments)
 {
 	struct timeval tv;
@@ -51,6 +52,7 @@ static void log_handler(LogLevel level, const char *file, int line,
 	struct tm lt;
 	char lt_str[64] = "<unknown>";
 	char level_c = 'U';
+	const char *category_name = "unknown";
 
 	(void)function;
 
@@ -85,9 +87,18 @@ static void log_handler(LogLevel level, const char *file, int line,
 	case LOG_LEVEL_DEBUG: level_c = 'D'; break;
 	}
 
+	// format category
+	switch (category) {
+	case LOG_CATEGORY_EVENT:   category_name = "event"; break;
+	case LOG_CATEGORY_USB:     category_name = "usb"; break;
+	case LOG_CATEGORY_NETWORK: category_name = "network"; break;
+	case LOG_CATEGORY_HOTPLUG: category_name = "hotplug"; break;
+	case LOG_CATEGORY_OTHER:   category_name = "other"; break;
+	}
+
 	// print prefix
-	fprintf(_file, "%s.%06d <%c> <%s:%d> ",
-	        lt_str, (int)tv.tv_usec, level_c, file, line);
+	fprintf(_file, "%s.%06d <%c> <%s|%s:%d> ",
+	        lt_str, (int)tv.tv_usec, level_c, category_name, file, line);
 
 	// print message
 	vfprintf(_file, format, arguments);
@@ -135,15 +146,11 @@ void log_message(LogCategory category, LogLevel level,
 {
 	va_list arguments;
 
-	if (level > _levels[category]) {
-		return;
-	}
-
 	va_start(arguments, format);
 	mutex_lock(&_mutex);
 
-	log_handler(level, file, line, function, format, arguments);
-	log_handler_platform(level, file, line, function, format, arguments);
+	log_handler(category, level, file, line, function, format, arguments);
+	log_handler_platform(category, level, file, line, function, format, arguments);
 
 	mutex_unlock(&_mutex);
 	va_end(arguments);
