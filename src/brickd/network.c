@@ -215,6 +215,7 @@ void network_client_disconnected(Client *client) {
 }
 
 void network_dispatch_packet(Packet *packet) {
+	char base58[MAX_BASE58_STR_SIZE];
 	int i;
 	Client *client;
 	int rc;
@@ -222,14 +223,14 @@ void network_dispatch_packet(Packet *packet) {
 
 	if (_clients.count == 0) {
 		if (packet_header_get_sequence_number(&packet->header) == 0) {
-			log_debug("No clients connected, dropping %scallback (U: %u, L: %u, F: %u)",
+			log_debug("No clients connected, dropping %scallback (U: %s, L: %u, F: %u)",
 			          packet_get_callback_type(packet),
-			          uint32_from_le(packet->header.uid),
+			          base58_encode(base58, uint32_from_le(packet->header.uid)),
 			          packet->header.length,
 			          packet->header.function_id);
 		} else {
-			log_debug("No clients connected, dropping response (U: %u, L: %u, F: %u, S: %u, E: %u)",
-			          uint32_from_le(packet->header.uid),
+			log_debug("No clients connected, dropping response (U: %s, L: %u, F: %u, S: %u, E: %u)",
+			          base58_encode(base58, uint32_from_le(packet->header.uid)),
 			          packet->header.length,
 			          packet->header.function_id,
 			          packet_header_get_sequence_number(&packet->header),
@@ -240,9 +241,9 @@ void network_dispatch_packet(Packet *packet) {
 	}
 
 	if (packet_header_get_sequence_number(&packet->header) == 0) {
-		log_debug("Broadcasting %scallback (U: %u, L: %u, F: %u) to %d client(s)",
+		log_debug("Broadcasting %scallback (U: %s, L: %u, F: %u) to %d client(s)",
 		          packet_get_callback_type(packet),
-		          uint32_from_le(packet->header.uid),
+		          base58_encode(base58, uint32_from_le(packet->header.uid)),
 		          packet->header.length,
 		          packet->header.function_id,
 		          _clients.count);
@@ -253,8 +254,8 @@ void network_dispatch_packet(Packet *packet) {
 			client_dispatch_packet(client, packet, 1);
 		}
 	} else {
-		log_debug("Dispatching response (U: %u, L: %u, F: %u, S: %u, E: %u) to %d client(s)",
-		          uint32_from_le(packet->header.uid),
+		log_debug("Dispatching response (U: %s, L: %u, F: %u, S: %u, E: %u) to %d client(s)",
+		          base58_encode(base58, uint32_from_le(packet->header.uid)),
 		          packet->header.length,
 		          packet->header.function_id,
 		          packet_header_get_sequence_number(&packet->header),

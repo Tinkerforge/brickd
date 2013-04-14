@@ -40,6 +40,7 @@ static void client_handle_receive(void *opaque) {
 	Client *client = opaque;
 	int length;
 	const char *message = NULL;
+	char base58[MAX_BASE58_STR_SIZE];
 	PacketHeader *pending_request;
 
 	length = socket_receive(client->socket,
@@ -85,8 +86,8 @@ static void client_handle_receive(void *opaque) {
 		}
 
 		if (!packet_header_is_valid_request(&client->packet.header, &message)) {
-			log_warn("Got invalid request (U: %u, L: %u, F: %u, S: %u, R: %u) from client (socket: %d, peer: %s): %s",
-			         uint32_from_le(client->packet.header.uid),
+			log_warn("Got invalid request (U: %s, L: %u, F: %u, S: %u, R: %u) from client (socket: %d, peer: %s): %s",
+			         base58_encode(base58, uint32_from_le(client->packet.header.uid)),
 			         client->packet.header.length,
 			         client->packet.header.function_id,
 			         packet_header_get_sequence_number(&client->packet.header),
@@ -102,8 +103,8 @@ static void client_handle_receive(void *opaque) {
 			log_debug("Got disconnect probe from client (socket: %d, peer: %s), dropping it",
 			          client->socket, client->peer);
 		} else {
-			log_debug("Got request (U: %u, L: %u, F: %u, S: %u, R: %u) from client (socket: %d, peer: %s)",
-			          uint32_from_le(client->packet.header.uid),
+			log_debug("Got request (U: %s, L: %u, F: %u, S: %u, R: %u) from client (socket: %d, peer: %s)",
+			          base58_encode(base58, uint32_from_le(client->packet.header.uid)),
 			          client->packet.header.length,
 			          client->packet.header.function_id,
 			          packet_header_get_sequence_number(&client->packet.header),
@@ -129,8 +130,8 @@ static void client_handle_receive(void *opaque) {
 				} else {
 					memcpy(pending_request, &client->packet.header, sizeof(PacketHeader));
 
-					log_debug("Added pending request (U: %u, L: %u, F: %u, S: %u) for client (socket: %d, peer: %s)",
-					          uint32_from_le(pending_request->uid),
+					log_debug("Added pending request (U: %s, L: %u, F: %u, S: %u) for client (socket: %d, peer: %s)",
+					          base58_encode(base58, uint32_from_le(pending_request->uid)),
 					          pending_request->length,
 					          pending_request->function_id,
 					          packet_header_get_sequence_number(pending_request),

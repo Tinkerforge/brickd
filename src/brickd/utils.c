@@ -520,32 +520,32 @@ int array_find(Array *array, void *item) {
 	}
 }
 
-#define MAX_BASE58_STR_SIZE 8
+static const char BASE58_ALPHABET[] = "123456789abcdefghijkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ";
 
-static const char BASE58_STR[] = "123456789abcdefghijkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ";
-
-void base58_encode(char *str, uint32_t value) {
-	uint32_t mod;
-	char reverse_str[MAX_BASE58_STR_SIZE] = {'\0'};
+char *base58_encode(char *string, uint32_t value) {
+	uint32_t digit;
+	char reverse[MAX_BASE58_STR_SIZE] = {'\0'};
 	int i = 0;
 	int k = 0;
 
 	while (value >= 58) {
-		mod = value % 58;
-		reverse_str[i] = BASE58_STR[mod];
+		digit = value % 58;
+		reverse[i] = BASE58_ALPHABET[digit];
 		value = value / 58;
 		++i;
 	}
 
-	reverse_str[i] = BASE58_STR[value];
+	reverse[i] = BASE58_ALPHABET[value];
 
 	for (k = 0; k <= i; ++k) {
-		str[k] = reverse_str[i - k];
+		string[k] = reverse[i - k];
 	}
 
 	for (; k < MAX_BASE58_STR_SIZE; ++k) {
-		str[k] = '\0';
+		string[k] = '\0';
 	}
+
+	return string;
 }
 
 #if !BYTE_ORDER_IS_LITTLE_ENDIAN

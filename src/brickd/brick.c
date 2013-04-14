@@ -39,6 +39,7 @@
 
 static void read_transfer_callback(Transfer *transfer) {
 	const char *message = NULL;
+	char base58[MAX_BASE58_STR_SIZE];
 
 	if (transfer->handle->actual_length < (int)sizeof(PacketHeader)) {
 		log_error("Read transfer %p returned response with incomplete header (actual: %u < minimum: %d) from %s [%s]",
@@ -57,8 +58,8 @@ static void read_transfer_callback(Transfer *transfer) {
 	}
 
 	if (!packet_header_is_valid_response(&transfer->packet.header, &message)) {
-		log_debug("Got invalid response (U: %u, L: %u, F: %u, S: %u, E: %u) from %s [%s]: %s",
-		          uint32_from_le(transfer->packet.header.uid),
+		log_debug("Got invalid response (U: %s, L: %u, F: %u, S: %u, E: %u) from %s [%s]: %s",
+		          base58_encode(base58, uint32_from_le(transfer->packet.header.uid)),
 		          transfer->packet.header.length,
 		          transfer->packet.header.function_id,
 		          packet_header_get_sequence_number(&transfer->packet.header),
@@ -70,15 +71,15 @@ static void read_transfer_callback(Transfer *transfer) {
 	}
 
 	if (packet_header_get_sequence_number(&transfer->packet.header) == 0) {
-		log_debug("Got %scallback (U: %u, L: %u, F: %u) from %s [%s]",
+		log_debug("Got %scallback (U: %s, L: %u, F: %u) from %s [%s]",
 		          packet_get_callback_type(&transfer->packet),
-		          uint32_from_le(transfer->packet.header.uid),
+		          base58_encode(base58, uint32_from_le(transfer->packet.header.uid)),
 		          transfer->packet.header.length,
 		          transfer->packet.header.function_id,
 		          transfer->brick->product, transfer->brick->serial_number);
 	} else {
-		log_debug("Got response (U: %u, L: %u, F: %u, S: %u, E: %u) from %s [%s]",
-		          uint32_from_le(transfer->packet.header.uid),
+		log_debug("Got response (U: %s, L: %u, F: %u, S: %u, E: %u) from %s [%s]",
+		          base58_encode(base58, uint32_from_le(transfer->packet.header.uid)),
 		          transfer->packet.header.length,
 		          transfer->packet.header.function_id,
 		          packet_header_get_sequence_number(&transfer->packet.header),
@@ -95,6 +96,7 @@ static void read_transfer_callback(Transfer *transfer) {
 
 static void write_transfer_callback(Transfer *transfer) {
 	Packet *packet;
+	char base58[MAX_BASE58_STR_SIZE];
 
 	if (transfer->brick->write_queue.count > 0) {
 		packet = array_get(&transfer->brick->write_queue, 0);
@@ -102,8 +104,8 @@ static void write_transfer_callback(Transfer *transfer) {
 		memcpy(&transfer->packet, packet, packet->header.length);
 
 		if (transfer_submit(transfer) < 0) {
-			log_error("Could not send queued request (U: %u, L: %u, F: %u, S: %u, R: %u) to %s [%s]: %s (%d)",
-			          uint32_from_le(packet->header.uid),
+			log_error("Could not send queued request (U: %s, L: %u, F: %u, S: %u, R: %u) to %s [%s]: %s (%d)",
+			          base58_encode(base58, uint32_from_le(packet->header.uid)),
 			          packet->header.length,
 			          packet->header.function_id,
 			          packet_header_get_sequence_number(&packet->header),
@@ -116,8 +118,8 @@ static void write_transfer_callback(Transfer *transfer) {
 
 		array_remove(&transfer->brick->write_queue, 0, NULL);
 
-		log_debug("Sent queued request (U: %u, L: %u, F: %u, S: %u, R: %u) to %s [%s], %d requests left in queue",
-		          uint32_from_le(packet->header.uid),
+		log_debug("Sent queued request (U: %s, L: %u, F: %u, S: %u, R: %u) to %s [%s], %d requests left in queue",
+		          base58_encode(base58, uint32_from_le(packet->header.uid)),
 		          packet->header.length,
 		          packet->header.function_id,
 		          packet_header_get_sequence_number(&packet->header),

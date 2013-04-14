@@ -300,14 +300,15 @@ int usb_update(void) {
 }
 
 void usb_dispatch_packet(Packet *packet) {
+	char base58[MAX_BASE58_STR_SIZE];
 	int i;
 	Brick *brick;
 	int rc;
 	int dispatched = 0;
 
 	if (_bricks.count == 0) {
-		log_debug("No Bricks connected, dropping request (U: %u, L: %u, F: %u, S: %u, R: %u)",
-		          uint32_from_le(packet->header.uid),
+		log_debug("No Bricks connected, dropping request (U: %s, L: %u, F: %u, S: %u, R: %u)",
+		          base58_encode(base58, uint32_from_le(packet->header.uid)),
 		          packet->header.length,
 		          packet->header.function_id,
 		          packet_header_get_sequence_number(&packet->header),
@@ -317,8 +318,8 @@ void usb_dispatch_packet(Packet *packet) {
 	}
 
 	if (packet->header.uid == 0) {
-		log_debug("Broadcasting request (U: %u, L: %u, F: %u, S: %u, R: %u) to %d Brick(s)",
-		          uint32_from_le(packet->header.uid),
+		log_debug("Broadcasting request (U: %s, L: %u, F: %u, S: %u, R: %u) to %d Brick(s)",
+		          base58_encode(base58, uint32_from_le(packet->header.uid)),
 		          packet->header.length,
 		          packet->header.function_id,
 		          packet_header_get_sequence_number(&packet->header),
@@ -331,8 +332,8 @@ void usb_dispatch_packet(Packet *packet) {
 			brick_dispatch_packet(brick, packet, 1);
 		}
 	} else {
-		log_debug("Dispatching request (U: %u, L: %u, F: %u, S: %u, R: %u) to %d Brick(s)",
-		          uint32_from_le(packet->header.uid),
+		log_debug("Dispatching request (U: %s, L: %u, F: %u, S: %u, R: %u) to %d Brick(s)",
+		          base58_encode(base58, uint32_from_le(packet->header.uid)),
 		          packet->header.length,
 		          packet->header.function_id,
 		          packet_header_get_sequence_number(&packet->header),
