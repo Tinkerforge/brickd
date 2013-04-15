@@ -36,6 +36,8 @@ struct tm *localtime_r(const time_t *timep, struct tm *result);
 
 int gettimeofday(struct timeval *tv, struct timezone *tz);
 
+#define strdup _strdup
+
 #endif // _MSC_VER
 
 #endif // BRICKD_MSVCFIXES_H
