@@ -213,7 +213,11 @@ $(ENDIANDETECT): endiandetect.c Makefile
 
 endian.h: $(ENDIANDETECT) Makefile
 	@echo GEN $@
+ifeq ($(PLATFORM),Windows)
+	$(E)$(ENDIANDETECT) > $@
+else
 	$(E)./$(ENDIANDETECT) > $@
+endif
 
 %.o: %.c $(GENERATED) Makefile
 	@echo CC $@

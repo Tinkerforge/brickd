@@ -27,10 +27,17 @@
  echo non-WDK build
 )
 
-@del *.obj *.res *.bin *.exp *.manifest *.exe
-
 @set CC=%CC% /I..\build_data\Windows /I..\build_data\Windows\libusb
 @set LD=%LD% /libpath:..\build_data\Windows\libusb
+
+@del *.obj *.res *.bin *.exp *.manifest *.exe
+
+%CC% endiandetect.c
+%LD% /out:endiandetect.exe endiandetect.obj
+
+endiandetect > endian.h
+
+@del *.obj *.res *.bin *.exp *.manifest *.exe
 
 %MC% -A -b log_messages.mc
 
