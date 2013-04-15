@@ -48,13 +48,26 @@ typedef void (*LogHandler)(LogLevel level, const char *file, int line,
                            va_list arguments);
 
 #ifdef BRICKD_LOG_ENABLED
-	#define log_message_checked(level, ...) \
-		do { \
-			if ((level) <= log_get_level(LOG_CATEGORY)) { \
-				log_message(LOG_CATEGORY, level, __FILE__, \
-				            __LINE__, __FUNCTION__, __VA_ARGS__); \
-			} \
-		} while (0)
+	#ifdef _MSC_VER
+		#define log_message_checked(level, ...) \
+			do { \
+				if ((level) <= log_get_level(LOG_CATEGORY)) { \
+					log_message(LOG_CATEGORY, level, __FILE__, \
+					            __LINE__, __FUNCTION__, __VA_ARGS__); \
+				} \
+			__pragma(warning(push)) \
+			__pragma(warning(disable:4127)) \
+			} while (0) \
+			__pragma(warning(pop))
+	#else
+		#define log_message_checked(level, ...) \
+			do { \
+				if ((level) <= log_get_level(LOG_CATEGORY)) { \
+					log_message(LOG_CATEGORY, level, __FILE__, \
+					            __LINE__, __FUNCTION__, __VA_ARGS__); \
+				} \
+			} while (0)
+	#endif
 
 	#define log_error(...) log_message_checked(LOG_LEVEL_ERROR, __VA_ARGS__)
 	#define log_warn(...)  log_message_checked(LOG_LEVEL_WARN, __VA_ARGS__)
