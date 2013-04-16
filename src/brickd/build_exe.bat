@@ -32,13 +32,6 @@
 
 @del *.obj *.res *.bin *.exp *.manifest *.exe
 
-%CC% endiandetect.c
-%LD% /out:endiandetect.exe endiandetect.obj
-
-endiandetect > endian.h
-
-@del *.obj *.res *.bin *.exp *.manifest *.exe
-
 %MC% -A -b log_messages.mc
 
 %CC%^
