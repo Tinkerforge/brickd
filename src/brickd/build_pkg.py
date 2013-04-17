@@ -112,7 +112,11 @@ def build_linux_pkg():
     print 'Building version for ' + architecture
 
     os.system('make clean')
-    os.system('make')
+
+    if architecture == 'i386':
+        os.system('CFLAGS=-march=i386 make')
+    else:
+        os.system('make')
 
     version = subprocess.check_output(['./brickd', '--version']).replace('\n', '').replace(' ', '-')
 
