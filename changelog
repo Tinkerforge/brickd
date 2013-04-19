@@ -39,3 +39,7 @@
        Fix wrong log level of startup greeting on Windows
        Drop incoming disconnect probe requests
        Fix packet buffer handling in unlikely error case
+2.0.5: Avoid non-portable usage of bit fields
+       Handle big endian byte order correctly
+       Show UIDs in log messages in Base58
+       Debian i386 package now really compiled for i386 instead of i686
