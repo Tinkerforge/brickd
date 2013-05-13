@@ -48,7 +48,7 @@ enum {
 #endif
 
 typedef struct {
-	uint32_t uid; // allways little endian
+	uint32_t uid; // always little endian
 	uint8_t length;
 	uint8_t function_id;
 	uint8_t sequence_number_and_options;
@@ -68,7 +68,7 @@ typedef struct {
 	char position;
 	uint8_t hardware_version[3];
 	uint8_t firmware_version[3];
-	uint16_t device_identifier; // allways little endian
+	uint16_t device_identifier; // always little endian
 	uint8_t enumeration_type;
 } ATTRIBUTE_PACKED EnumerateCallback;
 

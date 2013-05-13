@@ -51,7 +51,7 @@ typedef struct {
 	Array write_transfers;
 
 	// Brick
-	Array uids; // allways little endian
+	Array uids; // always little endian
 	Array write_queue;
 
 	// used by usb_update
@@ -61,8 +61,8 @@ typedef struct {
 int brick_create(Brick *brick, uint8_t bus_number, uint8_t device_address);
 void brick_destroy(Brick *brick);
 
-int brick_add_uid(Brick *brick, uint32_t uid /* allways little endian */);
-int brick_knows_uid(Brick *brick, uint32_t uid /* allways little endian */);
+int brick_add_uid(Brick *brick, uint32_t uid /* always little endian */);
+int brick_knows_uid(Brick *brick, uint32_t uid /* always little endian */);
 
 int brick_dispatch_packet(Brick *brick, Packet *packet, int force);
 

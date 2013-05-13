@@ -247,7 +247,7 @@ int usb_update(void) {
 	int i;
 	Brick *brick;
 	int k;
-	uint32_t uid; // allways little endian
+	uint32_t uid; // always little endian
 	EnumerateCallback enumerate_callback;
 
 	// mark all known Bricks as potentially removed

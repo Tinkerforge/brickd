@@ -403,7 +403,7 @@ void brick_destroy(Brick *brick) {
 	          brick->bus_number, brick->device_address);
 }
 
-int brick_add_uid(Brick *brick, uint32_t uid /* allways little endian */) {
+int brick_add_uid(Brick *brick, uint32_t uid /* always little endian */) {
 	int i;
 	uint32_t known_uid;
 	uint32_t *new_uid;
@@ -430,7 +430,7 @@ int brick_add_uid(Brick *brick, uint32_t uid /* allways little endian */) {
 	return 0;
 }
 
-int brick_knows_uid(Brick *brick, uint32_t uid /* allways little endian */) {
+int brick_knows_uid(Brick *brick, uint32_t uid /* always little endian */) {
 	int i;
 	uint32_t known_uid;
 
