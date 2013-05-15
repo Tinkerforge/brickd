@@ -90,11 +90,13 @@ def build_windows_pkg():
 
     build_data_dir = os.path.join(os.getcwd(), '..', 'build_data', 'Windows')
     drivers_dir = os.path.join(build_data_dir, 'drivers')
+    eventlog_dir = os.path.join(build_data_dir, 'eventlog')
     dist_dir = os.path.join(os.getcwd(), 'dist')
     dist_drivers_dir = os.path.join(dist_dir, 'drivers')
-    shutil.copytree(drivers_dir, dist_drivers_dir)
 
+    shutil.copytree(drivers_dir, dist_drivers_dir)
     shutil.copy(os.path.join(build_data_dir, 'brickd.ini'), dist_dir)
+    shutil.copy(os.path.join(eventlog_dir, 'eventlog.exe'), dist_dir)
 
     os.system('"C:\\Program Files\\NSIS\\makensis.exe" dist\\nsis\\brickd_installer.nsi')
 
