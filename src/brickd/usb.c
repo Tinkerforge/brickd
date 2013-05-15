@@ -67,7 +67,7 @@ static int usb_enumerate(USBEnumerateFunction function) {
 		rc = libusb_get_device_descriptor(device, &descriptor);
 
 		if (rc < 0) {
-			log_info("Could not get descriptor for USB device (bus: %u, device: %u), ignoring it: %s (%d)",
+			log_warn("Could not get descriptor for USB device (bus: %u, device: %u), ignoring it: %s (%d)",
 			         bus_number, device_address, get_libusb_error_name(rc), rc);
 
 			continue;
@@ -79,7 +79,7 @@ static int usb_enumerate(USBEnumerateFunction function) {
 		}
 
 		if (descriptor.bcdDevice < USB_DEVICE_RELEASE) {
-			log_info("USB device (bus: %u, device: %u) has protocol 1.0 firmware, ignoring it",
+			log_warn("USB device (bus: %u, device: %u) has protocol 1.0 firmware, ignoring it",
 			         bus_number, device_address);
 
 			continue;
@@ -135,7 +135,7 @@ static int usb_handle_device(libusb_device *device) {
 	if (brick_create(brick, bus_number, device_address) < 0) {
 		array_remove(&_bricks, _bricks.count - 1, NULL);
 
-		log_info("Ignoring USB device (bus: %u, device: %u) due to an error",
+		log_warn("Ignoring USB device (bus: %u, device: %u) due to an error",
 		         bus_number, device_address);
 
 		return 0;
@@ -197,7 +197,7 @@ int usb_init(void) {
 	phase = 1;
 
 	if (!libusb_pollfds_handle_timeouts(_context)) {
-		log_info("libusb requires special timeout handling"); // FIXME
+		log_debug("libusb requires special timeout handling"); // FIXME
 	} else {
 		log_debug("libusb can handle timeouts on its own");
 	}

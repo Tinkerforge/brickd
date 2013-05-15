@@ -303,7 +303,7 @@ static BOOL WINAPI console_ctrl_handler(DWORD ctrl_type) {
 		break;
 
 	default:
-		log_info("Received unknown event %u", (uint32_t)ctrl_type);
+		log_warn("Received unknown event %u", (uint32_t)ctrl_type);
 		return FALSE;
 	}
 

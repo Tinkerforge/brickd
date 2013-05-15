@@ -494,7 +494,7 @@ int brick_dispatch_packet(Brick *brick, Packet *packet, int force) {
 				goto cleanup;
 			}
 
-			log_info("Could not find a free write transfer for %s [%s], put request into write queue (count: %d)",
+			log_warn("Could not find a free write transfer for %s [%s], put request into write queue (count: %d)",
 			         brick->product, brick->serial_number,
 			         brick->write_queue.count);
 
