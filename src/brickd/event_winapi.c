@@ -540,7 +540,7 @@ int event_run_platform(Array *event_sources, int *running) {
 			}
 		}
 
-		if (ready < 0) {
+		if (ready == SOCKET_ERROR) {
 			rc = ERRNO_WINAPI_OFFSET + WSAGetLastError();
 
 			if (rc == ERRNO_WINAPI_OFFSET + WSAEINTR) {
@@ -557,8 +557,7 @@ int event_run_platform(Array *event_sources, int *running) {
 		}
 
 		// handle select result
-		log_debug("Select returned %d %s event source(s) as ready",
-		          ready,
+		log_debug("Select returned %d %s event source(s) as ready", ready,
 		          event_get_source_type_name(EVENT_SOURCE_TYPE_GENERIC, 0));
 
 		handled = 0;
