@@ -26,6 +26,10 @@
 
 #include <time.h>
 
+#ifndef PROCESS_QUERY_LIMITED_INFORMATION
+	#define PROCESS_QUERY_LIMITED_INFORMATION 0x1000
+#endif
+
 struct tm *localtime_r(const time_t *timep, struct tm *result);
 
 #endif // __MINGW32__

@@ -25,6 +25,30 @@
 #include <winsock2.h>
 #include <windows.h>
 #include <dbt.h>
+#include <conio.h>
+
+#ifndef BRICKD_WDK_BUILD
+	#include <tlhelp32.h>
+#else
+typedef struct {
+	DWORD dwSize;
+	DWORD cntUsage;
+	DWORD th32ProcessID;
+	ULONG_PTR th32DefaultHeapID;
+	DWORD th32ModuleID;
+	DWORD cntThreads;
+	DWORD th32ParentProcessID;
+	LONG pcPriClassBase;
+	DWORD dwFlags;
+	TCHAR szExeFile[MAX_PATH];
+} PROCESSENTRY32;
+
+#define TH32CS_SNAPPROCESS 0x00000002
+
+HANDLE WINAPI CreateToolhelp32Snapshot(DWORD dwFlags, DWORD th32ProcessID);
+BOOL WINAPI Process32First(HANDLE hSnapshot, PROCESSENTRY32 *lppe);
+BOOL WINAPI Process32Next(HANDLE hSnapshot, PROCESSENTRY32 *lppe);
+#endif
 
 #include "config.h"
 #include "event.h"
@@ -44,11 +68,121 @@ static const GUID GUID_DEVINTERFACE_USB_DEVICE =
 
 static char _config_filename[1024];
 static int _run_as_service = 1;
+static int _pause_before_exit = 0;
 static EventHandle _notification_pipe[2] = { INVALID_EVENT_HANDLE,
                                              INVALID_EVENT_HANDLE };
 static HWND _message_pump_hwnd = NULL;
 static Thread _message_pump_thread;
 static int _message_pump_running = 0;
+
+typedef BOOL (WINAPI *QUERYFULLPROCESSIMAGENAME)(HANDLE, DWORD, LPTSTR, PDWORD);
+
+static int get_process_image_name(PROCESSENTRY32 entry, char *buffer, DWORD length) {
+	int rc;
+	HANDLE handle = NULL;
+	QUERYFULLPROCESSIMAGENAME query_full_process_image_name = NULL;
+
+	handle = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE,
+	                     entry.th32ProcessID);
+
+	if (handle == NULL && GetLastError() == ERROR_ACCESS_DENIED) {
+		handle = OpenProcess(PROCESS_QUERY_INFORMATION, FALSE,
+		                     entry.th32ProcessID);
+	}
+
+	if (handle == NULL) {
+		rc = ERRNO_WINAPI_OFFSET + GetLastError();
+
+		log_warn("Could not open process with ID %u: %s (%d)",
+		         (uint32_t)entry.th32ProcessID, get_errno_name(rc), rc);
+
+		return -1;
+	}
+
+	query_full_process_image_name =
+	  (QUERYFULLPROCESSIMAGENAME)GetProcAddress(GetModuleHandle("kernel32"),
+	                                            "QueryFullProcessImageNameA");
+
+	if (query_full_process_image_name != NULL) {
+		if (query_full_process_image_name(handle, 0, buffer, &length) == 0) {
+			rc = ERRNO_WINAPI_OFFSET + GetLastError();
+
+			log_warn("Could not get image name of process with ID %u: %s (%d)",
+			         (uint32_t)entry.th32ProcessID, get_errno_name(rc), rc);
+
+			return -1;
+		}
+	} else {
+		memcpy(buffer, entry.szExeFile, length);
+		buffer[length - 1] = '\0';
+	}
+
+	CloseHandle(handle);
+
+	return 0;
+}
+
+static int started_by_explorer(void) {
+	int rc;
+	int result = 0;
+	PROCESSENTRY32 entry;
+	DWORD process_id = GetCurrentProcessId();
+	HANDLE handle = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+	char buffer[MAX_PATH];
+	size_t length;
+
+	if (handle == INVALID_HANDLE_VALUE) {
+		rc = ERRNO_WINAPI_OFFSET + GetLastError();
+
+		log_warn("Could not create process list snapshot: %s (%d)",
+		         get_errno_name(rc), rc);
+
+		return 0;
+	}
+
+	ZeroMemory(&entry, sizeof(entry));
+
+	entry.dwSize = sizeof(PROCESSENTRY32);
+
+	if (Process32First(handle, &entry)) {
+		do {
+			if (entry.th32ProcessID == process_id) {
+				process_id = entry.th32ParentProcessID;
+
+				if (Process32First(handle, &entry)) {
+					do {
+						if (entry.th32ProcessID == process_id) {
+							if (get_process_image_name(entry, buffer,
+							                           sizeof(buffer)) < 0) {
+								break;
+							}
+
+							if (stricmp(buffer, "explorer.exe") == 0) {
+								result = 1;
+							} else {
+								length = strlen(buffer);
+
+								if (length > 13 /* = strlen("\\explorer.exe") */ &&
+								    (stricmp(buffer + length - 13, "\\explorer.exe") == 0 ||
+								     stricmp(buffer + length - 13, ":explorer.exe") == 0)) {
+									result = 1;
+								}
+							}
+
+							break;
+						}
+					} while (Process32Next(handle, &entry));
+				}
+
+				break;
+			}
+		} while (Process32Next(handle, &entry));
+	}
+
+	CloseHandle(handle);
+
+	return result;
+}
 
 static void forward_notifications(void *opaque) {
 	uint8_t byte;
@@ -291,6 +425,8 @@ static BOOL WINAPI console_ctrl_handler(DWORD ctrl_type) {
 		return FALSE;
 	}
 
+	_pause_before_exit = 0;
+
 	event_stop();
 
 	return TRUE;
@@ -482,9 +618,12 @@ error:
 
 	config_exit();
 
-	// service is now stopped
 	if (_run_as_service) {
+		// service is now stopped
 		service_set_status(SERVICE_STOPPED);
+	} else if (_pause_before_exit) {
+		printf("Press any key to exit...\n");
+		getch();
 	}
 
 	return exit_code;
@@ -525,6 +664,7 @@ static int service_run(int log_to_file, int debug) {
 			log_info("Could not start as service, starting as console application");
 
 			_run_as_service = 0;
+			_pause_before_exit = started_by_explorer();
 
 			return generic_main(log_to_file, debug);
 		} else {
@@ -646,12 +786,15 @@ int main(int argc, char **argv) {
 			return EXIT_FAILURE;
 		}
 	} else {
+		printf("Starting...\n");
+
 		config_init(_config_filename);
 
 		log_init();
 
 		if (console) {
 			_run_as_service = 0;
+			_pause_before_exit = started_by_explorer();
 
 			return generic_main(log_to_file, debug);
 		} else {
