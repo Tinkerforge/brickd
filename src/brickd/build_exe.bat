@@ -47,6 +47,7 @@
  network.c^
  packet.c^
  pipe_winapi.c^
+ service.c^
  socket_winapi.c^
  threads_winapi.c^
  transfer.c^

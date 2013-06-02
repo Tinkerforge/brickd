@@ -72,8 +72,8 @@ SOURCES := brick.c client.c config.c event.c log.c network.c packet.c \
            transfer.c usb.c utils.c
 
 ifeq ($(PLATFORM),Windows)
-	SOURCES += event_winapi.c log_winapi.c pipe_winapi.c socket_winapi.c \
-	           threads_winapi.c mingwfixes.c
+	SOURCES += event_winapi.c log_winapi.c pipe_winapi.c service.c \
+	           socket_winapi.c threads_winapi.c mingwfixes.c
 else
 	SOURCES += event_posix.c log_posix.c pidfile.c pipe_posix.c socket_posix.c \
 	           threads_posix.c
