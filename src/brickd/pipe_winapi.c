@@ -2,7 +2,7 @@
  * brickd
  * Copyright (C) 2012-2013 Matthias Bolte <matthias@tinkerforge.com>
  *
- * pipe_winapi.h: WinAPI based pipe implementation
+ * pipe_winapi.c: WinAPI based pipe implementation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by

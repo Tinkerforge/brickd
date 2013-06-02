@@ -2,7 +2,7 @@
  * brickd
  * Copyright (C) 2012-2013 Matthias Bolte <matthias@tinkerforge.com>
  *
- * socket_winapi.h: WinAPI based socket implementation
+ * socket_winapi.c: WinAPI based socket implementation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
