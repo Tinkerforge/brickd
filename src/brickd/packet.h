@@ -42,7 +42,13 @@ enum {
 	#pragma pack(1)
 	#define ATTRIBUTE_PACKED
 #elif defined __GNUC__
-	#define ATTRIBUTE_PACKED __attribute__((gcc_struct, packed))
+	#ifdef _WIN32
+		// workaround struct packing bug in GCC 4.7 on Windows
+		// http://gcc.gnu.org/bugzilla/show_bug.cgi?id=52991
+		#define ATTRIBUTE_PACKED __attribute__((gcc_struct, packed))
+	#else
+		#define ATTRIBUTE_PACKED __attribute__((packed))
+	#endif
 #else
 	#error unknown compiler, do not know how to enable struct packing
 #endif
