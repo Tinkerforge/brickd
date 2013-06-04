@@ -117,6 +117,7 @@ static void print_usage(void) {
 
 static int daemon_parent(pid_t child, int status_read) {
 	int8_t status = -1;
+	ssize_t rc;
 
 	// wait for first child to exit
 	while (waitpid(child, NULL, 0) < 0 && errno == EINTR) {
@@ -132,17 +133,21 @@ static int daemon_parent(pid_t child, int status_read) {
 	}*/
 
 	// wait for second child to start successfully
-	while (read(status_read, &status, 1) < 0 && errno == EINTR) {
+	while ((rc = read(status_read, &status, 1)) < 0 && errno == EINTR) {
 	}
 
-	close(status_read);
-
 	if (status < 0) {
-		fprintf(stderr, "Could not read from status pipe: %s (%d)\n",
-		        get_errno_name(errno), errno);
+		if (rc < 0) {
+			fprintf(stderr, "Could not read from status pipe: %s (%d)\n",
+			        get_errno_name(errno), errno);
+		}
+
+		close(status_read);
 
 		exit(EXIT_FAILURE);
 	}
+
+	close(status_read);
 
 	if (status != 1) {
 		if (status == 2) {
@@ -197,8 +202,16 @@ static int daemon_start(void) {
 	// first child, decouple from parent environment
 	close(status_pipe[0]);
 
+	if (chdir("/") < 0) {
+		fprintf(stderr, "Could not change directory to '/': %s (%d)\n",
+		        get_errno_name(errno), errno);
+
+		close(status_pipe[1]);
+
+		exit(EXIT_FAILURE);
+	}
+
 	// FIXME: check error
-	chdir("/");
 	setsid();
 	umask(0);
 

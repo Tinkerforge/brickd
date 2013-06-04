@@ -61,6 +61,21 @@ static void config_error(const char *format, ...) {
 	va_end(arguments);
 }
 
+static void config_reset(void) {
+	if (_listen_address != _default_listen_address) {
+		free(_listen_address);
+		_listen_address = (char *)_default_listen_address;
+	}
+
+	_listen_port = 4223;
+
+	_log_levels[0] = LOG_LEVEL_INFO;
+	_log_levels[1] = LOG_LEVEL_INFO;
+	_log_levels[2] = LOG_LEVEL_INFO;
+	_log_levels[3] = LOG_LEVEL_INFO;
+	_log_levels[4] = LOG_LEVEL_INFO;
+}
+
 static char *config_trim_string(char *string) {
 	int length;
 
@@ -248,12 +263,13 @@ int config_check(const char *filename) {
 
 void config_init(const char *filename) {
 	FILE *file;
+	size_t rc;
 	char c;
 	char line[128] = "";
 	int length = 0;
 	int skip = 0;
 
-	_listen_address = (char *)_default_listen_address;
+	config_reset();
 
 	file = fopen(filename, "rb");
 
@@ -268,9 +284,14 @@ void config_init(const char *filename) {
 	_using_default_values = 0;
 
 	while (!feof(file)) {
-		fread(&c, 1, 1, file);
+		rc = fread(&c, 1, 1, file);
 
-		if (feof(file) || c == '\r' || c == '\n') {
+		if (rc == 0 && ferror(file)) {
+			config_error("Error while reading file '%s'", filename);
+			config_reset();
+
+			break;
+		} else if (feof(file) || c == '\r' || c == '\n') {
 			if (length > 0) {
 				config_parse(line);
 			}

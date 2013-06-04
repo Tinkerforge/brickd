@@ -108,7 +108,7 @@ else
 endif
 
 #CFLAGS += -O0 -g -ggdb
-CFLAGS += -Wall -Wextra
+CFLAGS += -O2 -Wall -Wextra
 
 ifeq ($(PLATFORM),Windows)
 	CFLAGS += -DWINVER=0x0500 -D_WIN32_WINNT=0x0501 -mconsole -include mingwfixes.h
