@@ -383,7 +383,7 @@ static DWORD WINAPI service_control_handler(DWORD control, DWORD event_type,
 			log_info("Received stop command");
 		}
 
-		service_set_status(SERVICE_STOP_PENDING);
+		service_set_status(SERVICE_STOP_PENDING, NO_ERROR);
 
 		event_stop();
 
@@ -509,7 +509,7 @@ static int generic_main(int log_to_file, int debug) {
 		}
 
 		// service is starting
-		service_set_status(SERVICE_START_PENDING);
+		service_set_status(SERVICE_START_PENDING, NO_ERROR);
 	}
 
 	// initialize WinSock2
@@ -579,7 +579,7 @@ static int generic_main(int log_to_file, int debug) {
 
 	// running
 	if (_run_as_service) {
-		service_set_status(SERVICE_RUNNING);
+		service_set_status(SERVICE_RUNNING, NO_ERROR);
 	}
 
 	if (event_run() < 0) {
@@ -620,7 +620,7 @@ error:
 
 	if (_run_as_service) {
 		// service is now stopped
-		service_set_status(SERVICE_STOPPED);
+		service_set_status(SERVICE_STOPPED, service_exit_code);
 	} else if (_pause_before_exit) {
 		printf("Press any key to exit...\n");
 		getch();

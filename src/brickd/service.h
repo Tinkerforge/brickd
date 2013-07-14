@@ -23,7 +23,7 @@
 #define BRICKD_SERVICE_H
 
 int service_init(LPHANDLER_FUNCTION_EX handler);
-void service_set_status(DWORD status);
+void service_set_status(DWORD status, DWORD exit_code);
 SERVICE_STATUS_HANDLE service_get_status_handle(void);
 char *service_get_name(void);
 int service_install(int log_to_file, int debug);

@@ -65,8 +65,9 @@ SERVICE_STATUS_HANDLE service_get_status_handle(void) {
 	return _service_status_handle;
 }
 
-void service_set_status(DWORD status) {
+void service_set_status(DWORD status, DWORD exit_code) {
 	_service_status.dwCurrentState = status;
+	_service_status.dwWin32ExitCode = exit_code;
 
 	if (status == SERVICE_RUNNING) {
 		_service_status.dwControlsAccepted |= SERVICE_ACCEPT_STOP | SERVICE_ACCEPT_SHUTDOWN;
