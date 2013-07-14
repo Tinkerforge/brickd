@@ -436,6 +436,10 @@ static BOOL WINAPI console_ctrl_handler(DWORD ctrl_type) {
 // SetServiceStatus in all circumstances if brickd is running as service
 static int generic_main(int log_to_file, int debug) {
 	int exit_code = EXIT_FAILURE;
+	const char *mutex_name = "Global\\Tinkerforge-Brick-Daemon-Single-Instance";
+	HANDLE mutex_handle = NULL;
+	int mutex_error = 0;
+	DWORD service_exit_code = NO_ERROR;
 	int rc;
 	char filename[1024];
 	int i;
@@ -443,6 +447,65 @@ static int generic_main(int log_to_file, int debug) {
 	WSADATA wsa_data;
 	DEV_BROADCAST_DEVICEINTERFACE notification_filter;
 	HDEVNOTIFY notification_handle;
+
+	mutex_handle = OpenMutex(SYNCHRONIZE, FALSE, mutex_name);
+
+	if (mutex_handle == NULL) {
+		rc = GetLastError();
+
+		if (rc == ERROR_ACCESS_DENIED) {
+			rc = service_is_running();
+
+			if (rc < 0) {
+				mutex_error = 1;
+				// FIXME: set service_exit_code
+
+				goto error_mutex;
+			} else if (rc) {
+				mutex_error = 1;
+				service_exit_code = ERROR_SERVICE_ALREADY_RUNNING;
+
+				log_error("Could not start as %s, another instance is already running as service",
+				          _run_as_service ? "service" : "console application");
+
+				goto error_mutex;
+			}
+		}
+
+		if (rc != ERROR_FILE_NOT_FOUND) {
+			mutex_error = 1;
+			// FIXME: set service_exit_code
+			rc += ERRNO_WINAPI_OFFSET;
+
+			log_error("Could not open single instance mutex: %s (%d)",
+			          get_errno_name(rc), rc);
+
+			goto error_mutex;
+		}
+	}
+
+	if (mutex_handle != NULL) {
+		mutex_error = 1;
+		service_exit_code = ERROR_SERVICE_ALREADY_RUNNING;
+
+		log_error("Could not start as %s, another instance is already running",
+		          _run_as_service ? "service" : "console application");
+
+		goto error_mutex;
+	}
+
+	mutex_handle = CreateMutex(NULL, FALSE, mutex_name);
+
+	if (mutex_handle == NULL) {
+		mutex_error = 1;
+		// FIXME: set service_exit_code
+		rc = ERRNO_WINAPI_OFFSET + GetLastError();
+
+		log_error("Could not create single instance mutex: %s (%d)",
+		          get_errno_name(rc), rc);
+
+		goto error_mutex;
+	}
 
 	if (!_run_as_service &&
 	    !SetConsoleCtrlHandler(console_ctrl_handler, TRUE)) {
@@ -503,17 +566,26 @@ static int generic_main(int log_to_file, int debug) {
 	}
 
 	// initialize service status
+error_mutex:
 	if (_run_as_service) {
 		if (service_init(service_control_handler) < 0) {
+			// FIXME: set service_exit_code
 			goto error;
 		}
 
-		// service is starting
-		service_set_status(SERVICE_START_PENDING, NO_ERROR);
+		if (!mutex_error) {
+			// service is starting
+			service_set_status(SERVICE_START_PENDING, NO_ERROR);
+		}
+	}
+
+	if (mutex_error) {
+		goto error;
 	}
 
 	// initialize WinSock2
 	if (WSAStartup(MAKEWORD(2, 2), &wsa_data) != 0) {
+		// FIXME: set service_exit_code
 		rc = ERRNO_WINAPI_OFFSET + WSAGetLastError();
 
 		log_error("Could not initialize Windows Sockets 2.2: %s (%d)",
@@ -523,15 +595,19 @@ static int generic_main(int log_to_file, int debug) {
 	}
 
 	if (event_init() < 0) {
+		// FIXME: set service_exit_code
 		goto error_event;
 	}
 
 	if (usb_init() < 0) {
+		// FIXME: set service_exit_code
 		goto error_usb;
 	}
 
 	// create notification pipe
 	if (pipe_create(_notification_pipe) < 0) {
+		// FIXME: set service_exit_code
+
 		log_error("Could not create notification pipe: %s (%d)",
 		          get_errno_name(errno), errno);
 
@@ -540,6 +616,7 @@ static int generic_main(int log_to_file, int debug) {
 
 	if (event_add_source(_notification_pipe[0], EVENT_SOURCE_TYPE_GENERIC,
 	                     EVENT_READ, forward_notifications, NULL) < 0) {
+		// FIXME: set service_exit_code
 		goto error_pipe_add;
 	}
 
@@ -556,6 +633,7 @@ static int generic_main(int log_to_file, int debug) {
 		                                                 DEVICE_NOTIFY_SERVICE_HANDLE);
 	} else {
 		if (message_pump_start() < 0) {
+			// FIXME: set service_exit_code
 			goto error_pipe_add;
 		}
 
@@ -565,6 +643,7 @@ static int generic_main(int log_to_file, int debug) {
 	}
 
 	if (notification_handle == NULL) {
+		// FIXME: set service_exit_code
 		rc = ERRNO_WINAPI_OFFSET + GetLastError();
 
 		log_error("Could not register for device notification: %s (%d)",
@@ -574,6 +653,7 @@ static int generic_main(int log_to_file, int debug) {
 	}
 
 	if (network_init() < 0) {
+		// FIXME: set service_exit_code
 		goto error_network;
 	}
 
@@ -583,6 +663,7 @@ static int generic_main(int log_to_file, int debug) {
 	}
 
 	if (event_run() < 0) {
+		// FIXME: set service_exit_code
 		goto error_run;
 	}
 
@@ -619,11 +700,25 @@ error:
 	config_exit();
 
 	if (_run_as_service) {
+		// because the service process can be terminated at any time after
+		// entering SERVICE_STOPPED state the mutex is closed beforehand,
+		// even though this creates a tiny time window in which the service
+		// is still running but the mutex is not held anymore
+		if (mutex_handle != NULL) {
+			CloseHandle(mutex_handle);
+		}
+
 		// service is now stopped
 		service_set_status(SERVICE_STOPPED, service_exit_code);
-	} else if (_pause_before_exit) {
-		printf("Press any key to exit...\n");
-		getch();
+	} else {
+		if (_pause_before_exit) {
+			printf("Press any key to exit...\n");
+			getch();
+		}
+
+		if (mutex_handle != NULL) {
+			CloseHandle(mutex_handle);
+		}
 	}
 
 	return exit_code;

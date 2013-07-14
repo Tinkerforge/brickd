@@ -61,6 +61,70 @@ int service_init(LPHANDLER_FUNCTION_EX handler) {
 	return 0;
 }
 
+int service_is_running(void) {
+	SC_HANDLE service_control_manager;
+	int rc;
+	SC_HANDLE service;
+	SERVICE_STATUS service_status;
+
+	// open service control manager
+	service_control_manager = OpenSCManager(0, 0, SC_MANAGER_CONNECT);
+
+	if (service_control_manager == NULL) {
+		rc = ERRNO_WINAPI_OFFSET + GetLastError();
+
+		log_error("Could not open service control manager: %s (%d)\n",
+		          get_errno_name(rc), rc);
+
+		return -1;
+	}
+
+	// open service
+	service = OpenService(service_control_manager, _service_name,
+	                      SERVICE_QUERY_STATUS);
+
+	if (service == NULL) {
+		rc = GetLastError();
+
+		if (rc == ERROR_SERVICE_DOES_NOT_EXIST) {
+			CloseServiceHandle(service_control_manager);
+
+			return 0;
+		}
+
+		rc += ERRNO_WINAPI_OFFSET;
+
+		log_error("Could not open '%s' service: %s (%d)\n",
+		          _service_name, get_errno_name(rc), rc);
+
+		CloseServiceHandle(service_control_manager);
+
+		return -1;
+	}
+
+	// get service status
+	if (!QueryServiceStatus(service, &service_status)) {
+		rc = ERRNO_WINAPI_OFFSET + GetLastError();
+
+		log_error("Could not query status of '%s' service: %s (%d)\n",
+		          _service_name, get_errno_name(rc), rc);
+
+		CloseServiceHandle(service);
+		CloseServiceHandle(service_control_manager);
+
+		return -1;
+	}
+
+	CloseServiceHandle(service);
+	CloseServiceHandle(service_control_manager);
+
+	if (service_status.dwCurrentState != SERVICE_STOPPED) {
+		return 1;
+	} else {
+		return 0;
+	}
+}
+
 SERVICE_STATUS_HANDLE service_get_status_handle(void) {
 	return _service_status_handle;
 }
@@ -207,6 +271,8 @@ int service_install(int log_to_file, int debug) {
 			printf("'%s' service is already running\n", _service_name);
 		}
 	} else {
+		// FIXME: query status and wait until service is really started
+
 		if (log_to_file && debug) {
 			printf("Started '%s' service with --log-to-file and --debug option\n", _service_name);
 		} else if (log_to_file) {
