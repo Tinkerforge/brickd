@@ -28,6 +28,7 @@
 #include "log.h"
 #include "pipe.h"
 #include "utils.h"
+#include "usb.h"
 
 #define LOG_CATEGORY LOG_CATEGORY_EVENT
 
@@ -51,6 +52,10 @@ static void event_handle_signal(void *opaque) {
 		log_info("Received SIGINT");
 	} else if (signal_number == SIGTERM) {
 		log_info("Received SIGTERM");
+	}else if (signal_number == SIGUSR1) {
+		log_info("Received SIGUSR1");
+		usb_update();
+		return;
 	} else {
 		log_warn("Received unexpected signal %d", signal_number);
 
@@ -106,6 +111,12 @@ int event_init_platform(void) {
 
 	if (signal(SIGTERM, event_forward_signal) == SIG_ERR) {
 		log_error("Could install signal handler for SIGTERM: %s (%d)",
+		          get_errno_name(errno), errno);
+
+		goto cleanup;
+	}
+	if (signal(SIGUSR1, event_forward_signal) == SIG_ERR) {
+		log_error("Could install signal handler for SIGUSR1: %s (%d)",
 		          get_errno_name(errno), errno);
 
 		goto cleanup;
