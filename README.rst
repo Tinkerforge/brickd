@@ -88,20 +88,14 @@ Commandline Options
 
 Common:
 
-**--help**: Show help
-
-**--version**: Show version number
-
-**--check-config**: Check config file for errors
-
-**--debug**: Set all log levels to debug
+* ``--help`` show help and exit
+* ``--version`` show version number and exit
+* ``--check-config`` check config file for errors
+* ``--debug`` set all log levels to debug
 
 Windows only:
 
-**--install**: Register as a service and start it
-
-**--uninstall**: Stop service and unregister it
-
-**--console**: Force start as console application
-
-**--log-to-file**: Write log messages to file
+* ``--install`` register as service and start it
+* ``--uninstall`` stop service and unregister it
+* ``--console`` force start as console application
+* ``--log-to-file`` write log messages to file
