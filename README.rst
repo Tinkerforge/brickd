@@ -88,14 +88,14 @@ Commandline Options
 
 Common:
 
-* ``--help`` show help and exit
-* ``--version`` show version number and exit
-* ``--check-config`` check config file for errors
-* ``--debug`` set all log levels to debug
+* ``--help`` shows help and exits
+* ``--version`` shows version number and exits
+* ``--check-config`` checks config file for errors
+* ``--debug`` sets all log levels to debug
 
 Windows only:
 
-* ``--install`` register as service and start it
-* ``--uninstall`` stop service and unregister it
-* ``--console`` force start as console application
-* ``--log-to-file`` write log messages to file
+* ``--install`` registers Brick Daemon as service and start it
+* ``--uninstall`` stops service and unregister it
+* ``--console`` forces start as console application
+* ``--log-to-file`` writes log messages to file
