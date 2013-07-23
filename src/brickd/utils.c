@@ -195,7 +195,9 @@ const char *get_errno_name(int error_code) {
 	ERRNO_NAME(EKEYEXPIRED);
 	ERRNO_NAME(EKEYREVOKED);
 	ERRNO_NAME(EKEYREJECTED);
+	#ifdef ERFKILL
 	ERRNO_NAME(ERFKILL);
+	#endif
 #endif
 
 #ifdef _WIN32
