@@ -35,7 +35,7 @@ define Package/brickd2/install
 	$(INSTALL_DIR) $(1)/usr/bin
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/src/brickd/brickd $(1)/usr/bin/
 	$(INSTALL_DIR) $(1)/etc/hotplug.d/usb
-	$(INSTALL_DATA) ./files/brick.hotplug $(1)/etc/hotplug.d/usb/11-brick
+	$(INSTALL_DATA) ./brick.hotplug $(1)/etc/hotplug.d/usb/11-brick
 endef
 
 $(eval $(call BuildPackage,brickd2))
