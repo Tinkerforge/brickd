@@ -1,0 +1,16 @@
+#!/bin/sh
+
+BINARY="/usr/bin/killall -USR1 brickd"
+BRICK_PRODID="16d0/63d/110"
+
+
+if [ "${PRODUCT}" = "${BRICK_PRODID}" ]; then
+        if [ "${ACTION}" = "add" ]; then
+                logger -s -t hotplug -p daemon.info "brick add"
+                ${BINARY}
+        fi
+        if [ "${ACTION}" = "remove" ]; then
+                logger -s -t hotplug -p daemon.info "brick remove"
+                ${BINARY}
+        fi
+fi

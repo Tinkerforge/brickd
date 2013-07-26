@@ -1,0 +1,73 @@
+ifndef prefix
+        prefix := /
+endif
+ifndef sysconfdir
+ifeq ($(prefix),/usr)
+        sysconfdir := /etc
+else
+        sysconfdir := $(prefix)/etc
+endif
+endif
+
+ifndef localstatedir
+ifeq ($(prefix),/usr)
+        localstatedir := /var
+else
+        localstatedir := $(prefix)/var
+endif
+endif
+
+WITH_LIBUDEV := no
+WITH_LOGGING := yes
+
+SOURCES := brick.c client.c config.c event.c log.c network.c packet.c transfer.c usb.c utils.c
+SOURCES += event_posix.c log_posix.c pidfile.c pipe_posix.c socket_posix.c threads_posix.c
+SOURCES += main_linux.c
+
+OBJECTS := ${SOURCES:.c=.o}
+DEPENDS := ${SOURCES:.c=.d}
+TARGET := brickd
+DIST :=
+CFLAGS += -O2 -Wall -Wextra
+CFLAGS += -DSYSCONFDIR="\"$(sysconfdir)\"" -DLOCALSTATEDIR="\"$(localstatedir)\""
+LDFLAGS += -pthread
+
+LIBUSB_CFLAGS := $(shell pkg-config --cflags libusb-1.0)
+LIBUSB_LDFLAGS := $(shell pkg-config --libs-only-other --libs-only-L libusb-1.0)
+LIBUSB_LIBS := $(shell pkg-config --libs-only-l libusb-1.0)
+
+CFLAGS += $(LIBUSB_CFLAGS)
+LDFLAGS += $(LIBUSB_LDFLAGS)
+LIBS += $(LIBUSB_LIBS)
+
+ifeq ($(WITH_LIBUDEV),yes)
+	LIBUDEV_CFLAGS := $(shell pkg-config --cflags libudev)
+	LIBUDEV_LDFLAGS := $(shell pkg-config --libs-only-other --libs-only-L libudev)
+	LIBUDEV_LIBS := $(shell pkg-config --libs-only-l libudev)
+	
+	CFLAGS += $(LIBUDEV_CFLAGS) -DBRICKD_WITH_LIBUDEV
+	LDFLAGS += $(LIBUDEV_LDFLAGS)
+	LIBS += $(LIBUDEV_LIBS)
+	SOURCES += udev.c
+endif
+
+
+ifeq ($(WITH_LOGGING),yes)
+	CFLAGS += -DBRICKD_LOG_ENABLED
+endif
+
+
+.PHONY: all clean
+
+all: $(DIST) $(TARGET) Makefile
+
+clean: Makefile
+	rm $(OBJECTS) $(TARGET)
+
+$(TARGET): $(OBJECTS) Makefile
+	@echo LD $@
+	$(CC) -o $(TARGET) $(LDFLAGS) $(OBJECTS) $(LIBS)
+
+%.o: %.c $(GENERATED) Makefile
+	@echo CC $@
+	$(CC) $(CFLAGS) -c -o $@ $<

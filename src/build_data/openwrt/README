@@ -1,0 +1,7 @@
+Support files to build brickd for openwrt
+-----------------------------------------
+brickd.hotplug:
+	this file is a hotplug2 script that sends an USR1 signal to the brickd when a brick is 
+	connected or removed from the USB bus.
+Makefile:
+	This is a simplified makefile that can be used to build brickd with the OpenWRT buldsystem. 
