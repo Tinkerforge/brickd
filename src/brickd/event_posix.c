@@ -50,19 +50,16 @@ static void event_handle_signal(void *opaque) {
 
 	if (signal_number == SIGINT) {
 		log_info("Received SIGINT");
+		event_stop();
 	} else if (signal_number == SIGTERM) {
 		log_info("Received SIGTERM");
-	}else if (signal_number == SIGUSR1) {
+		event_stop();
+	} else if (signal_number == SIGUSR1) {
 		log_info("Received SIGUSR1");
 		usb_update();
-		return;
 	} else {
 		log_warn("Received unexpected signal %d", signal_number);
-
-		return;
 	}
-
-	event_stop();
 }
 
 static void event_forward_signal(int signal_number) {
@@ -115,6 +112,9 @@ int event_init_platform(void) {
 
 		goto cleanup;
 	}
+
+	phase = 5;
+
 	if (signal(SIGUSR1, event_forward_signal) == SIG_ERR) {
 		log_error("Could install signal handler for SIGUSR1: %s (%d)",
 		          get_errno_name(errno), errno);
@@ -122,10 +122,13 @@ int event_init_platform(void) {
 		goto cleanup;
 	}
 
-	phase = 5;
+	phase = 6;
 
 cleanup:
 	switch (phase) { // no breaks, all cases fall through intentionally
+	case 5:
+		signal(SIGTERM, SIG_DFL);
+
 	case 4:
 		signal(SIGINT, SIG_DFL);
 
@@ -142,12 +145,13 @@ cleanup:
 		break;
 	}
 
-	return phase == 5 ? 0 : -1;
+	return phase == 6 ? 0 : -1;
 }
 
 void event_exit_platform(void) {
-	signal(SIGINT, SIG_DFL);
+	signal(SIGUSR1, SIG_DFL);
 	signal(SIGTERM, SIG_DFL);
+	signal(SIGINT, SIG_DFL);
 
 	event_remove_source(_signal_pipe[0], EVENT_SOURCE_TYPE_GENERIC);
 	pipe_destroy(_signal_pipe);
