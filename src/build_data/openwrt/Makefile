@@ -14,10 +14,10 @@ PKG_MAINTAINER:=Bjoern Riemer <bjoern.riemer@web.de>
 include $(INCLUDE_DIR)/package.mk
 
 define Package/brickd2
-	SECTION:=Thinkerforge
-	CATEGORY:=Thinkerforge
+	SECTION:=Tinkerforge
+	CATEGORY:=Tinkerforge
 	DEPENDS:=+libusb-1.0
-	TITLE:=Thinkerforge Brick Daemon 2.0 (C implementation)
+	TITLE:=Tinkerforge Brick Daemon 2.0 (C implementation)
 endef
 
 define Build/Configure
