@@ -194,6 +194,11 @@ int client_create(Client *client, EventHandle socket,
 }
 
 void client_destroy(Client *client) {
+	if (client->pending_requests.count > 0) {
+		log_warn("Destroying client (socket: %d, peer: %s) while %d request(s) are still pending",
+		         client->socket, client->peer, client->pending_requests.count);
+	}
+
 	event_remove_source(client->socket, EVENT_SOURCE_TYPE_GENERIC);
 	socket_destroy(client->socket);
 
