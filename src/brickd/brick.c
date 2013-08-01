@@ -105,11 +105,11 @@ static void write_transfer_callback(Transfer *transfer) {
 
 		if (transfer_submit(transfer) < 0) {
 			log_error("Could not send queued request (U: %s, L: %u, F: %u, S: %u, R: %u) to %s [%s]: %s (%d)",
-			          base58_encode(base58, uint32_from_le(packet->header.uid)),
-			          packet->header.length,
-			          packet->header.function_id,
-			          packet_header_get_sequence_number(&packet->header),
-			          packet_header_get_response_expected(&packet->header),
+			          base58_encode(base58, uint32_from_le(transfer->packet.header.uid)),
+			          transfer->packet.header.length,
+			          transfer->packet.header.function_id,
+			          packet_header_get_sequence_number(&transfer->packet.header),
+			          packet_header_get_response_expected(&transfer->packet.header),
 			          transfer->brick->product, transfer->brick->serial_number,
 			          get_errno_name(errno), errno);
 
@@ -119,11 +119,11 @@ static void write_transfer_callback(Transfer *transfer) {
 		array_remove(&transfer->brick->write_queue, 0, NULL);
 
 		log_debug("Sent queued request (U: %s, L: %u, F: %u, S: %u, R: %u) to %s [%s]",
-		          base58_encode(base58, uint32_from_le(packet->header.uid)),
-		          packet->header.length,
-		          packet->header.function_id,
-		          packet_header_get_sequence_number(&packet->header),
-		          packet_header_get_response_expected(&packet->header),
+		          base58_encode(base58, uint32_from_le(transfer->packet.header.uid)),
+		          transfer->packet.header.length,
+		          transfer->packet.header.function_id,
+		          packet_header_get_sequence_number(&transfer->packet.header),
+		          packet_header_get_response_expected(&transfer->packet.header),
 		          transfer->brick->product, transfer->brick->serial_number);
 
 		log_info("Handled queued request for %s [%s], %d request(s) left in write queue",
