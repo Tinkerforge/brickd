@@ -118,14 +118,17 @@ static void write_transfer_callback(Transfer *transfer) {
 
 		array_remove(&transfer->brick->write_queue, 0, NULL);
 
-		log_debug("Sent queued request (U: %s, L: %u, F: %u, S: %u, R: %u) to %s [%s], %d requests left in queue",
+		log_debug("Sent queued request (U: %s, L: %u, F: %u, S: %u, R: %u) to %s [%s]",
 		          base58_encode(base58, uint32_from_le(packet->header.uid)),
 		          packet->header.length,
 		          packet->header.function_id,
 		          packet_header_get_sequence_number(&packet->header),
 		          packet_header_get_response_expected(&packet->header),
-		          transfer->brick->product, transfer->brick->serial_number,
-		          transfer->brick->write_queue.count);
+		          transfer->brick->product, transfer->brick->serial_number);
+
+		log_info("Handled queued request for %s [%s], %d request(s) left in write queue",
+		         transfer->brick->product, transfer->brick->serial_number,
+		         transfer->brick->write_queue.count);
 	}
 }
 
@@ -475,7 +478,7 @@ int brick_dispatch_packet(Brick *brick, Packet *packet, int force) {
 
 		if (!submitted) {
 			if (brick->write_queue.count >= MAX_QUEUED_WRITES) {
-				log_warn("Dropping %d items from write queue array of %s [%s]",
+				log_warn("Dropping %d item(s) from write queue array of %s [%s]",
 				         brick->write_queue.count - MAX_QUEUED_WRITES + 1,
 				         brick->product, brick->serial_number);
 
