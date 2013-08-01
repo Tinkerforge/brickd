@@ -101,4 +101,6 @@ uint8_t packet_header_get_error_code(PacketHeader *header);
 
 const char *packet_get_callback_type(Packet *packet);
 
+int packet_is_matching_response(Packet *packet, Packet *pending_request);
+
 #endif // BRICKD_PACKET_H

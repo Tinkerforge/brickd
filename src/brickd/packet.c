@@ -108,3 +108,20 @@ const char *packet_get_callback_type(Packet *packet) {
 		return "";
 	}
 }
+
+int packet_is_matching_response(Packet *packet, Packet *pending_request) {
+	if (packet->header.uid != pending_request->header.uid) {
+		return 0;
+	}
+
+	if (packet->header.function_id != pending_request->header.function_id) {
+		return 0;
+	}
+
+	if (packet_header_get_sequence_number(&packet->header) !=
+	    packet_header_get_sequence_number(&pending_request->header)) {
+		return 0;
+	}
+
+	return 1;
+}

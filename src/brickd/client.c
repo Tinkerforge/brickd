@@ -213,10 +213,7 @@ int client_dispatch_packet(Client *client, Packet *packet, int force) {
 		for (i = 0; i < client->pending_requests.count; ++i) {
 			pending_request = array_get(&client->pending_requests, i);
 
-			if (pending_request->header.uid == packet->header.uid &&
-			    pending_request->header.function_id == packet->header.function_id &&
-			    packet_header_get_sequence_number(&pending_request->header) ==
-			    packet_header_get_sequence_number(&packet->header)) {
+			if (packet_is_matching_response(packet, pending_request)) {
 				found = i;
 
 				break;
