@@ -35,6 +35,7 @@
 typedef struct {
 	EventHandle socket;
 	char *peer;
+	int disconnected;
 	Packet packet;
 	int packet_used;
 	Array pending_requests;

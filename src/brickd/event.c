@@ -179,7 +179,8 @@ void event_cleanup_sources(void) {
 	int i;
 	EventSource *event_source;
 
-	// iterate backwards to be able to print the correct index
+	// iterate backwards for simpler index handling and to be able to print
+	// the correct index
 	for (i = _event_sources.count - 1; i >= 0; --i) {
 		event_source = array_get(&_event_sources, i);
 

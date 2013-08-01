@@ -87,7 +87,13 @@ int socket_receive(EventHandle handle, void *buffer, int length) {
 
 // sets errno on error
 int socket_send(EventHandle handle, void *buffer, int length) {
-	return send(handle, buffer, length, 0);
+#ifdef MSG_NOSIGNAL
+	int flags = MSG_NOSIGNAL;
+#else
+	int flags = 0;
+#endif
+
+	return send(handle, buffer, length, flags);
 }
 
 // sets errno on error

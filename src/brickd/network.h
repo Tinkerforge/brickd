@@ -28,7 +28,7 @@
 int network_init(void);
 void network_exit(void);
 
-void network_client_disconnected(Client *client);
+void network_cleanup_clients(void);
 
 void network_dispatch_packet(Packet *packet);
 

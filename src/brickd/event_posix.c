@@ -26,6 +26,7 @@
 #include "event.h"
 
 #include "log.h"
+#include "network.h"
 #include "pipe.h"
 #include "utils.h"
 #include "usb.h"
@@ -98,7 +99,7 @@ int event_init_platform(void) {
 
 	// setup signal handlers
 	if (signal(SIGINT, event_forward_signal) == SIG_ERR) {
-		log_error("Could install signal handler for SIGINT: %s (%d)",
+		log_error("Could not install signal handler for SIGINT: %s (%d)",
 		          get_errno_name(errno), errno);
 
 		goto cleanup;
@@ -107,7 +108,7 @@ int event_init_platform(void) {
 	phase = 4;
 
 	if (signal(SIGTERM, event_forward_signal) == SIG_ERR) {
-		log_error("Could install signal handler for SIGTERM: %s (%d)",
+		log_error("Could not install signal handler for SIGTERM: %s (%d)",
 		          get_errno_name(errno), errno);
 
 		goto cleanup;
@@ -115,8 +116,8 @@ int event_init_platform(void) {
 
 	phase = 5;
 
-	if (signal(SIGUSR1, event_forward_signal) == SIG_ERR) {
-		log_error("Could install signal handler for SIGUSR1: %s (%d)",
+	if (signal(SIGPIPE, SIG_IGN) == SIG_ERR) {
+		log_error("Could not ignore SIGPIPE signal: %s (%d)",
 		          get_errno_name(errno), errno);
 
 		goto cleanup;
@@ -124,8 +125,20 @@ int event_init_platform(void) {
 
 	phase = 6;
 
+	if (signal(SIGUSR1, event_forward_signal) == SIG_ERR) {
+		log_error("Could not install signal handler for SIGUSR1: %s (%d)",
+		          get_errno_name(errno), errno);
+
+		goto cleanup;
+	}
+
+	phase = 7;
+
 cleanup:
 	switch (phase) { // no breaks, all cases fall through intentionally
+	case 6:
+		signal(SIGPIPE, SIG_DFL);
+
 	case 5:
 		signal(SIGTERM, SIG_DFL);
 
@@ -145,11 +158,12 @@ cleanup:
 		break;
 	}
 
-	return phase == 6 ? 0 : -1;
+	return phase == 7 ? 0 : -1;
 }
 
 void event_exit_platform(void) {
 	signal(SIGUSR1, SIG_DFL);
+	signal(SIGPIPE, SIG_DFL);
 	signal(SIGTERM, SIG_DFL);
 	signal(SIGINT, SIG_DFL);
 
@@ -168,6 +182,7 @@ int event_run_platform(Array *event_sources, int *running) {
 
 	*running = 1;
 
+	network_cleanup_clients();
 	event_cleanup_sources();
 
 	while (*running) {
@@ -256,8 +271,9 @@ int event_run_platform(Array *event_sources, int *running) {
 			         handled, ready);
 		}
 
-		// now remove event sources that got marked as removed during the
-		// event handling
+		// now remove clients and event sources that got marked as
+		// disconnected/removed during the event handling
+		network_cleanup_clients();
 		event_cleanup_sources();
 	}
 

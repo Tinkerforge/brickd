@@ -27,6 +27,7 @@
 #include "event.h"
 
 #include "log.h"
+#include "network.h"
 #include "pipe.h"
 #include "threads.h"
 #include "utils.h"
@@ -465,6 +466,7 @@ int event_run_platform(Array *event_sources, int *running) {
 
 	thread_create(&_usb_poller.thread, event_poll_usb_events, event_sources);
 
+	network_cleanup_clients();
 	event_cleanup_sources();
 
 	while (*running) {
@@ -616,8 +618,9 @@ int event_run_platform(Array *event_sources, int *running) {
 			         event_get_source_type_name(EVENT_SOURCE_TYPE_GENERIC, 0));
 		}
 
-		// now remove event sources that got marked as removed during the
-		// event handling
+		// now remove clients and event sources that got marked as
+		// disconnected/removed during the event handling
+		network_cleanup_clients();
 		event_cleanup_sources();
 	}
 

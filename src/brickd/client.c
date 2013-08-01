@@ -49,13 +49,13 @@ static void client_handle_receive(void *opaque) {
 
 	if (length < 0) {
 		if (errno_interrupted()) {
-			log_debug("Receiving from client (socket: %d, peer: %s), got interrupted",
+			log_debug("Receiving from client (socket: %d, peer: %s) was interrupted",
 			          client->socket, client->peer);
 		} else {
 			log_error("Could not receive from client (socket: %d, peer: %s), disconnecting it: %s (%d)",
 			          client->socket, client->peer, get_errno_name(errno), errno);
 
-			network_client_disconnected(client);
+			client->disconnected = 1;
 		}
 
 		return;
@@ -65,7 +65,7 @@ static void client_handle_receive(void *opaque) {
 		log_info("Client (socket: %d, peer: %s) disconnected by peer",
 		         client->socket, client->peer);
 
-		network_client_disconnected(client);
+		client->disconnected = 1;
 
 		return;
 	}
@@ -157,6 +157,7 @@ int client_create(Client *client, EventHandle socket,
 
 	client->socket = socket;
 	client->packet_used = 0;
+	client->disconnected = 0;
 
 	// create pending request array
 	if (array_create(&client->pending_requests, 32,
@@ -203,11 +204,19 @@ void client_destroy(Client *client) {
 	array_destroy(&client->pending_requests, NULL);
 }
 
+// returns -1 on error, 0 if the packet was not dispatched and 1 if it was dispatch
 int client_dispatch_packet(Client *client, Packet *packet, int force) {
 	int i;
 	Packet *pending_request;
 	int found = -1;
 	int rc = -1;
+
+	if (client->disconnected) {
+		log_debug("Ignoring disconnected client (socket: %d, peer: %s)",
+		          client->socket, client->peer);
+
+		return 0;
+	}
 
 	if (!force) {
 		for (i = 0; i < client->pending_requests.count; ++i) {
@@ -223,8 +232,10 @@ int client_dispatch_packet(Client *client, Packet *packet, int force) {
 
 	if (force || found >= 0) {
 		if (socket_send(client->socket, packet, packet->header.length) < 0) {
-			log_error("Could not send response to client (socket: %d, peer: %s): %s (%d)",
+			log_error("Could not send response to client (socket: %d, peer: %s), disconnecting it: %s (%d)",
 			          client->socket, client->peer, get_errno_name(errno), errno);
+
+			client->disconnected = 1;
 
 			goto cleanup;
 		}

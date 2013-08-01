@@ -196,6 +196,8 @@ cleanup:
 void network_exit(void) {
 	log_debug("Shutting down network subsystem");
 
+	network_cleanup_clients();
+
 	array_destroy(&_clients, (FreeFunction)client_destroy);
 
 	event_remove_source(_server_socket, EVENT_SOURCE_TYPE_GENERIC);
@@ -211,6 +213,24 @@ void network_client_disconnected(Client *client) {
 		          client->socket, client->peer);
 	} else {
 		array_remove(&_clients, i, (FreeFunction)client_destroy);
+	}
+}
+
+// remove clients that got marked as disconnected
+void network_cleanup_clients(void) {
+	int i;
+	Client *client;
+
+	// iterate backwards for simpler index handling
+	for (i = _clients.count - 1; i >= 0; --i) {
+		client = array_get(&_clients, i);
+
+		if (client->disconnected) {
+			log_debug("Removing disconnected client (socket: %d, peer: %s)",
+			          client->socket, client->peer);
+
+			array_remove(&_clients, i, (FreeFunction)client_destroy);
+		}
 	}
 }
 
