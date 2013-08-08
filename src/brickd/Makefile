@@ -11,10 +11,10 @@
 
 ## CONFIG #####################################################################
 
-CC := gcc
+CC ?= gcc
 
-WITH_LIBUDEV := check
-WITH_LOGGING := yes
+WITH_LIBUDEV ?= check
+WITH_LOGGING ?= yes
 
 ## RULES ######################################################################
 
