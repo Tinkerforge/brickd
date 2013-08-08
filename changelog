@@ -45,6 +45,6 @@
        Debian i386 package now really compiled for i386 instead of i686
 2.0.6: Workaround struct packing bug in MinGW GCC 4.7
        Add event log viewer tool for Windows
-       Probihit starting a second instance on Windows
+       Prohibit starting a second instance on Windows
        Check for USB device additions/removals changes on SIGUSR1
        Ignore SIGPIPE and handle socket write errors properly
