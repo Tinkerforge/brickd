@@ -1,13 +1,13 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=brickd2
-PKG_VERSION:=2013-07-26
+PKG_VERSION:=2013-08-8
 PKG_RELEASE=$(PKG_SOURCE_VERSION)
 
 PKG_SOURCE_PROTO:=git
 PKG_SOURCE_URL:=https://github.com/Tinkerforge/brickd.git
 PKG_SOURCE_SUBDIR:=$(PKG_NAME)-$(PKG_VERSION)
-PKG_SOURCE_VERSION:=f641eb29751889e9345536066128a2d240cd853a
+PKG_SOURCE_VERSION:=master
 PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION)-$(PKG_SOURCE_VERSION).tar.gz
 PKG_MAINTAINER:=Bjoern Riemer <bjoern.riemer@web.de>
 
@@ -21,14 +21,15 @@ define Package/brickd2
 endef
 
 define Build/Configure
-	$(INSTALL_DATA) ./Makefile-openwrt $(PKG_BUILD_DIR)/src/brickd
+	true || $(INSTALL_DATA) ./Makefile-openwrt $(PKG_BUILD_DIR)/src/brickd
 endef
 
 define Build/Compile
 	$(TARGET_CONFIGURE_OPTS) \
 		CFLAGS="$(TARGET_CFLAGS) -I$(STAGING_DIR)/usr/include -I$(PKG_BUILD_DIR)" \
 		LDFLAGS="$(TARGET_LDFLAGS)" \
-		$(MAKE) -C $(PKG_BUILD_DIR)/src/brickd -f Makefile-openwrt all
+		WITH_LIBUDEV=no WITH_LOGGING=yes prefix=/ \
+		$(MAKE) -C $(PKG_BUILD_DIR)/src/brickd all
 endef
 
 define Package/brickd2/install
