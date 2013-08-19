@@ -109,17 +109,17 @@ const char *packet_get_callback_type(Packet *packet) {
 	}
 }
 
-int packet_is_matching_response(Packet *packet, Packet *pending_request) {
-	if (packet->header.uid != pending_request->header.uid) {
+int packet_is_matching_response(Packet *packet, PacketHeader *pending_request) {
+	if (packet->header.uid != pending_request->uid) {
 		return 0;
 	}
 
-	if (packet->header.function_id != pending_request->header.function_id) {
+	if (packet->header.function_id != pending_request->function_id) {
 		return 0;
 	}
 
 	if (packet_header_get_sequence_number(&packet->header) !=
-	    packet_header_get_sequence_number(&pending_request->header)) {
+	    packet_header_get_sequence_number(pending_request)) {
 		return 0;
 	}
 

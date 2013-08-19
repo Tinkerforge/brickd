@@ -36,12 +36,16 @@
 
 static const char *_unknown_peer_name = "<unknown>";
 
+typedef struct {
+	PacketHeader header;
+} PendingRequest;
+
 static void client_handle_receive(void *opaque) {
 	Client *client = opaque;
 	int length;
 	const char *message = NULL;
 	char base58[MAX_BASE58_STR_SIZE];
-	PacketHeader *pending_request;
+	PendingRequest *pending_request;
 
 	length = socket_receive(client->socket,
 	                        (uint8_t *)&client->packet + client->packet_used,
@@ -128,13 +132,13 @@ static void client_handle_receive(void *opaque) {
 					log_error("Could not append to pending request array: %s (%d)",
 					          get_errno_name(errno), errno);
 				} else {
-					memcpy(pending_request, &client->packet.header, sizeof(PacketHeader));
+					memcpy(&pending_request->header, &client->packet.header, sizeof(PacketHeader));
 
 					log_debug("Added pending request (U: %s, L: %u, F: %u, S: %u) for client (socket: %d, peer: %s)",
-					          base58_encode(base58, uint32_from_le(pending_request->uid)),
-					          pending_request->length,
-					          pending_request->function_id,
-					          packet_header_get_sequence_number(pending_request),
+					          base58_encode(base58, uint32_from_le(pending_request->header.uid)),
+					          pending_request->header.length,
+					          pending_request->header.function_id,
+					          packet_header_get_sequence_number(&pending_request->header),
 					          client->socket, client->peer);
 
 					usb_dispatch_packet(&client->packet);
@@ -161,7 +165,7 @@ int client_create(Client *client, EventHandle socket,
 
 	// create pending request array
 	if (array_create(&client->pending_requests, 32,
-	                 sizeof(PacketHeader), 1) < 0) {
+	                 sizeof(PendingRequest), 1) < 0) {
 		log_error("Could not create pending request array: %s (%d)",
 		          get_errno_name(errno), errno);
 
@@ -212,7 +216,7 @@ void client_destroy(Client *client) {
 // returns -1 on error, 0 if the packet was not dispatched and 1 if it was dispatch
 int client_dispatch_packet(Client *client, Packet *packet, int force) {
 	int i;
-	Packet *pending_request;
+	PendingRequest *pending_request;
 	int found = -1;
 	int rc = -1;
 
@@ -227,7 +231,7 @@ int client_dispatch_packet(Client *client, Packet *packet, int force) {
 		for (i = 0; i < client->pending_requests.count; ++i) {
 			pending_request = array_get(&client->pending_requests, i);
 
-			if (packet_is_matching_response(packet, pending_request)) {
+			if (packet_is_matching_response(packet, &pending_request->header)) {
 				found = i;
 
 				break;
