@@ -25,7 +25,7 @@
 
 #include "usb.h"
 
-#include "brick.h"
+#include "stack.h"
 #include "event.h"
 #include "log.h"
 #include "network.h"
@@ -35,10 +35,9 @@
 #define LOG_CATEGORY LOG_CATEGORY_USB
 
 static libusb_context *_context = NULL;
-static Array _bricks = ARRAY_INITIALIZER;
+static Array _stacks = ARRAY_INITIALIZER;
 
 typedef int (*USBEnumerateFunction)(libusb_device *device);
-
 
 static int usb_enumerate(USBEnumerateFunction function) {
 	int rc;
@@ -59,7 +58,7 @@ static int usb_enumerate(USBEnumerateFunction function) {
 		return -1;
 	}
 
-	// check for Bricks
+	// check for stacks
 	for (device = devices[0]; device != NULL; device = devices[i++]) {
 		bus_number = libusb_get_bus_number(device);
 		device_address = libusb_get_device_address(device);
@@ -102,38 +101,38 @@ cleanup:
 
 static int usb_handle_device(libusb_device *device) {
 	int i;
-	Brick *brick;
+	Stack *stack;
 	uint8_t bus_number = libusb_get_bus_number(device);
 	uint8_t device_address = libusb_get_device_address(device);
 
-	// check all known Bricks
-	for (i = 0; i < _bricks.count; ++i) {
-		brick = array_get(&_bricks, i);
+	// check all known stacks
+	for (i = 0; i < _stacks.count; ++i) {
+		stack = array_get(&_stacks, i);
 
-		if (brick->bus_number == bus_number &&
-		    brick->device_address == device_address) {
-			// mark known Brick as connected
-			brick->connected = 1;
+		if (stack->bus_number == bus_number &&
+		    stack->device_address == device_address) {
+			// mark known stack as connected
+			stack->connected = 1;
 
 			return 0;
 		}
 	}
 
-	// create new Brick object
+	// create new stack object
 	log_debug("Found new USB device (bus: %u, device: %u)",
 	          bus_number, device_address);
 
-	brick = array_append(&_bricks);
+	stack = array_append(&_stacks);
 
-	if (brick == NULL) {
-		log_error("Could not append to Bricks array: %s (%d)",
+	if (stack == NULL) {
+		log_error("Could not append to stacks array: %s (%d)",
 		          get_errno_name(errno), errno);
 
 		return -1;
 	}
 
-	if (brick_create(brick, bus_number, device_address) < 0) {
-		array_remove(&_bricks, _bricks.count - 1, NULL);
+	if (stack_create(stack, bus_number, device_address) < 0) {
+		array_remove(&_stacks, _stacks.count - 1, NULL);
 
 		log_warn("Ignoring USB device (bus: %u, device: %u) due to an error",
 		         bus_number, device_address);
@@ -141,12 +140,12 @@ static int usb_handle_device(libusb_device *device) {
 		return 0;
 	}
 
-	// mark new Brick as connected
-	brick->connected = 1;
+	// mark new stack as connected
+	stack->connected = 1;
 
 	log_info("Added USB device (bus: %d, device: %d) at index %d: %s [%s]",
-	         brick->bus_number, brick->device_address, _bricks.count - 1,
-	         brick->product, brick->serial_number);
+	         stack->bus_number, stack->device_address, _stacks.count - 1,
+	         stack->product, stack->serial_number);
 
 	return 0;
 }
@@ -202,10 +201,10 @@ int usb_init(void) {
 		log_debug("libusb can handle timeouts on its own");
 	}
 
-	// create Bricks array, the Brick struct is not relocatable, because its
-	// Transfers keep a pointer to it
-	if (array_create(&_bricks, 32, sizeof(Brick), 0) < 0) {
-		log_error("Could not create Brick array: %s (%d)",
+	// create stacks array, the stack struct is not relocatable, because its
+	// transfers keep a pointer to it
+	if (array_create(&_stacks, 32, sizeof(Stack), 0) < 0) {
+		log_error("Could not create stack array: %s (%d)",
 		          get_errno_name(errno), errno);
 
 		goto cleanup;
@@ -213,7 +212,7 @@ int usb_init(void) {
 
 	phase = 2;
 
-	// find all Bricks
+	// find all stacks
 	if (usb_update() < 0) {
 		goto cleanup;
 	}
@@ -223,7 +222,7 @@ int usb_init(void) {
 cleanup:
 	switch (phase) { // no breaks, all cases fall through intentionally
 	case 2:
-		array_destroy(&_bricks, (FreeFunction)brick_destroy);
+		array_destroy(&_stacks, (FreeFunction)stack_destroy);
 
 	case 1:
 		usb_destroy_context(_context);
@@ -238,44 +237,44 @@ cleanup:
 void usb_exit(void) {
 	log_debug("Shutting down USB subsystem");
 
-	array_destroy(&_bricks, (FreeFunction)brick_destroy);
+	array_destroy(&_stacks, (FreeFunction)stack_destroy);
 
 	usb_destroy_context(_context);
 }
 
 int usb_update(void) {
 	int i;
-	Brick *brick;
+	Stack *stack;
 	int k;
 	uint32_t uid; // always little endian
 	EnumerateCallback enumerate_callback;
 
-	// mark all known Bricks as potentially removed
-	for (i = 0; i < _bricks.count; ++i) {
-		brick = array_get(&_bricks, i);
+	// mark all known stacks as potentially removed
+	for (i = 0; i < _stacks.count; ++i) {
+		stack = array_get(&_stacks, i);
 
-		brick->connected = 0;
+		stack->connected = 0;
 	}
 
-	// enumerate all USB devices and mark all Bricks that are still connected
+	// enumerate all USB devices and mark all stacks that are still connected
 	if (usb_enumerate(usb_handle_device) < 0) {
 		return -1;
 	}
 
-	// remove all Bricks that are not marked as connected
-	for (i = _bricks.count - 1; i >= 0; --i) {
-		brick = array_get(&_bricks, i);
+	// remove all stacks that are not marked as connected
+	for (i = _stacks.count - 1; i >= 0; --i) {
+		stack = array_get(&_stacks, i);
 
-		if (brick->connected) {
+		if (stack->connected) {
 			continue;
 		}
 
 		log_info("Removing USB device (bus: %d, device: %d) at index %d: %s [%s]",
-		         brick->bus_number, brick->device_address, i,
-		         brick->product, brick->serial_number);
+		         stack->bus_number, stack->device_address, i,
+		         stack->product, stack->serial_number);
 
-		for (k = 0; k < brick->uids.count; ++k) {
-			uid = *(uint32_t *)array_get(&brick->uids, k);
+		for (k = 0; k < stack->uids.count; ++k) {
+			uid = *(uint32_t *)array_get(&stack->uids, k);
 
 			memset(&enumerate_callback, 0, sizeof(enumerate_callback));
 
@@ -293,7 +292,7 @@ int usb_update(void) {
 			network_dispatch_packet((Packet *)&enumerate_callback);
 		}
 
-		array_remove(&_bricks, i, (FreeFunction)brick_destroy);
+		array_remove(&_stacks, i, (FreeFunction)stack_destroy);
 	}
 
 	return 0;
@@ -302,12 +301,12 @@ int usb_update(void) {
 void usb_dispatch_packet(Packet *packet) {
 	char base58[MAX_BASE58_STR_SIZE];
 	int i;
-	Brick *brick;
+	Stack *stack;
 	int rc;
 	int dispatched = 0;
 
-	if (_bricks.count == 0) {
-		log_debug("No Bricks connected, dropping request (U: %s, L: %u, F: %u, S: %u, R: %u)",
+	if (_stacks.count == 0) {
+		log_debug("No stacks connected, dropping request (U: %s, L: %u, F: %u, S: %u, R: %u)",
 		          base58_encode(base58, uint32_from_le(packet->header.uid)),
 		          packet->header.length,
 		          packet->header.function_id,
@@ -318,32 +317,32 @@ void usb_dispatch_packet(Packet *packet) {
 	}
 
 	if (packet->header.uid == 0) {
-		log_debug("Broadcasting request (U: %s, L: %u, F: %u, S: %u, R: %u) to %d Brick(s)",
+		log_debug("Broadcasting request (U: %s, L: %u, F: %u, S: %u, R: %u) to %d stack(s)",
 		          base58_encode(base58, uint32_from_le(packet->header.uid)),
 		          packet->header.length,
 		          packet->header.function_id,
 		          packet_header_get_sequence_number(&packet->header),
 		          packet_header_get_response_expected(&packet->header),
-		          _bricks.count);
+		          _stacks.count);
 
-		for (i = 0; i < _bricks.count; ++i) {
-			brick = array_get(&_bricks, i);
+		for (i = 0; i < _stacks.count; ++i) {
+			stack = array_get(&_stacks, i);
 
-			brick_dispatch_packet(brick, packet, 1);
+			stack_dispatch_packet(stack, packet, 1);
 		}
 	} else {
-		log_debug("Dispatching request (U: %s, L: %u, F: %u, S: %u, R: %u) to %d Brick(s)",
+		log_debug("Dispatching request (U: %s, L: %u, F: %u, S: %u, R: %u) to %d stack(s)",
 		          base58_encode(base58, uint32_from_le(packet->header.uid)),
 		          packet->header.length,
 		          packet->header.function_id,
 		          packet_header_get_sequence_number(&packet->header),
 		          packet_header_get_response_expected(&packet->header),
-		          _bricks.count);
+		          _stacks.count);
 
-		for (i = 0; i < _bricks.count; ++i) {
-			brick = array_get(&_bricks, i);
+		for (i = 0; i < _stacks.count; ++i) {
+			stack = array_get(&_stacks, i);
 
-			rc = brick_dispatch_packet(brick, packet, 0);
+			rc = stack_dispatch_packet(stack, packet, 0);
 
 			if (rc < 0) {
 				continue;
@@ -358,10 +357,10 @@ void usb_dispatch_packet(Packet *packet) {
 
 		log_debug("Broadcasting request because UID is currently unknown");
 
-		for (i = 0; i < _bricks.count; ++i) {
-			brick = array_get(&_bricks, i);
+		for (i = 0; i < _stacks.count; ++i) {
+			stack = array_get(&_stacks, i);
 
-			brick_dispatch_packet(brick, packet, 1);
+			stack_dispatch_packet(stack, packet, 1);
 		}
 	}
 }

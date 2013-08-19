@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2012 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2012-2013 Matthias Bolte <matthias@tinkerforge.com>
  *
  * transfer.h: libusb transfer specific functions
  *
@@ -24,7 +24,7 @@
 
 #include <libusb.h>
 
-#include "brick.h"
+#include "stack.h"
 #include "packet.h"
 
 typedef enum {
@@ -37,7 +37,7 @@ typedef struct _Transfer Transfer;
 typedef void (*TransferFunction)(Transfer *transfer);
 
 struct _Transfer {
-	Brick *brick;
+	Stack *stack;
 	TransferType type;
 	int submitted;
 	int completed;
@@ -48,7 +48,7 @@ struct _Transfer {
 
 const char *transfer_get_type_name(TransferType type, int upper);
 
-int transfer_create(Transfer *transfer, Brick *brick, TransferType type,
+int transfer_create(Transfer *transfer, Stack *stack, TransferType type,
                     TransferFunction function);
 void transfer_destroy(Transfer *transfer);
 

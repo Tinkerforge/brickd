@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2012 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2012-2013 Matthias Bolte <matthias@tinkerforge.com>
  *
  * transfer.c: libusb transfer specific functions
  *
@@ -34,7 +34,7 @@ static void LIBUSB_CALL transfer_wrapper(struct libusb_transfer *handle) {
 	if (!transfer->submitted) {
 		log_error("%s transfer %p returned from %s [%s], but was not submitted before",
 		          transfer_get_type_name(transfer->type, 1), transfer,
-		          transfer->brick->product, transfer->brick->serial_number);
+		          transfer->stack->product, transfer->stack->serial_number);
 
 		return;
 	}
@@ -45,31 +45,31 @@ static void LIBUSB_CALL transfer_wrapper(struct libusb_transfer *handle) {
 	if (handle->status == LIBUSB_TRANSFER_CANCELLED) {
 		log_debug("%s transfer %p for %s [%s] was cancelled",
 		          transfer_get_type_name(transfer->type, 1), transfer,
-		          transfer->brick->product, transfer->brick->serial_number);
+		          transfer->stack->product, transfer->stack->serial_number);
 
 		return;
 	} else if (handle->status == LIBUSB_TRANSFER_NO_DEVICE) {
 		log_debug("%s transfer %p for %s [%s] was aborted, device got disconnected",
 		          transfer_get_type_name(transfer->type, 1), transfer,
-		          transfer->brick->product, transfer->brick->serial_number);
+		          transfer->stack->product, transfer->stack->serial_number);
 
 		return;
 	} else if (handle->status == LIBUSB_TRANSFER_STALL) {
 		log_debug("%s transfer %p for %s [%s] got stalled",
 		          transfer_get_type_name(transfer->type, 1), transfer,
-		          transfer->brick->product, transfer->brick->serial_number);
+		          transfer->stack->product, transfer->stack->serial_number);
 
 		return;
 	} else if (handle->status != LIBUSB_TRANSFER_COMPLETED) {
 		log_warn("%s transfer %p returned with an error from %s [%s]: %s (%d)",
 		         transfer_get_type_name(transfer->type, 1), transfer,
-		         transfer->brick->product, transfer->brick->serial_number,
+		         transfer->stack->product, transfer->stack->serial_number,
 		         get_libusb_transfer_status_name(transfer->handle->status),
 		         transfer->handle->status);
 	} else {
 		log_debug("%s transfer %p returned successfully from %s [%s]",
 		         transfer_get_type_name(transfer->type, 1), transfer,
-		         transfer->brick->product, transfer->brick->serial_number);
+		         transfer->stack->product, transfer->stack->serial_number);
 
 		if (transfer->function != NULL) {
 			transfer->function(transfer);
@@ -94,9 +94,9 @@ const char *transfer_get_type_name(TransferType type, int upper) {
 	}
 }
 
-int transfer_create(Transfer *transfer, Brick *brick, TransferType type,
+int transfer_create(Transfer *transfer, Stack *stack, TransferType type,
                     TransferFunction function) {
-	transfer->brick = brick;
+	transfer->stack = stack;
 	transfer->type = type;
 	transfer->submitted = 0;
 	transfer->completed = 0;
@@ -106,7 +106,7 @@ int transfer_create(Transfer *transfer, Brick *brick, TransferType type,
 	if (transfer->handle == NULL) {
 		log_error("Could not allocate libusb %s transfer for %s [%s]",
 		          transfer_get_type_name(transfer->type, 0),
-		          brick->product, brick->serial_number);
+		          stack->product, stack->serial_number);
 
 		return -1;
 	}
@@ -122,7 +122,7 @@ void transfer_destroy(Transfer *transfer) {
 
 	log_debug("Destroying %s transfer %p for %s [%s]",
 	          transfer_get_type_name(transfer->type, 0), transfer,
-	          transfer->brick->product, transfer->brick->serial_number);
+	          transfer->stack->product, transfer->stack->serial_number);
 
 	if (transfer->submitted) {
 		transfer->completed = 0;
@@ -132,7 +132,7 @@ void transfer_destroy(Transfer *transfer) {
 		if (rc < 0) {
 			log_warn("Could not cancel pending %s transfer %p for %s [%s]: %s (%d)",
 			         transfer_get_type_name(transfer->type, 0), transfer,
-			         transfer->brick->product, transfer->brick->serial_number,
+			         transfer->stack->product, transfer->stack->serial_number,
 			         get_libusb_error_name(rc), rc);
 		} else {
 			tv.tv_sec = 0;
@@ -143,7 +143,7 @@ void transfer_destroy(Transfer *transfer) {
 
 			// FIXME: don't wait 1sec per transfer
 			while (!transfer->completed && now >= start && now < start + 1) {
-				rc = libusb_handle_events_timeout(transfer->brick->context, &tv);
+				rc = libusb_handle_events_timeout(transfer->stack->context, &tv);
 
 				if (rc < 0) {
 					log_error("Could not handle USB events: %s (%d)",
@@ -156,7 +156,7 @@ void transfer_destroy(Transfer *transfer) {
 			if (!transfer->completed) {
 				log_warn("Attempt to cancel pending %s transfer %p for %s [%s] timed out",
 				         transfer_get_type_name(transfer->type, 0), transfer,
-				         transfer->brick->product, transfer->brick->serial_number);
+				         transfer->stack->product, transfer->stack->serial_number);
 			}
 		}
 	}
@@ -166,7 +166,7 @@ void transfer_destroy(Transfer *transfer) {
 	} else {
 		log_warn("Leaking pending %s transfer %p for %s [%s]",
 		         transfer_get_type_name(transfer->type, 0), transfer,
-		         transfer->brick->product, transfer->brick->serial_number);
+		         transfer->stack->product, transfer->stack->serial_number);
 	}
 }
 
@@ -178,7 +178,7 @@ int transfer_submit(Transfer *transfer) {
 	if (transfer->submitted) {
 		log_error("%s transfer %p is already submitted for %s [%s]",
 		          transfer_get_type_name(transfer->type, 1), transfer,
-		          transfer->brick->product, transfer->brick->serial_number);
+		          transfer->stack->product, transfer->stack->serial_number);
 
 		return -1;
 	}
@@ -198,7 +198,7 @@ int transfer_submit(Transfer *transfer) {
 
 	default:
 		log_error("Transfer for %s [%s] has invalid type",
-		          transfer->brick->product, transfer->brick->serial_number);
+		          transfer->stack->product, transfer->stack->serial_number);
 
 		return -1;
 	}
@@ -206,7 +206,7 @@ int transfer_submit(Transfer *transfer) {
 	transfer->submitted = 1;
 
 	libusb_fill_bulk_transfer(transfer->handle,
-	                          transfer->brick->device_handle,
+	                          transfer->stack->device_handle,
 	                          end_point,
 	                          (unsigned char *)&transfer->packet,
 	                          length,
@@ -219,7 +219,7 @@ int transfer_submit(Transfer *transfer) {
 	if (rc < 0) {
 		log_error("Could not submit %s transfer %p to %s [%s]: %s (%d)",
 		          transfer_get_type_name(transfer->type, 0), transfer,
-		          transfer->brick->product, transfer->brick->serial_number,
+		          transfer->stack->product, transfer->stack->serial_number,
 		          get_libusb_error_name(rc), rc);
 
 		transfer->submitted = 0;
@@ -229,7 +229,7 @@ int transfer_submit(Transfer *transfer) {
 
 	log_debug("Submitted %s transfer %p for %u bytes to %s [%s]",
 	          transfer_get_type_name(transfer->type, 0), transfer, length,
-	          transfer->brick->product, transfer->brick->serial_number);
+	          transfer->stack->product, transfer->stack->serial_number);
 
 	return 0;
 }

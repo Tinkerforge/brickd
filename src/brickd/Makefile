@@ -70,7 +70,7 @@ else
 	WITH_LIBUDEV := no
 endif
 
-SOURCES := brick.c client.c config.c event.c log.c network.c packet.c \
+SOURCES := client.c config.c event.c log.c network.c packet.c stack.c \
            transfer.c usb.c utils.c
 
 ifeq ($(PLATFORM),Windows)

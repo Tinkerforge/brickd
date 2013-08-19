@@ -12,8 +12,7 @@ UMLIBS=..\build_data\Windows\libusb\libusb-1.0.lib
 C_DEFINES=$(C_DEFINES) /DWIN32_LEAN_AND_MEAN /DNDEBUG /DBRICKD_WDK_BUILD /DBRICKD_WITH_LOGGING
 USER_C_FLAGS=$(USER_C_FLAGS) /O2 /wd4200 /wd4214 /FImsvcfixes.h
 TARGETLIBS=$(SDK_LIB_PATH)\advapi32.lib $(SDK_LIB_PATH)\user32.lib $(SDK_LIB_PATH)\ws2_32.lib
-SOURCES=brick.c \
-	client.c \
+SOURCES=client.c \
 	config.c \
 	event.c \
 	event_winapi.c \
@@ -26,6 +25,7 @@ SOURCES=brick.c \
 	pipe_winapi.c \
 	service.c \
 	socket_winapi.c \
+	stack.c \
 	threads_winapi.c \
 	transfer.c \
 	usb.c \

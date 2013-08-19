@@ -35,7 +35,6 @@
 %MC% -A -b log_messages.mc
 
 %CC%^
- brick.c^
  client.c^
  config.c^
  event.c^
@@ -49,6 +48,7 @@
  pipe_winapi.c^
  service.c^
  socket_winapi.c^
+ stack.c^
  threads_winapi.c^
  transfer.c^
  usb.c^

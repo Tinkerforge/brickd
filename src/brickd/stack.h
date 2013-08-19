@@ -1,8 +1,8 @@
 /*
  * brickd
- * Copyright (C) 2012 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2012-2013 Matthias Bolte <matthias@tinkerforge.com>
  *
- * brick.h: Brick specific functions
+ * stack.h: Stack specific functions
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,8 +19,8 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-#ifndef BRICKD_BRICK_H
-#define BRICKD_BRICK_H
+#ifndef BRICKD_STACK_H
+#define BRICKD_STACK_H
 
 #include <libusb.h>
 
@@ -50,20 +50,20 @@ typedef struct {
 	Array read_transfers;
 	Array write_transfers;
 
-	// Brick
+	// Stack
 	Array uids; // always little endian
 	Array write_queue;
 
 	// used by usb_update
 	int connected;
-} Brick;
+} Stack;
 
-int brick_create(Brick *brick, uint8_t bus_number, uint8_t device_address);
-void brick_destroy(Brick *brick);
+int stack_create(Stack *stack, uint8_t bus_number, uint8_t device_address);
+void stack_destroy(Stack *stack);
 
-int brick_add_uid(Brick *brick, uint32_t uid /* always little endian */);
-int brick_knows_uid(Brick *brick, uint32_t uid /* always little endian */);
+int stack_add_uid(Stack *stack, uint32_t uid /* always little endian */);
+int stack_knows_uid(Stack *stack, uint32_t uid /* always little endian */);
 
-int brick_dispatch_packet(Brick *brick, Packet *packet, int force);
+int stack_dispatch_packet(Stack *stack, Packet *packet, int force);
 
-#endif // BRICKD_BRICK_H
+#endif // BRICKD_STACK_H
