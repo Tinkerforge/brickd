@@ -15,6 +15,7 @@ CC ?= gcc
 
 WITH_LIBUDEV ?= check
 WITH_LOGGING ?= yes
+WITH_PROFILING ?= no
 
 ## RULES ######################################################################
 
@@ -151,6 +152,10 @@ endif
 
 ifeq ($(WITH_LOGGING),yes)
 	CFLAGS += -DBRICKD_WITH_LOGGING
+endif
+
+ifeq ($(WITH_PROFILING),yes)
+	CFLAGS += -DBRICKD_WITH_PROFILING
 endif
 
 ifeq ($(PLATFORM),Windows)

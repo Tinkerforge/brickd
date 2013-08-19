@@ -65,6 +65,8 @@ char *base58_encode(char *string, uint32_t value);
 
 uint32_t uint32_from_le(uint32_t value);
 
+uint64_t microseconds(void);
+
 #ifdef __GNUC__
 	#ifndef __GNUC_PREREQ
 		#define __GNUC_PREREQ(major, minor) \

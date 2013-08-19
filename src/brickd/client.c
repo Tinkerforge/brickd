@@ -38,6 +38,9 @@ static const char *_unknown_peer_name = "<unknown>";
 
 typedef struct {
 	PacketHeader header;
+#ifdef BRICKD_WITH_PROFILING
+	uint64_t arrival_time; // in usec
+#endif
 } PendingRequest;
 
 static void client_handle_receive(void *opaque) {
@@ -133,6 +136,9 @@ static void client_handle_receive(void *opaque) {
 					          get_errno_name(errno), errno);
 				} else {
 					memcpy(&pending_request->header, &client->packet.header, sizeof(PacketHeader));
+#ifdef BRICKD_WITH_PROFILING
+					pending_request->arrival_time = microseconds();
+#endif
 
 					log_debug("Added pending request (U: %s, L: %u, F: %u, S: %u) for client (socket: %d, peer: %s)",
 					          base58_encode(base58, uint32_from_le(pending_request->header.uid)),
@@ -216,9 +222,12 @@ void client_destroy(Client *client) {
 // returns -1 on error, 0 if the packet was not dispatched and 1 if it was dispatch
 int client_dispatch_packet(Client *client, Packet *packet, int force) {
 	int i;
-	PendingRequest *pending_request;
+	PendingRequest *pending_request = NULL;
 	int found = -1;
 	int rc = -1;
+#ifdef BRICKD_WITH_PROFILING
+	uint64_t elapsed;
+#endif
 
 	if (client->disconnected) {
 		log_debug("Ignoring disconnected client (socket: %d, peer: %s)",
@@ -253,8 +262,18 @@ int client_dispatch_packet(Client *client, Packet *packet, int force) {
 			log_debug("Forced to sent response to client (socket: %d, peer: %s)",
 			          client->socket, client->peer);
 		} else {
-			log_debug("Sent response to client (socket: %d, peer: %s)",
-			          client->socket, client->peer);
+#ifdef BRICKD_WITH_PROFILING
+			elapsed = microseconds() - pending_request->arrival_time;
+
+			log_debug("Sent response to client (socket: %d, peer: %s), was requested %u.%03u msec ago, %d request(s) still pending",
+			          client->socket, client->peer,
+			          (unsigned int)(elapsed / 1000), (unsigned int)(elapsed % 1000),
+			          client->pending_requests.count - 1);
+#else
+			log_debug("Sent response to client (socket: %d, peer: %s), %d request(s) still pending",
+			          client->socket, client->peer,
+			          client->pending_requests.count - 1);
+#endif
 		}
 	}
 

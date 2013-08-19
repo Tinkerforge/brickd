@@ -26,6 +26,9 @@
 #endif
 #include <stdlib.h>
 #include <string.h>
+#ifndef _MSC_VER
+	#include <sys/time.h>
+#endif
 
 #include "utils.h"
 
@@ -553,10 +556,21 @@ char *base58_encode(char *string, uint32_t value) {
 	return string;
 }
 
-uint32_t uint32_from_le(uint32_t value)
-{
+uint32_t uint32_from_le(uint32_t value) {
 	uint8_t *bytes = (uint8_t *)&value;
 
 	return ((uint32_t)bytes[3] << 24) | ((uint32_t)bytes[2] << 16) |
 	       ((uint32_t)bytes[1] << 8)  |  (uint32_t)bytes[0];
+}
+
+uint64_t microseconds(void) {
+	struct timeval tv;
+
+	// FIXME: use a monotonic source such as clock_gettime(CLOCK_MONOTONIC),
+	//        QueryPerformanceCounter() or mach_absolute_time()
+	if (gettimeofday(&tv, NULL) < 0) {
+		return 0;
+	} else {
+		return tv.tv_sec * 1000000 + tv.tv_usec;
+	}
 }
