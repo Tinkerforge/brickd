@@ -9,7 +9,7 @@
 )
 
 @set CC=cl /nologo /c /MD /O2 /W4 /wd4200 /wd4214 /FImsvcfixes.h^
- /DWIN32_LEAN_AND_MEAN /DNDEBUG /DBRICKD_LOG_ENABLED
+ /DWIN32_LEAN_AND_MEAN /DNDEBUG /DBRICKD_WITH_LOGGING
 @set MC=mc
 @set RC=rc /dWIN32 /r
 @set LD=link /nologo /opt:ref /opt:icf /release

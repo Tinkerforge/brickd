@@ -150,7 +150,7 @@ ifeq ($(PLATFORM),Darwin)
 endif
 
 ifeq ($(WITH_LOGGING),yes)
-	CFLAGS += -DBRICKD_LOG_ENABLED
+	CFLAGS += -DBRICKD_WITH_LOGGING
 endif
 
 ifeq ($(PLATFORM),Windows)

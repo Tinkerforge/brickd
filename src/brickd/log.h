@@ -47,7 +47,7 @@ typedef void (*LogHandler)(LogLevel level, const char *file, int line,
                            const char *function, const char *format,
                            va_list arguments);
 
-#ifdef BRICKD_LOG_ENABLED
+#ifdef BRICKD_WITH_LOGGING
 	#ifdef _MSC_VER
 		#define log_message_checked(level, ...) \
 			do { \
