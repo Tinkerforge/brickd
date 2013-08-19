@@ -397,6 +397,7 @@ int array_reserve(Array *array, int count) {
 	return 0;
 }
 
+// sets errno on error
 int array_resize(Array *array, int count, FreeFunction function) {
 	int rc;
 	int i;
@@ -495,36 +496,6 @@ void *array_get(Array *array, int i) {
 		return array->bytes + array->size * i;
 	} else {
 		return *(void **)(array->bytes + sizeof(void *) * i);
-	}
-}
-
-int array_find(Array *array, void *item) {
-	uint8_t *bytes;
-	int i;
-
-	if (array->relocatable) {
-		bytes = item;
-
-		if (bytes < array->bytes ||
-		    bytes > array->bytes + (array->count - 1) * array->size) {
-			return -1;
-		}
-
-		if ((bytes - array->bytes) % array->size != 0) {
-			log_error("Misaligned array access");
-
-			return -1;
-		}
-
-		return (bytes - array->bytes) / array->size;
-	} else {
-		for (i = 0; i < array->count; ++i) {
-			if (memcmp(array_get(array, i), item, array->size) == 0) {
-				return i;
-			}
-		}
-
-		return -1;
 	}
 }
 

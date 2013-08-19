@@ -57,7 +57,6 @@ void *array_append(Array *array);
 void array_remove(Array *array, int i, FreeFunction function);
 
 void *array_get(Array *array, int i);
-int array_find(Array *array, void *item);
 
 #define MAX_BASE58_STR_SIZE 8
 
