@@ -2,7 +2,7 @@
  * brickd
  * Copyright (C) 2013 Matthias Bolte <matthias@tinkerforge.com>
  *
- * mingwfixes.h: Fixes for problems with the MinGW headers and libs
+ * mingw_fixes.h: Fixes for problems with the MinGW headers and libs
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,8 +19,8 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-#ifndef BRICKD_MINGWFIXES_H
-#define BRICKD_MINGWFIXES_H
+#ifndef BRICKD_MINGW_FIXES_H
+#define BRICKD_MINGW_FIXES_H
 
 #ifdef __MINGW32__
 
@@ -34,4 +34,4 @@ struct tm *localtime_r(const time_t *timep, struct tm *result);
 
 #endif // __MINGW32__
 
-#endif // BRICKD_MINGWFIXES_H
+#endif // BRICKD_MINGW_FIXES_H

@@ -8,7 +8,7 @@
  goto done
 )
 
-@set CC=cl /nologo /c /MD /O2 /W4 /wd4200 /wd4214 /FImsvcfixes.h^
+@set CC=cl /nologo /c /MD /O2 /W4 /wd4200 /wd4214 /FImsvc_fixes.h^
  /DWIN32_LEAN_AND_MEAN /DNDEBUG /DBRICKD_WITH_LOGGING
 @set MC=mc
 @set RC=rc /dWIN32 /r
@@ -42,7 +42,7 @@
  log.c^
  log_winapi.c^
  main_windows.c^
- msvcfixes.c^
+ msvc_fixes.c^
  network.c^
  packet.c^
  pipe_winapi.c^

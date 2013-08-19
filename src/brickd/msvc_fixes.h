@@ -2,7 +2,7 @@
  * brickd
  * Copyright (C) 2012 Matthias Bolte <matthias@tinkerforge.com>
  *
- * msvcfixes.h: Fixes for problems with the MSVC/WDK headers and libs
+ * msvc_fixes.h: Fixes for problems with the MSVC/WDK headers and libs
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,8 +19,8 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-#ifndef BRICKD_MSVCFIXES_H
-#define BRICKD_MSVCFIXES_H
+#ifndef BRICKD_MSVC_FIXES_H
+#define BRICKD_MSVC_FIXES_H
 
 #ifdef _MSC_VER
 
@@ -40,4 +40,4 @@ int gettimeofday(struct timeval *tv, struct timezone *tz);
 
 #endif // _MSC_VER
 
-#endif // BRICKD_MSVCFIXES_H
+#endif // BRICKD_MSVC_FIXES_H

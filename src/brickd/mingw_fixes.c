@@ -2,7 +2,7 @@
  * brickd
  * Copyright (C) 2013 Matthias Bolte <matthias@tinkerforge.com>
  *
- * mingwfixes.c: Fixes for problems with the MinGW headers and libs
+ * mingw_fixes.c: Fixes for problems with the MinGW headers and libs
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -23,7 +23,7 @@
 
 #include <string.h>
 
-#include "mingwfixes.h"
+#include "mingw_fixes.h"
 
 // implement localtime_r based on localtime
 struct tm *localtime_r(const time_t *timep, struct tm *result) {
