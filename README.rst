@@ -13,7 +13,7 @@ The following libraries are required:
 
 On Debian based Linux distributions try::
 
- sudo apt-get install build-essential libusb-1.0-0-dev libudev-dev
+ sudo apt-get install build-essential pkg-config libusb-1.0-0-dev libudev-dev
 
 On Fedora Linux try::
 
