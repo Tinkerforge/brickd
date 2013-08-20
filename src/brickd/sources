@@ -18,6 +18,7 @@ SOURCES=client.c \
 	event_winapi.c \
 	log.c \
 	log_winapi.c \
+	hardware.c \
 	main_windows.c \
 	msvc_fixes.c \
 	network.c \
@@ -27,6 +28,7 @@ SOURCES=client.c \
 	socket_winapi.c \
 	stack.c \
 	threads_winapi.c \
-	transfer.c \
 	usb.c \
+	usb_stack.c \
+	usb_transfer.c \
 	utils.c

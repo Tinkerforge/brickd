@@ -1,8 +1,8 @@
 /*
  * brickd
- * Copyright (C) 2012 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2013 Matthias Bolte <matthias@tinkerforge.com>
  *
- * usb.h: USB specific functions
+ * usb_stack.h: USB stack specific functions
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,32 +19,30 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-#ifndef BRICKD_USB_H
-#define BRICKD_USB_H
+#ifndef BRICKD_USB_STACK_H
+#define BRICKD_USB_STACK_H
 
 #include <libusb.h>
 
-// libusbx defines LIBUSB_CALL but libusb doesn't
-#ifndef LIBUSB_CALL
-	#define LIBUSB_CALL
-#endif
+#include "stack.h"
+#include "utils.h"
 
-#define USB_VENDOR_ID 0x16D0
-#define USB_PRODUCT_ID 0x063D
-#define USB_DEVICE_RELEASE ((1 << 8) | (1 << 4) | (0 << 0)) /* 1.10 */
+typedef struct {
+	Stack base;
 
-#define USB_CONFIGURATION 1
-#define USB_INTERFACE 0
+	uint8_t bus_number;
+	uint8_t device_address;
+	libusb_context *context;
+	libusb_device *device;
+	struct libusb_device_descriptor device_descriptor;
+	libusb_device_handle *device_handle;
+	Array read_transfers;
+	Array write_transfers;
+	Array write_queue;
+	int connected;
+} USBStack;
 
-#define USB_ENDPOINT_IN 4
-#define USB_ENDPOINT_OUT 5
+int usb_stack_create(USBStack *stack, uint8_t bus_number, uint8_t device_address);
+void usb_stack_destroy(USBStack *stack);
 
-int usb_init(void);
-void usb_exit(void);
-
-int usb_update(void);
-
-int usb_create_context(libusb_context **context);
-void usb_destroy_context(libusb_context *context);
-
-#endif // BRICKD_USB_H
+#endif // BRICKD_USB_STACK_H

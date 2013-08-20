@@ -2,7 +2,7 @@
  * brickd
  * Copyright (C) 2012-2013 Matthias Bolte <matthias@tinkerforge.com>
  *
- * transfer.h: libusb transfer specific functions
+ * usb_transfer.h: libusb transfer specific functions
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,39 +19,39 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-#ifndef BRICKD_TRANSFER_H
-#define BRICKD_TRANSFER_H
+#ifndef BRICKD_USB_TRANSFER_H
+#define BRICKD_USB_TRANSFER_H
 
 #include <libusb.h>
 
-#include "stack.h"
 #include "packet.h"
+#include "usb_stack.h"
 
 typedef enum {
-	TRANSFER_TYPE_READ = 0,
-	TRANSFER_TYPE_WRITE
-} TransferType;
+	USB_TRANSFER_TYPE_READ = 0,
+	USB_TRANSFER_TYPE_WRITE
+} USBTransferType;
 
-typedef struct _Transfer Transfer;
+typedef struct _USBTransfer USBTransfer;
 
-typedef void (*TransferFunction)(Transfer *transfer);
+typedef void (*USBTransferFunction)(USBTransfer *transfer);
 
-struct _Transfer {
-	Stack *stack;
-	TransferType type;
+struct _USBTransfer {
+	USBStack *stack;
+	USBTransferType type;
 	int submitted;
 	int completed;
-	TransferFunction function;
+	USBTransferFunction function;
 	struct libusb_transfer *handle;
 	Packet packet;
 };
 
-const char *transfer_get_type_name(TransferType type, int upper);
+const char *usb_transfer_get_type_name(USBTransferType type, int upper);
 
-int transfer_create(Transfer *transfer, Stack *stack, TransferType type,
-                    TransferFunction function);
-void transfer_destroy(Transfer *transfer);
+int usb_transfer_create(USBTransfer *transfer, USBStack *stack,
+                        USBTransferType type, USBTransferFunction function);
+void usb_transfer_destroy(USBTransfer *transfer);
 
-int transfer_submit(Transfer *transfer);
+int usb_transfer_submit(USBTransfer *transfer);
 
-#endif // BRICKD_TRANSFER_H
+#endif // BRICKD_USB_TRANSFER_H

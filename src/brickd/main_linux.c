@@ -31,6 +31,7 @@
 
 #include "config.h"
 #include "event.h"
+#include "hardware.h"
 #include "log.h"
 #include "network.h"
 #include "pidfile.h"
@@ -40,9 +41,9 @@
 
 #define LOG_CATEGORY LOG_CATEGORY_OTHER
 
-static char _config_filename[1024] = SYSCONFDIR"/brickd.conf";
-static char _pid_filename[1024] = LOCALSTATEDIR"/run/brickd.pid";
-static char _log_filename[1024] = LOCALSTATEDIR"/log/brickd.log";
+static char _config_filename[1024] = SYSCONFDIR "/brickd.conf";
+static char _pid_filename[1024] = LOCALSTATEDIR "/run/brickd.pid";
+static char _log_filename[1024] = LOCALSTATEDIR "/log/brickd.log";
 
 static int prepare_paths(void) {
 	char *home;
@@ -409,6 +410,10 @@ int main(int argc, char **argv) {
 		goto error_event;
 	}
 
+	if (hardware_init() < 0) {
+		goto error_hardware;
+	}
+
 	if (usb_init() < 0) {
 		goto error_usb;
 	}
@@ -441,6 +446,9 @@ error_udev:
 	usb_exit();
 
 error_usb:
+	hardware_exit();
+
+error_hardware:
 	event_exit();
 
 error_event:

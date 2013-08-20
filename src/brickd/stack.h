@@ -22,43 +22,23 @@
 #ifndef BRICKD_STACK_H
 #define BRICKD_STACK_H
 
-#include <libusb.h>
-
 #include "packet.h"
 #include "utils.h"
 
-#define USB_VENDOR_ID 0x16D0
-#define USB_PRODUCT_ID 0x063D
-#define USB_DEVICE_RELEASE ((1 << 8) | (1 << 4) | (0 << 0)) /* 1.10 */
+typedef struct _Stack Stack;
 
-#define USB_CONFIGURATION 1
-#define USB_INTERFACE 0
+typedef int (*DispatchPacketFunction)(Stack *stack, Packet *packet);
 
-#define USB_ENDPOINT_IN 4
-#define USB_ENDPOINT_OUT 5
+#define MAX_STACK_NAME 128
 
-typedef struct {
-	// USB device
-	uint8_t bus_number;
-	uint8_t device_address;
-	libusb_context *context;
-	libusb_device *device;
-	struct libusb_device_descriptor device_descriptor;
-	libusb_device_handle *device_handle;
-	char product[64];
-	char serial_number[64];
-	Array read_transfers;
-	Array write_transfers;
+struct _Stack {
+	char name[MAX_STACK_NAME]; // for display purpose
+	DispatchPacketFunction dispatch_packet;
+	Array uids;
+};
 
-	// Stack
-	Array uids; // always little endian
-	Array write_queue;
-
-	// used by usb_update
-	int connected;
-} Stack;
-
-int stack_create(Stack *stack, uint8_t bus_number, uint8_t device_address);
+int stack_create(Stack *stack, const char *name,
+                 DispatchPacketFunction dispatch_packet);
 void stack_destroy(Stack *stack);
 
 int stack_add_uid(Stack *stack, uint32_t uid /* always little endian */);

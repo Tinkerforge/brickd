@@ -30,6 +30,7 @@
 
 #include "config.h"
 #include "event.h"
+#include "hardware.h"
 #include "log.h"
 #include "network.h"
 #include "pidfile.h"
@@ -39,9 +40,9 @@
 
 #define LOG_CATEGORY LOG_CATEGORY_OTHER
 
-#define CONFIG_FILENAME SYSCONFDIR"/brickd.conf"
-#define PID_FILENAME LOCALSTATEDIR"/run/brickd.pid"
-#define LOG_FILENAME LOCALSTATEDIR"/log/brickd.log"
+#define CONFIG_FILENAME (SYSCONFDIR "/brickd.conf")
+#define PID_FILENAME (LOCALSTATEDIR "/run/brickd.pid")
+#define LOG_FILENAME (LOCALSTATEDIR "/log/brickd.log")
 
 static void print_usage(void) {
 	printf("Usage:\n"
@@ -235,6 +236,10 @@ int main(int argc, char **argv) {
 		goto error_event;
 	}
 
+	if (hardware_init() < 0) {
+		goto error_hardware;
+	}
+
 	if (usb_init() < 0) {
 		goto error_usb;
 	}
@@ -263,6 +268,9 @@ error_iokit:
 	usb_exit();
 
 error_usb:
+	hardware_exit();
+
+error_hardware:
 	event_exit();
 
 error_event:

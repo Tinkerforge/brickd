@@ -39,6 +39,7 @@
  config.c^
  event.c^
  event_winapi.c^
+ hardware.c^
  log.c^
  log_winapi.c^
  main_windows.c^
@@ -50,8 +51,9 @@
  socket_winapi.c^
  stack.c^
  threads_winapi.c^
- transfer.c^
  usb.c^
+ usb_stack.c^
+ usb_transfer.c^
  utils.c
 
 %RC% /folog_messages.res log_messages.rc

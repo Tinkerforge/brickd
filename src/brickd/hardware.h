@@ -1,8 +1,8 @@
 /*
  * brickd
- * Copyright (C) 2012 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2013 Matthias Bolte <matthias@tinkerforge.com>
  *
- * usb.h: USB specific functions
+ * hardware.h: Hardware specific functions
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,32 +19,18 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-#ifndef BRICKD_USB_H
-#define BRICKD_USB_H
+#ifndef BRICKD_HARDWARE_H
+#define BRICKD_HARDWARE_H
 
-#include <libusb.h>
+#include "stack.h"
+#include "packet.h"
 
-// libusbx defines LIBUSB_CALL but libusb doesn't
-#ifndef LIBUSB_CALL
-	#define LIBUSB_CALL
-#endif
+int hardware_init(void);
+void hardware_exit(void);
 
-#define USB_VENDOR_ID 0x16D0
-#define USB_PRODUCT_ID 0x063D
-#define USB_DEVICE_RELEASE ((1 << 8) | (1 << 4) | (0 << 0)) /* 1.10 */
+int hardware_add_stack(Stack *stack);
+int hardware_remove_stack(Stack *stack);
 
-#define USB_CONFIGURATION 1
-#define USB_INTERFACE 0
+void hardware_dispatch_packet(Packet *packet);
 
-#define USB_ENDPOINT_IN 4
-#define USB_ENDPOINT_OUT 5
-
-int usb_init(void);
-void usb_exit(void);
-
-int usb_update(void);
-
-int usb_create_context(libusb_context **context);
-void usb_destroy_context(libusb_context *context);
-
-#endif // BRICKD_USB_H
+#endif // BRICKD_HARDWARE_H

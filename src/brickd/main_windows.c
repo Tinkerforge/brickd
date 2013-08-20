@@ -52,6 +52,7 @@ BOOL WINAPI Process32Next(HANDLE hSnapshot, PROCESSENTRY32 *lppe);
 
 #include "config.h"
 #include "event.h"
+#include "hardware.h"
 #include "log.h"
 #include "network.h"
 #include "pipe.h"
@@ -601,6 +602,11 @@ error_mutex:
 		goto error_event;
 	}
 
+	if (hardware_init() < 0) {
+		// FIXME: set service_exit_code
+		goto error_hardware;
+	}
+
 	if (usb_init() < 0) {
 		// FIXME: set service_exit_code
 		goto error_usb;
@@ -691,6 +697,9 @@ error_pipe:
 	usb_exit();
 
 error_usb:
+	hardware_exit();
+
+error_hardware:
 	event_exit();
 
 error_event:

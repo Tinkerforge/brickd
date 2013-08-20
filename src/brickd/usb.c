@@ -29,7 +29,7 @@
 #include "event.h"
 #include "log.h"
 #include "network.h"
-#include "transfer.h"
+#include "usb_transfer.h"
 #include "utils.h"
 
 #define LOG_CATEGORY LOG_CATEGORY_USB
@@ -101,7 +101,7 @@ cleanup:
 
 static int usb_handle_device(libusb_device *device) {
 	int i;
-	Stack *stack;
+	USBStack *stack;
 	uint8_t bus_number = libusb_get_bus_number(device);
 	uint8_t device_address = libusb_get_device_address(device);
 
@@ -131,7 +131,7 @@ static int usb_handle_device(libusb_device *device) {
 		return -1;
 	}
 
-	if (stack_create(stack, bus_number, device_address) < 0) {
+	if (usb_stack_create(stack, bus_number, device_address) < 0) {
 		array_remove(&_stacks, _stacks.count - 1, NULL);
 
 		log_warn("Ignoring USB device (bus: %u, device: %u) due to an error",
@@ -143,9 +143,9 @@ static int usb_handle_device(libusb_device *device) {
 	// mark new stack as connected
 	stack->connected = 1;
 
-	log_info("Added USB device (bus: %d, device: %d) at index %d: %s [%s]",
+	log_info("Added USB device (bus: %u, device: %u) at index %d: %s",
 	         stack->bus_number, stack->device_address, _stacks.count - 1,
-	         stack->product, stack->serial_number);
+	         stack->base.name);
 
 	return 0;
 }
@@ -201,9 +201,9 @@ int usb_init(void) {
 		log_debug("libusb can handle timeouts on its own");
 	}
 
-	// create stacks array, the stack struct is not relocatable, because its
-	// transfers keep a pointer to it
-	if (array_create(&_stacks, 32, sizeof(Stack), 0) < 0) {
+	// create USB stacks array, the USBStack struct is not relocatable, because
+	// its transfers keep a pointer to it
+	if (array_create(&_stacks, 32, sizeof(USBStack), 0) < 0) {
 		log_error("Could not create stack array: %s (%d)",
 		          get_errno_name(errno), errno);
 
@@ -222,7 +222,7 @@ int usb_init(void) {
 cleanup:
 	switch (phase) { // no breaks, all cases fall through intentionally
 	case 2:
-		array_destroy(&_stacks, (FreeFunction)stack_destroy);
+		array_destroy(&_stacks, (FreeFunction)usb_stack_destroy);
 
 	case 1:
 		usb_destroy_context(_context);
@@ -237,14 +237,14 @@ cleanup:
 void usb_exit(void) {
 	log_debug("Shutting down USB subsystem");
 
-	array_destroy(&_stacks, (FreeFunction)stack_destroy);
+	array_destroy(&_stacks, (FreeFunction)usb_stack_destroy);
 
 	usb_destroy_context(_context);
 }
 
 int usb_update(void) {
 	int i;
-	Stack *stack;
+	USBStack *stack;
 	int k;
 	uint32_t uid; // always little endian
 	EnumerateCallback enumerate_callback;
@@ -269,12 +269,11 @@ int usb_update(void) {
 			continue;
 		}
 
-		log_info("Removing USB device (bus: %d, device: %d) at index %d: %s [%s]",
-		         stack->bus_number, stack->device_address, i,
-		         stack->product, stack->serial_number);
+		log_info("Removing USB device (bus: %u, device: %u) at index %d: %s ",
+		         stack->bus_number, stack->device_address, i, stack->base.name);
 
-		for (k = 0; k < stack->uids.count; ++k) {
-			uid = *(uint32_t *)array_get(&stack->uids, k);
+		for (k = 0; k < stack->base.uids.count; ++k) {
+			uid = *(uint32_t *)array_get(&stack->base.uids, k);
 
 			memset(&enumerate_callback, 0, sizeof(enumerate_callback));
 
@@ -292,77 +291,10 @@ int usb_update(void) {
 			network_dispatch_packet((Packet *)&enumerate_callback);
 		}
 
-		array_remove(&_stacks, i, (FreeFunction)stack_destroy);
+		array_remove(&_stacks, i, (FreeFunction)usb_stack_destroy);
 	}
 
 	return 0;
-}
-
-void usb_dispatch_packet(Packet *packet) {
-	char base58[MAX_BASE58_STR_SIZE];
-	int i;
-	Stack *stack;
-	int rc;
-	int dispatched = 0;
-
-	if (_stacks.count == 0) {
-		log_debug("No stacks connected, dropping request (U: %s, L: %u, F: %u, S: %u, R: %u)",
-		          base58_encode(base58, uint32_from_le(packet->header.uid)),
-		          packet->header.length,
-		          packet->header.function_id,
-		          packet_header_get_sequence_number(&packet->header),
-		          packet_header_get_response_expected(&packet->header));
-
-		return;
-	}
-
-	if (packet->header.uid == 0) {
-		log_debug("Broadcasting request (U: %s, L: %u, F: %u, S: %u, R: %u) to %d stack(s)",
-		          base58_encode(base58, uint32_from_le(packet->header.uid)),
-		          packet->header.length,
-		          packet->header.function_id,
-		          packet_header_get_sequence_number(&packet->header),
-		          packet_header_get_response_expected(&packet->header),
-		          _stacks.count);
-
-		for (i = 0; i < _stacks.count; ++i) {
-			stack = array_get(&_stacks, i);
-
-			stack_dispatch_packet(stack, packet, 1);
-		}
-	} else {
-		log_debug("Dispatching request (U: %s, L: %u, F: %u, S: %u, R: %u) to %d stack(s)",
-		          base58_encode(base58, uint32_from_le(packet->header.uid)),
-		          packet->header.length,
-		          packet->header.function_id,
-		          packet_header_get_sequence_number(&packet->header),
-		          packet_header_get_response_expected(&packet->header),
-		          _stacks.count);
-
-		for (i = 0; i < _stacks.count; ++i) {
-			stack = array_get(&_stacks, i);
-
-			rc = stack_dispatch_packet(stack, packet, 0);
-
-			if (rc < 0) {
-				continue;
-			} else if (rc > 0) {
-				dispatched = 1;
-			}
-		}
-
-		if (dispatched) {
-			return;
-		}
-
-		log_debug("Broadcasting request because UID is currently unknown");
-
-		for (i = 0; i < _stacks.count; ++i) {
-			stack = array_get(&_stacks, i);
-
-			stack_dispatch_packet(stack, packet, 1);
-		}
-	}
 }
 
 int usb_create_context(libusb_context **context) {

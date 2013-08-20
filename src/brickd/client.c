@@ -25,10 +25,9 @@
 
 #include "client.h"
 
+#include "hardware.h"
 #include "log.h"
-#include "network.h"
 #include "socket.h"
-#include "usb.h"
 
 #define LOG_CATEGORY LOG_CATEGORY_NETWORK
 
@@ -147,10 +146,10 @@ static void client_handle_receive(void *opaque) {
 					          packet_header_get_sequence_number(&pending_request->header),
 					          client->socket, client->peer);
 
-					usb_dispatch_packet(&client->packet);
+					hardware_dispatch_packet(&client->packet);
 				}
 			} else {
-				usb_dispatch_packet(&client->packet);
+				hardware_dispatch_packet(&client->packet);
 			}
 		}
 
