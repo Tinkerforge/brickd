@@ -116,9 +116,9 @@ def build_linux_pkg():
     os.system('make clean')
 
     if architecture == 'i386':
-        os.system('CFLAGS=-march=i386 make')
+        os.system('CFLAGS=-march=i386 WITH_LIBUDEV_DLOPEN=yes make')
     else:
-        os.system('make')
+        os.system('WITH_LIBUDEV_DLOPEN=yes make')
 
     version = subprocess.check_output(['./brickd', '--version']).replace('\n', '').replace(' ', '-')
 

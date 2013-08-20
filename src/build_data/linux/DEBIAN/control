@@ -4,7 +4,7 @@ Section: electronics
 Maintainer: Olaf Lüke <olaf@tinkerforge.com>
 Architecture: <<BRICKD_ARCHITECTURE>>
 Installed-Size: 142
-Depends: libusb-1.0-0, libudev0
+Depends: libusb-1.0-0, libudev1 | libudev0
 Description: Brick Daemon
  Brick Daemon is a small bridge between the USB port of Bricks and 
  the TCP/IP socket connection to the language binding APIs.

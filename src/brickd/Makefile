@@ -14,6 +14,7 @@
 CC ?= gcc
 
 WITH_LIBUDEV ?= check
+WITH_LIBUDEV_DLOPEN ?= no
 WITH_LOGGING ?= yes
 WITH_PROFILING ?= no
 
@@ -135,13 +136,20 @@ LDFLAGS += $(LIBUSB_LDFLAGS)
 LIBS += $(LIBUSB_LIBS)
 
 ifeq ($(WITH_LIBUDEV),yes)
+	CFLAGS += -DBRICKD_WITH_LIBUDEV
+
+ifeq ($(WITH_LIBUDEV_DLOPEN),yes)
+	CFLAGS += -DBRICKD_WITH_LIBUDEV_DLOPEN
+	LIBS += -ldl
+else
 	LIBUDEV_CFLAGS := $(shell pkg-config --cflags libudev)
 	LIBUDEV_LDFLAGS := $(shell pkg-config --libs-only-other --libs-only-L libudev)
 	LIBUDEV_LIBS := $(shell pkg-config --libs-only-l libudev)
 
-	CFLAGS += $(LIBUDEV_CFLAGS) -DBRICKD_WITH_LIBUDEV
+	CFLAGS += $(LIBUDEV_CFLAGS)
 	LDFLAGS += $(LIBUDEV_LDFLAGS)
 	LIBS += $(LIBUDEV_LIBS)
+endif
 endif
 
 ifeq ($(PLATFORM),Darwin)

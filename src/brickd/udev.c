@@ -19,8 +19,14 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
+#ifdef BRICKD_WITH_LIBUDEV_DLOPEN
+	#include <dlfcn.h>
+#endif
+#include <errno.h>
 #include <poll.h>
-#include <libudev.h>
+#ifndef BRICKD_WITH_LIBUDEV_DLOPEN
+	#include <libudev.h>
+#endif
 #include <string.h>
 
 #include "udev.h"
@@ -31,9 +37,108 @@
 
 #define LOG_CATEGORY LOG_CATEGORY_HOTPLUG
 
+#ifdef BRICKD_WITH_LIBUDEV_DLOPEN
+
+struct udev;
+struct udev_monitor;
+struct udev_device;
+
+static struct udev_device *(*udev_monitor_receive_device)(struct udev_monitor *udev_monitor) = NULL;
+static const char *(*udev_device_get_action)(struct udev_device *udev_device) = NULL;
+static const char *(*udev_device_get_devnode)(struct udev_device *udev_device) = NULL;
+static const char *(*udev_device_get_sysname)(struct udev_device *udev_device) = NULL;
+static void (*udev_device_unref)(struct udev_device *udev_device) = NULL;
+static struct udev *(*udev_new)(void) = NULL;
+static struct udev_monitor *(*udev_monitor_new_from_netlink)(struct udev *udev, const char *name) = NULL;
+static int (*udev_monitor_filter_add_match_subsystem_devtype)(struct udev_monitor *udev_monitor, const char *subsystem, const char *devtype) = NULL;
+static int (*udev_monitor_enable_receiving)(struct udev_monitor *udev_monitor) = NULL;
+static int (*udev_monitor_get_fd)(struct udev_monitor *udev_monitor) = NULL;
+static void (*udev_monitor_unref)(struct udev_monitor *udev_monitor) = NULL;
+static void (*udev_unref)(struct udev *udev) = NULL;
+
+#endif
+
 static struct udev *_udev_context = NULL;
 static struct udev_monitor *_udev_monitor = NULL;
 static int _udev_monitor_fd = -1;
+
+#ifdef BRICKD_WITH_LIBUDEV_DLOPEN
+
+static void *udev_dlopen_handle = NULL;
+static int udev_dlsym_error = 0;
+
+// according to dlopen manpage casting from "void *" to a function pointer
+// is undefined in C99. the manpage suggests this workaround:
+//
+//  double (*cosine)(double);
+//  *(void **)(&cosine) = dlsym(handle, "cos");
+
+#define UDEV_DLSYM(name) do { *(void **)&name = udev_dlsym(#name); } while (0)
+
+static void *udev_dlsym(const char *name) {
+	void *pointer;
+	char *error;
+
+	if (udev_dlsym_error) {
+		return NULL;
+	}
+
+	dlerror(); // clear any existing error
+
+	pointer = dlsym(udev_dlopen_handle, name);
+	error = dlerror();
+
+	if (error != NULL) {
+		log_error("Could not resolve '%s': %s", name, error);
+
+		udev_dlsym_error = 1;
+	}
+
+	return pointer;
+}
+
+// using dlopen for libudev allows to deal with both SONAMEs for libudev:
+// libudev.so.0 and libudev.so.1
+static int udev_dlopen(void) {
+	log_debug("Loading libudev.so");
+
+	udev_dlopen_handle = dlopen("libudev.so", RTLD_LAZY);
+
+	if (udev_dlopen_handle == NULL) {
+		log_error("Could not load libudev.so: %s", dlerror());
+
+		return -1;
+	}
+
+	UDEV_DLSYM(udev_monitor_receive_device);
+	UDEV_DLSYM(udev_device_get_action);
+	UDEV_DLSYM(udev_device_get_devnode);
+	UDEV_DLSYM(udev_device_get_sysname);
+	UDEV_DLSYM(udev_device_unref);
+	UDEV_DLSYM(udev_new);
+	UDEV_DLSYM(udev_monitor_new_from_netlink);
+	UDEV_DLSYM(udev_monitor_filter_add_match_subsystem_devtype);
+	UDEV_DLSYM(udev_monitor_enable_receiving);
+	UDEV_DLSYM(udev_monitor_get_fd);
+	UDEV_DLSYM(udev_monitor_unref);
+	UDEV_DLSYM(udev_unref);
+
+	if (udev_dlsym_error) {
+		dlclose(udev_dlopen_handle);
+
+		return -1;
+	}
+
+	return 0;
+}
+
+static void udev_dlclose(void) {
+	log_debug("Unloading libudev.so");
+
+	dlclose(udev_dlopen_handle);
+}
+
+#endif
 
 static void udev_handle_event(void *opaque) {
 	struct udev_device* device;
@@ -89,6 +194,14 @@ int udev_init(void) {
 
 	log_debug("Initializing udev subsystem");
 
+#ifdef BRICKD_WITH_LIBUDEV_DLOPEN
+	if (udev_dlopen() < 0) {
+		goto cleanup;
+	}
+
+	phase = 1;
+#endif
+
 	// create udev context
 	_udev_context = udev_new();
 
@@ -98,7 +211,7 @@ int udev_init(void) {
 		goto cleanup;
 	}
 
-	phase = 1;
+	phase = 2;
 
 	// create udev monitor
 	_udev_monitor = udev_monitor_new_from_netlink(_udev_context, "udev");
@@ -109,7 +222,7 @@ int udev_init(void) {
 		goto cleanup;
 	}
 
-	phase = 2;
+	phase = 3;
 
 	// create filter for USB
 	rc = udev_monitor_filter_add_match_subsystem_devtype(_udev_monitor, "usb", 0);
@@ -136,21 +249,26 @@ int udev_init(void) {
 		goto cleanup;
 	}
 
-	phase = 3;
+	phase = 4;
 
 cleanup:
 	switch (phase) { // no breaks, all cases fall through intentionally
-	case 2:
+	case 3:
 		udev_monitor_unref(_udev_monitor);
 
-	case 1:
+	case 2:
 		udev_unref(_udev_context);
+
+#ifdef BRICKD_WITH_LIBUDEV_DLOPEN
+	case 1:
+		udev_dlclose();
+#endif
 
 	default:
 		break;
 	}
 
-	return phase == 3 ? 0 : -1;
+	return phase == 4 ? 0 : -1;
 }
 
 void udev_exit(void) {
@@ -160,4 +278,8 @@ void udev_exit(void) {
 
 	udev_monitor_unref(_udev_monitor);
 	udev_unref(_udev_context);
+
+#ifdef BRICKD_WITH_LIBUDEV_DLOPEN
+	udev_dlclose();
+#endif
 }
