@@ -10,17 +10,17 @@ UMTYPE=console
 INCLUDES=..\build_data\Windows;..\build_data\Windows\libusb;$(DDK_INC_PATH)
 UMLIBS=..\build_data\Windows\libusb\libusb-1.0.lib
 C_DEFINES=$(C_DEFINES) /DWIN32_LEAN_AND_MEAN /DNDEBUG /DBRICKD_WDK_BUILD /DBRICKD_WITH_LOGGING
-USER_C_FLAGS=$(USER_C_FLAGS) /O2 /wd4200 /wd4214 /FImsvc_fixes.h
+USER_C_FLAGS=$(USER_C_FLAGS) /O2 /wd4200 /wd4214 /FIfixes_msvc.h
 TARGETLIBS=$(SDK_LIB_PATH)\advapi32.lib $(SDK_LIB_PATH)\user32.lib $(SDK_LIB_PATH)\ws2_32.lib
 SOURCES=client.c \
 	config.c \
 	event.c \
 	event_winapi.c \
+	fixes_msvc.c \
 	log.c \
 	log_winapi.c \
 	hardware.c \
 	main_windows.c \
-	msvc_fixes.c \
 	network.c \
 	packet.c \
 	pipe_winapi.c \

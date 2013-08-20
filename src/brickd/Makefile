@@ -74,8 +74,8 @@ SOURCES := client.c config.c event.c hardware.c log.c network.c packet.c \
            stack.c usb.c usb_stack.c usb_transfer.c utils.c
 
 ifeq ($(PLATFORM),Windows)
-	SOURCES += event_winapi.c log_winapi.c pipe_winapi.c service.c \
-	           socket_winapi.c threads_winapi.c mingw_fixes.c
+	SOURCES += event_winapi.c fixes_mingw.c log_winapi.c pipe_winapi.c \
+	           service.c socket_winapi.c threads_winapi.c
 else
 	SOURCES += event_posix.c log_posix.c pidfile.c pipe_posix.c socket_posix.c \
 	           threads_posix.c
@@ -113,7 +113,7 @@ endif
 CFLAGS += -O2 -Wall -Wextra
 
 ifeq ($(PLATFORM),Windows)
-	CFLAGS += -DWINVER=0x0500 -D_WIN32_WINNT=0x0501 -mconsole -include mingw_fixes.h
+	CFLAGS += -DWINVER=0x0500 -D_WIN32_WINNT=0x0501 -mconsole -include fixes_mingw.h
 	LDFLAGS += -Wl,-subsystem,console
 	LIBS += -lws2_32
 else

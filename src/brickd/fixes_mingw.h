@@ -1,8 +1,8 @@
 /*
  * brickd
- * Copyright (C) 2012-2013 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2013 Matthias Bolte <matthias@tinkerforge.com>
  *
- * msvc_fixes.h: Fixes for problems with the MSVC/WDK headers and libs
+ * fixes_mingw.h: Fixes for problems with the MinGW headers and libs
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,31 +19,19 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-#ifndef BRICKD_MSVC_FIXES_H
-#define BRICKD_MSVC_FIXES_H
+#ifndef BRICKD_FIXES_MINGW_H
+#define BRICKD_FIXES_MINGW_H
 
-#ifdef _MSC_VER
+#ifdef __MINGW32__
 
 #include <time.h>
-#include <winsock2.h> // for struct timeval
 
-struct timezone {
-	int tz_minuteswest;
-	int tz_dsttime;
-};
+#ifndef PROCESS_QUERY_LIMITED_INFORMATION
+	#define PROCESS_QUERY_LIMITED_INFORMATION 0x1000
+#endif
 
 struct tm *localtime_r(const time_t *timep, struct tm *result);
 
-int gettimeofday(struct timeval *tv, struct timezone *tz);
+#endif // __MINGW32__
 
-#ifdef BRICKD_WDK_BUILD
-
-int snprintf(char *buffer, size_t count, const char *format, ...);
-
-#endif
-
-#define strdup _strdup
-
-#endif // _MSC_VER
-
-#endif // BRICKD_MSVC_FIXES_H
+#endif // BRICKD_FIXES_MINGW_H
