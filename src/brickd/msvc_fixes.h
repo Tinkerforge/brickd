@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2012 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2012-2013 Matthias Bolte <matthias@tinkerforge.com>
  *
  * msvc_fixes.h: Fixes for problems with the MSVC/WDK headers and libs
  *
@@ -35,6 +35,12 @@ struct timezone {
 struct tm *localtime_r(const time_t *timep, struct tm *result);
 
 int gettimeofday(struct timeval *tv, struct timezone *tz);
+
+#ifdef BRICKD_WDK_BUILD
+
+int snprintf(char *buffer, size_t count, const char *format, ...);
+
+#endif
 
 #define strdup _strdup
 
