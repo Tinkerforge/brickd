@@ -28,7 +28,8 @@
 #include "threads.h"
 
 static Mutex _mutex; // protects writing to _file
-static LogLevel _levels[5] = { LOG_LEVEL_INFO,
+static LogLevel _levels[6] = { LOG_LEVEL_INFO,
+                               LOG_LEVEL_INFO,
                                LOG_LEVEL_INFO,
                                LOG_LEVEL_INFO,
                                LOG_LEVEL_INFO,
@@ -89,11 +90,12 @@ static void log_handler(LogCategory category, LogLevel level, const char *file,
 
 	// format category
 	switch (category) {
-	case LOG_CATEGORY_EVENT:   category_name = "event"; break;
-	case LOG_CATEGORY_USB:     category_name = "usb"; break;
-	case LOG_CATEGORY_NETWORK: category_name = "network"; break;
-	case LOG_CATEGORY_HOTPLUG: category_name = "hotplug"; break;
-	case LOG_CATEGORY_OTHER:   category_name = "other"; break;
+	case LOG_CATEGORY_EVENT:    category_name = "event";    break;
+	case LOG_CATEGORY_USB:      category_name = "usb";      break;
+	case LOG_CATEGORY_NETWORK:  category_name = "network";  break;
+	case LOG_CATEGORY_HOTPLUG:  category_name = "hotplug";  break;
+	case LOG_CATEGORY_HARDWARE: category_name = "hardware"; break;
+	case LOG_CATEGORY_OTHER:    category_name = "other";    break;
 	}
 
 	// print prefix

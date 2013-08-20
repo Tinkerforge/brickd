@@ -35,7 +35,8 @@ static int _using_default_values = 1;
 static const char *_default_listen_address = "0.0.0.0";
 static char *_listen_address = NULL;
 static uint16_t _listen_port = 4223;
-static LogLevel _log_levels[5] = { LOG_LEVEL_INFO,
+static LogLevel _log_levels[6] = { LOG_LEVEL_INFO,
+                                   LOG_LEVEL_INFO,
                                    LOG_LEVEL_INFO,
                                    LOG_LEVEL_INFO,
                                    LOG_LEVEL_INFO,
@@ -74,6 +75,7 @@ static void config_reset(void) {
 	_log_levels[2] = LOG_LEVEL_INFO;
 	_log_levels[3] = LOG_LEVEL_INFO;
 	_log_levels[4] = LOG_LEVEL_INFO;
+	_log_levels[5] = LOG_LEVEL_INFO;
 }
 
 static char *config_trim_string(char *string) {
@@ -215,25 +217,31 @@ static void config_parse(char *string) {
 		}
 	} else if (strcmp(option, "log_level.usb") == 0) {
 		if (config_parse_log_level(value, &_log_levels[LOG_CATEGORY_USB]) < 0) {
-			config_error("Value '%s' for log_level.event option is invalid", value);
+			config_error("Value '%s' for log_level.usb option is invalid", value);
 
 			return;
 		}
 	} else if (strcmp(option, "log_level.network") == 0) {
 		if (config_parse_log_level(value, &_log_levels[LOG_CATEGORY_NETWORK]) < 0) {
-			config_error("Value '%s' for log_level.event option is invalid", value);
+			config_error("Value '%s' for log_level.network option is invalid", value);
 
 			return;
 		}
 	} else if (strcmp(option, "log_level.hotplug") == 0) {
 		if (config_parse_log_level(value, &_log_levels[LOG_CATEGORY_HOTPLUG]) < 0) {
-			config_error("Value '%s' for log_level.event option is invalid", value);
+			config_error("Value '%s' for log_level.hotplug option is invalid", value);
+
+			return;
+		}
+	} else if (strcmp(option, "log_level.hardware") == 0) {
+		if (config_parse_log_level(value, &_log_levels[LOG_CATEGORY_HARDWARE]) < 0) {
+			config_error("Value '%s' for log_level.hardware option is invalid", value);
 
 			return;
 		}
 	} else if (strcmp(option, "log_level.other") == 0) {
 		if (config_parse_log_level(value, &_log_levels[LOG_CATEGORY_OTHER]) < 0) {
-			config_error("Value '%s' for log_level.event option is invalid", value);
+			config_error("Value '%s' for log_level.other option is invalid", value);
 
 			return;
 		}
