@@ -816,6 +816,8 @@ int main(int argc, char **argv) {
 	int debug = 0;
 	int rc;
 
+	fixes_init();
+
 	for (i = 1; i < argc; ++i) {
 		if (strcmp(argv[i], "--help") == 0) {
 			help = 1;

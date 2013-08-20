@@ -26,6 +26,8 @@
 
 #include <time.h>
 
+void fixes_init(void);
+
 #ifndef PROCESS_QUERY_LIMITED_INFORMATION
 	#define PROCESS_QUERY_LIMITED_INFORMATION 0x1000
 #endif

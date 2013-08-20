@@ -25,6 +25,9 @@
 
 #include "fixes_mingw.h"
 
+void fixes_init(void) {
+}
+
 // implement localtime_r based on localtime
 struct tm *localtime_r(const time_t *timep, struct tm *result) {
 	struct tm *temp;

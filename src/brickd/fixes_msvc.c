@@ -29,6 +29,16 @@
 
 #include "fixes_msvc.h"
 
+typedef void (WINAPI *GETSYSTEMTIMEPRECISEASFILETIME)(LPFILETIME);
+
+static GETSYSTEMTIMEPRECISEASFILETIME get_system_time_precise_as_file_time = NULL;
+
+void fixes_init(void) {
+	get_system_time_precise_as_file_time =
+	  (GETSYSTEMTIMEPRECISEASFILETIME)GetProcAddress(GetModuleHandle("kernel32"),
+	                                                 "GetSystemTimePreciseAsFileTime");
+}
+
 #ifdef BRICKD_WDK_BUILD
 
 // implement localtime_r based on localtime, the WDK is missing localtime_s
@@ -66,7 +76,7 @@ struct tm *localtime_r(const time_t *timep, struct tm *result) {
 // difference between Unix epoch and January 1, 1601 in 100-nanoseconds
 #define DELTA_EPOCH 116444736000000000ULL
 
-// implement gettimeofday based on GetSystemTimeAsFileTime
+// implement gettimeofday based on GetSystemTime(Precise)AsFileTime
 int gettimeofday(struct timeval *tv, struct timezone *tz) {
 	FILETIME ft;
 	uint64_t t;
@@ -74,8 +84,11 @@ int gettimeofday(struct timeval *tv, struct timezone *tz) {
 	(void)tz;
 
 	if (tv != NULL) {
-		// FIXME: use GetSystemTimePreciseAsFileTime on Windows 8
-		GetSystemTimeAsFileTime(&ft);
+		if (get_system_time_precise_as_file_time != NULL) {
+			get_system_time_precise_as_file_time(&ft);
+		} else {
+			GetSystemTimeAsFileTime(&ft);
+		}
 
 		t = ((uint64_t)ft.dwHighDateTime << 32) | (uint64_t)ft.dwLowDateTime;
 		t = (t - DELTA_EPOCH) / 10; // 100-nanoseconds to microseconds

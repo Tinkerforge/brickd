@@ -32,6 +32,8 @@ struct timezone {
 	int tz_dsttime;
 };
 
+void fixes_init(void);
+
 struct tm *localtime_r(const time_t *timep, struct tm *result);
 
 int gettimeofday(struct timeval *tv, struct timezone *tz);
