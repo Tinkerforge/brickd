@@ -109,8 +109,8 @@ else
 	DIST :=
 endif
 
-#CFLAGS += -O0 -g -ggdb
 CFLAGS += -O2 -Wall -Wextra
+#CFLAGS += -O0 -g -ggdb
 
 ifeq ($(PLATFORM),Windows)
 	CFLAGS += -DWINVER=0x0500 -D_WIN32_WINNT=0x0501 -mconsole -include fixes_mingw.h

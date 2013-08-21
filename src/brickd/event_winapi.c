@@ -65,6 +65,7 @@ typedef struct {
 	Semaphore resume;
 	Semaphore suspend;
 	Array pollfds;
+	int pollfds_ready;
 	Thread thread;
 } USBPoller;
 
@@ -113,6 +114,7 @@ static void event_poll_usb_events(void *opaque) {
 	int i;
 	int k;
 	int ready;
+	uint8_t byte = 0;
 
 	log_debug("Started USB poll thread");
 
@@ -124,6 +126,8 @@ static void event_poll_usb_events(void *opaque) {
 		if (!_usb_poller.running) {
 			goto cleanup;
 		}
+
+		_usb_poller.pollfds_ready = 0;
 
 		// update pollfd array
 		count = 0;
@@ -211,11 +215,12 @@ static void event_poll_usb_events(void *opaque) {
 			goto suspend;
 		}
 
-		log_debug("Poll returned %d %s event source(s) as ready",
-		          ready,
+		log_debug("Poll returned %d %s event source(s) as ready", ready,
 		          event_get_source_type_name(EVENT_SOURCE_TYPE_USB, 0));
 
-		if (pipe_write(_usb_poller.ready_pipe[1], &ready, sizeof(ready)) < 0) {
+		_usb_poller.pollfds_ready = ready;
+
+		if (pipe_write(_usb_poller.ready_pipe[1], &byte, sizeof(byte)) < 0) {
 			log_error("Could not write to USB ready pipe: %s (%d)",
 			          get_errno_name(errno), errno);
 
@@ -238,8 +243,9 @@ cleanup:
 
 static void event_forward_usb_events(void *opaque) {
 	Array *event_sources = opaque;
-	int ready;
+	uint8_t byte;
 	int handled = 0;
+	int event_source_count;
 	int i;
 	int k;
 	EventSource *event_source;
@@ -247,14 +253,28 @@ static void event_forward_usb_events(void *opaque) {
 
 	(void)opaque;
 
-	if (pipe_read(_usb_poller.ready_pipe[0], &ready, sizeof(ready)) < 0) {
+	if (pipe_read(_usb_poller.ready_pipe[0], &byte, sizeof(byte)) < 0) {
 		log_error("Could not read from USB ready pipe: %s (%d)",
 		          get_errno_name(errno), errno);
 
 		return;
 	}
 
-	for (i = 0, k = 1; i < event_sources->count && k < _usb_poller.pollfds.count && ready > handled; ++i) {
+	if (_usb_poller.pollfds.count == 0) {
+		return;
+	}
+
+	// cache event source count here to avoid looking at new event
+	// sources that got added during the event handling
+	event_source_count = event_sources->count;
+
+	// this loop assumes that the USB subset of the event source array and the
+	// pollfd array can be matched by index. this means that the first N USB
+	// items of the event source array (with N = items in pollfd array - 1) are
+	// not removed or replaced during the iteration over the pollfd array.
+	// because of this event_remove_source only marks event sources as removed,
+	// the actual removal is done later
+	for (i = 0, k = 1; i < event_source_count && k < _usb_poller.pollfds.count && _usb_poller.pollfds_ready > handled; ++i) {
 		event_source = array_get(event_sources, i);
 
 		if (event_source->type != EVENT_SOURCE_TYPE_USB) {
@@ -288,12 +308,12 @@ static void event_forward_usb_events(void *opaque) {
 		++handled;
 	}
 
-	if (ready == handled) {
+	if (_usb_poller.pollfds_ready == handled) {
 		log_debug("Handled all ready %s event sources",
 		          event_get_source_type_name(EVENT_SOURCE_TYPE_USB, 0));
 	} else {
 		log_warn("Handled only %d of %d ready %s event source(s)",
-		         handled, ready,
+		         handled, _usb_poller.pollfds_ready,
 		         event_get_source_type_name(EVENT_SOURCE_TYPE_USB, 0));
 	}
 }
