@@ -38,13 +38,13 @@ struct tm *localtime_r(const time_t *timep, struct tm *result);
 
 int gettimeofday(struct timeval *tv, struct timezone *tz);
 
-#ifdef BRICKD_WDK_BUILD
-
-int snprintf(char *buffer, size_t count, const char *format, ...);
-
-#endif
-
+// avoid warnings from MSVC about deprecated POSIX names
 #define strdup _strdup
+#define stricmp _stricmp
+#define getch _getch
+
+// ensure that functions are avialable under their POSIX names
+#define snprintf _snprintf
 
 #endif // _MSC_VER
 

@@ -100,19 +100,4 @@ int gettimeofday(struct timeval *tv, struct timezone *tz) {
 	return 0;
 }
 
-#ifdef BRICKD_WDK_BUILD
-
-int snprintf(char *buffer, size_t count, const char *format, ...) {
-	va_list arguments;
-	int rc;
-
-	va_start(arguments, format);
-	rc = _vsnprintf_s(buffer, count, count - 1, format, arguments);
-	va_end(arguments);
-
-	return rc;
-}
-
-#endif
-
 #endif // _MSC_VER
