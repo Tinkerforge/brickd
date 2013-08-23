@@ -115,6 +115,7 @@ void hardware_dispatch_packet(Packet *packet) {
 		          packet_header_get_response_expected(&packet->header),
 		          _stacks.count);
 
+		// broadcast to all stacks
 		for (i = 0; i < _stacks.count; ++i) {
 			stack = *(Stack **)array_get(&_stacks, i);
 
@@ -129,6 +130,8 @@ void hardware_dispatch_packet(Packet *packet) {
 		          packet_header_get_response_expected(&packet->header),
 		          _stacks.count);
 
+		// dispatch to all stacks, not only the first one that might claim to
+		// know the UID
 		for (i = 0; i < _stacks.count; ++i) {
 			stack = *(Stack **)array_get(&_stacks, i);
 
@@ -147,6 +150,7 @@ void hardware_dispatch_packet(Packet *packet) {
 
 		log_debug("Broadcasting request because UID is currently unknown");
 
+		// broadcast to all stacks, as no stack claimed to know the UID
 		for (i = 0; i < _stacks.count; ++i) {
 			stack = *(Stack **)array_get(&_stacks, i);
 
