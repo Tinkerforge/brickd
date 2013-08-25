@@ -390,6 +390,16 @@ int usb_stack_create(USBStack *stack, uint8_t bus_number, uint8_t device_address
 
 	phase = 6;
 
+	// allocate write queue
+	if (array_create(&stack->write_queue, 32, sizeof(Packet), 1) < 0) {
+		log_error("Could not create write queue array for %s: %s (%d)",
+		          stack->base.name, get_errno_name(errno), errno);
+
+		goto cleanup;
+	}
+
+	phase = 7;
+
 	// allocate write transfers
 	if (array_create(&stack->write_transfers, MAX_WRITE_TRANSFERS,
 	                 sizeof(USBTransfer), 1) < 0) {
@@ -418,16 +428,6 @@ int usb_stack_create(USBStack *stack, uint8_t bus_number, uint8_t device_address
 		}
 	}
 
-	phase = 7;
-
-	// allocate write queue
-	if (array_create(&stack->write_queue, 32, sizeof(Packet), 1) < 0) {
-		log_error("Could not create write queue array: %s (%d)",
-		          get_errno_name(errno), errno);
-
-		goto cleanup;
-	}
-
 	// update stack name
 	snprintf(stack->base.name, sizeof(stack->base.name) - 1, "%s [%s]",
 	         product, serial_number);
@@ -445,10 +445,10 @@ int usb_stack_create(USBStack *stack, uint8_t bus_number, uint8_t device_address
 cleanup:
 	switch (phase) { // no breaks, all cases fall through intentionally
 	case 8:
-		array_destroy(&stack->write_queue, NULL);
+		array_destroy(&stack->write_transfers, (FreeFunction)usb_transfer_destroy);
 
 	case 7:
-		array_destroy(&stack->write_transfers, (FreeFunction)usb_transfer_destroy);
+		array_destroy(&stack->write_queue, NULL);
 
 	case 6:
 		array_destroy(&stack->read_transfers, (FreeFunction)usb_transfer_destroy);
@@ -480,10 +480,10 @@ void usb_stack_destroy(USBStack *stack) {
 
 	hardware_remove_stack(&stack->base);
 
-	array_destroy(&stack->write_queue, NULL);
-
 	array_destroy(&stack->read_transfers, (FreeFunction)usb_transfer_destroy);
 	array_destroy(&stack->write_transfers, (FreeFunction)usb_transfer_destroy);
+
+	array_destroy(&stack->write_queue, NULL);
 
 	libusb_release_interface(stack->device_handle, USB_INTERFACE);
 
