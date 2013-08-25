@@ -29,6 +29,22 @@
 
 #define LOG_CATEGORY LOG_CATEGORY_USB
 
+static const char *usb_transfer_get_status_name(int transfer_status) {
+	#define LIBUSB_TRANSFER_STATUS_NAME(code) case code: return #code
+
+	switch (transfer_status) {
+	LIBUSB_TRANSFER_STATUS_NAME(LIBUSB_TRANSFER_COMPLETED);
+	LIBUSB_TRANSFER_STATUS_NAME(LIBUSB_TRANSFER_ERROR);
+	LIBUSB_TRANSFER_STATUS_NAME(LIBUSB_TRANSFER_TIMED_OUT);
+	LIBUSB_TRANSFER_STATUS_NAME(LIBUSB_TRANSFER_CANCELLED);
+	LIBUSB_TRANSFER_STATUS_NAME(LIBUSB_TRANSFER_STALL);
+	LIBUSB_TRANSFER_STATUS_NAME(LIBUSB_TRANSFER_NO_DEVICE);
+	LIBUSB_TRANSFER_STATUS_NAME(LIBUSB_TRANSFER_OVERFLOW);
+
+	default: return "<unknown>";
+	}
+}
+
 static void LIBUSB_CALL usb_transfer_wrapper(struct libusb_transfer *handle) {
 	USBTransfer *transfer = handle->user_data;
 
@@ -65,7 +81,7 @@ static void LIBUSB_CALL usb_transfer_wrapper(struct libusb_transfer *handle) {
 		log_warn("%s transfer %p returned with an error from %s: %s (%d)",
 		         usb_transfer_get_type_name(transfer->type, 1), transfer,
 		         transfer->stack->base.name,
-		         get_libusb_transfer_status_name(transfer->handle->status),
+		         usb_transfer_get_status_name(transfer->handle->status),
 		         transfer->handle->status);
 	} else {
 		log_debug("%s transfer %p returned successfully from %s",

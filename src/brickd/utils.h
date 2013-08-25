@@ -31,7 +31,6 @@ int errno_interrupted(void);
 
 const char *get_errno_name(int error_code);
 const char *get_libusb_error_name(int error_code);
-const char *get_libusb_transfer_status_name(int transfer_status);
 
 #define GROW_ALLOCATION(size) ((((size) - 1) / 16 + 1) * 16)
 

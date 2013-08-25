@@ -313,22 +313,6 @@ const char *get_libusb_error_name(int error_code) {
 	}
 }
 
-const char *get_libusb_transfer_status_name(int transfer_status) {
-	#define LIBUSB_TRANSFER_STATUS_NAME(code) case code: return #code
-
-	switch (transfer_status) {
-	LIBUSB_TRANSFER_STATUS_NAME(LIBUSB_TRANSFER_COMPLETED);
-	LIBUSB_TRANSFER_STATUS_NAME(LIBUSB_TRANSFER_ERROR);
-	LIBUSB_TRANSFER_STATUS_NAME(LIBUSB_TRANSFER_TIMED_OUT);
-	LIBUSB_TRANSFER_STATUS_NAME(LIBUSB_TRANSFER_CANCELLED);
-	LIBUSB_TRANSFER_STATUS_NAME(LIBUSB_TRANSFER_STALL);
-	LIBUSB_TRANSFER_STATUS_NAME(LIBUSB_TRANSFER_NO_DEVICE);
-	LIBUSB_TRANSFER_STATUS_NAME(LIBUSB_TRANSFER_OVERFLOW);
-
-	default: return "<unknown>";
-	}
-}
-
 // sets errno on error
 int array_create(Array *array, int reserved, int size, int relocatable) {
 	reserved = GROW_ALLOCATION(reserved);
