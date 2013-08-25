@@ -468,6 +468,10 @@ void array_remove(Array *array, int i, FreeFunction function) {
 	int size = array->relocatable ? array->size : (int)sizeof(void *);
 	int tail;
 
+	if (item == NULL) {
+		return;
+	}
+
 	if (function != NULL) {
 		function(item);
 	}
