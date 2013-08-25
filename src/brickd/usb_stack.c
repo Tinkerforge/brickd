@@ -203,8 +203,6 @@ int usb_stack_create(USBStack *stack, uint8_t bus_number, uint8_t device_address
 	libusb_device **devices;
 	libusb_device *device;
 	int i = 0;
-	char product[64];
-	char serial_number[64];
 	char preliminary_name[MAX_STACK_NAME];
 	USBTransfer *transfer;
 
@@ -267,18 +265,11 @@ int usb_stack_create(USBStack *stack, uint8_t bus_number, uint8_t device_address
 		goto cleanup;
 	}
 
+	log_debug("%s operates at %s",
+	          stack->base.name,
+	          usb_get_speed_name(libusb_get_device_speed(stack->device)));
+
 	phase = 3;
-
-	// get device descriptor
-	rc = libusb_get_device_descriptor(stack->device, &stack->device_descriptor);
-
-	if (rc < 0) {
-		log_error("Could not get device descriptor for USB device (bus: %u, device: %u): %s (%d)",
-		          stack->bus_number, stack->device_address,
-		          get_libusb_error_name(rc), rc);
-
-		goto cleanup;
-	}
 
 	// open device
 	rc = libusb_open(stack->device, &stack->device_handle);
@@ -328,31 +319,9 @@ int usb_stack_create(USBStack *stack, uint8_t bus_number, uint8_t device_address
 
 	phase = 5;
 
-	// get product string descriptor
-	rc = libusb_get_string_descriptor_ascii(stack->device_handle,
-	                                        stack->device_descriptor.iProduct,
-	                                        (unsigned char *)product,
-	                                        sizeof(product));
-
-	if (rc < 0) {
-		log_error("Could not get product string descriptor for USB device (bus: %u, device: %u): %s (%d)",
-		          stack->bus_number, stack->device_address,
-		          get_libusb_error_name(rc), rc);
-
-		goto cleanup;
-	}
-
-	// get serial number string descriptor
-	rc = libusb_get_string_descriptor_ascii(stack->device_handle,
-	                                        stack->device_descriptor.iSerialNumber,
-	                                        (unsigned char *)serial_number,
-	                                        sizeof(serial_number));
-
-	if (rc < 0) {
-		log_error("Could not get serial number string descriptor for USB device (bus: %u, device: %u): %s (%d)",
-		          stack->bus_number, stack->device_address,
-		          get_libusb_error_name(rc), rc);
-
+	// update stack name
+	if (usb_get_device_name(stack->device_handle, stack->base.name,
+	                        sizeof(stack->base.name)) < 0) {
 		goto cleanup;
 	}
 
@@ -427,11 +396,6 @@ int usb_stack_create(USBStack *stack, uint8_t bus_number, uint8_t device_address
 			goto cleanup;
 		}
 	}
-
-	// update stack name
-	snprintf(stack->base.name, sizeof(stack->base.name) - 1, "%s [%s]",
-	         product, serial_number);
-	name[sizeof(stack->base.name) - 1] = '\0';
 
 	phase = 8;
 

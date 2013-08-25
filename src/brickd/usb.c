@@ -393,3 +393,71 @@ void usb_destroy_context(libusb_context *context) {
 
 	libusb_exit(context);
 }
+
+int usb_get_device_name(libusb_device_handle *device_handle, char *name, int length) {
+	int rc;
+	libusb_device *device = libusb_get_device(device_handle);
+	uint8_t bus_number = libusb_get_bus_number(device);
+	uint8_t device_address = libusb_get_device_address(device);
+	struct libusb_device_descriptor device_descriptor;
+	char product[64];
+	char serial_number[64];
+
+	// get device descriptor
+	rc = libusb_get_device_descriptor(device, &device_descriptor);
+
+	if (rc < 0) {
+		log_error("Could not get device descriptor for USB device (bus: %u, device: %u): %s (%d)",
+		          bus_number, device_address, get_libusb_error_name(rc), rc);
+
+		return -1;
+	}
+
+	// get product string descriptor
+	rc = libusb_get_string_descriptor_ascii(device_handle,
+	                                        device_descriptor.iProduct,
+	                                        (unsigned char *)product,
+	                                        sizeof(product));
+
+	if (rc < 0) {
+		log_error("Could not get product string descriptor for USB device (bus: %u, device: %u): %s (%d)",
+		          bus_number, device_address, get_libusb_error_name(rc), rc);
+
+		return -1;
+	}
+
+	// get serial number string descriptor
+	rc = libusb_get_string_descriptor_ascii(device_handle,
+	                                        device_descriptor.iSerialNumber,
+	                                        (unsigned char *)serial_number,
+	                                        sizeof(serial_number));
+
+	if (rc < 0) {
+		log_error("Could not get serial number string descriptor for USB device (bus: %u, device: %u): %s (%d)",
+		          bus_number, device_address, get_libusb_error_name(rc), rc);
+
+		return -1;
+	}
+
+	// format name
+	snprintf(name, length - 1, "%s [%s]", product, serial_number);
+	name[length - 1] = '\0';
+
+	return 0;
+}
+
+const char *usb_get_speed_name(int speed) {
+	#define LIBUSB_SPEED_NAME(speed) case speed: return #speed
+
+	switch (speed) {
+	LIBUSB_SPEED_NAME(LIBUSB_SPEED_UNKNOWN);
+	LIBUSB_SPEED_NAME(LIBUSB_SPEED_LOW);
+	LIBUSB_SPEED_NAME(LIBUSB_SPEED_FULL);
+	LIBUSB_SPEED_NAME(LIBUSB_SPEED_HIGH);
+	LIBUSB_SPEED_NAME(LIBUSB_SPEED_SUPER);
+
+	default: return "<unknown>";
+	}
+
+	#undef LIBUSB_SPEED_NAME
+}

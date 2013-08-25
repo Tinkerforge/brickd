@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2012 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2012-2013 Matthias Bolte <matthias@tinkerforge.com>
  *
  * usb.h: USB specific functions
  *
@@ -46,5 +46,9 @@ int usb_update(void);
 
 int usb_create_context(libusb_context **context);
 void usb_destroy_context(libusb_context *context);
+
+int usb_get_device_name(libusb_device_handle *device_handle, char *name, int length);
+
+const char *usb_get_speed_name(int speed);
 
 #endif // BRICKD_USB_H

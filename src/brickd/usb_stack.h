@@ -34,7 +34,6 @@ typedef struct {
 	uint8_t device_address;
 	libusb_context *context;
 	libusb_device *device;
-	struct libusb_device_descriptor device_descriptor;
 	libusb_device_handle *device_handle;
 	Array read_transfers;
 	Array write_transfers;
