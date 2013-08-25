@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2012 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2012-2013 Matthias Bolte <matthias@tinkerforge.com>
  *
  * udev.c: udev specific functions
  *
@@ -68,7 +68,8 @@ static void *udev_dlopen_handle = NULL;
 static int udev_dlsym_error = 0;
 
 // according to dlopen manpage casting from "void *" to a function pointer
-// is undefined in C99. the manpage suggests this workaround:
+// is undefined in C99. the manpage suggests this workaround defined in the
+// Technical Corrigendum 1 of POSIX.1-2003:
 //
 //  double (*cosine)(double);
 //  *(void **)(&cosine) = dlsym(handle, "cos");

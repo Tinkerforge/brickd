@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2012 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2012-2013 Matthias Bolte <matthias@tinkerforge.com>
  *
  * threads_posix.c: PThread based thread and locking implementation
  *
@@ -53,10 +53,10 @@ void mutex_unlock(Mutex *mutex) {
 // sets errno on error
 int semaphore_create(Semaphore *semaphore) {
 #ifdef __APPLE__
-	// Mac OS X does not support unnamed semaphores, so we fake them. Unlink
+	// Mac OS X does not support unnamed semaphores, so we fake them. unlink
 	// first to ensure that there is no existing semaphore with that name.
-	// Then open the semaphore to create a new one. Finally unlink it again to
-	// avoid leaking the name. The semaphore will work fine without a name.
+	// then open the semaphore to create a new one. finally unlink it again to
+	// avoid leaking the name. the semaphore will work fine without a name
 	char name[100];
 
 	snprintf(name, sizeof(name), "tf-brickd-%p", semaphore);
