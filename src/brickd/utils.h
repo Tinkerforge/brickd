@@ -58,6 +58,9 @@ void array_remove(Array *array, int i, FreeFunction function);
 
 void *array_get(Array *array, int i);
 
+void string_copy(char *destination, const char *source, int size);
+void string_append(char *destination, const char *source, int size);
+
 #define MAX_BASE58_STR_SIZE 8
 
 char *base58_encode(char *string, uint32_t value);

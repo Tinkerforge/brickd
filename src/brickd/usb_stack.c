@@ -493,8 +493,7 @@ void usb_stack_destroy(USBStack *stack) {
 
 	usb_destroy_context(stack->context);
 
-	strncpy(name, stack->base.name, sizeof(name) - 1);
-	name[sizeof(name) - 1] = '\0';
+	string_copy(name, stack->base.name, sizeof(name));
 
 	stack_destroy(&stack->base);
 

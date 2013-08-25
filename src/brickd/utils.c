@@ -499,6 +499,34 @@ void *array_get(Array *array, int i) {
 	}
 }
 
+void string_copy(char *destination, const char *source, int size) {
+	if (size <= 0) {
+		return;
+	}
+
+	strncpy(destination, source, size - 1);
+
+	destination[size - 1] = '\0';
+}
+
+void string_append(char *destination, const char *source, int size) {
+	int offset;
+
+	if (size <= 0) {
+		return;
+	}
+
+	offset = strlen(destination);
+
+	if (offset >= size - 1) {
+		return;
+	}
+
+	strncpy(destination + offset, source, size - offset - 1);
+
+	destination[size - 1] = '\0';
+}
+
 static const char BASE58_ALPHABET[] = "123456789abcdefghijkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ";
 
 char *base58_encode(char *string, uint32_t value) {

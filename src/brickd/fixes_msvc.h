@@ -44,7 +44,8 @@ int gettimeofday(struct timeval *tv, struct timezone *tz);
 #define getch _getch
 
 // ensure that functions are avialable under their POSIX names
-#define snprintf _snprintf
+#define snprintf(buffer, count, format, ...) \
+	_snprintf_s(buffer, count, _TRUNCATE, format, __VA_ARGS__)
 
 #endif // _MSC_VER
 

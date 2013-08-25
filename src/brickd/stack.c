@@ -32,8 +32,7 @@
 
 int stack_create(Stack *stack, const char *name,
                  DispatchPacketFunction dispatch_packet) {
-	strncpy(stack->name, name, sizeof(stack->name) - 1);
-	stack->name[sizeof(stack->name) - 1] = '\0';
+	string_copy(stack->name, name, sizeof(stack->name));
 
 	stack->dispatch_packet = dispatch_packet;
 

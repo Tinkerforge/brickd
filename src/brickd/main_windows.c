@@ -528,7 +528,8 @@ static int generic_main(int log_to_file, int debug) {
 			if (i < 4) {
 				log_warn("Module file name '%s' is too short", filename);
 			} else {
-				strcpy(filename + i - 3, "log");
+				filename[i - 3] = '\0';
+				string_append(filename, "log", sizeof(filename));
 
 				logfile = fopen(filename, "a+");
 
@@ -872,7 +873,8 @@ int main(int argc, char **argv) {
 		return EXIT_FAILURE;
 	}
 
-	strcpy(_config_filename + i - 3, "ini");
+	_config_filename[i - 3] = '\0';
+	string_append(_config_filename, "ini", sizeof(_config_filename));
 
 	if (check_config) {
 		return config_check(_config_filename) < 0 ? EXIT_FAILURE : EXIT_SUCCESS;
