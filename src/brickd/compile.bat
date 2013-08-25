@@ -27,8 +27,8 @@
  echo non-WDK build
 )
 
-@set CC=%CC% /I..\build_data\Windows /I..\build_data\Windows\libusb
-@set LD=%LD% /libpath:..\build_data\Windows\libusb
+@set CC=%CC% /I..\build_data\windows /I..\build_data\windows\libusb
+@set LD=%LD% /libpath:..\build_data\windows\libusb
 
 @del *.obj *.res *.bin *.exp *.manifest *.exe
 
@@ -68,7 +68,7 @@
 
 @if not exist dist mkdir dist
 copy brickd.exe dist\
-copy ..\build_data\Windows\libusb\libusb-1.0.dll dist\
+copy ..\build_data\windows\libusb\libusb-1.0.dll dist\
 
 :done
 @endlocal

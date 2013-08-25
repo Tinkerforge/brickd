@@ -62,7 +62,7 @@ def build_macosx_pkg():
 
     os.system('install_name_tool -change {0} @executable_path/{1} {2}'.format(libusb_path, libusb_name, os.path.join(macos_dir, 'brickd')))
 
-    rc = os.system('./_build_dmg.sh')
+    rc = os.system('./build_dmg.sh')
 
     if rc != 0:
         print "============================================="
@@ -75,7 +75,7 @@ def build_windows_pkg():
         shutil.rmtree(dist_dir)
     os.makedirs(dist_dir)
 
-    os.system('build_exe.bat')
+    os.system('compile.bat')
 
     version = subprocess.check_output(['dist\\brickd.exe', '--version']).replace('\r\n', '')
 
