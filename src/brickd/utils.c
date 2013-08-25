@@ -20,7 +20,6 @@
  */
 
 #include <errno.h>
-#include <libusb.h>
 #ifndef _WIN32
 	#include <netdb.h>
 #endif
@@ -28,6 +27,10 @@
 #include <string.h>
 #ifndef _MSC_VER
 	#include <sys/time.h>
+#endif
+#ifdef _WIN32
+	#include <winsock2.h> // must be included before windows.h
+	#include <windows.h>
 #endif
 
 #include "utils.h"
@@ -288,29 +291,10 @@ const char *get_errno_name(int error_code) {
 
 	default: return "<unknown>";
 	}
-}
 
-const char *get_libusb_error_name(int error_code) {
-	#define LIBUSB_ERROR_NAME(code) case code: return #code
-
-	switch (error_code) {
-	LIBUSB_ERROR_NAME(LIBUSB_SUCCESS);
-	LIBUSB_ERROR_NAME(LIBUSB_ERROR_IO);
-	LIBUSB_ERROR_NAME(LIBUSB_ERROR_INVALID_PARAM);
-	LIBUSB_ERROR_NAME(LIBUSB_ERROR_ACCESS);
-	LIBUSB_ERROR_NAME(LIBUSB_ERROR_NO_DEVICE);
-	LIBUSB_ERROR_NAME(LIBUSB_ERROR_NOT_FOUND);
-	LIBUSB_ERROR_NAME(LIBUSB_ERROR_BUSY);
-	LIBUSB_ERROR_NAME(LIBUSB_ERROR_TIMEOUT);
-	LIBUSB_ERROR_NAME(LIBUSB_ERROR_OVERFLOW);
-	LIBUSB_ERROR_NAME(LIBUSB_ERROR_PIPE);
-	LIBUSB_ERROR_NAME(LIBUSB_ERROR_INTERRUPTED);
-	LIBUSB_ERROR_NAME(LIBUSB_ERROR_NO_MEM);
-	LIBUSB_ERROR_NAME(LIBUSB_ERROR_NOT_SUPPORTED);
-	LIBUSB_ERROR_NAME(LIBUSB_ERROR_OTHER);
-
-	default: return "<unknown>";
-	}
+	#undef ERRNO_NAME
+	#undef WINAPI_ERROR_NAME
+	#undef ADDRINFO_ERROR_NAME
 }
 
 // sets errno on error

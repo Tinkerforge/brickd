@@ -243,7 +243,7 @@ int usb_stack_create(USBStack *stack, uint8_t bus_number, uint8_t device_address
 
 	if (rc < 0) {
 		log_error("Could not get USB device list: %s (%d)",
-		          get_libusb_error_name(rc), rc);
+		          usb_get_error_name(rc), rc);
 
 		goto cleanup;
 	}
@@ -252,6 +252,7 @@ int usb_stack_create(USBStack *stack, uint8_t bus_number, uint8_t device_address
 		if (stack->bus_number == libusb_get_bus_number(device) &&
 			stack->device_address == libusb_get_device_address(device)) {
 			stack->device = libusb_ref_device(device);
+
 			break;
 		}
 	}
@@ -259,8 +260,7 @@ int usb_stack_create(USBStack *stack, uint8_t bus_number, uint8_t device_address
 	libusb_free_device_list(devices, 1);
 
 	if (stack->device == NULL) {
-		log_error("Could not find USB device (bus: %u, device: %u)",
-		          stack->bus_number, stack->device_address);
+		log_error("Could not find %s", stack->base.name);
 
 		goto cleanup;
 	}
@@ -275,9 +275,8 @@ int usb_stack_create(USBStack *stack, uint8_t bus_number, uint8_t device_address
 	rc = libusb_open(stack->device, &stack->device_handle);
 
 	if (rc < 0) {
-		log_error("Could not open USB device (bus: %u, device: %u): %s (%d)",
-		          stack->bus_number, stack->device_address,
-		          get_libusb_error_name(rc), rc);
+		log_error("Could not open %s: %s (%d)",
+		          stack->base.name, usb_get_error_name(rc), rc);
 
 		goto cleanup;
 	}
@@ -288,9 +287,8 @@ int usb_stack_create(USBStack *stack, uint8_t bus_number, uint8_t device_address
 	rc = libusb_reset_device(stack->device_handle);
 
 	if (rc < 0) {
-		log_error("Could not reset USB device (bus: %u, device: %u): %s (%d)",
-		          stack->bus_number, stack->device_address,
-		          get_libusb_error_name(rc), rc);
+		log_error("Could not reset %s: %s (%d)",
+		          stack->base.name, usb_get_error_name(rc), rc);
 
 		goto cleanup;
 	}
@@ -299,9 +297,8 @@ int usb_stack_create(USBStack *stack, uint8_t bus_number, uint8_t device_address
 	rc = libusb_set_configuration(stack->device_handle, USB_CONFIGURATION);
 
 	if (rc < 0) {
-		log_error("Could set USB device configuration (bus: %u, device: %u): %s (%d)",
-		          stack->bus_number, stack->device_address,
-		          get_libusb_error_name(rc), rc);
+		log_error("Could set configuration for %s: %s (%d)",
+		          stack->base.name, usb_get_error_name(rc), rc);
 
 		goto cleanup;
 	}
@@ -310,9 +307,8 @@ int usb_stack_create(USBStack *stack, uint8_t bus_number, uint8_t device_address
 	rc = libusb_claim_interface(stack->device_handle, USB_INTERFACE);
 
 	if (rc < 0) {
-		log_error("Could not claim USB device interface (bus: %u, device: %u): %s (%d)",
-		          stack->bus_number, stack->device_address,
-		          get_libusb_error_name(rc), rc);
+		log_error("Could not claim interface of %s: %s (%d)",
+		          stack->base.name, usb_get_error_name(rc), rc);
 
 		goto cleanup;
 	}
@@ -328,8 +324,8 @@ int usb_stack_create(USBStack *stack, uint8_t bus_number, uint8_t device_address
 	// allocate and submit read transfers
 	if (array_create(&stack->read_transfers, MAX_READ_TRANSFERS,
 	                 sizeof(USBTransfer), 1) < 0) {
-		log_error("Could not create read transfer array: %s (%d)",
-		          get_errno_name(errno), errno);
+		log_error("Could not create read transfer array for %s: %s (%d)",
+		          stack->base.name, get_errno_name(errno), errno);
 
 		goto cleanup;
 	}
@@ -338,8 +334,8 @@ int usb_stack_create(USBStack *stack, uint8_t bus_number, uint8_t device_address
 		transfer = array_append(&stack->read_transfers);
 
 		if (transfer == NULL) {
-			log_error("Could not append to read transfer array: %s (%d)",
-			          get_errno_name(errno), errno);
+			log_error("Could not append to read transfer array of %s: %s (%d)",
+			          stack->base.name, get_errno_name(errno), errno);
 
 			goto cleanup;
 		}
@@ -372,8 +368,8 @@ int usb_stack_create(USBStack *stack, uint8_t bus_number, uint8_t device_address
 	// allocate write transfers
 	if (array_create(&stack->write_transfers, MAX_WRITE_TRANSFERS,
 	                 sizeof(USBTransfer), 1) < 0) {
-		log_error("Could not create write transfer array: %s (%d)",
-		          get_errno_name(errno), errno);
+		log_error("Could not create write transfer array for %s: %s (%d)",
+		          stack->base.name, get_errno_name(errno), errno);
 
 		goto cleanup;
 	}
@@ -382,8 +378,8 @@ int usb_stack_create(USBStack *stack, uint8_t bus_number, uint8_t device_address
 		transfer = array_append(&stack->write_transfers);
 
 		if (transfer == NULL) {
-			log_error("Could not append to write transfer array: %s (%d)",
-			          get_errno_name(errno), errno);
+			log_error("Could not append to write transfer array of %s: %s (%d)",
+			          stack->base.name, get_errno_name(errno), errno);
 
 			goto cleanup;
 		}

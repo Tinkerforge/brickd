@@ -149,8 +149,7 @@ void usb_transfer_destroy(USBTransfer *transfer) {
 		if (rc < 0) {
 			log_warn("Could not cancel pending %s transfer %p for %s: %s (%d)",
 			         usb_transfer_get_type_name(transfer->type, 0), transfer,
-			         transfer->stack->base.name,
-			         get_libusb_error_name(rc), rc);
+			         transfer->stack->base.name, usb_get_error_name(rc), rc);
 		} else {
 			tv.tv_sec = 0;
 			tv.tv_usec = 0;
@@ -164,7 +163,7 @@ void usb_transfer_destroy(USBTransfer *transfer) {
 
 				if (rc < 0) {
 					log_error("Could not handle USB events: %s (%d)",
-					          get_libusb_error_name(rc), rc);
+					          usb_get_error_name(rc), rc);
 				}
 
 				now = time(NULL);
@@ -236,8 +235,7 @@ int usb_transfer_submit(USBTransfer *transfer) {
 	if (rc < 0) {
 		log_error("Could not submit %s transfer %p to %s: %s (%d)",
 		          usb_transfer_get_type_name(transfer->type, 0), transfer,
-		          transfer->stack->base.name,
-		          get_libusb_error_name(rc), rc);
+		          transfer->stack->base.name, usb_get_error_name(rc), rc);
 
 		transfer->submitted = 0;
 

@@ -53,7 +53,7 @@ static int usb_enumerate(USBEnumerateFunction function) {
 
 	if (rc < 0) {
 		log_error("Could not get USB device list: %s (%d)",
-		          get_libusb_error_name(rc), rc);
+		          usb_get_error_name(rc), rc);
 
 		return -1;
 	}
@@ -67,7 +67,7 @@ static int usb_enumerate(USBEnumerateFunction function) {
 
 		if (rc < 0) {
 			log_warn("Could not get descriptor for USB device (bus: %u, device: %u), ignoring it: %s (%d)",
-			         bus_number, device_address, get_libusb_error_name(rc), rc);
+			         bus_number, device_address, usb_get_error_name(rc), rc);
 
 			continue;
 		}
@@ -162,7 +162,7 @@ static void usb_handle_events(void *opaque) {
 
 	if (rc < 0) {
 		log_error("Could not handle USB events: %s (%d)",
-		          get_libusb_error_name(rc), rc);
+		          usb_get_error_name(rc), rc);
 	}
 }
 
@@ -308,7 +308,7 @@ int usb_create_context(libusb_context **context) {
 
 	if (rc < 0) {
 		log_error("Could not initialize libusb context: %s (%d)",
-		          get_libusb_error_name(rc), rc);
+		          usb_get_error_name(rc), rc);
 
 		goto cleanup;
 	}
@@ -408,7 +408,7 @@ int usb_get_device_name(libusb_device_handle *device_handle, char *name, int len
 
 	if (rc < 0) {
 		log_error("Could not get device descriptor for USB device (bus: %u, device: %u): %s (%d)",
-		          bus_number, device_address, get_libusb_error_name(rc), rc);
+		          bus_number, device_address, usb_get_error_name(rc), rc);
 
 		return -1;
 	}
@@ -421,7 +421,7 @@ int usb_get_device_name(libusb_device_handle *device_handle, char *name, int len
 
 	if (rc < 0) {
 		log_error("Could not get product string descriptor for USB device (bus: %u, device: %u): %s (%d)",
-		          bus_number, device_address, get_libusb_error_name(rc), rc);
+		          bus_number, device_address, usb_get_error_name(rc), rc);
 
 		return -1;
 	}
@@ -434,7 +434,7 @@ int usb_get_device_name(libusb_device_handle *device_handle, char *name, int len
 
 	if (rc < 0) {
 		log_error("Could not get serial number string descriptor for USB device (bus: %u, device: %u): %s (%d)",
-		          bus_number, device_address, get_libusb_error_name(rc), rc);
+		          bus_number, device_address, usb_get_error_name(rc), rc);
 
 		return -1;
 	}
@@ -444,6 +444,31 @@ int usb_get_device_name(libusb_device_handle *device_handle, char *name, int len
 	name[length - 1] = '\0';
 
 	return 0;
+}
+
+const char *usb_get_error_name(int error_code) {
+	#define LIBUSB_ERROR_NAME(code) case code: return #code
+
+	switch (error_code) {
+	LIBUSB_ERROR_NAME(LIBUSB_SUCCESS);
+	LIBUSB_ERROR_NAME(LIBUSB_ERROR_IO);
+	LIBUSB_ERROR_NAME(LIBUSB_ERROR_INVALID_PARAM);
+	LIBUSB_ERROR_NAME(LIBUSB_ERROR_ACCESS);
+	LIBUSB_ERROR_NAME(LIBUSB_ERROR_NO_DEVICE);
+	LIBUSB_ERROR_NAME(LIBUSB_ERROR_NOT_FOUND);
+	LIBUSB_ERROR_NAME(LIBUSB_ERROR_BUSY);
+	LIBUSB_ERROR_NAME(LIBUSB_ERROR_TIMEOUT);
+	LIBUSB_ERROR_NAME(LIBUSB_ERROR_OVERFLOW);
+	LIBUSB_ERROR_NAME(LIBUSB_ERROR_PIPE);
+	LIBUSB_ERROR_NAME(LIBUSB_ERROR_INTERRUPTED);
+	LIBUSB_ERROR_NAME(LIBUSB_ERROR_NO_MEM);
+	LIBUSB_ERROR_NAME(LIBUSB_ERROR_NOT_SUPPORTED);
+	LIBUSB_ERROR_NAME(LIBUSB_ERROR_OTHER);
+
+	default: return "<unknown>";
+	}
+
+	#undef LIBUSB_ERROR_NAME
 }
 
 const char *usb_get_speed_name(int speed) {
