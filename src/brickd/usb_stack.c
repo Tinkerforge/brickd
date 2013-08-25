@@ -205,7 +205,7 @@ int usb_stack_create(USBStack *stack, uint8_t bus_number, uint8_t device_address
 	int i = 0;
 	char product[64];
 	char serial_number[64];
-	char name[MAX_STACK_NAME];
+	char preliminary_name[MAX_STACK_NAME];
 	USBTransfer *transfer;
 
 	log_debug("Acquiring USB device (bus: %u, device: %u)",
@@ -219,14 +219,14 @@ int usb_stack_create(USBStack *stack, uint8_t bus_number, uint8_t device_address
 	stack->device_handle = NULL;
 
 	// create stack base
-	snprintf(name, sizeof(name) - 1, "USB device (bus: %u, device: %u)",
-	         bus_number, device_address);
-	name[sizeof(name) - 1] = '\0';
+	snprintf(preliminary_name, sizeof(preliminary_name) - 1,
+	         "USB device (bus: %u, device: %u)", bus_number, device_address);
+	preliminary_name[sizeof(preliminary_name) - 1] = '\0';
 
-	if (stack_create(&stack->base, name,
+	if (stack_create(&stack->base, preliminary_name,
 	                 (DispatchPacketFunction)usb_stack_dispatch_packet) < 0) {
-		log_error("Could not create write queue array: %s (%d)",
-		          get_errno_name(errno), errno);
+		log_error("Could not create base stack for %s: %s (%d)",
+		          preliminary_name, get_errno_name(errno), errno);
 
 		goto cleanup;
 	}
