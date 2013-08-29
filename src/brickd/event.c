@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2012 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2012-2013 Matthias Bolte <matthias@tinkerforge.com>
  *
  * event.c: Event specific functions
  *
@@ -23,6 +23,7 @@
 
 #include "event.h"
 
+#include "array.h"
 #include "log.h"
 #include "pipe.h"
 #include "utils.h"

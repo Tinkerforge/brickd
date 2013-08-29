@@ -24,8 +24,8 @@
 
 #include <libusb.h>
 
+#include "array.h"
 #include "stack.h"
-#include "utils.h"
 
 typedef struct {
 	Stack base;

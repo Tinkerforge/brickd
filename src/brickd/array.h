@@ -2,7 +2,7 @@
  * brickd
  * Copyright (C) 2012-2013 Matthias Bolte <matthias@tinkerforge.com>
  *
- * stack.h: Stack specific functions
+ * array.h: Array specific functions
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,31 +19,32 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-#ifndef BRICKD_STACK_H
-#define BRICKD_STACK_H
+#ifndef BRICKD_ARRAY_H
+#define BRICKD_ARRAY_H
 
-#include "array.h"
-#include "packet.h"
+#include <stdint.h>
 
-typedef struct _Stack Stack;
+typedef void (*FreeFunction)(void *item);
 
-typedef int (*DispatchPacketFunction)(Stack *stack, Packet *packet);
+typedef struct {
+	int allocated;
+	int count;
+	int size;
+	int relocatable;
+	uint8_t *bytes;
+} Array;
 
-#define MAX_STACK_NAME 128
+#define ARRAY_INITIALIZER { 0, 0, 0, 1, NULL }
 
-struct _Stack {
-	char name[MAX_STACK_NAME]; // for display purpose
-	DispatchPacketFunction dispatch_packet;
-	Array uids;
-};
+int array_create(Array *array, int reserved, int size, int relocatable);
+void array_destroy(Array *array, FreeFunction function);
 
-int stack_create(Stack *stack, const char *name,
-                 DispatchPacketFunction dispatch_packet);
-void stack_destroy(Stack *stack);
+int array_reserve(Array *array, int count);
+int array_resize(Array *array, int count, FreeFunction function);
 
-int stack_add_uid(Stack *stack, uint32_t uid /* always little endian */);
-int stack_knows_uid(Stack *stack, uint32_t uid /* always little endian */);
+void *array_append(Array *array);
+void array_remove(Array *array, int i, FreeFunction function);
 
-int stack_dispatch_packet(Stack *stack, Packet *packet, int force);
+void *array_get(Array *array, int i);
 
-#endif // BRICKD_STACK_H
+#endif // BRICKD_ARRAY_H

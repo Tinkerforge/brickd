@@ -2,7 +2,7 @@
  * brickd
  * Copyright (C) 2012-2013 Matthias Bolte <matthias@tinkerforge.com>
  *
- * client.h: Client specific functions
+ * macros.h: Preprocessor macros
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,32 +19,30 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-#ifndef BRICKD_CLIENT_H
-#define BRICKD_CLIENT_H
+#ifndef BRICKD_MACROS_H
+#define BRICKD_MACROS_H
 
-#ifdef _WIN32
-	#include <ws2tcpip.h>
+#ifdef __GNUC__
+	#ifndef __GNUC_PREREQ
+		#define __GNUC_PREREQ(major, minor) \
+			((((__GNUC__) << 16) + (__GNUC_MINOR__)) >= (((major) << 16) + (minor)))
+	#endif
+	#if __GNUC_PREREQ(4, 4)
+		#define ATTRIBUTE_FMT_PRINTF(fmtpos, argpos) \
+			__attribute__((__format__(__gnu_printf__, fmtpos, argpos)))
+	#else
+		#define ATTRIBUTE_FMT_PRINTF(fmtpos, argpos) \
+			__attribute__((__format__(__printf__, fmtpos, argpos)))
+	#endif
+	#if __GNUC_PREREQ(4, 6)
+		#define STATIC_ASSERT(condition, message) \
+			_Static_assert(condition, message)
+	#else
+		#define STATIC_ASSERT(condition, message) // FIXME
+	#endif
 #else
-	#include <netdb.h>
+	#define ATTRIBUTE_FMT_PRINTF(fmtpos, argpos)
+	#define STATIC_ASSERT(condition, message) // FIXME
 #endif
 
-#include "array.h"
-#include "event.h"
-#include "packet.h"
-
-typedef struct {
-	EventHandle socket;
-	char *peer;
-	int disconnected;
-	Packet packet;
-	int packet_used;
-	Array pending_requests;
-} Client;
-
-int client_create(Client *client, EventHandle socket,
-                  struct sockaddr_in *address, socklen_t length);
-void client_destroy(Client *client);
-
-int client_dispatch_packet(Client *client, Packet *packet, int force);
-
-#endif // BRICKD_CLIENT_H
+#endif // BRICKD_MACROS_H

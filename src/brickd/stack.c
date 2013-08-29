@@ -25,6 +25,7 @@
 
 #include "stack.h"
 
+#include "array.h"
 #include "log.h"
 #include "utils.h"
 

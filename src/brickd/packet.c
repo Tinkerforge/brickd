@@ -21,7 +21,12 @@
 
 #include "packet.h"
 
-#include "log.h"
+#include "macros.h"
+#include "utils.h"
+
+STATIC_ASSERT(sizeof(PacketHeader) == 8, "PacketHeader has invalid size");
+STATIC_ASSERT(sizeof(Packet) == 80, "Packet has invalid size");
+STATIC_ASSERT(sizeof(EnumerateCallback) == 34, "EnumerateCallback has invalid size");
 
 int packet_header_is_valid_request(PacketHeader *header, const char **message) {
 	if (header->length < (int)sizeof(PacketHeader)) {

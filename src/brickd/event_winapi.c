@@ -26,6 +26,7 @@
 
 #include "event.h"
 
+#include "array.h"
 #include "log.h"
 #include "network.h"
 #include "pipe.h"

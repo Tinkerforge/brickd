@@ -25,9 +25,11 @@
 
 #include "client.h"
 
+#include "array.h"
 #include "hardware.h"
 #include "log.h"
 #include "socket.h"
+#include "utils.h"
 
 #define LOG_CATEGORY LOG_CATEGORY_NETWORK
 

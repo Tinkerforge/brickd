@@ -34,6 +34,7 @@
 #include "pipe.h"
 #include "threads.h"
 #include "usb.h"
+#include "utils.h"
 
 #define LOG_CATEGORY LOG_CATEGORY_HOTPLUG
 

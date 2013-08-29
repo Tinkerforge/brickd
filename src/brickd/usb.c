@@ -25,6 +25,7 @@
 
 #include "usb.h"
 
+#include "array.h"
 #include "stack.h"
 #include "event.h"
 #include "log.h"

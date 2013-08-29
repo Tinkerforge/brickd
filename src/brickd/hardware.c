@@ -23,9 +23,11 @@
 
 #include "hardware.h"
 
+#include "array.h"
 #include "log.h"
 #include "packet.h"
 #include "stack.h"
+#include "utils.h"
 
 #define LOG_CATEGORY LOG_CATEGORY_HARDWARE
 

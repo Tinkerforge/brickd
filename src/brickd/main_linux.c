@@ -37,6 +37,7 @@
 #include "pidfile.h"
 #include "udev.h"
 #include "usb.h"
+#include "utils.h"
 #include "version.h"
 
 #define LOG_CATEGORY LOG_CATEGORY_OTHER

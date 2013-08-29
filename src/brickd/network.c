@@ -29,6 +29,7 @@
 
 #include "network.h"
 
+#include "array.h"
 #include "config.h"
 #include "event.h"
 #include "log.h"

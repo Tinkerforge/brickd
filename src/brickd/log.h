@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2012 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2012-2013 Matthias Bolte <matthias@tinkerforge.com>
  *
  * log.h: Logging specific functions
  *
@@ -25,7 +25,7 @@
 #include <stdarg.h>
 #include <stdio.h>
 
-#include "utils.h"
+#include "macros.h"
 
 typedef enum {
 	LOG_CATEGORY_EVENT = 0,

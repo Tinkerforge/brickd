@@ -25,11 +25,12 @@
 
 #include "event.h"
 
+#include "array.h"
 #include "log.h"
 #include "network.h"
 #include "pipe.h"
-#include "utils.h"
 #include "usb.h"
+#include "utils.h"
 
 #define LOG_CATEGORY LOG_CATEGORY_EVENT
 

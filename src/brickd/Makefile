@@ -70,8 +70,8 @@ else
 	WITH_LIBUDEV := no
 endif
 
-SOURCES := client.c config.c event.c hardware.c log.c network.c packet.c \
-           stack.c usb.c usb_stack.c usb_transfer.c utils.c
+SOURCES := array.c client.c config.c event.c hardware.c log.c network.c \
+           packet.c stack.c usb.c usb_stack.c usb_transfer.c utils.c
 
 ifeq ($(PLATFORM),Windows)
 	SOURCES += event_winapi.c fixes_mingw.c log_winapi.c pipe_winapi.c \

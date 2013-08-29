@@ -35,6 +35,7 @@
 %MC% -A -b log_messages.mc
 
 %CC%^
+ array.c^
  client.c^
  config.c^
  event.c^
