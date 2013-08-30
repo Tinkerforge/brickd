@@ -91,7 +91,7 @@ int event_add_source(EventHandle handle, EventSourceType type, int events,
 	EventSource *event_source;
 
 	// check existing event sources
-	for (i = 0; i < _event_sources.count; i++) {
+	for (i = 0; i < _event_sources.count; ++i) {
 		event_source = array_get(&_event_sources, i);
 
 		if (event_source->handle == handle &&

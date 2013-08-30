@@ -195,7 +195,7 @@ int event_run_platform(Array *event_sources, int *running) {
 			return -1;
 		}
 
-		for (i = 0; i < event_sources->count; i++) {
+		for (i = 0; i < event_sources->count; ++i) {
 			event_source = array_get(event_sources, i);
 			pollfd = array_get(&_pollfds, i);
 

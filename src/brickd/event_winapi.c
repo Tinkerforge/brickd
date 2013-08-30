@@ -133,7 +133,7 @@ static void event_poll_usb_events(void *opaque) {
 		// update pollfd array
 		count = 0;
 
-		for (i = 0; i < event_sources->count; i++) {
+		for (i = 0; i < event_sources->count; ++i) {
 			event_source = array_get(event_sources, i);
 
 			if (event_source->type == EVENT_SOURCE_TYPE_USB) {
@@ -160,7 +160,7 @@ static void event_poll_usb_events(void *opaque) {
 		pollfd->events = USBI_POLLIN;
 		pollfd->revents = 0;
 
-		for (i = 0, k = 1; i < event_sources->count; i++) {
+		for (i = 0, k = 1; i < event_sources->count; ++i) {
 			event_source = array_get(event_sources, i);
 
 			if (event_source->type != EVENT_SOURCE_TYPE_USB) {
@@ -511,7 +511,7 @@ int event_run_platform(Array *event_sources, int *running) {
 		_socket_read_set->count = 0;
 		_socket_write_set->count = 0;
 
-		for (i = 0; i < event_sources->count; i++) {
+		for (i = 0; i < event_sources->count; ++i) {
 			event_source = array_get(event_sources, i);
 
 			if (event_source->type != EVENT_SOURCE_TYPE_GENERIC) {
