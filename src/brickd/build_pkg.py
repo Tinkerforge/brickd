@@ -32,7 +32,7 @@ import glob
 
 def build_macosx_pkg():
     os.system('make clean')
-    os.system('make')
+    os.system('CC=gcc make')
 
     version = subprocess.check_output(['./brickd', '--version']).replace('\n', '')
 
@@ -116,9 +116,9 @@ def build_linux_pkg():
     os.system('make clean')
 
     if architecture == 'i386':
-        os.system('CFLAGS=-march=i386 WITH_LIBUDEV_DLOPEN=yes make')
+        os.system('CC=gcc WITH_LIBUDEV_DLOPEN=yes CFLAGS=-march=i386 make')
     else:
-        os.system('WITH_LIBUDEV_DLOPEN=yes make')
+        os.system('CC=gcc WITH_LIBUDEV_DLOPEN=yes make')
 
     version = subprocess.check_output(['./brickd', '--version']).replace('\n', '').replace(' ', '-')
 
