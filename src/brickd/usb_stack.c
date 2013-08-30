@@ -250,7 +250,7 @@ int usb_stack_create(USBStack *stack, uint8_t bus_number, uint8_t device_address
 		goto cleanup;
 	}
 
-	for (device = devices[0]; device != NULL; device = devices[i++]) {
+	for (device = devices[0]; device != NULL; device = devices[++i]) {
 		if (stack->bus_number == libusb_get_bus_number(device) &&
 			stack->device_address == libusb_get_device_address(device)) {
 			stack->device = libusb_ref_device(device);

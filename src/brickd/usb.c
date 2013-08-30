@@ -60,7 +60,7 @@ static int usb_enumerate(USBEnumerateFunction function) {
 	}
 
 	// check for stacks
-	for (device = devices[0]; device != NULL; device = devices[i++]) {
+	for (device = devices[0]; device != NULL; device = devices[++i]) {
 		bus_number = libusb_get_bus_number(device);
 		device_address = libusb_get_device_address(device);
 
