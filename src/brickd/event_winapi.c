@@ -119,7 +119,7 @@ static void event_poll_usb_events(void *opaque) {
 
 	log_debug("Started USB poll thread");
 
-	while (1) {
+	for (;;) {
 		semaphore_acquire(&_usb_poller.resume);
 
 		log_debug("Resumed USB poll thread");

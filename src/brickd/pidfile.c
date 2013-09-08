@@ -38,7 +38,7 @@ int pidfile_acquire(const char *filename, pid_t pid) {
 	struct flock flock;
 	char buffer[64];
 
-	while (1) {
+	for (;;) {
 		fd = open(filename, O_WRONLY | O_CREAT, 0644);
 
 		if (fd < 0) {
