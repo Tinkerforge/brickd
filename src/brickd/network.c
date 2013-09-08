@@ -125,13 +125,14 @@ int network_init(void) {
 
 	phase = 2;
 
-	// FIXME: use this for debugging purpose only
+#ifndef _WIN32
 	if (socket_set_address_reuse(_server_socket, 1) < 0) {
 		log_error("Could not enable address-reuse mode for server socket: %s (%d)",
 		          get_errno_name(errno), errno);
 
 		goto cleanup;
 	}
+#endif
 
 	memset(&server_address, 0, sizeof(server_address));
 
