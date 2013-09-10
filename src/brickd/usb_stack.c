@@ -267,10 +267,6 @@ int usb_stack_create(USBStack *stack, uint8_t bus_number, uint8_t device_address
 		goto cleanup;
 	}
 
-	log_debug("%s operates at %s",
-	          stack->base.name,
-	          usb_get_speed_name(libusb_get_device_speed(stack->device)));
-
 	phase = 3;
 
 	// open device

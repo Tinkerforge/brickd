@@ -471,19 +471,3 @@ const char *usb_get_error_name(int error_code) {
 
 	#undef LIBUSB_ERROR_NAME
 }
-
-const char *usb_get_speed_name(int speed) {
-	#define LIBUSB_SPEED_NAME(speed) case speed: return #speed
-
-	switch (speed) {
-	LIBUSB_SPEED_NAME(LIBUSB_SPEED_UNKNOWN);
-	LIBUSB_SPEED_NAME(LIBUSB_SPEED_LOW);
-	LIBUSB_SPEED_NAME(LIBUSB_SPEED_FULL);
-	LIBUSB_SPEED_NAME(LIBUSB_SPEED_HIGH);
-	LIBUSB_SPEED_NAME(LIBUSB_SPEED_SUPER);
-
-	default: return "<unknown>";
-	}
-
-	#undef LIBUSB_SPEED_NAME
-}

@@ -50,6 +50,5 @@ void usb_destroy_context(libusb_context *context);
 int usb_get_device_name(libusb_device_handle *device_handle, char *name, int length);
 
 const char *usb_get_error_name(int error_code);
-const char *usb_get_speed_name(int speed);
 
 #endif // BRICKD_USB_H
