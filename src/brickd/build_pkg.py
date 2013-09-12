@@ -66,7 +66,7 @@ def build_macosx_pkg():
 
     if rc != 0:
         print "============================================="
-        print "   Run ./_build_dmg.sh to create .dmg file"
+        print "   Run ./build_dmg.sh to create .dmg file"
         print "============================================="
 
 def build_windows_pkg():
