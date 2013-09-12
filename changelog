@@ -48,3 +48,9 @@
        Prohibit starting a second instance on Windows
        Check for USB device additions/removals changes on SIGUSR1
        Ignore SIGPIPE and handle socket write errors properly
+2.0.7: Add OpenWrt package Makefile (thanks to bjoern-r)
+       Debian package now works with libudev0 and libudev1
+       Use GetSystemTimePreciseAsFileTime() on Windows 8 for more precise log timestamps
+       Fix race between socket select thread and USB poll thread on Windows
+       Fix text of some USB related error messages
+       Don't set SO_REUSEADDR for server socket on Windows
