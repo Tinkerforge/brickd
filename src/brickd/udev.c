@@ -64,8 +64,11 @@ static int _udev_monitor_fd = -1;
 
 #ifdef BRICKD_WITH_LIBUDEV_DLOPEN
 
-static void *udev_dlopen_handle = NULL;
-static int udev_dlsym_error = 0;
+static const char *libudev0 = "libudev.so.0";
+static const char *libudev1 = "libudev.so.1";
+static void *libudev_handle = NULL;
+static const char *loaded_libudev = "<unknown>";
+static int dlsym_error = 0;
 
 // according to dlopen manpage casting from "void *" to a function pointer
 // is undefined in C99. the manpage suggests this workaround defined in the
@@ -80,19 +83,19 @@ static void *udev_dlsym(const char *name) {
 	void *pointer;
 	char *error;
 
-	if (udev_dlsym_error) {
+	if (dlsym_error) {
 		return NULL;
 	}
 
 	dlerror(); // clear any existing error
 
-	pointer = dlsym(udev_dlopen_handle, name);
+	pointer = dlsym(libudev_handle, name);
 	error = dlerror();
 
 	if (error != NULL) {
 		log_error("Could not resolve '%s': %s", name, error);
 
-		udev_dlsym_error = 1;
+		dlsym_error = 1;
 	}
 
 	return pointer;
@@ -101,15 +104,29 @@ static void *udev_dlsym(const char *name) {
 // using dlopen for libudev allows to deal with both SONAMEs for libudev:
 // libudev.so.0 and libudev.so.1
 static int udev_dlopen(void) {
-	log_debug("Loading libudev.so");
+	log_debug("Trying to load %s", libudev1);
 
-	udev_dlopen_handle = dlopen("libudev.so", RTLD_LAZY);
+	libudev_handle = dlopen(libudev1, RTLD_LAZY);
 
-	if (udev_dlopen_handle == NULL) {
-		log_error("Could not load libudev.so: %s", dlerror());
+	if (libudev_handle == NULL) {
+		log_debug("Could not load %s: %s", libudev1, dlerror());
+		log_debug("Trying to load %s instead", libudev0);
 
-		return -1;
+		libudev_handle = dlopen(libudev0, RTLD_LAZY);
+
+		if (libudev_handle == NULL) {
+			log_debug("Could not load %s either: %s", libudev0, dlerror());
+			log_error("Could not load %s nor %s", libudev1, libudev0);
+
+			return -1;
+		} else {
+			loaded_libudev = libudev0;
+		}
+	} else {
+		loaded_libudev = libudev1;
 	}
+
+	log_debug("Successfully loaded %s", loaded_libudev);
 
 	UDEV_DLSYM(udev_monitor_receive_device);
 	UDEV_DLSYM(udev_device_get_action);
@@ -124,8 +141,8 @@ static int udev_dlopen(void) {
 	UDEV_DLSYM(udev_monitor_unref);
 	UDEV_DLSYM(udev_unref);
 
-	if (udev_dlsym_error) {
-		dlclose(udev_dlopen_handle);
+	if (dlsym_error) {
+		dlclose(libudev_handle);
 
 		return -1;
 	}
@@ -134,9 +151,9 @@ static int udev_dlopen(void) {
 }
 
 static void udev_dlclose(void) {
-	log_debug("Unloading libudev.so");
+	log_debug("Unloading %s", loaded_libudev);
 
-	dlclose(udev_dlopen_handle);
+	dlclose(libudev_handle);
 }
 
 #endif
