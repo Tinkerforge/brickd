@@ -54,3 +54,4 @@
        Fix race between socket select thread and USB poll thread on Windows
        Fix text of some USB related error messages
        Don't set SO_REUSEADDR for server socket on Windows
+2.0.8: Fix dynamic loading of libudev on Linux
