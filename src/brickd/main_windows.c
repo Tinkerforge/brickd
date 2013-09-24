@@ -444,7 +444,7 @@ static int generic_main(int log_to_file, int debug) {
 	int rc;
 	char filename[1024];
 	int i;
-	FILE *logfile = NULL;
+	FILE *log_file = NULL;
 	WSADATA wsa_data;
 	DEV_BROADCAST_DEVICEINTERFACE notification_filter;
 	HDEVNOTIFY notification_handle;
@@ -531,12 +531,12 @@ static int generic_main(int log_to_file, int debug) {
 				filename[i - 3] = '\0';
 				string_append(filename, "log", sizeof(filename));
 
-				logfile = fopen(filename, "a+");
+				log_file = fopen(filename, "a+");
 
-				if (logfile == NULL) {
-					log_warn("Could not open logfile '%s'", filename);
+				if (log_file == NULL) {
+					log_warn("Could not open log file '%s'", filename);
 				} else {
-					log_set_file(logfile);
+					log_set_file(log_file);
 				}
 			}
 		}

@@ -81,7 +81,7 @@ static int daemon_start(void) {
 	log_file = fopen(LOG_FILENAME, "a+");
 
 	if (log_file == NULL) {
-		fprintf(stderr, "Could not open logfile '%s': %s (%d)\n",
+		fprintf(stderr, "Could not open log file '%s': %s (%d)\n",
 		        LOG_FILENAME, get_errno_name(errno), errno);
 
 		goto cleanup;
