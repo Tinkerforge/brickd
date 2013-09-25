@@ -143,7 +143,7 @@ int event_add_source(EventHandle handle, EventSourceType type, int events,
 
 // only mark event sources as removed here, because the event loop might be in
 // the middle of iterating the event sources array when this function is called
-int event_remove_source(EventHandle handle, EventSourceType type) {
+void event_remove_source(EventHandle handle, EventSourceType type) {
 	int i;
 	EventSource *event_source;
 
@@ -165,14 +165,12 @@ int event_remove_source(EventHandle handle, EventSourceType type) {
 				          event_source->handle, event_source->events, i);
 			}
 
-			return 0;
+			return;
 		}
 	}
 
 	log_warn("Could not mark unknown %s event source (handle: %d) as removed",
 	         event_get_source_type_name(type, 0), handle);
-
-	return -1;
 }
 
 // remove event sources that got marked as removed

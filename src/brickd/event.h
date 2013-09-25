@@ -80,7 +80,7 @@ void event_exit(void);
 
 int event_add_source(EventHandle handle, EventSourceType type,
                      int events, EventFunction function, void *opaque);
-int event_remove_source(EventHandle handle, EventSourceType type);
+void event_remove_source(EventHandle handle, EventSourceType type);
 void event_cleanup_sources(void);
 
 int event_run(void);
