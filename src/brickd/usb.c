@@ -188,7 +188,7 @@ static void LIBUSB_CALL usb_remove_pollfd(int fd, void *opaque) {
 
 	log_debug("Got told to remove libusb pollfd (handle: %d)", fd);
 
-	event_remove_source(fd, EVENT_SOURCE_TYPE_USB); // FIXME: handle error?
+	event_remove_source(fd, EVENT_SOURCE_TYPE_USB);
 }
 
 int usb_init(void) {
@@ -290,13 +290,14 @@ int usb_update(void) {
 		stack->connected = 0;
 	}
 
-	// enumerate all USB devices and mark all stacks that are still connected
+	// enumerate all USB devices, mark all stacks that are still connected
 	// and add stacks that are newly connected
 	if (usb_enumerate(usb_handle_device) < 0) {
 		return -1;
 	}
 
-	// remove all stacks that are not marked as connected
+	// remove all stacks that are not marked as connected. iterate backwards
+	// so array_remove can be used without invalidating the current index
 	for (i = _stacks.count - 1; i >= 0; --i) {
 		stack = array_get(&_stacks, i);
 
