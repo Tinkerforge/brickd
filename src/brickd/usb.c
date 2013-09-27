@@ -44,16 +44,18 @@ extern void usb_exit_platform(void);
 extern int usb_init_hotplug(libusb_context *context);
 extern void usb_exit_hotplug(libusb_context *context);
 
-typedef int (*USBEnumerateFunction)(libusb_device *device);
-
-static int usb_enumerate(USBEnumerateFunction function) {
-	int rc;
+static int usb_enumerate(void) {
+	int result = -1;
 	libusb_device **devices;
 	libusb_device *device;
+	int rc;
 	int i = 0;
 	struct libusb_device_descriptor descriptor;
 	uint8_t bus_number;
 	uint8_t device_address;
+	int known;
+	int k;
+	USBStack *stack;
 
 	// get all devices
 	rc = libusb_get_device_list(_context, &devices);
@@ -91,71 +93,62 @@ static int usb_enumerate(USBEnumerateFunction function) {
 			continue;
 		}
 
-		rc = function(device);
+		// check all known stacks
+		known = 0;
 
-		if (rc < 0) {
+		for (k = 0; k < _stacks.count; ++k) {
+			stack = array_get(&_stacks, k);
+
+			if (stack->bus_number == bus_number &&
+				stack->device_address == device_address) {
+				// mark known stack as connected
+				stack->connected = 1;
+				known = 1;
+
+				break;
+			}
+		}
+
+		if (known) {
+			continue;
+		}
+
+		// create new stack object
+		log_debug("Found new USB device (bus: %u, device: %u)",
+		          bus_number, device_address);
+
+		stack = array_append(&_stacks);
+
+		if (stack == NULL) {
+			log_error("Could not append to stacks array: %s (%d)",
+			          get_errno_name(errno), errno);
+
 			goto cleanup;
 		}
+
+		if (usb_stack_create(stack, bus_number, device_address) < 0) {
+			array_remove(&_stacks, _stacks.count - 1, NULL);
+
+			log_warn("Ignoring USB device (bus: %u, device: %u) due to an error",
+			         bus_number, device_address);
+
+			continue;
+		}
+
+		// mark new stack as connected
+		stack->connected = 1;
+
+		log_info("Added USB device (bus: %u, device: %u) at index %d: %s",
+		         stack->bus_number, stack->device_address, _stacks.count - 1,
+		         stack->base.name);
 	}
 
-	rc = 0;
+	result = 0;
 
 cleanup:
 	libusb_free_device_list(devices, 1);
 
-	return rc;
-}
-
-// FIXME: merge into usb_enumerate
-static int usb_handle_device(libusb_device *device) {
-	int i;
-	USBStack *stack;
-	uint8_t bus_number = libusb_get_bus_number(device);
-	uint8_t device_address = libusb_get_device_address(device);
-
-	// check all known stacks
-	for (i = 0; i < _stacks.count; ++i) {
-		stack = array_get(&_stacks, i);
-
-		if (stack->bus_number == bus_number &&
-		    stack->device_address == device_address) {
-			// mark known stack as connected
-			stack->connected = 1;
-
-			return 0;
-		}
-	}
-
-	// create new stack object
-	log_debug("Found new USB device (bus: %u, device: %u)",
-	          bus_number, device_address);
-
-	stack = array_append(&_stacks);
-
-	if (stack == NULL) {
-		log_error("Could not append to stacks array: %s (%d)",
-		          get_errno_name(errno), errno);
-
-		return -1;
-	}
-
-	if (usb_stack_create(stack, bus_number, device_address) < 0) {
-		array_remove(&_stacks, _stacks.count - 1, NULL);
-
-		log_warn("Ignoring USB device (bus: %u, device: %u) due to an error",
-		         bus_number, device_address);
-
-		return 0;
-	}
-
-	// mark new stack as connected
-	stack->connected = 1;
-
-	log_info("Added USB device (bus: %u, device: %u) at index %d: %s",
-	         stack->bus_number, stack->device_address, _stacks.count - 1,
-	         stack->base.name);
-
-	return 0;
+	return result;
 }
 
 static void usb_handle_events(void *opaque) {
@@ -292,7 +285,7 @@ int usb_update(void) {
 
 	// enumerate all USB devices, mark all stacks that are still connected
 	// and add stacks that are newly connected
-	if (usb_enumerate(usb_handle_device) < 0) {
+	if (usb_enumerate() < 0) {
 		return -1;
 	}
 
