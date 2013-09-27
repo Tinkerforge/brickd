@@ -32,4 +32,5 @@ SOURCES=array.c \
 	usb.c \
 	usb_stack.c \
 	usb_transfer.c \
+	usb_winapi.c \
 	utils.c

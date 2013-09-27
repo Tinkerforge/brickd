@@ -55,6 +55,7 @@
  usb.c^
  usb_stack.c^
  usb_transfer.c^
+ usb_winapi.c^
  utils.c
 
 %RC% /folog_messages.res log_messages.rc

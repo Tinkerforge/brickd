@@ -42,6 +42,8 @@
 int usb_init(void);
 void usb_exit(void);
 
+int usb_has_hotplug(void);
+
 int usb_update(void);
 
 int usb_create_context(libusb_context **context);

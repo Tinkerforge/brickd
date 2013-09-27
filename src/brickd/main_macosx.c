@@ -152,6 +152,9 @@ int main(int argc, char **argv) {
 	int daemon = 0;
 	int debug = 0;
 	int pid_fd = -1;
+#ifdef BRICKD_WITH_IOKIT
+	int initialized_iokit = 0;
+#endif
 
 	for (i = 1; i < argc; ++i) {
 		if (strcmp(argv[i], "--help") == 0) {
@@ -245,9 +248,15 @@ int main(int argc, char **argv) {
 		goto error_usb;
 	}
 
-	if (iokit_init() < 0) {
-		goto error_iokit;
+#ifdef BRICKD_WITH_IOKIT
+	if (!usb_has_hotplug()) {
+		if (iokit_init() < 0) {
+			goto error_iokit;
+		}
+
+		initialized_iokit = 1;
 	}
+#endif
 
 	if (network_init() < 0) {
 		goto error_network;
@@ -263,9 +272,13 @@ error_run:
 	network_exit();
 
 error_network:
-	iokit_exit();
+#ifdef BRICKD_WITH_IOKIT
+	if (initialized_iokit) {
+		iokit_exit();
+	}
 
 error_iokit:
+#endif
 	usb_exit();
 
 error_usb:

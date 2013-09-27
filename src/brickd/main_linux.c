@@ -324,6 +324,9 @@ int main(int argc, char **argv) {
 	int daemon = 0;
 	int debug = 0;
 	int pid_fd = -1;
+#ifdef BRICKD_WITH_LIBUDEV
+	int initialized_udev = 0;
+#endif
 
 	for (i = 1; i < argc; ++i) {
 		if (strcmp(argv[i], "--help") == 0) {
@@ -420,8 +423,12 @@ int main(int argc, char **argv) {
 	}
 
 #ifdef BRICKD_WITH_LIBUDEV
-	if (udev_init() < 0) {
-		goto error_udev;
+	if (!usb_has_hotplug()) {
+		if (udev_init() < 0) {
+			goto error_udev;
+		}
+
+		initialized_udev = 1;
 	}
 #endif
 
@@ -440,7 +447,9 @@ error_run:
 
 error_network:
 #ifdef BRICKD_WITH_LIBUDEV
-	udev_exit();
+	if (initialized_udev) {
+		udev_exit();
+	}
 
 error_udev:
 #endif

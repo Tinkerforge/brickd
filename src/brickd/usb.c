@@ -37,6 +37,12 @@
 
 static libusb_context *_context = NULL;
 static Array _stacks = ARRAY_INITIALIZER;
+static int _initialized_hotplug = 0;
+
+extern int usb_init_platform(void);
+extern void usb_exit_platform(void);
+extern int usb_init_hotplug(libusb_context *context);
+extern void usb_exit_hotplug(libusb_context *context);
 
 typedef int (*USBEnumerateFunction)(libusb_device *device);
 
@@ -100,6 +106,7 @@ cleanup:
 	return rc;
 }
 
+// FIXME: merge into usb_enumerate
 static int usb_handle_device(libusb_device *device) {
 	int i;
 	USBStack *stack;
@@ -189,12 +196,18 @@ int usb_init(void) {
 
 	log_debug("Initializing USB subsystem");
 
+	if (usb_init_platform() < 0) {
+		goto cleanup;
+	}
+
+	phase = 1;
+
 	// initialize main libusb context
 	if (usb_create_context(&_context)) {
 		goto cleanup;
 	}
 
-	phase = 1;
+	phase = 2;
 
 	if (!libusb_pollfds_handle_timeouts(_context)) {
 		log_debug("libusb requires special timeout handling"); // FIXME
@@ -211,36 +224,56 @@ int usb_init(void) {
 		goto cleanup;
 	}
 
-	phase = 2;
+	phase = 3;
 
-	// find all stacks
+	if (usb_has_hotplug()) {
+		log_debug("libusb supports hotplug");
+
+		if (usb_init_hotplug(_context) < 0) {
+			goto cleanup;
+		}
+
+		_initialized_hotplug = 1;
+	} else {
+		log_debug("libusb does not support hotplug");
+	}
+
 	if (usb_update() < 0) {
 		goto cleanup;
 	}
 
-	phase = 3;
+	phase = 4;
 
 cleanup:
 	switch (phase) { // no breaks, all cases fall through intentionally
-	case 2:
+	case 3:
 		array_destroy(&_stacks, (FreeFunction)usb_stack_destroy);
 
-	case 1:
+	case 2:
 		usb_destroy_context(_context);
+
+	case 1:
+		usb_exit_platform();
 
 	default:
 		break;
 	}
 
-	return phase == 3 ? 0 : -1;
+	return phase == 4 ? 0 : -1;
 }
 
 void usb_exit(void) {
 	log_debug("Shutting down USB subsystem");
 
+	if (_initialized_hotplug) {
+		usb_exit_hotplug(_context);
+	}
+
 	array_destroy(&_stacks, (FreeFunction)usb_stack_destroy);
 
 	usb_destroy_context(_context);
+
+	usb_exit_platform();
 }
 
 int usb_update(void) {
@@ -258,6 +291,7 @@ int usb_update(void) {
 	}
 
 	// enumerate all USB devices and mark all stacks that are still connected
+	// and add stacks that are newly connected
 	if (usb_enumerate(usb_handle_device) < 0) {
 		return -1;
 	}

@@ -1,5 +1,8 @@
 #
-# Makefile for GCC builds on Linux and Mac OS X, and MinGW builds on Windows
+# For GCC/Clang builds on Linux and Mac OS X, and MinGW builds on Windows
+#
+# Minimum libusb version: 1.0.8
+# Tested with libusb: 1.0.8, 1.0.9, 1.0.16, 1.0.17
 #
 # Debian/Ubuntu:
 # sudo apt-get install build-essential pkg-config libusb-1.0-0-dev libudev-dev
@@ -15,6 +18,7 @@ CC ?= gcc
 
 WITH_LIBUDEV ?= check
 WITH_LIBUDEV_DLOPEN ?= no
+WITH_IOKIT ?= check
 WITH_LOGGING ?= yes
 WITH_PROFILING ?= no
 
@@ -60,14 +64,67 @@ ifndef V
 endif
 endif
 
+ifneq ($(PLATFORM),Windows)
+	PKG_CONFIG := $(shell which pkg-config 2> /dev/null)
+ifeq ($(PKG_CONFIG),)
+ifneq ($(MAKECMDGOALS),clean)
+$(error Could not find pkg-config)
+endif
+endif
+endif
+
+LIBUSB_STATUS := no
+LIBUDEV_STATUS := no
+IOKIT_STATUS := no
+
+ifeq ($(PLATFORM),Windows)
+	HOTPLUG := WinAPI
+else
+	HOTPLUG := $(shell pkg-config --exists 'libusb-1.0 >= 1.0.16' && echo libusb || echo libusb \(if supported\))
+endif
+
 ifeq ($(PLATFORM),Linux)
 ifeq ($(WITH_LIBUDEV),check)
-	WITH_LIBUDEV := yes
-else
+ifeq ($(HOTPLUG),libusb)
+	# libusb hotplug, libudev not required
 	WITH_LIBUDEV := no
+	LIBUDEV_STATUS := not required
+else
+	# no libusb hotplug, use libudev instead
+	WITH_LIBUDEV := yes
+endif
 endif
 else
+	# not Linux, libudev not avialable
 	WITH_LIBUDEV := no
+endif
+
+ifeq ($(PLATFORM),Darwin)
+ifeq ($(WITH_IOKIT),check)
+ifeq ($(HOTPLUG),libusb)
+	# libusb hotplug, IOKit not required
+	WITH_IOKIT := no
+	IOKIT_STATUS := not required
+else
+	# no libusb hotplug, use IOKit instead
+	WITH_IOKIT := yes
+endif
+endif
+else
+	# not Darwin, IOKit not avialable
+	WITH_IOKIT := no
+endif
+
+ifeq ($(WITH_LIBUDEV),yes)
+ifeq ($(HOTPLUG),libusb (if supported))
+	HOTPLUG := libusb (if supported) or libudev
+endif
+endif
+
+ifeq ($(WITH_IOKIT),yes)
+ifeq ($(HOTPLUG),libusb (if supported))
+	HOTPLUG := libusb (if supported) or IOKit
+endif
 endif
 
 SOURCES := array.c client.c config.c event.c hardware.c log.c network.c \
@@ -75,10 +132,10 @@ SOURCES := array.c client.c config.c event.c hardware.c log.c network.c \
 
 ifeq ($(PLATFORM),Windows)
 	SOURCES += event_winapi.c fixes_mingw.c log_winapi.c pipe_winapi.c \
-	           service.c socket_winapi.c threads_winapi.c
+	           service.c socket_winapi.c threads_winapi.c usb_winapi.c
 else
 	SOURCES += event_posix.c log_posix.c pidfile.c pipe_posix.c socket_posix.c \
-	           threads_posix.c
+	           threads_posix.c usb_posix.c
 endif
 
 ifeq ($(PLATFORM),Windows)
@@ -90,11 +147,15 @@ ifeq ($(PLATFORM),Linux)
 endif
 
 ifeq ($(PLATFORM),Darwin)
-	SOURCES += main_macosx.c iokit.c
+	SOURCES += main_macosx.c
 endif
 
 ifeq ($(WITH_LIBUDEV),yes)
 	SOURCES += udev.c
+endif
+
+ifeq ($(WITH_IOKIT),yes)
+	SOURCES += iokit.c
 endif
 
 OBJECTS := ${SOURCES:.c=.o}
@@ -122,13 +183,22 @@ else
 endif
 
 ifeq ($(PLATFORM),Windows)
+	LIBUSB_STATUS := fork
 	LIBUSB_CFLAGS := -I../build_data/Windows/libusb
 	LIBUSB_LDFLAGS := -L../build_data/Windows/libusb
 	LIBUSB_LIBS := -lusb-1.0
 else
+LIBUSB_VERSION := $(shell pkg-config --exists 'libusb-1.0 >= 1.0.8' && echo okay)
+ifeq ($(LIBUSB_VERSION),okay)
+	LIBUSB_STATUS := $(shell pkg-config --modversion libusb-1.0)
 	LIBUSB_CFLAGS := $(shell pkg-config --cflags libusb-1.0)
 	LIBUSB_LDFLAGS := $(shell pkg-config --libs-only-other --libs-only-L libusb-1.0)
 	LIBUSB_LIBS := $(shell pkg-config --libs-only-l libusb-1.0)
+else
+ifneq ($(MAKECMDGOALS),clean)
+$(error Could not find libusb-1.0 >= 1.0.8)
+endif
+endif
 endif
 
 CFLAGS += $(LIBUSB_CFLAGS)
@@ -137,25 +207,46 @@ LIBS += $(LIBUSB_LIBS)
 
 ifeq ($(WITH_LIBUDEV),yes)
 	CFLAGS += -DBRICKD_WITH_LIBUDEV
-
 ifeq ($(WITH_LIBUDEV_DLOPEN),yes)
+	LIBUDEV_STATUS := dlopen
 	CFLAGS += -DBRICKD_WITH_LIBUDEV_DLOPEN
-	LIBS += -ldl
 else
+LIBUDEV_EXISTS := $(shell pkg-config --exists libudev && echo yes)
+ifeq ($(LIBUDEV_EXISTS),yes)
+	LIBUDEV_STATUS := $(shell pkg-config --modversion libudev)
 	LIBUDEV_CFLAGS := $(shell pkg-config --cflags libudev)
 	LIBUDEV_LDFLAGS := $(shell pkg-config --libs-only-other --libs-only-L libudev)
 	LIBUDEV_LIBS := $(shell pkg-config --libs-only-l libudev)
-
 	CFLAGS += $(LIBUDEV_CFLAGS)
 	LDFLAGS += $(LIBUDEV_LDFLAGS)
 	LIBS += $(LIBUDEV_LIBS)
+else
+ifneq ($(MAKECMDGOALS),clean)
+$(error Could not find libudev)
 endif
+endif
+endif
+ifeq ($(HOTPLUG),libusb)
+	LIBUDEV_STATUS := $(LIBUDEV_STATUS) (unused)
+endif
+endif
+
+ifeq ($(WITH_IOKIT),yes)
+	IOKIT_STATUS := system
+	CFLAGS += -DBRICKD_WITH_IOKIT
+	LIBS += -Wl,-framework,IOKit -Wl,-framework,CoreFoundation -lobjc
+ifeq ($(HOTPLUG),libusb)
+	IOKIT_STATUS := $(IOKIT_STATUS) (unused)
+endif
+endif
+
+ifneq ($(PLATFORM),Windows)
+	LIBS += -ldl
 endif
 
 ifeq ($(PLATFORM),Darwin)
 	# ensure that there is enough room to rewrite the libusb install name
 	LDFLAGS += -Wl,-headerpad_max_install_names
-	LIBS += -Wl,-framework,IOKit -Wl,-framework,CoreFoundation -lobjc
 endif
 
 ifeq ($(WITH_LOGGING),yes)
@@ -168,6 +259,13 @@ endif
 
 ifeq ($(PLATFORM),Windows)
 	GENERATED := log_messages.h log_messages.rc
+endif
+
+ifneq ($(MAKECMDGOALS),clean)
+$(info libusb: $(LIBUSB_STATUS))
+$(info libudev: $(LIBUDEV_STATUS))
+$(info IOKit: $(IOKIT_STATUS))
+$(info hotplug: $(HOTPLUG))
 endif
 
 .PHONY: all clean
