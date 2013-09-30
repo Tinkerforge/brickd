@@ -108,8 +108,8 @@ Common:
 
 Windows only:
 
-* ``--install`` registers Brick Daemon as service and start it
-* ``--uninstall`` stops service and unregister it
+* ``--install`` registers Brick Daemon as service and starts it
+* ``--uninstall`` stops service and unregisters it
 * ``--console`` forces start as console application
 * ``--log-to-file`` writes log messages to file
 
@@ -118,6 +118,7 @@ USB Hotplug Detection
 
 Brick Daemon can autodetect USB hotplug. Different systems are used for this:
 
+* libusb's own hotplug callbacks (if available)
 * device notifications on Windows
 * libudev on Linux
 * IOKit notifications on Mac OS X
