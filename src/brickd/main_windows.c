@@ -123,7 +123,7 @@ static int get_process_image_name(PROCESSENTRY32 entry, char *buffer, DWORD leng
 	return 0;
 }
 
-static int started_by_explorer(void) {
+static int started_by_explorer(int log_available) {
 	int rc;
 	int result = 0;
 	PROCESSENTRY32 entry;
@@ -135,8 +135,13 @@ static int started_by_explorer(void) {
 	if (handle == INVALID_HANDLE_VALUE) {
 		rc = ERRNO_WINAPI_OFFSET + GetLastError();
 
-		log_warn("Could not create process list snapshot: %s (%d)",
-		         get_errno_name(rc), rc);
+		if (log_available) {
+			log_warn("Could not create process list snapshot: %s (%d)",
+			         get_errno_name(rc), rc);
+		} else {
+			fprintf(stderr, "Could not create process list snapshot: %s (%d)\n",
+			        get_errno_name(rc), rc);
+		}
 
 		return 0;
 	}
@@ -771,7 +776,7 @@ static int service_run(int log_to_file, int debug) {
 			log_info("Could not start as service, starting as console application");
 
 			_run_as_service = 0;
-			_pause_before_exit = started_by_explorer();
+			_pause_before_exit = started_by_explorer(1);
 
 			return generic_main(log_to_file, debug);
 		} else {
@@ -803,6 +808,20 @@ static void print_usage(void) {
 	       "  --console       Force start as console application\n"
 	       "  --log-to-file   Write log messages to file\n"
 	       "  --debug         Set all log levels to debug\n");
+
+	if (started_by_explorer(0)) {
+		printf("\nPress any key to exit...\n");
+		getch();
+	}
+}
+
+static void print_version(void) {
+	printf("%s\n", VERSION_STRING);
+
+	if (started_by_explorer(0)) {
+		printf("\nPress any key to exit...\n");
+		getch();
+	}
 }
 
 int main(int argc, char **argv) {
@@ -851,7 +870,7 @@ int main(int argc, char **argv) {
 	}
 
 	if (version) {
-		printf("%s\n", VERSION_STRING);
+		print_version();
 
 		return EXIT_SUCCESS;
 	}
@@ -904,7 +923,7 @@ int main(int argc, char **argv) {
 
 		if (console) {
 			_run_as_service = 0;
-			_pause_before_exit = started_by_explorer();
+			_pause_before_exit = started_by_explorer(1);
 
 			return generic_main(log_to_file, debug);
 		} else {
