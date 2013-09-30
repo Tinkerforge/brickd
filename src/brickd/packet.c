@@ -19,6 +19,10 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
+/*
+ * functions for validating, packing, unpacking and comparing packets.
+ */
+
 #include "packet.h"
 
 #include "macros.h"

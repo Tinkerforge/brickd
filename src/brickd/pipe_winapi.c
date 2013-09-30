@@ -19,6 +19,12 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
+/*
+ * pipes are used to inject events into the select based event loop. this
+ * implementation uses a pair of sockets to create a pipe, because select
+ * can only be used with sockets on Windows.
+ */
+
 #include <errno.h>
 #include <winsock2.h>
 

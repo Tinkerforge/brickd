@@ -19,6 +19,10 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
+/*
+ * this functions realize a flock'ed PID file.
+ */
+
 #include <errno.h>
 #include <stdlib.h>
 #include <stdio.h>

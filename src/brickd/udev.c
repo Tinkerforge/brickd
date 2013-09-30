@@ -19,6 +19,27 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
+/*
+ * libudev is used to detect USB hot(un)plug in case the available libusb
+ * version doesn't support this. libudev provides a fd that can be polled for
+ * incoming events. the fd is directly polled by the main event loop. on
+ * incoming USB add and remove events usb_update is called. it scans the bus
+ * for added or removed devices.
+ *
+ * libudev comes with two different SONAMEs: libudev.so.0 and libudev.so.1.
+ * Ubuntu 12.10 ships libudev.so.0 and Ubuntu 13.04 ships libudev.so.1. To
+ * create one binary that works on both Ubuntu versions requires to dlopen
+ * libudev. Normal linking would bind the binary to one of the SONAMEs.
+ *
+ * but by default normal linking is used. so if someone builds brickd from
+ * source for a specific distribution then brickd is directly linked to the
+ * available libudev version.
+ *
+ * the dlopen logic is enabled by the BRICKD_WITH_LIBUDEV_DLOPEN define. the
+ * build_pkg.py runs make with WITH_LIBUDEV_DLOPEN=yes and the Makefile defines
+ * BRICKD_WITH_LIBUDEV_DLOPEN to enabled the dlopen logic here.
+ */
+
 #ifdef BRICKD_WITH_LIBUDEV_DLOPEN
 	#include <dlfcn.h>
 #endif

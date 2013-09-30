@@ -19,6 +19,11 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
+/*
+ * pipes are used to inject events into the poll based event loop. this
+ * implementation is a direct wrapper of the POSIX pipe function.
+ */
+
 #include <unistd.h>
 
 #include "pipe.h"
