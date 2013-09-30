@@ -95,6 +95,7 @@ def build_windows_pkg():
     dist_drivers_dir = os.path.join(dist_dir, 'drivers')
 
     shutil.copytree(drivers_dir, dist_drivers_dir)
+    shutil.copy(os.path.join(build_data_dir, 'readme.txt'), dist_dir)
     shutil.copy(os.path.join(build_data_dir, 'brickd.ini'), dist_dir)
     shutil.copy(os.path.join(eventlog_dir, 'eventlog.exe'), dist_dir)
 
