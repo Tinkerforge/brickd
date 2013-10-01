@@ -712,6 +712,16 @@ error_event:
 	log_info("Brick Daemon %s stopped", VERSION_STRING);
 
 error:
+	if (!_run_as_service) {
+		// unregister the console handler, before exiting the log. otherwise a
+		// control event might be send to the control handler after the log
+		// is not available anymore and the control handler tries to write a
+		// log messages triggering a crash. this situation could easily be
+		// created by clicking the close button of the command prompt window
+		// while the getch call if waiting for the user to press a key.
+		SetConsoleCtrlHandler(console_ctrl_handler, FALSE);
+	}
+
 	log_exit();
 
 	config_exit();
