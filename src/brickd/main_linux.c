@@ -35,7 +35,9 @@
 #include "log.h"
 #include "network.h"
 #include "pidfile.h"
-#include "udev.h"
+#ifdef BRICKD_WITH_LIBUDEV
+	#include "udev.h"
+#endif
 #include "usb.h"
 #include "utils.h"
 #include "version.h"

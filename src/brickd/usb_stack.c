@@ -19,6 +19,12 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
+/*
+ * this is a specific implementation of the generic Stack type for USB. it
+ * handles USB device lookup based on bus number and device address and takes
+ * care of sending an receiving packets over USB.
+ */
+
 #include <errno.h>
 #include <string.h>
 

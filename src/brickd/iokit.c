@@ -19,6 +19,28 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
+/*
+ * IOKit is used to detect USB hot(un)plug in case the available libusb version
+ * doesn't support this. the delivery of IOKit notifications is done by a run
+ * loop that is driven by CFRunLoopRun. this function blocks and requires to
+ * use an extra thread to do this blocking call. IOKit uses callbacks to send
+ * notifications. those callbacks are called from the extra thread calling the
+ * CFRunLoopRun function. a pipe is used to integrate this with the main event
+ * loop. on incoming USB matched and terminated notifications usb_update is
+ * called. it scans the bus for added or removed devices.
+ *
+ * by default the Makefile checks the libusb version and disables IOKit usage
+ * completely if libusb 1.0.16 (first version to support hotplug on Mac OSX)
+ * or newer is available. in that case BRICKD_WITH_IOKIT is not defined and
+ * iokit.c is not included into the build. this decision can be overridden by
+ * running make with WITH_IOKIT=yes to force inclusion of IOKit support or
+ * WITH_IOKIT=no to force its exclusion. the build_pkg.py script runs make with
+ * WITH_IOKIT=yes.
+ *
+ * anyway, even it IOKit support is enforced by WITH_IOKIT=yes, it'll only
+ * be used if libusb doesn't support hotplug on its own (detected at runtime).
+ */
+
 #include <errno.h>
 #include <IOKit/IOKitLib.h>
 #include <IOKit/usb/IOUSBLib.h>

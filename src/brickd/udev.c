@@ -31,13 +31,24 @@
  * create one binary that works on both Ubuntu versions requires to dlopen
  * libudev. Normal linking would bind the binary to one of the SONAMEs.
  *
- * but by default normal linking is used. so if someone builds brickd from
- * source for a specific distribution then brickd is directly linked to the
- * available libudev version.
+ * by default normal linking is used. so if someone builds brickd from source
+ * for a specific distribution then brickd is directly linked to the available
+ * libudev version.
  *
  * the dlopen logic is enabled by the BRICKD_WITH_LIBUDEV_DLOPEN define. the
- * build_pkg.py runs make with WITH_LIBUDEV_DLOPEN=yes and the Makefile defines
- * BRICKD_WITH_LIBUDEV_DLOPEN to enabled the dlopen logic here.
+ * build_pkg.py script runs make with WITH_LIBUDEV_DLOPEN=yes and the Makefile
+ * defines BRICKD_WITH_LIBUDEV_DLOPEN to enable the dlopen logic here.
+ *
+ * by default the Makefile also checks the version of libusb and disables
+ * libudev usage completely if libusb 1.0.16 (first version to support hotplug
+ * on Linux) or newer is available. in that case BRICKD_WITH_LIBUDEV is not
+ * defined and udev.c is not included into the build. this decision can be
+ * overridden by running make with WITH_LIBUDEV=yes to force inclusion of
+ * libudev support or WITH_LIBUDEV=no to force its exclusion. the build_pkg.py
+ * script runs make with WITH_LIBUDEV=yes.
+ *
+ * anyway, even it libudev support is enforced by WITH_LIBUDEV=yes, it'll only
+ * be used if libusb doesn't support hotplug on its own (detected at runtime).
  */
 
 #ifdef BRICKD_WITH_LIBUDEV_DLOPEN

@@ -34,7 +34,9 @@
 #include "log.h"
 #include "network.h"
 #include "pidfile.h"
-#include "iokit.h"
+#ifdef BRICKD_WITH_IOKIT
+	#include "iokit.h"
+#endif
 #include "usb.h"
 #include "utils.h"
 #include "version.h"

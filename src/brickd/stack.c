@@ -19,6 +19,18 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
+/*
+ * a stack represents a Brick or a set of Bricks connected to an interface
+ * (e.g. USB). the Brick Daemon acts as the proxy between the Tinkerforge
+ * TCP/IP protocol used by the API bindings and other interfaces (e.g. USB).
+ *
+ * the Stack type is used as a generic base for specific types such as the
+ * USBStack that deals with the USB communication. it keeps track of the list
+ * of known UIDs for a stack and provides a generic dispatch function to send
+ * packets to a stack. the interface specific implementation of the dispatch
+ * function is done in the specific stack types such as the USBStack.
+ */
+
 #include <errno.h>
 #include <stdlib.h>
 #include <string.h>
