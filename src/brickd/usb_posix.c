@@ -73,6 +73,7 @@
 #include "usb.h"
 
 #include "log.h"
+#include "macros.h"
 
 #define LOG_CATEGORY LOG_CATEGORY_USB
 
@@ -104,11 +105,17 @@ typedef enum {
 typedef int libusbz_hotplug_callback_handle;
 typedef int LIBUSB_CALL (*libusbz_hotplug_callback_fn)(libusb_context *ctx, libusb_device *device, libusbz_hotplug_event event, void *user_data);
 
+typedef int LIBUSB_CALL (*libusbz_has_capability_t)(uint32_t capability);
+typedef int LIBUSB_CALL (*libusbz_hotplug_register_callback_t)(libusb_context *ctx, libusbz_hotplug_event events, libusbz_hotplug_flag flags, int vendor_id, int product_id, int dev_class, libusbz_hotplug_callback_fn cb_fn, void *user_data, libusbz_hotplug_callback_handle *handle);
+typedef void LIBUSB_CALL (*libusbz_hotplug_deregister_callback_t)(libusb_context *ctx, libusbz_hotplug_callback_handle handle);
+
+static libusbz_has_capability_t libusbz_has_capability = NULL;
+static libusbz_hotplug_register_callback_t libusbz_hotplug_register_callback = NULL;
+static libusbz_hotplug_deregister_callback_t libusbz_hotplug_deregister_callback = NULL;
+
 static void *_libusb_handle = NULL;
 
-static int LIBUSB_CALL (*libusbz_has_capability)(uint32_t capability) = NULL;
-static int LIBUSB_CALL (*libusbz_hotplug_register_callback)(libusb_context *ctx, libusbz_hotplug_event events, libusbz_hotplug_flag flags, int vendor_id, int product_id, int dev_class, libusbz_hotplug_callback_fn cb_fn, void *user_data, libusbz_hotplug_callback_handle *handle);
-static void LIBUSB_CALL (*libusbz_hotplug_deregister_callback)(libusb_context *ctx, libusbz_hotplug_callback_handle handle);
+#if defined(__clang__) || !defined(__GNUC__) || __GNUC_PREREQ(4, 6)
 
 // according to dlopen manpage casting from "void *" to a function pointer
 // is undefined in C99. the manpage suggests this workaround defined in the
@@ -117,6 +124,19 @@ static void LIBUSB_CALL (*libusbz_hotplug_deregister_callback)(libusb_context *c
 //  double (*cosine)(double);
 //  *(void **)(&cosine) = dlsym(handle, "cos");
 #define USB_DLSYM(name, variable) do { *(void **)&variable = dlsym(_libusb_handle, #name); } while (0)
+
+#else
+
+// older GCC versions complain about the workaround suggested by POSIX:
+//
+//  warning: dereferencing type-punned pointer will break strict-aliasing rules
+//
+// use a union to workaround this
+#define USB_DLSYM(name, variable) do { union { variable##_t function; void *data; } alias; \
+                                       alias.data = dlsym(_libusb_handle, #name); \
+                                       variable = alias.function; } while (0)
+
+#endif
 
 static int usb_dlopen(void) {
 	_libusb_handle = dlopen(NULL, RTLD_LAZY);

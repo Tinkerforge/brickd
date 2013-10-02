@@ -65,6 +65,7 @@
 
 #include "event.h"
 #include "log.h"
+#include "macros.h"
 #include "usb.h"
 
 #define LOG_CATEGORY LOG_CATEGORY_HOTPLUG
@@ -75,18 +76,31 @@ struct udev;
 struct udev_monitor;
 struct udev_device;
 
-static struct udev_device *(*udev_monitor_receive_device)(struct udev_monitor *udev_monitor) = NULL;
-static const char *(*udev_device_get_action)(struct udev_device *udev_device) = NULL;
-static const char *(*udev_device_get_devnode)(struct udev_device *udev_device) = NULL;
-static const char *(*udev_device_get_sysname)(struct udev_device *udev_device) = NULL;
-static void (*udev_device_unref)(struct udev_device *udev_device) = NULL;
-static struct udev *(*udev_new)(void) = NULL;
-static struct udev_monitor *(*udev_monitor_new_from_netlink)(struct udev *udev, const char *name) = NULL;
-static int (*udev_monitor_filter_add_match_subsystem_devtype)(struct udev_monitor *udev_monitor, const char *subsystem, const char *devtype) = NULL;
-static int (*udev_monitor_enable_receiving)(struct udev_monitor *udev_monitor) = NULL;
-static int (*udev_monitor_get_fd)(struct udev_monitor *udev_monitor) = NULL;
-static void (*udev_monitor_unref)(struct udev_monitor *udev_monitor) = NULL;
-static void (*udev_unref)(struct udev *udev) = NULL;
+typedef struct udev_device *(*udev_monitor_receive_device_t)(struct udev_monitor *udev_monitor);
+typedef const char *(*udev_device_get_action_t)(struct udev_device *udev_device);
+typedef const char *(*udev_device_get_devnode_t)(struct udev_device *udev_device);
+typedef const char *(*udev_device_get_sysname_t)(struct udev_device *udev_device);
+typedef void (*udev_device_unref_t)(struct udev_device *udev_device);
+typedef struct udev *(*udev_new_t)(void);
+typedef struct udev_monitor *(*udev_monitor_new_from_netlink_t)(struct udev *udev, const char *name);
+typedef int (*udev_monitor_filter_add_match_subsystem_devtype_t)(struct udev_monitor *udev_monitor, const char *subsystem, const char *devtype);
+typedef int (*udev_monitor_enable_receiving_t)(struct udev_monitor *udev_monitor);
+typedef int (*udev_monitor_get_fd_t)(struct udev_monitor *udev_monitor);
+typedef void (*udev_monitor_unref_t)(struct udev_monitor *udev_monitor);
+typedef void (*udev_unref_t)(struct udev *udev);
+
+static udev_monitor_receive_device_t udev_monitor_receive_device = NULL;
+static udev_device_get_action_t udev_device_get_action = NULL;
+static udev_device_get_devnode_t udev_device_get_devnode = NULL;
+static udev_device_get_sysname_t udev_device_get_sysname = NULL;
+static udev_device_unref_t udev_device_unref = NULL;
+static udev_new_t udev_new = NULL;
+static udev_monitor_new_from_netlink_t udev_monitor_new_from_netlink = NULL;
+static udev_monitor_filter_add_match_subsystem_devtype_t udev_monitor_filter_add_match_subsystem_devtype = NULL;
+static udev_monitor_enable_receiving_t udev_monitor_enable_receiving = NULL;
+static udev_monitor_get_fd_t udev_monitor_get_fd = NULL;
+static udev_monitor_unref_t udev_monitor_unref = NULL;
+static udev_unref_t udev_unref = NULL;
 
 #endif
 
@@ -102,6 +116,8 @@ static void *_libudev_handle = NULL;
 static const char *_loaded_libudev = "<unknown>";
 static int _dlsym_error = 0;
 
+#if defined(__clang__) || !defined(__GNUC__) || __GNUC_PREREQ(4, 6)
+
 // according to dlopen manpage casting from "void *" to a function pointer
 // is undefined in C99. the manpage suggests this workaround defined in the
 // Technical Corrigendum 1 of POSIX.1-2003:
@@ -109,6 +125,19 @@ static int _dlsym_error = 0;
 //  double (*cosine)(double);
 //  *(void **)(&cosine) = dlsym(handle, "cos");
 #define UDEV_DLSYM(name) do { *(void **)&name = udev_dlsym(#name); } while (0)
+
+#else
+
+// older GCC versions complain about the workaround suggested by POSIX:
+//
+//  warning: dereferencing type-punned pointer will break strict-aliasing rules
+//
+// use a union to workaround this
+#define UDEV_DLSYM(name) do { union { name##_t function; void *data; } alias; \
+                              alias.data = udev_dlsym(#name); \
+                              name = alias.function; } while (0)
+
+#endif
 
 static void *udev_dlsym(const char *name) {
 	void *pointer;
