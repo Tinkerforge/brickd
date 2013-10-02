@@ -713,7 +713,7 @@ error_event:
 
 error:
 	if (!_run_as_service) {
-		// unregister the console handler, before exiting the log. otherwise a
+		// unregister the console handler before exiting the log. otherwise a
 		// control event might be send to the control handler after the log
 		// is not available anymore and the control handler tries to write a
 		// log messages triggering a crash. this situation could easily be
