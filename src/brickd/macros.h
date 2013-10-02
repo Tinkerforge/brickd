@@ -22,26 +22,29 @@
 #ifndef BRICKD_MACROS_H
 #define BRICKD_MACROS_H
 
-#ifdef __GNUC__
+#ifdef __clang__
+	#if __has_feature(c_static_assert)
+		#define STATIC_ASSERT(condition, message) _Static_assert(condition, message)
+	#else
+		#define STATIC_ASSERT(condition, message) // FIXME
+	#endif
+	#define ATTRIBUTE_FMT_PRINTF(fmtpos, argpos) // FIXME
+#elif defined(__GNUC__)
 	#ifndef __GNUC_PREREQ
-		#define __GNUC_PREREQ(major, minor) \
-			((((__GNUC__) << 16) + (__GNUC_MINOR__)) >= (((major) << 16) + (minor)))
+		#define __GNUC_PREREQ(major, minor) ((((__GNUC__) << 16) + (__GNUC_MINOR__)) >= (((major) << 16) + (minor)))
 	#endif
 	#if __GNUC_PREREQ(4, 4)
-		#define ATTRIBUTE_FMT_PRINTF(fmtpos, argpos) \
-			__attribute__((__format__(__gnu_printf__, fmtpos, argpos)))
+		#define ATTRIBUTE_FMT_PRINTF(fmtpos, argpos) __attribute__((__format__(__gnu_printf__, fmtpos, argpos)))
 	#else
-		#define ATTRIBUTE_FMT_PRINTF(fmtpos, argpos) \
-			__attribute__((__format__(__printf__, fmtpos, argpos)))
+		#define ATTRIBUTE_FMT_PRINTF(fmtpos, argpos) __attribute__((__format__(__printf__, fmtpos, argpos)))
 	#endif
 	#if __GNUC_PREREQ(4, 6)
-		#define STATIC_ASSERT(condition, message) \
-			_Static_assert(condition, message)
+		#define STATIC_ASSERT(condition, message) _Static_assert(condition, message)
 	#else
 		#define STATIC_ASSERT(condition, message) // FIXME
 	#endif
 #else
-	#define ATTRIBUTE_FMT_PRINTF(fmtpos, argpos)
+	#define ATTRIBUTE_FMT_PRINTF(fmtpos, argpos) // FIXME
 	#define STATIC_ASSERT(condition, message) // FIXME
 #endif
 
