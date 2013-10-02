@@ -1,8 +1,8 @@
 #
 # For GCC/Clang builds on Linux and Mac OS X, and MinGW builds on Windows
 #
-# Minimum libusb version: 1.0.8
-# Tested with libusb: 1.0.8, 1.0.9, 1.0.16, 1.0.17
+# Minimum libusb version: 1.0.6
+# Tested with libusb: 1.0.6, 1.0.8, 1.0.9, 1.0.16, 1.0.17
 #
 # Debian/Ubuntu:
 # sudo apt-get install build-essential pkg-config libusb-1.0-0-dev libudev-dev
@@ -188,7 +188,7 @@ ifeq ($(PLATFORM),Windows)
 	LIBUSB_LDFLAGS := -L../build_data/Windows/libusb
 	LIBUSB_LIBS := -lusb-1.0
 else
-LIBUSB_VERSION := $(shell pkg-config --exists 'libusb-1.0 >= 1.0.8' && echo okay)
+LIBUSB_VERSION := $(shell pkg-config --exists 'libusb-1.0 >= 1.0.6' && echo okay)
 ifeq ($(LIBUSB_VERSION),okay)
 	LIBUSB_STATUS := $(shell pkg-config --modversion libusb-1.0)
 	LIBUSB_CFLAGS := $(shell pkg-config --cflags libusb-1.0)
@@ -196,7 +196,7 @@ ifeq ($(LIBUSB_VERSION),okay)
 	LIBUSB_LIBS := $(shell pkg-config --libs-only-l libusb-1.0)
 else
 ifneq ($(MAKECMDGOALS),clean)
-$(error Could not find libusb-1.0 >= 1.0.8)
+$(error Could not find libusb-1.0 >= 1.0.6)
 endif
 endif
 endif
