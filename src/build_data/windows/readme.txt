@@ -75,3 +75,19 @@ Config File
 There is a config file named brickd.ini that allows to change the default
 network bind address and port and control in more detail what messages are
 written to the log output. See brickd.ini for more details.
+
+Known Problems
+--------------
+
+Bricks connected to a Renesas/NEC USB 3.0 Controller (µPD720200) might not show
+up in Brick Viewer. Even though the Brick shows up in the Device Manager okay
+without problems.
+
+This happens due to a bug in the driver (version < 2.1.16) for this controller.
+The driver reports the address of each connected USB device as 0, which is an
+invalid address (technical: SPDRP_ADDRESS of SetupDiGetDeviceRegistryProperty
+is 0). This stops libusb from reporting any such USB devices to brickd. Thus,
+brickd doesn't know about USB devices connected to Renesas/NEC USB controller.
+
+This bug was fixed in driver version 2.1.16. So, if you are affected by this
+problem you should update the driver for your Renesas/NEC USB 3.0 controller.
