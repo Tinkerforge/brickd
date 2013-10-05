@@ -120,7 +120,7 @@ int socket_set_address_reuse(EventHandle handle, int address_reuse) {
 }
 
 // sets errno on error
-char *resolve_address(struct sockaddr_in *address, socklen_t length) {
+char *socket_address_to_hostname(struct sockaddr_in *address, socklen_t length) {
 	int rc;
 	char buffer[NI_MAXHOST];
 	char *name;

@@ -180,7 +180,7 @@ int client_create(Client *client, EventHandle socket,
 	}
 
 	// get peer name
-	client->peer = resolve_address(address, length);
+	client->peer = socket_address_to_hostname(address, length);
 
 	if (client->peer == NULL) {
 		log_warn("Could not get peer name of client (socket: %d): %s (%d)",

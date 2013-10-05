@@ -45,6 +45,6 @@ int socket_send(EventHandle handle, void *buffer, int length);
 int socket_set_non_blocking(EventHandle handle, int non_blocking);
 int socket_set_address_reuse(EventHandle handle, int address_reuse);
 
-char *resolve_address(struct sockaddr_in *address, socklen_t length);
+char *socket_address_to_hostname(struct sockaddr_in *address, socklen_t length);
 
 #endif // BRICKD_SOCKET_H
