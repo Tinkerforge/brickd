@@ -513,14 +513,6 @@ static int generic_main(int log_to_file, int debug) {
 		goto error_mutex;
 	}
 
-	if (!_run_as_service &&
-	    !SetConsoleCtrlHandler(console_ctrl_handler, TRUE)) {
-		rc = ERRNO_WINAPI_OFFSET + GetLastError();
-
-		log_warn("Could not set console control handler: %s (%d)",
-		          get_errno_name(rc), rc);
-	}
-
 	if (log_to_file) {
 		if (GetModuleFileName(NULL, filename, sizeof(filename)) == 0) {
 			rc = ERRNO_WINAPI_OFFSET + GetLastError();
@@ -541,10 +533,20 @@ static int generic_main(int log_to_file, int debug) {
 				if (log_file == NULL) {
 					log_warn("Could not open log file '%s'", filename);
 				} else {
+					printf("Logging to '%s'\n", filename);
+
 					log_set_file(log_file);
 				}
 			}
 		}
+	}
+
+	if (!_run_as_service &&
+	    !SetConsoleCtrlHandler(console_ctrl_handler, TRUE)) {
+		rc = ERRNO_WINAPI_OFFSET + GetLastError();
+
+		log_warn("Could not set console control handler: %s (%d)",
+		         get_errno_name(rc), rc);
 	}
 
 	if (debug) {
@@ -783,7 +785,11 @@ static int service_run(int log_to_file, int debug) {
 		rc = ERRNO_WINAPI_OFFSET + GetLastError();
 
 		if (rc == ERRNO_WINAPI_OFFSET + ERROR_FAILED_SERVICE_CONTROLLER_CONNECT) {
-			log_info("Could not start as service, starting as console application");
+			if (log_to_file) {
+				printf("Could not start as service, starting as console application\n");
+			} else {
+				log_info("Could not start as service, starting as console application");
+			}
 
 			_run_as_service = 0;
 			_pause_before_exit = started_by_explorer(1);
