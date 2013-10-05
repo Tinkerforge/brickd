@@ -35,6 +35,7 @@
 
 #define LOG_CATEGORY LOG_CATEGORY_USB
 
+static int _libusb_debug = 0;
 static libusb_context *_context = NULL;
 static Array _stacks = ARRAY_INITIALIZER;
 static int _initialized_hotplug = 0;
@@ -184,10 +185,18 @@ static void LIBUSB_CALL usb_remove_pollfd(int fd, void *opaque) {
 	event_remove_source(fd, EVENT_SOURCE_TYPE_USB);
 }
 
-int usb_init(void) {
+int usb_init(int libusb_debug) {
 	int phase = 0;
 
 	log_debug("Initializing USB subsystem");
+
+	_libusb_debug = libusb_debug;
+
+#ifdef LIBUSBX_EXPORTS_SET_LOG_FILE_FUNCTION
+	if (libusb_debug) {
+		libusb_set_log_file(log_get_file());
+	}
+#endif
 
 	if (usb_init_platform() < 0) {
 		goto cleanup;
@@ -342,10 +351,9 @@ int usb_create_context(libusb_context **context) {
 		goto cleanup;
 	}
 
-#if 0
-	libusb_set_debug(*context, 5);
-	libusb_set_log_file(log_get_file());
-#endif
+	if (_libusb_debug) {
+		libusb_set_debug(*context, 5);
+	}
 
 	phase = 1;
 

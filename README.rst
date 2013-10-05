@@ -105,6 +105,7 @@ Common:
 * ``--version`` shows version number and exits
 * ``--check-config`` checks config file for errors
 * ``--debug`` sets all log levels to debug
+* ``--libusb-debug`` set libusb log level to debug
 
 Windows only:
 

@@ -39,7 +39,7 @@
 #define USB_ENDPOINT_IN 4
 #define USB_ENDPOINT_OUT 5
 
-int usb_init(void);
+int usb_init(int libusb_debug);
 void usb_exit(void);
 
 int usb_has_hotplug(void);

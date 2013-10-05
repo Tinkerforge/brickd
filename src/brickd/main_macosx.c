@@ -49,14 +49,15 @@
 
 static void print_usage(void) {
 	printf("Usage:\n"
-	       "  brickd [--help|--version|--check-config|--daemon] [--debug]\n"
+	       "  brickd [--help|--version|--check-config|--daemon] [--debug] [--libusb-debug]\n"
 	       "\n"
 	       "Options:\n"
 	       "  --help          Show this help\n"
 	       "  --version       Show version number\n"
 	       "  --check-config  Check config file for errors\n"
 	       "  --daemon        Run as daemon and write PID file\n"
-	       "  --debug         Set all log levels to debug\n");
+	       "  --debug         Set all log levels to debug\n"
+	       "  --libusb-debug  Set libusb log level to debug\n");
 }
 
 static int daemon_start(void) {
@@ -101,14 +102,7 @@ static int daemon_start(void) {
 		goto cleanup;
 	}
 
-	stdout_fd = open("/dev/null", O_WRONLY);
-
-	if (stdout_fd < 0) {
-		fprintf(stderr, "Could not open /dev/null to redirect stdout/stderr to: %s (%d)\n",
-		        get_errno_name(errno), errno);
-
-		goto cleanup;
-	}
+	stdout_fd = fileno(log_file);
 
 	if (dup2(stdin_fd, STDIN_FILENO) != STDIN_FILENO) {
 		fprintf(stderr, "Could not redirect stdin: %s (%d)\n",
@@ -138,10 +132,6 @@ cleanup:
 		close(stdin_fd);
 	}
 
-	if (stdout_fd > STDERR_FILENO) {
-		close(stdout_fd);
-	}
-
 	return status == 1 ? pid_fd : -1;
 }
 
@@ -153,6 +143,7 @@ int main(int argc, char **argv) {
 	int check_config = 0;
 	int daemon = 0;
 	int debug = 0;
+	int libusb_debug = 0;
 	int pid_fd = -1;
 #ifdef BRICKD_WITH_IOKIT
 	int initialized_iokit = 0;
@@ -169,6 +160,8 @@ int main(int argc, char **argv) {
 			daemon = 1;
 		} else if (strcmp(argv[i], "--debug") == 0) {
 			debug = 1;
+		} else if (strcmp(argv[i], "--libusb-debug") == 0) {
+			libusb_debug = 1;
 		} else {
 			fprintf(stderr, "Unknown option '%s'\n\n", argv[i]);
 			print_usage();
@@ -246,7 +239,7 @@ int main(int argc, char **argv) {
 		goto error_hardware;
 	}
 
-	if (usb_init() < 0) {
+	if (usb_init(libusb_debug) < 0) {
 		goto error_usb;
 	}
 

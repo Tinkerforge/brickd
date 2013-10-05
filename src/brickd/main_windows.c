@@ -440,7 +440,7 @@ static BOOL WINAPI console_ctrl_handler(DWORD ctrl_type) {
 
 // NOTE: this function needs to call RegisterServiceCtrlHandlerEx and
 // SetServiceStatus in all circumstances if brickd is running as service
-static int generic_main(int log_to_file, int debug) {
+static int generic_main(int log_to_file, int debug, int libusb_debug) {
 	int exit_code = EXIT_FAILURE;
 	const char *mutex_name = "Global\\Tinkerforge-Brick-Daemon-Single-Instance";
 	HANDLE mutex_handle = NULL;
@@ -615,7 +615,7 @@ error_mutex:
 		goto error_hardware;
 	}
 
-	if (usb_init() < 0) {
+	if (usb_init(libusb_debug) < 0) {
 		// FIXME: set service_exit_code
 		goto error_usb;
 	}
@@ -757,21 +757,24 @@ static void WINAPI service_main(DWORD argc, LPTSTR *argv) {
 	DWORD i;
 	int log_to_file = 0;
 	int debug = 0;
+	int libusb_debug = 0;
 
 	for (i = 1; i < argc; ++i) {
 		if (strcmp(argv[i], "--log-to-file") == 0) {
 			log_to_file = 1;
 		} else if (strcmp(argv[i], "--debug") == 0) {
 			debug = 1;
+		} else if (strcmp(argv[i], "--libusb-debug") == 0) {
+			libusb_debug = 1;
 		} else {
 			log_warn("Unknown start parameter '%s'", argv[i]);
 		}
 	}
 
-	generic_main(log_to_file, debug);
+	generic_main(log_to_file, debug, libusb_debug);
 }
 
-static int service_run(int log_to_file, int debug) {
+static int service_run(int log_to_file, int debug, int libusb_debug) {
 	SERVICE_TABLE_ENTRY service_table[2];
 	int rc;
 
@@ -794,7 +797,7 @@ static int service_run(int log_to_file, int debug) {
 			_run_as_service = 0;
 			_pause_before_exit = started_by_explorer(1);
 
-			return generic_main(log_to_file, debug);
+			return generic_main(log_to_file, debug, libusb_debug);
 		} else {
 			log_error("Could not start service control dispatcher: %s (%d)",
 			          get_errno_name(rc), rc);
@@ -813,7 +816,7 @@ static int service_run(int log_to_file, int debug) {
 static void print_usage(void) {
 	printf("Usage:\n"
 	       "  brickd [--help|--version|--check-config|--install|--uninstall|--console]\n"
-	       "         [--log-to-file] [--debug]\n"
+	       "         [--log-to-file] [--debug] [--libusb-debug]\n"
 	       "\n"
 	       "Options:\n"
 	       "  --help          Show this help\n"
@@ -823,7 +826,8 @@ static void print_usage(void) {
 	       "  --uninstall     Stop service and unregister it\n"
 	       "  --console       Force start as console application\n"
 	       "  --log-to-file   Write log messages to file\n"
-	       "  --debug         Set all log levels to debug\n");
+	       "  --debug         Set all log levels to debug\n"
+	       "  --libusb-debug  Set libusb log level to debug\n");
 
 	if (started_by_explorer(0)) {
 		printf("\nPress any key to exit...\n");
@@ -850,6 +854,7 @@ int main(int argc, char **argv) {
 	int console = 0;
 	int log_to_file = 0;
 	int debug = 0;
+	int libusb_debug = 0;
 	int rc;
 
 	fixes_init();
@@ -871,6 +876,8 @@ int main(int argc, char **argv) {
 			log_to_file = 1;
 		} else if (strcmp(argv[i], "--debug") == 0) {
 			debug = 1;
+		} else if (strcmp(argv[i], "--libusb-debug") == 0) {
+			libusb_debug = 1;
 		} else {
 			fprintf(stderr, "Unknown option '%s'\n\n", argv[i]);
 			print_usage();
@@ -941,9 +948,9 @@ int main(int argc, char **argv) {
 			_run_as_service = 0;
 			_pause_before_exit = started_by_explorer(1);
 
-			return generic_main(log_to_file, debug);
+			return generic_main(log_to_file, debug, libusb_debug);
 		} else {
-			return service_run(log_to_file, debug);
+			return service_run(log_to_file, debug, libusb_debug);
 		}
 	}
 

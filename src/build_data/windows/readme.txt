@@ -39,6 +39,7 @@ the installer register and start brickd.exe as a Windows Service.
 --version        shows version number and exits
 --check-config   checks config file for errors
 --debug          sets all log levels to debug
+--libusb-debug   set libusb log level to debug
 --install        registers Brick Daemon as service and starts it
 --uninstall      stops service and unregister it
 --console        forces start as console application
