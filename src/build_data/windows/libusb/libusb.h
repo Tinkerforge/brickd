@@ -1950,6 +1950,8 @@ int LIBUSB_CALL libusb_hotplug_register_callback(libusb_context *ctx,
 void LIBUSB_CALL libusb_hotplug_deregister_callback(libusb_context *ctx,
 						libusb_hotplug_callback_handle handle);
 
+#define LIBUSBX_EXPORTS_SET_LOG_FILE_FUNCTION 1
+
 void LIBUSB_CALL libusb_set_log_file(FILE *file);
 
 #define LIBUSBX_EXPORTS_FREE_FUNCTION 1

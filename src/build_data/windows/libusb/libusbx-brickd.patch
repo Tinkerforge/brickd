@@ -122,7 +122,7 @@ index ae49757..c801b5b 100644
  			VALUE "SpecialBuild", "\0"
  		END
 diff --git a/libusb/libusb.h b/libusb/libusb.h
-index da3f1ef..07ae0c4 100644
+index da3f1ef..1dd478a 100644
 --- a/libusb/libusb.h
 +++ b/libusb/libusb.h
 @@ -60,6 +60,7 @@ typedef unsigned __int32  uint32_t;
@@ -141,10 +141,12 @@ index da3f1ef..07ae0c4 100644
  #include <windows.h>
  #if defined(interface)
  #undef interface
-@@ -1948,6 +1950,12 @@ int LIBUSB_CALL libusb_hotplug_register_callback(libusb_context *ctx,
+@@ -1948,6 +1950,14 @@ int LIBUSB_CALL libusb_hotplug_register_callback(libusb_context *ctx,
  void LIBUSB_CALL libusb_hotplug_deregister_callback(libusb_context *ctx,
  						libusb_hotplug_callback_handle handle);
  
++#define LIBUSBX_EXPORTS_SET_LOG_FILE_FUNCTION 1
++
 +void LIBUSB_CALL libusb_set_log_file(FILE *file);
 +
 +#define LIBUSBX_EXPORTS_FREE_FUNCTION 1
@@ -234,10 +236,22 @@ index deed206..294dbe8 100644
  void init_polling(void);
  void exit_polling(void);
 diff --git a/libusb/os/windows_usb.c b/libusb/os/windows_usb.c
-index 4493088..d9de2df 100644
+index 4493088..3c59e22 100644
 --- a/libusb/os/windows_usb.c
 +++ b/libusb/os/windows_usb.c
-@@ -2077,6 +2077,10 @@ static void windows_transfer_callback(struct usbi_transfer *itransfer, uint32_t
+@@ -1126,6 +1126,11 @@ static int init_device(struct libusb_device* dev, struct libusb_device* parent_d
+ 	}
+ 	memset(&conn_info, 0, sizeof(conn_info));
+ 	if (priv->depth != 0) {	// Not a HCD hub
++		if (port_number == 0) {
++			usbi_warn(ctx, "got invalid port number for '%s', if this device is connected to a Renesas/NEC USB controller update the driver", device_id);
++			return LIBUSB_ERROR_NO_DEVICE;
++		}
++
+ 		handle = CreateFileA(parent_priv->path, GENERIC_WRITE, FILE_SHARE_WRITE, NULL, OPEN_EXISTING,
+ 			FILE_FLAG_OVERLAPPED, NULL);
+ 		if (handle == INVALID_HANDLE_VALUE) {
+@@ -2077,6 +2082,10 @@ static void windows_transfer_callback(struct usbi_transfer *itransfer, uint32_t
  			status = LIBUSB_TRANSFER_CANCELLED;
  		}
  		break;
@@ -248,7 +262,7 @@ index 4493088..d9de2df 100644
  	default:
  		usbi_err(ITRANSFER_CTX(itransfer), "detected I/O error %d: %s", io_result, windows_error_str(io_result));
  		status = LIBUSB_TRANSFER_ERROR;
-@@ -2152,7 +2156,7 @@ static int windows_handle_events(struct libusb_context *ctx, struct pollfd *fds,
+@@ -2152,7 +2161,7 @@ static int windows_handle_events(struct libusb_context *ctx, struct pollfd *fds,
  			windows_handle_callback(transfer, io_result, io_size);
  		} else {
  			usbi_err(ctx, "could not find a matching transfer for fd %x", fds[i]);
