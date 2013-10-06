@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2012 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2012-2013 Matthias Bolte <matthias@tinkerforge.com>
  *
  * config.c: Config specific functions
  *
@@ -149,7 +149,7 @@ static int config_parse_log_level(char *string, LogLevel *value) {
 	return 0;
 }
 
-static void config_parse(char *string) {
+static void config_parse_line(char *string) {
 	char *p;
 	char *option;
 	char *value;
@@ -273,7 +273,7 @@ void config_init(const char *filename) {
 	FILE *file;
 	size_t rc;
 	char c;
-	char line[128] = "";
+	char line[256] = "";
 	int length = 0;
 	int skip = 0;
 
@@ -295,23 +295,31 @@ void config_init(const char *filename) {
 		rc = fread(&c, 1, 1, file);
 
 		if (rc == 0 && ferror(file)) {
-			config_error("Error while reading file '%s'", filename);
+			config_error("Error while reading config file '%s'", filename);
 			config_reset();
 
 			break;
 		} else if (feof(file) || c == '\r' || c == '\n') {
 			if (length > 0) {
-				config_parse(line);
+				line[length] = '\0';
+
+				config_parse_line(line);
 			}
 
 			length = 0;
 			skip = 0;
-		} else if (!skip && length < (int)sizeof(line) - 1) {
-			line[length++] = c;
-			line[length] = '\0';
-		} else {
-			length = 0;
-			skip = 1;
+		} else if (!skip) {
+			if (length < (int)sizeof(line) - 1) {
+				line[length++] = c;
+			} else {
+				line[32] = '\0';
+
+				config_error("Line in config file '%s' is too long, starting with '%s...'",
+				             filename, line);
+
+				length = 0;
+				skip = 1;
+			}
 		}
 	}
 
