@@ -35,6 +35,7 @@ static int _using_default_values = 1;
 static const char *_default_listen_address = "0.0.0.0";
 static char *_listen_address = NULL;
 static uint16_t _listen_port = 4223;
+static int _listen_dual_stack = 0;
 static LogLevel _log_levels[6] = { LOG_LEVEL_INFO,
                                    LOG_LEVEL_INFO,
                                    LOG_LEVEL_INFO,
@@ -69,6 +70,7 @@ static void config_reset(void) {
 	}
 
 	_listen_port = 4223;
+	_listen_dual_stack = 0;
 
 	_log_levels[0] = LOG_LEVEL_INFO;
 	_log_levels[1] = LOG_LEVEL_INFO;
@@ -209,6 +211,18 @@ static void config_parse_line(char *string) {
 		}
 
 		_listen_port = (uint16_t)port;
+	} else if (strcmp(option, "listen.dual_stack") == 0) {
+		config_lower_string(value);
+
+		if (strcmp(value, "on") == 0) {
+			_listen_dual_stack = 1;
+		} else if (strcmp(value, "off") == 0) {
+			_listen_dual_stack = 0;
+		} else {
+			config_error("Value '%s' for listen.dual_stack option is invalid", value);
+
+			return;
+		}
 	} else if (strcmp(option, "log_level.event") == 0) {
 		if (config_parse_log_level(value, &_log_levels[LOG_CATEGORY_EVENT]) < 0) {
 			config_error("Value '%s' for log_level.event option is invalid", value);
@@ -342,6 +356,10 @@ const char *config_get_listen_address(void) {
 
 uint16_t config_get_listen_port(void) {
 	return _listen_port;
+}
+
+int config_get_listen_dual_stack(void) {
+	return _listen_dual_stack;
 }
 
 LogLevel config_get_log_level(LogCategory category) {

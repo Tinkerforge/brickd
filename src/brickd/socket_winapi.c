@@ -20,7 +20,10 @@
  */
 
 #include <errno.h>
+#include <stdio.h>
 #include <winsock2.h>
+#include <ws2tcpip.h> // for IPV6_V6ONLY
+#include <windows.h>
 
 #include "socket.h"
 
@@ -133,7 +136,7 @@ int socket_set_non_blocking(EventHandle handle, int non_blocking) {
 
 // sets errno on error
 int socket_set_address_reuse(EventHandle handle, int address_reuse) {
-	BOOL on = address_reuse ? TRUE : FALSE;
+	DWORD on = address_reuse ? TRUE : FALSE;
 	int rc = setsockopt(handle, SOL_SOCKET, SO_REUSEADDR, (const char *)&on, sizeof(on));
 
 	if (rc == SOCKET_ERROR) {
@@ -142,6 +145,59 @@ int socket_set_address_reuse(EventHandle handle, int address_reuse) {
 	}
 
 	return rc;
+}
+
+// sets errno on error
+int socket_set_dual_stack(EventHandle handle, int dual_stack) {
+	DWORD on = dual_stack ? 0 : 1;
+	int rc;
+
+	if ((DWORD)(LOBYTE(LOWORD(GetVersion()))) < 6) {
+		// the IPV6_V6ONLY option is only supported on Vista or later. on
+		// Windows XP dual-stack mode is not supported at all. so fail with
+		// expected error if dual-stack mode should be enabled and pretend
+		// that it got disabled otherwise as this is the case on Windows XP
+		// anyway
+		if (dual_stack) {
+			errno = ERRNO_WINAPI_OFFSET + WSAENOPROTOOPT;
+
+			return -1;
+		}
+
+		return 0;
+	}
+
+	rc = setsockopt(handle, IPPROTO_IPV6, IPV6_V6ONLY, (const char *)&on, sizeof(on));
+
+	if (rc == SOCKET_ERROR) {
+		rc = -1;
+		errno = ERRNO_WINAPI_OFFSET + WSAGetLastError();
+	}
+
+	return rc;
+}
+
+// sets errno on error
+struct addrinfo *socket_hostname_to_address(const char *hostname, uint16_t port) {
+	char service[32];
+	struct addrinfo hints;
+	struct addrinfo *resolved = NULL;
+
+	snprintf(service, sizeof(service), "%u", port);
+
+	memset(&hints, 0, sizeof(hints));
+
+	hints.ai_flags = AI_PASSIVE;
+	hints.ai_family = AF_UNSPEC;
+	hints.ai_socktype = SOCK_STREAM;
+
+	if (getaddrinfo(hostname, service, &hints, &resolved) != 0) {
+		errno = ERRNO_WINAPI_OFFSET + WSAGetLastError();
+
+		return NULL;
+	}
+
+	return resolved;
 }
 
 // sets errno on error

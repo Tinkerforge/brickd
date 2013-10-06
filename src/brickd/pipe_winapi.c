@@ -33,6 +33,7 @@
 #include "utils.h"
 
 // sets errno on error
+// FIXME: maybe use IPv6 if available
 int pipe_create(EventHandle handles[2]) {
 	SOCKET listener;
 	struct sockaddr_in address;
@@ -51,7 +52,7 @@ int pipe_create(EventHandle handles[2]) {
 	memset(&address, 0, length);
 
 	address.sin_family = AF_INET;
-	address.sin_addr.s_addr = htonl(0x7f000001); // 127.0.0.1
+	address.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
 	address.sin_port = 0;
 
 	rc = bind(listener, (const struct sockaddr *)&address, length);

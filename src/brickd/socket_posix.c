@@ -23,6 +23,7 @@
 #include <fcntl.h>
 #include <netdb.h>
 #include <netinet/tcp.h>
+#include <stdio.h>
 #include <string.h>
 #include <sys/socket.h>
 #include <unistd.h>
@@ -120,6 +121,45 @@ int socket_set_address_reuse(EventHandle handle, int address_reuse) {
 }
 
 // sets errno on error
+int socket_set_dual_stack(EventHandle handle, int dual_stack) {
+	int on = dual_stack ? 0 : 1;
+
+	return setsockopt(handle, IPPROTO_IPV6, IPV6_V6ONLY, &on, sizeof(on));
+}
+
+// sets errno on error
+struct addrinfo *socket_hostname_to_address(const char *hostname, uint16_t port) {
+	char service[32];
+	struct addrinfo hints;
+	struct addrinfo *resolved = NULL;
+	int rc;
+
+	snprintf(service, sizeof(service), "%u", port);
+
+	memset(&hints, 0, sizeof(hints));
+
+	hints.ai_flags = AI_PASSIVE;
+	hints.ai_family = AF_UNSPEC;
+	hints.ai_socktype = SOCK_STREAM;
+
+	rc = getaddrinfo(hostname, service, &hints, &resolved);
+
+	if (rc != 0) {
+#if EAI_AGAIN < 0
+		// getaddrinfo error codes are negative on Linux...
+		errno = ERRNO_ADDRINFO_OFFSET - rc;
+#else
+		// ...but positive on Mac OS X
+		errno = ERRNO_ADDRINFO_OFFSET + rc;
+#endif
+
+		return NULL;
+	}
+
+	return resolved;
+}
+
+// sets errno on error
 char *socket_address_to_hostname(struct sockaddr *address, socklen_t length) {
 	char buffer[NI_MAXHOST];
 	char *name;
@@ -129,8 +169,10 @@ char *socket_address_to_hostname(struct sockaddr *address, socklen_t length) {
 
 	if (rc != 0) {
 #if EAI_AGAIN < 0
+		// getnameinfo error codes are negative on Linux...
 		errno = ERRNO_ADDRINFO_OFFSET - rc;
 #else
+		// ...but positive on Mac OS X
 		errno = ERRNO_ADDRINFO_OFFSET + rc;
 #endif
 

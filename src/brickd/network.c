@@ -95,11 +95,27 @@ static void network_handle_accept(void *opaque) {
 	         client->socket, client->peer);
 }
 
+static const char *network_get_address_family_name(int family, int report_dual_stack) {
+	switch (family) {
+	case AF_INET:
+		return "IPv4";
+
+	case AF_INET6:
+		if (report_dual_stack && config_get_listen_dual_stack()) {
+			return "IPv6 dual-stack";
+		} else {
+			return "IPv6";
+		}
+
+	default:
+		return "<unknown>";
+	}
+}
+
 int network_init(void) {
 	int phase = 0;
 	const char *listen_address = config_get_listen_address();
-	struct hostent *entry;
-	struct sockaddr_in server_address;
+	struct addrinfo *resolved_address = NULL;
 
 	log_debug("Initializing network subsystem");
 
@@ -116,14 +132,42 @@ int network_init(void) {
 
 	phase = 1;
 
-	if (socket_create(&_server_socket, AF_INET, SOCK_STREAM, 0) < 0) {
-		log_error("Could not create server socket: %s (%d)",
-		          get_errno_name(errno), errno);
+	// resolve listen address
+	// FIXME: bind to all returned addresses, instead of just the first one.
+	//        requires special handling if IPv4 and IPv6 addresses are returned
+	//        and dual-stack mode is enabled
+	resolved_address = socket_hostname_to_address(listen_address, _port);
+
+	if (resolved_address == NULL) {
+		log_error("Could not resolve listen address '%s' (port: %u): %s (%d)",
+		          listen_address, _port, get_errno_name(errno), errno);
 
 		goto cleanup;
 	}
 
 	phase = 2;
+
+	// create socket
+	if (socket_create(&_server_socket, resolved_address->ai_family,
+	                  resolved_address->ai_socktype, resolved_address->ai_protocol) < 0) {
+		log_error("Could not create %s server socket: %s (%d)",
+		          network_get_address_family_name(resolved_address->ai_family, 0),
+		          get_errno_name(errno), errno);
+
+		goto cleanup;
+	}
+
+	phase = 3;
+
+	if (resolved_address->ai_family == AF_INET6) {
+		if (socket_set_dual_stack(_server_socket, config_get_listen_dual_stack()) < 0) {
+			log_error("Could not %s dual-stack mode for IPv6 server socket: %s (%d)",
+			          config_get_listen_dual_stack() ? "enable" : "disable",
+			          get_errno_name(errno), errno);
+
+			goto cleanup;
+		}
+	}
 
 #ifndef _WIN32
 	// on Unix the SO_REUSEADDR socket option allows to rebind sockets in
@@ -139,37 +183,28 @@ int network_init(void) {
 	}
 #endif
 
-	memset(&server_address, 0, sizeof(server_address));
-
-	server_address.sin_family = AF_INET;
-	server_address.sin_port = htons(_port);
-
-	entry = gethostbyname(listen_address);
-
-	if (entry == NULL) {
-		log_error("Could not resolve listen address '%s'", listen_address);
-
-		goto cleanup;
-	}
-
-	memcpy(&server_address.sin_addr, entry->h_addr_list[0], entry->h_length);
-
-	if (socket_bind(_server_socket, (struct sockaddr *)&server_address,
-	                sizeof(server_address)) < 0) {
-		log_error("Could not bind server socket to '%s' on port %u: %s (%d)",
+	// bind socket and start to listen
+	if (socket_bind(_server_socket, resolved_address->ai_addr,
+	                resolved_address->ai_addrlen) < 0) {
+		log_error("Could not bind %s server socket to '%s' on port %u: %s (%d)",
+		          network_get_address_family_name(resolved_address->ai_family, 1),
 		          listen_address, _port, get_errno_name(errno), errno);
 
 		goto cleanup;
 	}
 
 	if (socket_listen(_server_socket, 10) < 0) {
-		log_error("Could not listen to server socket bound to '%s' on port %u: %s (%d)",
+		log_error("Could not listen to %s server socket bound to '%s' on port %u: %s (%d)",
+		          network_get_address_family_name(resolved_address->ai_family, 1),
 		          listen_address, _port, get_errno_name(errno), errno);
 
 		goto cleanup;
 	}
 
-	log_debug("Started listening to '%s' on port %u", listen_address, _port);
+	log_debug("Started listening to '%s' (%s) on port %u",
+	          listen_address,
+	          network_get_address_family_name(resolved_address->ai_family, 1),
+	          _port);
 
 	if (socket_set_non_blocking(_server_socket, 1) < 0) {
 		log_error("Could not enable non-blocking mode for server socket: %s (%d)",
@@ -183,12 +218,15 @@ int network_init(void) {
 		goto cleanup;
 	}
 
-	phase = 3;
+	phase = 4;
 
 cleanup:
 	switch (phase) { // no breaks, all cases fall through intentionally
-	case 2:
+	case 3:
 		socket_destroy(_server_socket);
+
+	case 2:
+		freeaddrinfo(resolved_address);
 
 	case 1:
 		array_destroy(&_clients, (FreeFunction)client_destroy);
@@ -197,7 +235,7 @@ cleanup:
 		break;
 	}
 
-	return phase == 3 ? 0 : -1;
+	return phase == 4 ? 0 : -1;
 }
 
 void network_exit(void) {

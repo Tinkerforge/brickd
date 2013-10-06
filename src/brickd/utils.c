@@ -39,6 +39,14 @@
 
 #define LOG_CATEGORY LOG_CATEGORY_OTHER
 
+#if !defined(_WIN32) && !defined(EAI_ADDRFAMILY)
+	#if EAI_AGAIN < 0
+		#define EAI_ADDRFAMILY -9
+	#else
+		#define EAI_ADDRFAMILY 9
+	#endif
+#endif
+
 int errno_interrupted(void) {
 #ifdef _WIN32
 	return errno == ERRNO_WINAPI_OFFSET + WSAEINTR ? 1 : 0;
@@ -50,10 +58,12 @@ int errno_interrupted(void) {
 const char *get_errno_name(int error_code) {
 	#define ERRNO_NAME(code) case code: return #code
 	#define WINAPI_ERROR_NAME(code) case ERRNO_WINAPI_OFFSET + code: return #code
-#if !defined _WIN32 && EAI_AGAIN < 0
-	#define ADDRINFO_ERROR_NAME(code) case ERRNO_ADDRINFO_OFFSET - code: return #code
-#else
-	#define ADDRINFO_ERROR_NAME(code) case ERRNO_ADDRINFO_OFFSET + code: return #code
+#ifndef _WIN32
+	#if EAI_AGAIN < 0
+		#define ADDRINFO_ERROR_NAME(code) case ERRNO_ADDRINFO_OFFSET - code: return #code
+	#else
+		#define ADDRINFO_ERROR_NAME(code) case ERRNO_ADDRINFO_OFFSET + code: return #code
+	#endif
 #endif
 
 	switch (error_code) {
@@ -285,6 +295,7 @@ const char *get_errno_name(int error_code) {
 	ADDRINFO_ERROR_NAME(EAI_NONAME);
 	ADDRINFO_ERROR_NAME(EAI_OVERFLOW);
 	ADDRINFO_ERROR_NAME(EAI_SYSTEM);
+	ADDRINFO_ERROR_NAME(EAI_ADDRFAMILY);
 #endif
 
 	// FIXME

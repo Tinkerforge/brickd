@@ -35,6 +35,7 @@ int config_has_error(void);
 
 const char *config_get_listen_address(void);
 uint16_t config_get_listen_port(void);
+int config_get_listen_dual_stack(void);
 LogLevel config_get_log_level(LogCategory category);
 
 #endif // BRICKD_CONFIG_H

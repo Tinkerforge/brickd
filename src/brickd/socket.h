@@ -27,6 +27,7 @@
 #else
 	#include <netinet/in.h>
 #endif
+#include <stdint.h>
 
 #include "event.h"
 
@@ -44,7 +45,9 @@ int socket_send(EventHandle handle, void *buffer, int length);
 
 int socket_set_non_blocking(EventHandle handle, int non_blocking);
 int socket_set_address_reuse(EventHandle handle, int address_reuse);
+int socket_set_dual_stack(EventHandle handle, int dual_stack);
 
+struct addrinfo *socket_hostname_to_address(const char *hostname, uint16_t port);
 char *socket_address_to_hostname(struct sockaddr *address, socklen_t length);
 
 #endif // BRICKD_SOCKET_H
