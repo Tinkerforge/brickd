@@ -126,6 +126,11 @@ int network_init(void) {
 	phase = 2;
 
 #ifndef _WIN32
+	// on Unix the SO_REUSEADDR socket option allows to rebind sockets in
+	// CLOSE-WAIT state. this is a desired effect. on Windows SO_REUSEADDR
+	// allows to rebind sockets in any state. this is dangerous. therefore,
+	// don't set SO_REUSEADDR on Windows. sockets can be rebound in CLOSE-WAIT
+	// state on Windows by default.
 	if (socket_set_address_reuse(_server_socket, 1) < 0) {
 		log_error("Could not enable address-reuse mode for server socket: %s (%d)",
 		          get_errno_name(errno), errno);
