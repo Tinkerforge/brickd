@@ -174,7 +174,7 @@ CFLAGS += -O2 -Wall -Wextra
 #CFLAGS += -O0 -g -ggdb
 
 ifeq ($(PLATFORM),Windows)
-	CFLAGS += -DWINVER=0x0500 -D_WIN32_WINNT=0x0501 -mconsole -include fixes_mingw.h
+	CFLAGS += -DWIN32_LEAN_AND_MEAN -DNDEBUG -DWINVER=0x0501 -D_WIN32_WINNT=0x0501 -mconsole -include fixes_mingw.h
 	LDFLAGS += -Wl,-subsystem,console
 	LIBS += -lws2_32
 else
