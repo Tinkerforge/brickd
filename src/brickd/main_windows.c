@@ -919,7 +919,14 @@ int main(int argc, char **argv) {
 	string_append(_config_filename, "ini", sizeof(_config_filename));
 
 	if (check_config) {
-		return config_check(_config_filename) < 0 ? EXIT_FAILURE : EXIT_SUCCESS;
+		rc = config_check(_config_filename);
+
+		if (started_by_explorer(0)) {
+			printf("\nPress any key to exit...\n");
+			getch();
+		}
+
+		return rc < 0 ? EXIT_FAILURE : EXIT_SUCCESS;
 	}
 
 	if (install && uninstall) {
