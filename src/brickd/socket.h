@@ -30,7 +30,7 @@
 
 #include "event.h"
 
-int socket_create(EventHandle *handle, int domain, int type, int protocol);
+int socket_create(EventHandle *handle, int family, int type, int protocol);
 void socket_destroy(EventHandle handle);
 
 int socket_bind(EventHandle handle, const struct sockaddr *address,

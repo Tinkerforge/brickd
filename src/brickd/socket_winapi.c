@@ -27,10 +27,10 @@
 #include "utils.h"
 
 // sets errno on error
-int socket_create(EventHandle *handle, int domain, int type, int protocol) {
-	BOOL flag = 1;
+int socket_create(EventHandle *handle, int family, int type, int protocol) {
+	BOOL on = TRUE;
 
-	*handle = socket(domain, type, protocol);
+	*handle = socket(family, type, protocol);
 
 	if (*handle == INVALID_SOCKET) {
 		errno = ERRNO_WINAPI_OFFSET + WSAGetLastError();
@@ -38,8 +38,8 @@ int socket_create(EventHandle *handle, int domain, int type, int protocol) {
 		return -1;
 	}
 
-	if (setsockopt(*handle, IPPROTO_TCP, TCP_NODELAY, (const char *)&flag,
-	               sizeof(flag)) == SOCKET_ERROR) {
+	if (setsockopt(*handle, IPPROTO_TCP, TCP_NODELAY, (const char *)&on,
+	               sizeof(on)) == SOCKET_ERROR) {
 		errno = ERRNO_WINAPI_OFFSET + WSAGetLastError();
 
 		closesocket(*handle);
@@ -120,8 +120,8 @@ int socket_send(EventHandle handle, void *buffer, int length) {
 
 // sets errno on error
 int socket_set_non_blocking(EventHandle handle, int non_blocking) {
-	unsigned long argument = non_blocking;
-	int rc = ioctlsocket(handle, FIONBIO, &argument);
+	unsigned long on = non_blocking ? 1 : 0;
+	int rc = ioctlsocket(handle, FIONBIO, &on);
 
 	if (rc == SOCKET_ERROR) {
 		rc = -1;
@@ -133,9 +133,8 @@ int socket_set_non_blocking(EventHandle handle, int non_blocking) {
 
 // sets errno on error
 int socket_set_address_reuse(EventHandle handle, int address_reuse) {
-	BOOL argument = address_reuse ? TRUE : FALSE;
-	int rc = setsockopt(handle, SOL_SOCKET, SO_REUSEADDR, (const char *)&argument,
-	                    sizeof(argument));
+	BOOL on = address_reuse ? TRUE : FALSE;
+	int rc = setsockopt(handle, SOL_SOCKET, SO_REUSEADDR, (const char *)&on, sizeof(on));
 
 	if (rc == SOCKET_ERROR) {
 		rc = -1;

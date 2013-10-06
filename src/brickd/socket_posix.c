@@ -32,18 +32,17 @@
 #include "utils.h"
 
 // sets errno on error
-int socket_create(EventHandle *handle, int domain, int type, int protocol) {
-	int flag = 1;
+int socket_create(EventHandle *handle, int family, int type, int protocol) {
+	int on = 1;
 	int saved_errno;
 
-	*handle = socket(domain, type, protocol);
+	*handle = socket(family, type, protocol);
 
 	if (*handle < 0) {
 		return -1;
 	}
 
-	if (setsockopt(*handle, IPPROTO_TCP, TCP_NODELAY, &flag,
-	               sizeof(flag)) < 0) {
+	if (setsockopt(*handle, IPPROTO_TCP, TCP_NODELAY, &on, sizeof(on)) < 0) {
 		saved_errno = errno;
 
 		close(*handle);
@@ -115,8 +114,9 @@ int socket_set_non_blocking(EventHandle handle, int non_blocking) {
 
 // sets errno on error
 int socket_set_address_reuse(EventHandle handle, int address_reuse) {
-	return setsockopt(handle, SOL_SOCKET, SO_REUSEADDR,
-	                  &address_reuse, sizeof(address_reuse));
+	int on = address_reuse ? 1 : 0;
+
+	return setsockopt(handle, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on));
 }
 
 // sets errno on error
