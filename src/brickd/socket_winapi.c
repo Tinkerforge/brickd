@@ -133,9 +133,9 @@ int socket_set_non_blocking(EventHandle handle, int non_blocking) {
 
 // sets errno on error
 int socket_set_address_reuse(EventHandle handle, int address_reuse) {
-	BOOL argument = address_reuse;
+	BOOL argument = address_reuse ? TRUE : FALSE;
 	int rc = setsockopt(handle, SOL_SOCKET, SO_REUSEADDR, (const char *)&argument,
-	                    sizeof(BOOL));
+	                    sizeof(argument));
 
 	if (rc == SOCKET_ERROR) {
 		rc = -1;
@@ -146,12 +146,11 @@ int socket_set_address_reuse(EventHandle handle, int address_reuse) {
 }
 
 // sets errno on error
-char *socket_address_to_hostname(struct sockaddr_in *address, socklen_t length) {
+char *socket_address_to_hostname(struct sockaddr *address, socklen_t length) {
 	char buffer[NI_MAXHOST];
 	char *name;
 
-	if (getnameinfo((struct sockaddr *)address, length, buffer, NI_MAXHOST,
-	                NULL, 0, NI_NUMERICHOST) != 0) {
+	if (getnameinfo(address, length, buffer, NI_MAXHOST, NULL, 0, NI_NUMERICHOST) != 0) {
 		errno = ERRNO_WINAPI_OFFSET + WSAGetLastError();
 
 		return NULL;

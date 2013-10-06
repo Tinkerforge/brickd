@@ -120,13 +120,12 @@ int socket_set_address_reuse(EventHandle handle, int address_reuse) {
 }
 
 // sets errno on error
-char *socket_address_to_hostname(struct sockaddr_in *address, socklen_t length) {
-	int rc;
+char *socket_address_to_hostname(struct sockaddr *address, socklen_t length) {
 	char buffer[NI_MAXHOST];
 	char *name;
+	int rc;
 
-	rc = getnameinfo((struct sockaddr *)address, length, buffer, NI_MAXHOST,
-	                 NULL, 0, NI_NUMERICHOST);
+	rc = getnameinfo(address, length, buffer, NI_MAXHOST, NULL, 0, NI_NUMERICHOST);
 
 	if (rc != 0) {
 #if EAI_AGAIN < 0

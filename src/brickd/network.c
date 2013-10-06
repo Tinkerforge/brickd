@@ -45,7 +45,7 @@ static EventHandle _server_socket = INVALID_EVENT_HANDLE;
 
 static void network_handle_accept(void *opaque) {
 	EventHandle client_socket;
-	struct sockaddr_in address;
+	struct sockaddr_storage address;
 	socklen_t length = sizeof(address);
 	Client *client;
 
@@ -84,7 +84,7 @@ static void network_handle_accept(void *opaque) {
 		return;
 	}
 
-	if (client_create(client, client_socket, &address, length) < 0) {
+	if (client_create(client, client_socket, (struct sockaddr *)&address, length) < 0) {
 		array_remove(&_clients, _clients.count - 1, NULL);
 		socket_destroy(client_socket);
 

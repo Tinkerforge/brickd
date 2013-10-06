@@ -163,7 +163,7 @@ static void client_handle_receive(void *opaque) {
 }
 
 int client_create(Client *client, EventHandle socket,
-                  struct sockaddr_in *address, socklen_t length) {
+                  struct sockaddr *address, socklen_t length) {
 	log_debug("Creating client from socket (handle: %d)", socket);
 
 	client->socket = socket;

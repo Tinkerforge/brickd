@@ -42,7 +42,7 @@ typedef struct {
 } Client;
 
 int client_create(Client *client, EventHandle socket,
-                  struct sockaddr_in *address, socklen_t length);
+                  struct sockaddr *address, socklen_t length);
 void client_destroy(Client *client);
 
 int client_dispatch_packet(Client *client, Packet *packet, int force);
