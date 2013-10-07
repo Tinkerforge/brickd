@@ -48,4 +48,9 @@
 	#define STATIC_ASSERT(condition, message) // FIXME
 #endif
 
+// if __GNUC_PREREQ is not defined by now then define it to always be false
+#ifndef __GNUC_PREREQ
+	#define __GNUC_PREREQ(major, minor) 0
+#endif
+
 #endif // BRICKD_MACROS_H
