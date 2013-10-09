@@ -63,8 +63,6 @@
 static EventHandle _notification_pipe[2] = { INVALID_EVENT_HANDLE,
                                              INVALID_EVENT_HANDLE };
 static Thread _poller_thread;
-static Semaphore _started;
-static Semaphore _stopped;
 static int _running = 0;
 static CFRunLoopRef _run_loop = NULL;
 
@@ -133,14 +131,13 @@ static void iokit_handle_notifications(void *opaque, io_iterator_t iterator) {
 
 static void iokit_poll_notifications(void *opaque) {
 	int phase = 0;
+	Semaphore *handshake = opaque;
 	CFMutableDictionaryRef matching_dictionary;
 	IONotificationPortRef notification_port;
 	CFRunLoopSourceRef notification_run_loop_source;
 	IOReturn rc;
 	io_iterator_t matched_iterator;
 	io_iterator_t terminated_iterator;
-
-	(void)opaque;
 
 	log_debug("Started notification poll thread");
 
@@ -224,18 +221,22 @@ static void iokit_poll_notifications(void *opaque) {
 	phase = 4;
 
 	// start loop
-	_running = 1;
-	_run_loop = CFRunLoopGetCurrent();
+	_run_loop = (CFRunLoopRef)CFRetain(CFRunLoopGetCurrent());
 
-	semaphore_release(&_started);
+	_running = 1;
+	semaphore_release(handshake);
 
 	CFRunLoopRun();
 
 	log_debug("Stopped notification poll thread");
 
-	semaphore_release(&_stopped);
-
 cleanup:
+	if (!_running) {
+		// need to release the handshake in all cases, otherwise iokit_init
+		// will block forever in semaphore_acquire
+		semaphore_release(handshake);
+	}
+
 	switch (phase) { // no breaks, all cases fall through intentionally
 	case 3:
 		CFRunLoopRemoveSource(CFRunLoopGetCurrent(), notification_run_loop_source,
@@ -251,15 +252,12 @@ cleanup:
 		break;
 	}
 
-	if (phase != 4) {
-		_running = 0;
-
-		semaphore_release(&_started);
-	}
+	_running = 0;
 }
 
 int iokit_init(void) {
 	int phase = 0;
+	Semaphore handshake;
 
 	log_debug("Initializing IOKit subsystem");
 
@@ -281,27 +279,19 @@ int iokit_init(void) {
 	phase = 2;
 
 	// create notification poll thread
-	if (semaphore_create(&_started) < 0) {
-		log_error("Could not create started semaphore: %s (%d)",
+	if (semaphore_create(&handshake) < 0) {
+		log_error("Could not create handshake semaphore: %s (%d)",
 		          get_errno_name(errno), errno);
 
 		goto cleanup;
 	}
+
+	thread_create(&_poller_thread, iokit_poll_notifications, &handshake);
+
+	semaphore_acquire(&handshake);
+	semaphore_destroy(&handshake);
 
 	phase = 3;
-
-	if (semaphore_create(&_stopped) < 0) {
-		log_error("Could not create stopped semaphore: %s (%d)",
-		          get_errno_name(errno), errno);
-
-		goto cleanup;
-	}
-
-	thread_create(&_poller_thread, iokit_poll_notifications, NULL);
-
-	phase = 4;
-
-	semaphore_acquire(&_started);
 
 	if (!_running) {
 		log_error("Could not start notification poll thread");
@@ -309,16 +299,12 @@ int iokit_init(void) {
 		goto cleanup;
 	}
 
-	phase = 5;
+	phase = 4;
 
 cleanup:
 	switch (phase) { // no breaks, all cases fall through intentionally
-	case 4:
-		thread_destroy(&_poller_thread);
-		semaphore_destroy(&_stopped);
-
 	case 3:
-		semaphore_destroy(&_started);
+		thread_destroy(&_poller_thread);
 
 	case 2:
 		event_remove_source(_notification_pipe[0], EVENT_SOURCE_TYPE_GENERIC);
@@ -330,7 +316,7 @@ cleanup:
 		break;
 	}
 
-	return phase == 5 ? 0 : -1;
+	return phase == 4 ? 0 : -1;
 }
 
 void iokit_exit(void) {
@@ -340,14 +326,12 @@ void iokit_exit(void) {
 		_running = 0;
 
 		CFRunLoopStop(_run_loop);
+		CFRelease(_run_loop);
 
-		semaphore_acquire(&_stopped);
+		thread_join(&_poller_thread);
 	}
 
 	thread_destroy(&_poller_thread);
-
-	semaphore_destroy(&_started);
-	semaphore_destroy(&_stopped);
 
 	event_remove_source(_notification_pipe[0], EVENT_SOURCE_TYPE_GENERIC);
 
