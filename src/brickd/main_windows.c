@@ -294,7 +294,7 @@ static void message_pump_thread_proc(void *opaque) {
 		log_error("Could not register message pump window class: %s (%d)",
 		          get_errno_name(rc), rc);
 
-		return;
+		goto cleanup;
 	}
 
 	_message_pump_hwnd = CreateWindowEx(0, class_name, "brickd message pump",
@@ -307,11 +307,10 @@ static void message_pump_thread_proc(void *opaque) {
 		log_error("Could not create message pump window: %s (%d)",
 		          get_errno_name(rc), rc);
 
-		return;
+		goto cleanup;
 	}
 
 	_message_pump_running = 1;
-
 	semaphore_release(handshake);
 
 	while (_message_pump_running &&
@@ -335,13 +334,20 @@ static void message_pump_thread_proc(void *opaque) {
 
 	log_debug("Stopped message pump thread");
 
+cleanup:
+	if (!_message_pump_running) {
+		// need to release the handshake in all cases, otherwise
+		// message_pump_start will block forever in semaphore_acquire
+		semaphore_release(handshake);
+	}
+
 	_message_pump_running = 0;
 }
 
 static int message_pump_start(void) {
 	Semaphore handshake;
 
-	log_debug("Starting message pump");
+	log_debug("Starting message pump thread");
 
 	semaphore_create(&handshake);
 
@@ -350,7 +356,13 @@ static int message_pump_start(void) {
 	semaphore_acquire(&handshake);
 	semaphore_destroy(&handshake);
 
-	return _message_pump_hwnd == NULL ? -1 : 0;
+	if (!_message_pump_running) {
+		log_error("Could not start message pump thread");
+
+		return -1;
+	}
+
+	return 0;
 }
 
 static void message_pump_stop(void) {
