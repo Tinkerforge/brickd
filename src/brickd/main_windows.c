@@ -357,6 +357,8 @@ static int message_pump_start(void) {
 	semaphore_destroy(&handshake);
 
 	if (!_message_pump_running) {
+		thread_destroy(&_message_pump_thread);
+
 		log_error("Could not start message pump thread");
 
 		return -1;

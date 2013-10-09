@@ -443,8 +443,6 @@ cleanup:
 }
 
 void event_exit_platform(void) {
-	thread_destroy(&_usb_poller.thread);
-
 	semaphore_destroy(&_usb_poller.resume);
 	semaphore_destroy(&_usb_poller.suspend);
 
@@ -660,6 +658,8 @@ cleanup:
 			thread_join(&_usb_poller.thread);
 		}
 	}
+
+	thread_destroy(&_usb_poller.thread);
 
 	event_remove_source(_usb_poller.ready_pipe[0], EVENT_SOURCE_TYPE_GENERIC);
 
