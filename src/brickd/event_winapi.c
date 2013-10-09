@@ -321,10 +321,9 @@ static void event_forward_usb_events(void *opaque) {
 
 int event_init_platform(void) {
 	int phase = 0;
-	int count = 32;
 
 	// create read set
-	if (event_reserve_socket_set(&_socket_read_set, count) < 0) {
+	if (event_reserve_socket_set(&_socket_read_set, 32) < 0) {
 		log_error("Could not create socket read set: %s (%d)",
 		          get_errno_name(errno), errno);
 
@@ -334,7 +333,7 @@ int event_init_platform(void) {
 	phase = 1;
 
 	// create write set
-	if (event_reserve_socket_set(&_socket_write_set, count) < 0) {
+	if (event_reserve_socket_set(&_socket_write_set, 32) < 0) {
 		log_error("Could not create socket write set: %s (%d)",
 		          get_errno_name(errno), errno);
 
