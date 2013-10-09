@@ -36,12 +36,7 @@ static const char *_default_listen_address = "0.0.0.0";
 static char *_listen_address = NULL;
 static uint16_t _listen_port = 4223;
 static int _listen_dual_stack = 0;
-static LogLevel _log_levels[6] = { LOG_LEVEL_INFO,
-                                   LOG_LEVEL_INFO,
-                                   LOG_LEVEL_INFO,
-                                   LOG_LEVEL_INFO,
-                                   LOG_LEVEL_INFO,
-                                   LOG_LEVEL_INFO };
+static LogLevel _log_levels[MAX_LOG_CATEGORIES]; // config_init calls config_reset to initialize this
 
 static void config_error(const char *format, ...) ATTRIBUTE_FMT_PRINTF(1, 2);
 
@@ -64,6 +59,8 @@ static void config_error(const char *format, ...) {
 }
 
 static void config_reset(void) {
+	int i;
+
 	if (_listen_address != _default_listen_address) {
 		free(_listen_address);
 		_listen_address = (char *)_default_listen_address;
@@ -72,12 +69,9 @@ static void config_reset(void) {
 	_listen_port = 4223;
 	_listen_dual_stack = 0;
 
-	_log_levels[0] = LOG_LEVEL_INFO;
-	_log_levels[1] = LOG_LEVEL_INFO;
-	_log_levels[2] = LOG_LEVEL_INFO;
-	_log_levels[3] = LOG_LEVEL_INFO;
-	_log_levels[4] = LOG_LEVEL_INFO;
-	_log_levels[5] = LOG_LEVEL_INFO;
+	for (i = 0; i < MAX_LOG_CATEGORIES; ++i) {
+		_log_levels[i] = LOG_LEVEL_INFO;
+	}
 }
 
 static char *config_trim_string(char *string) {

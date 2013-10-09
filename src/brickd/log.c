@@ -28,12 +28,7 @@
 #include "threads.h"
 
 static Mutex _mutex; // protects writing to _file
-static LogLevel _levels[6] = { LOG_LEVEL_INFO,
-                               LOG_LEVEL_INFO,
-                               LOG_LEVEL_INFO,
-                               LOG_LEVEL_INFO,
-                               LOG_LEVEL_INFO,
-                               LOG_LEVEL_INFO };
+static LogLevel _levels[MAX_LOG_CATEGORIES]; // log_init initializes this
 static FILE *_file = NULL;
 
 extern void log_init_platform(void);
@@ -109,7 +104,13 @@ static void log_handler(LogCategory category, LogLevel level, const char *file,
 }
 
 void log_init(void) {
+	int i;
+
 	mutex_create(&_mutex);
+
+	for (i = 0; i < MAX_LOG_CATEGORIES; ++i) {
+		_levels[i] = LOG_LEVEL_INFO;
+	}
 
 	_file = stderr;
 

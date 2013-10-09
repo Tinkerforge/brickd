@@ -36,6 +36,8 @@ typedef enum {
 	LOG_CATEGORY_OTHER
 } LogCategory;
 
+#define MAX_LOG_CATEGORIES 6
+
 typedef enum {
 	LOG_LEVEL_NONE = 0,
 	LOG_LEVEL_ERROR,

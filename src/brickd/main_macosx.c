@@ -205,19 +205,13 @@ int main(int argc, char **argv) {
 	}
 
 	if (debug) {
-		log_set_level(LOG_CATEGORY_EVENT, LOG_LEVEL_DEBUG);
-		log_set_level(LOG_CATEGORY_USB, LOG_LEVEL_DEBUG);
-		log_set_level(LOG_CATEGORY_NETWORK, LOG_LEVEL_DEBUG);
-		log_set_level(LOG_CATEGORY_HOTPLUG, LOG_LEVEL_DEBUG);
-		log_set_level(LOG_CATEGORY_HARDWARE, LOG_LEVEL_DEBUG);
-		log_set_level(LOG_CATEGORY_OTHER, LOG_LEVEL_DEBUG);
+		for (i = 0; i < MAX_LOG_CATEGORIES; ++i) {
+			log_set_level(i, LOG_LEVEL_DEBUG);
+		}
 	} else {
-		log_set_level(LOG_CATEGORY_EVENT, config_get_log_level(LOG_CATEGORY_EVENT));
-		log_set_level(LOG_CATEGORY_USB, config_get_log_level(LOG_CATEGORY_USB));
-		log_set_level(LOG_CATEGORY_NETWORK, config_get_log_level(LOG_CATEGORY_NETWORK));
-		log_set_level(LOG_CATEGORY_HOTPLUG, config_get_log_level(LOG_CATEGORY_HOTPLUG));
-		log_set_level(LOG_CATEGORY_HARDWARE, config_get_log_level(LOG_CATEGORY_HARDWARE));
-		log_set_level(LOG_CATEGORY_OTHER, config_get_log_level(LOG_CATEGORY_OTHER));
+		for (i = 0; i < MAX_LOG_CATEGORIES; ++i) {
+			log_set_level(i, config_get_log_level(i));
+		}
 	}
 
 	if (daemon) {
