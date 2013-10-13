@@ -242,8 +242,8 @@ int usb_init_hotplug(libusb_context *context) {
 	// from the hotplug callback might deadlock.
 	rc = libusbz_hotplug_register_callback(context,
 	                                       LIBUSBZ_HOTPLUG_EVENT_DEVICE_ARRIVED |
-	                                       LIBUSBZ_HOTPLUG_EVENT_DEVICE_LEFT,
-	                                       0, USB_VENDOR_ID, USB_PRODUCT_ID,
+	                                       LIBUSBZ_HOTPLUG_EVENT_DEVICE_LEFT, 0,
+	                                       USB_BRICK_VENDOR_ID, USB_BRICK_PRODUCT_ID,
 	                                       LIBUSBZ_HOTPLUG_MATCH_ANY,
 	                                       usb_handle_hotplug, NULL,
 	                                       &_hotplug_handle);

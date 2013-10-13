@@ -51,7 +51,7 @@ static void usb_stack_read_callback(USBTransfer *transfer) {
 	if (transfer->handle->actual_length < (int)sizeof(PacketHeader)) {
 		log_error("Read transfer %p returned response with incomplete header (actual: %u < minimum: %d) from %s",
 		          transfer, transfer->handle->actual_length, (int)sizeof(PacketHeader),
-		          transfer->stack->base.name);
+		          transfer->usb_stack->base.name);
 
 		return;
 	}
@@ -59,7 +59,7 @@ static void usb_stack_read_callback(USBTransfer *transfer) {
 	if (transfer->handle->actual_length != transfer->packet.header.length) {
 		log_error("Read transfer %p returned response with length mismatch (actual: %u != expected: %u) from %s",
 		          transfer, transfer->handle->actual_length, transfer->packet.header.length,
-		          transfer->stack->base.name);
+		          transfer->usb_stack->base.name);
 
 		return;
 	}
@@ -71,7 +71,7 @@ static void usb_stack_read_callback(USBTransfer *transfer) {
 		          transfer->packet.header.function_id,
 		          packet_header_get_sequence_number(&transfer->packet.header),
 		          packet_header_get_error_code(&transfer->packet.header),
-		          transfer->stack->base.name,
+		          transfer->usb_stack->base.name,
 		          message);
 
 		return;
@@ -83,7 +83,7 @@ static void usb_stack_read_callback(USBTransfer *transfer) {
 		          base58_encode(base58, uint32_from_le(transfer->packet.header.uid)),
 		          transfer->packet.header.length,
 		          transfer->packet.header.function_id,
-		          transfer->stack->base.name);
+		          transfer->usb_stack->base.name);
 	} else {
 		log_debug("Got response (U: %s, L: %u, F: %u, S: %u, E: %u) from %s",
 		          base58_encode(base58, uint32_from_le(transfer->packet.header.uid)),
@@ -91,10 +91,10 @@ static void usb_stack_read_callback(USBTransfer *transfer) {
 		          transfer->packet.header.function_id,
 		          packet_header_get_sequence_number(&transfer->packet.header),
 		          packet_header_get_error_code(&transfer->packet.header),
-		          transfer->stack->base.name);
+		          transfer->usb_stack->base.name);
 	}
 
-	if (stack_add_uid(&transfer->stack->base, transfer->packet.header.uid) < 0) {
+	if (stack_add_uid(&transfer->usb_stack->base, transfer->packet.header.uid) < 0) {
 		return;
 	}
 
@@ -102,13 +102,13 @@ static void usb_stack_read_callback(USBTransfer *transfer) {
 }
 
 static void usb_stack_write_callback(USBTransfer *transfer) {
-	Packet *packet;
+	Packet *request;
 	char base58[MAX_BASE58_STR_SIZE];
 
-	if (transfer->stack->write_queue.count > 0) {
-		packet = array_get(&transfer->stack->write_queue, 0);
+	if (transfer->usb_stack->write_queue.count > 0) {
+		request = array_get(&transfer->usb_stack->write_queue, 0);
 
-		memcpy(&transfer->packet, packet, packet->header.length);
+		memcpy(&transfer->packet, request, request->header.length);
 
 		if (usb_transfer_submit(transfer) < 0) {
 			log_error("Could not send queued request (U: %s, L: %u, F: %u, S: %u, R: %u) to %s: %s (%d)",
@@ -117,13 +117,13 @@ static void usb_stack_write_callback(USBTransfer *transfer) {
 			          transfer->packet.header.function_id,
 			          packet_header_get_sequence_number(&transfer->packet.header),
 			          packet_header_get_response_expected(&transfer->packet.header),
-			          transfer->stack->base.name,
+			          transfer->usb_stack->base.name,
 			          get_errno_name(errno), errno);
 
 			return;
 		}
 
-		array_remove(&transfer->stack->write_queue, 0, NULL);
+		array_remove(&transfer->usb_stack->write_queue, 0, NULL);
 
 		log_debug("Sent queued request (U: %s, L: %u, F: %u, S: %u, R: %u) to %s",
 		          base58_encode(base58, uint32_from_le(transfer->packet.header.uid)),
@@ -131,11 +131,11 @@ static void usb_stack_write_callback(USBTransfer *transfer) {
 		          transfer->packet.header.function_id,
 		          packet_header_get_sequence_number(&transfer->packet.header),
 		          packet_header_get_response_expected(&transfer->packet.header),
-		          transfer->stack->base.name);
+		          transfer->usb_stack->base.name);
 
 		log_info("Handled queued request for %s, %d request(s) left in write queue",
-		         transfer->stack->base.name,
-		         transfer->stack->write_queue.count);
+		         transfer->usb_stack->base.name,
+		         transfer->usb_stack->write_queue.count);
 	}
 }
 
@@ -189,7 +189,7 @@ static int usb_stack_dispatch_request(USBStack *stack, Packet *request) {
 	return 0;
 }
 
-int usb_stack_create(USBStack *stack, uint8_t bus_number, uint8_t device_address) {
+int usb_stack_create(USBStack *usb_stack, uint8_t bus_number, uint8_t device_address) {
 	int phase = 0;
 	int rc;
 	libusb_device **devices;
@@ -201,19 +201,19 @@ int usb_stack_create(USBStack *stack, uint8_t bus_number, uint8_t device_address
 	log_debug("Acquiring USB device (bus: %u, device: %u)",
 	          bus_number, device_address);
 
-	stack->bus_number = bus_number;
-	stack->device_address = device_address;
+	usb_stack->bus_number = bus_number;
+	usb_stack->device_address = device_address;
 
-	stack->context = NULL;
-	stack->device = NULL;
-	stack->device_handle = NULL;
+	usb_stack->context = NULL;
+	usb_stack->device = NULL;
+	usb_stack->device_handle = NULL;
 
 	// create stack base
 	snprintf(preliminary_name, sizeof(preliminary_name) - 1,
 	         "USB device (bus: %u, device: %u)", bus_number, device_address);
 	preliminary_name[sizeof(preliminary_name) - 1] = '\0';
 
-	if (stack_create(&stack->base, preliminary_name,
+	if (stack_create(&usb_stack->base, preliminary_name,
 	                 (DispatchRequestFunction)usb_stack_dispatch_request) < 0) {
 		log_error("Could not create base stack for %s: %s (%d)",
 		          preliminary_name, get_errno_name(errno), errno);
@@ -224,14 +224,14 @@ int usb_stack_create(USBStack *stack, uint8_t bus_number, uint8_t device_address
 	phase = 1;
 
 	// initialize per-device libusb context
-	if (usb_create_context(&stack->context) < 0) {
+	if (usb_create_context(&usb_stack->context) < 0) {
 		goto cleanup;
 	}
 
 	phase = 2;
 
 	// find device
-	rc = libusb_get_device_list(stack->context, &devices);
+	rc = libusb_get_device_list(usb_stack->context, &devices);
 
 	if (rc < 0) {
 		log_error("Could not get USB device list: %s (%d)",
@@ -241,9 +241,9 @@ int usb_stack_create(USBStack *stack, uint8_t bus_number, uint8_t device_address
 	}
 
 	for (device = devices[0]; device != NULL; device = devices[++i]) {
-		if (stack->bus_number == libusb_get_bus_number(device) &&
-			stack->device_address == libusb_get_device_address(device)) {
-			stack->device = libusb_ref_device(device);
+		if (usb_stack->bus_number == libusb_get_bus_number(device) &&
+			usb_stack->device_address == libusb_get_device_address(device)) {
+			usb_stack->device = libusb_ref_device(device);
 
 			break;
 		}
@@ -251,8 +251,8 @@ int usb_stack_create(USBStack *stack, uint8_t bus_number, uint8_t device_address
 
 	libusb_free_device_list(devices, 1);
 
-	if (stack->device == NULL) {
-		log_error("Could not find %s", stack->base.name);
+	if (usb_stack->device == NULL) {
+		log_error("Could not find %s", usb_stack->base.name);
 
 		goto cleanup;
 	}
@@ -260,11 +260,11 @@ int usb_stack_create(USBStack *stack, uint8_t bus_number, uint8_t device_address
 	phase = 3;
 
 	// open device
-	rc = libusb_open(stack->device, &stack->device_handle);
+	rc = libusb_open(usb_stack->device, &usb_stack->device_handle);
 
 	if (rc < 0) {
 		log_error("Could not open %s: %s (%d)",
-		          stack->base.name, usb_get_error_name(rc), rc);
+		          usb_stack->base.name, usb_get_error_name(rc), rc);
 
 		goto cleanup;
 	}
@@ -272,31 +272,31 @@ int usb_stack_create(USBStack *stack, uint8_t bus_number, uint8_t device_address
 	phase = 4;
 
 	// reset device
-	rc = libusb_reset_device(stack->device_handle);
+	rc = libusb_reset_device(usb_stack->device_handle);
 
 	if (rc < 0) {
 		log_error("Could not reset %s: %s (%d)",
-		          stack->base.name, usb_get_error_name(rc), rc);
+		          usb_stack->base.name, usb_get_error_name(rc), rc);
 
 		goto cleanup;
 	}
 
 	// set device configuration
-	rc = libusb_set_configuration(stack->device_handle, USB_CONFIGURATION);
+	rc = libusb_set_configuration(usb_stack->device_handle, USB_BRICK_CONFIGURATION);
 
 	if (rc < 0) {
 		log_error("Could set configuration for %s: %s (%d)",
-		          stack->base.name, usb_get_error_name(rc), rc);
+		          usb_stack->base.name, usb_get_error_name(rc), rc);
 
 		goto cleanup;
 	}
 
 	// claim device interface
-	rc = libusb_claim_interface(stack->device_handle, USB_INTERFACE);
+	rc = libusb_claim_interface(usb_stack->device_handle, USB_BRICK_INTERFACE);
 
 	if (rc < 0) {
 		log_error("Could not claim interface of %s: %s (%d)",
-		          stack->base.name, usb_get_error_name(rc), rc);
+		          usb_stack->base.name, usb_get_error_name(rc), rc);
 
 		goto cleanup;
 	}
@@ -304,34 +304,34 @@ int usb_stack_create(USBStack *stack, uint8_t bus_number, uint8_t device_address
 	phase = 5;
 
 	// update stack name
-	if (usb_get_device_name(stack->device_handle, stack->base.name,
-	                        sizeof(stack->base.name)) < 0) {
+	if (usb_get_device_name(usb_stack->device_handle, usb_stack->base.name,
+	                        sizeof(usb_stack->base.name)) < 0) {
 		goto cleanup;
 	}
 
 	// allocate and submit read transfers
-	if (array_create(&stack->read_transfers, MAX_READ_TRANSFERS,
+	if (array_create(&usb_stack->read_transfers, MAX_READ_TRANSFERS,
 	                 sizeof(USBTransfer), 1) < 0) {
 		log_error("Could not create read transfer array for %s: %s (%d)",
-		          stack->base.name, get_errno_name(errno), errno);
+		          usb_stack->base.name, get_errno_name(errno), errno);
 
 		goto cleanup;
 	}
 
 	for (i = 0; i < MAX_READ_TRANSFERS; ++i) {
-		transfer = array_append(&stack->read_transfers);
+		transfer = array_append(&usb_stack->read_transfers);
 
 		if (transfer == NULL) {
 			log_error("Could not append to read transfer array of %s: %s (%d)",
-			          stack->base.name, get_errno_name(errno), errno);
+			          usb_stack->base.name, get_errno_name(errno), errno);
 
 			goto cleanup;
 		}
 
-		if (usb_transfer_create(transfer, stack, USB_TRANSFER_TYPE_READ,
+		if (usb_transfer_create(transfer, usb_stack, USB_TRANSFER_TYPE_READ,
 		                        usb_stack_read_callback) < 0) {
-			array_remove(&stack->read_transfers,
-			             stack->read_transfers.count -1, NULL);
+			array_remove(&usb_stack->read_transfers,
+			             usb_stack->read_transfers.count -1, NULL);
 
 			goto cleanup;
 		}
@@ -344,9 +344,9 @@ int usb_stack_create(USBStack *stack, uint8_t bus_number, uint8_t device_address
 	phase = 6;
 
 	// allocate write queue
-	if (array_create(&stack->write_queue, 32, sizeof(Packet), 1) < 0) {
+	if (array_create(&usb_stack->write_queue, 32, sizeof(Packet), 1) < 0) {
 		log_error("Could not create write queue array for %s: %s (%d)",
-		          stack->base.name, get_errno_name(errno), errno);
+		          usb_stack->base.name, get_errno_name(errno), errno);
 
 		goto cleanup;
 	}
@@ -354,28 +354,28 @@ int usb_stack_create(USBStack *stack, uint8_t bus_number, uint8_t device_address
 	phase = 7;
 
 	// allocate write transfers
-	if (array_create(&stack->write_transfers, MAX_WRITE_TRANSFERS,
+	if (array_create(&usb_stack->write_transfers, MAX_WRITE_TRANSFERS,
 	                 sizeof(USBTransfer), 1) < 0) {
 		log_error("Could not create write transfer array for %s: %s (%d)",
-		          stack->base.name, get_errno_name(errno), errno);
+		          usb_stack->base.name, get_errno_name(errno), errno);
 
 		goto cleanup;
 	}
 
 	for (i = 0; i < MAX_WRITE_TRANSFERS; ++i) {
-		transfer = array_append(&stack->write_transfers);
+		transfer = array_append(&usb_stack->write_transfers);
 
 		if (transfer == NULL) {
 			log_error("Could not append to write transfer array of %s: %s (%d)",
-			          stack->base.name, get_errno_name(errno), errno);
+			          usb_stack->base.name, get_errno_name(errno), errno);
 
 			goto cleanup;
 		}
 
-		if (usb_transfer_create(transfer, stack, USB_TRANSFER_TYPE_WRITE,
+		if (usb_transfer_create(transfer, usb_stack, USB_TRANSFER_TYPE_WRITE,
 		                        usb_stack_write_callback) < 0) {
-			array_remove(&stack->write_transfers,
-			             stack->write_transfers.count -1, NULL);
+			array_remove(&usb_stack->write_transfers,
+			             usb_stack->write_transfers.count -1, NULL);
 
 			goto cleanup;
 		}
@@ -384,7 +384,7 @@ int usb_stack_create(USBStack *stack, uint8_t bus_number, uint8_t device_address
 	phase = 8;
 
 	// add to stacks array
-	if (hardware_add_stack(&stack->base) < 0) {
+	if (hardware_add_stack(&usb_stack->base) < 0) {
 		goto cleanup;
 	}
 
@@ -393,28 +393,28 @@ int usb_stack_create(USBStack *stack, uint8_t bus_number, uint8_t device_address
 cleanup:
 	switch (phase) { // no breaks, all cases fall through intentionally
 	case 8:
-		array_destroy(&stack->write_transfers, (FreeFunction)usb_transfer_destroy);
+		array_destroy(&usb_stack->write_transfers, (FreeFunction)usb_transfer_destroy);
 
 	case 7:
-		array_destroy(&stack->write_queue, NULL);
+		array_destroy(&usb_stack->write_queue, NULL);
 
 	case 6:
-		array_destroy(&stack->read_transfers, (FreeFunction)usb_transfer_destroy);
+		array_destroy(&usb_stack->read_transfers, (FreeFunction)usb_transfer_destroy);
 
 	case 5:
-		libusb_release_interface(stack->device_handle, USB_INTERFACE);
+		libusb_release_interface(usb_stack->device_handle, USB_BRICK_INTERFACE);
 
 	case 4:
-		libusb_close(stack->device_handle);
+		libusb_close(usb_stack->device_handle);
 
 	case 3:
-		libusb_unref_device(stack->device);
+		libusb_unref_device(usb_stack->device);
 
 	case 2:
-		usb_destroy_context(stack->context);
+		usb_destroy_context(usb_stack->context);
 
 	case 1:
-		stack_destroy(&stack->base);
+		stack_destroy(&usb_stack->base);
 
 	default:
 		break;
@@ -423,28 +423,28 @@ cleanup:
 	return phase == 9 ? 0 : -1;
 }
 
-void usb_stack_destroy(USBStack *stack) {
+void usb_stack_destroy(USBStack *usb_stack) {
 	char name[MAX_STACK_NAME];
 
-	hardware_remove_stack(&stack->base);
+	hardware_remove_stack(&usb_stack->base);
 
-	array_destroy(&stack->read_transfers, (FreeFunction)usb_transfer_destroy);
-	array_destroy(&stack->write_transfers, (FreeFunction)usb_transfer_destroy);
+	array_destroy(&usb_stack->read_transfers, (FreeFunction)usb_transfer_destroy);
+	array_destroy(&usb_stack->write_transfers, (FreeFunction)usb_transfer_destroy);
 
-	array_destroy(&stack->write_queue, NULL);
+	array_destroy(&usb_stack->write_queue, NULL);
 
-	libusb_release_interface(stack->device_handle, USB_INTERFACE);
+	libusb_release_interface(usb_stack->device_handle, USB_BRICK_INTERFACE);
 
-	libusb_close(stack->device_handle);
+	libusb_close(usb_stack->device_handle);
 
-	libusb_unref_device(stack->device);
+	libusb_unref_device(usb_stack->device);
 
-	usb_destroy_context(stack->context);
+	usb_destroy_context(usb_stack->context);
 
-	string_copy(name, stack->base.name, sizeof(name));
+	string_copy(name, usb_stack->base.name, sizeof(name));
 
-	stack_destroy(&stack->base);
+	stack_destroy(&usb_stack->base);
 
 	log_debug("Released USB device (bus: %u, device: %u), was %s",
-	          stack->bus_number, stack->device_address, name);
+	          usb_stack->bus_number, usb_stack->device_address, name);
 }

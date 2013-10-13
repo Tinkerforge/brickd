@@ -37,7 +37,7 @@ typedef struct _USBTransfer USBTransfer;
 typedef void (*USBTransferFunction)(USBTransfer *transfer);
 
 struct _USBTransfer {
-	USBStack *stack;
+	USBStack *usb_stack;
 	USBTransferType type;
 	int submitted;
 	int completed;
@@ -48,7 +48,7 @@ struct _USBTransfer {
 
 const char *usb_transfer_get_type_name(USBTransferType type, int upper);
 
-int usb_transfer_create(USBTransfer *transfer, USBStack *stack,
+int usb_transfer_create(USBTransfer *transfer, USBStack *usb_stack,
                         USBTransferType type, USBTransferFunction function);
 void usb_transfer_destroy(USBTransfer *transfer);
 

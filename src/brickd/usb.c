@@ -37,7 +37,7 @@
 
 static int _libusb_debug = 0;
 static libusb_context *_context = NULL;
-static Array _stacks;
+static Array _usb_stacks;
 static int _initialized_hotplug = 0;
 
 extern int usb_init_platform(void);
@@ -56,7 +56,7 @@ static int usb_enumerate(void) {
 	uint8_t device_address;
 	int known;
 	int k;
-	USBStack *stack;
+	USBStack *usb_stack;
 
 	// get all devices
 	rc = libusb_get_device_list(_context, &devices);
@@ -82,12 +82,12 @@ static int usb_enumerate(void) {
 			continue;
 		}
 
-		if (descriptor.idVendor != USB_VENDOR_ID ||
-		    descriptor.idProduct != USB_PRODUCT_ID) {
+		if (descriptor.idVendor != USB_BRICK_VENDOR_ID ||
+		    descriptor.idProduct != USB_BRICK_PRODUCT_ID) {
 			continue;
 		}
 
-		if (descriptor.bcdDevice < USB_DEVICE_RELEASE) {
+		if (descriptor.bcdDevice < USB_BRICK_DEVICE_RELEASE) {
 			log_warn("USB device (bus: %u, device: %u) has protocol 1.0 firmware, ignoring it",
 			         bus_number, device_address);
 
@@ -97,13 +97,13 @@ static int usb_enumerate(void) {
 		// check all known stacks
 		known = 0;
 
-		for (k = 0; k < _stacks.count; ++k) {
-			stack = array_get(&_stacks, k);
+		for (k = 0; k < _usb_stacks.count; ++k) {
+			usb_stack = array_get(&_usb_stacks, k);
 
-			if (stack->bus_number == bus_number &&
-				stack->device_address == device_address) {
-				// mark known stack as connected
-				stack->connected = 1;
+			if (usb_stack->bus_number == bus_number &&
+			    usb_stack->device_address == device_address) {
+				// mark known USBStack as connected
+				usb_stack->connected = 1;
 				known = 1;
 
 				break;
@@ -114,21 +114,21 @@ static int usb_enumerate(void) {
 			continue;
 		}
 
-		// create new stack object
+		// create new USBStack object
 		log_debug("Found new USB device (bus: %u, device: %u)",
 		          bus_number, device_address);
 
-		stack = array_append(&_stacks);
+		usb_stack = array_append(&_usb_stacks);
 
-		if (stack == NULL) {
-			log_error("Could not append to stacks array: %s (%d)",
+		if (usb_stack == NULL) {
+			log_error("Could not append to USB stacks array: %s (%d)",
 			          get_errno_name(errno), errno);
 
 			goto cleanup;
 		}
 
-		if (usb_stack_create(stack, bus_number, device_address) < 0) {
-			array_remove(&_stacks, _stacks.count - 1, NULL);
+		if (usb_stack_create(usb_stack, bus_number, device_address) < 0) {
+			array_remove(&_usb_stacks, _usb_stacks.count - 1, NULL);
 
 			log_warn("Ignoring USB device (bus: %u, device: %u) due to an error",
 			         bus_number, device_address);
@@ -137,11 +137,11 @@ static int usb_enumerate(void) {
 		}
 
 		// mark new stack as connected
-		stack->connected = 1;
+		usb_stack->connected = 1;
 
 		log_info("Added USB device (bus: %u, device: %u) at index %d: %s",
-		         stack->bus_number, stack->device_address, _stacks.count - 1,
-		         stack->base.name);
+		         usb_stack->bus_number, usb_stack->device_address,
+		         _usb_stacks.count - 1, usb_stack->base.name);
 	}
 
 	result = 0;
@@ -218,9 +218,9 @@ int usb_init(int libusb_debug) {
 	}
 
 	// create USB stacks array, the USBStack struct is not relocatable, because
-	// its transfers keep a pointer to it
-	if (array_create(&_stacks, 32, sizeof(USBStack), 0) < 0) {
-		log_error("Could not create stack array: %s (%d)",
+	// its USB transfers keep a pointer to it
+	if (array_create(&_usb_stacks, 32, sizeof(USBStack), 0) < 0) {
+		log_error("Could not create USB stack array: %s (%d)",
 		          get_errno_name(errno), errno);
 
 		goto cleanup;
@@ -249,7 +249,7 @@ int usb_init(int libusb_debug) {
 cleanup:
 	switch (phase) { // no breaks, all cases fall through intentionally
 	case 3:
-		array_destroy(&_stacks, (FreeFunction)usb_stack_destroy);
+		array_destroy(&_usb_stacks, (FreeFunction)usb_stack_destroy);
 
 	case 2:
 		usb_destroy_context(_context);
@@ -271,7 +271,7 @@ void usb_exit(void) {
 		usb_exit_hotplug(_context);
 	}
 
-	array_destroy(&_stacks, (FreeFunction)usb_stack_destroy);
+	array_destroy(&_usb_stacks, (FreeFunction)usb_stack_destroy);
 
 	usb_destroy_context(_context);
 
@@ -280,38 +280,39 @@ void usb_exit(void) {
 
 int usb_update(void) {
 	int i;
-	USBStack *stack;
+	USBStack *usb_stack;
 	int k;
 	uint32_t uid; // always little endian
 	EnumerateCallback enumerate_callback;
 
-	// mark all known stacks as potentially removed
-	for (i = 0; i < _stacks.count; ++i) {
-		stack = array_get(&_stacks, i);
+	// mark all known USB stacks as potentially removed
+	for (i = 0; i < _usb_stacks.count; ++i) {
+		usb_stack = array_get(&_usb_stacks, i);
 
-		stack->connected = 0;
+		usb_stack->connected = 0;
 	}
 
-	// enumerate all USB devices, mark all stacks that are still connected
-	// and add stacks that are newly connected
+	// enumerate all USB devices, mark all USB stacks that are still connected
+	// and add USB stacks that are newly connected
 	if (usb_enumerate() < 0) {
 		return -1;
 	}
 
-	// remove all stacks that are not marked as connected. iterate backwards
+	// remove all USB stacks that are not marked as connected. iterate backwards
 	// so array_remove can be used without invalidating the current index
-	for (i = _stacks.count - 1; i >= 0; --i) {
-		stack = array_get(&_stacks, i);
+	for (i = _usb_stacks.count - 1; i >= 0; --i) {
+		usb_stack = array_get(&_usb_stacks, i);
 
-		if (stack->connected) {
+		if (usb_stack->connected) {
 			continue;
 		}
 
 		log_info("Removing USB device (bus: %u, device: %u) at index %d: %s ",
-		         stack->bus_number, stack->device_address, i, stack->base.name);
+		         usb_stack->bus_number, usb_stack->device_address, i,
+		         usb_stack->base.name);
 
-		for (k = 0; k < stack->base.uids.count; ++k) {
-			uid = *(uint32_t *)array_get(&stack->base.uids, k);
+		for (k = 0; k < usb_stack->base.uids.count; ++k) {
+			uid = *(uint32_t *)array_get(&usb_stack->base.uids, k);
 
 			memset(&enumerate_callback, 0, sizeof(enumerate_callback));
 
@@ -329,7 +330,7 @@ int usb_update(void) {
 			network_dispatch_response((Packet *)&enumerate_callback);
 		}
 
-		array_remove(&_stacks, i, (FreeFunction)usb_stack_destroy);
+		array_remove(&_usb_stacks, i, (FreeFunction)usb_stack_destroy);
 	}
 
 	return 0;

@@ -29,15 +29,15 @@
 	#define LIBUSB_CALL
 #endif
 
-#define USB_VENDOR_ID 0x16D0
-#define USB_PRODUCT_ID 0x063D
-#define USB_DEVICE_RELEASE ((1 << 8) | (1 << 4) | (0 << 0)) /* 1.10 */
+#define USB_BRICK_VENDOR_ID 0x16D0
+#define USB_BRICK_PRODUCT_ID 0x063D
+#define USB_BRICK_DEVICE_RELEASE ((1 << 8) | (1 << 4) | (0 << 0)) /* 1.10 */
 
-#define USB_CONFIGURATION 1
-#define USB_INTERFACE 0
+#define USB_BRICK_CONFIGURATION 1
+#define USB_BRICK_INTERFACE 0
 
-#define USB_ENDPOINT_IN 4
-#define USB_ENDPOINT_OUT 5
+#define USB_BRICK_ENDPOINT_IN 4
+#define USB_BRICK_ENDPOINT_OUT 5
 
 int usb_init(int libusb_debug);
 void usb_exit(void);

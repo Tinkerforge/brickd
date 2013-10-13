@@ -41,7 +41,7 @@ typedef struct {
 	int connected;
 } USBStack;
 
-int usb_stack_create(USBStack *stack, uint8_t bus_number, uint8_t device_address);
-void usb_stack_destroy(USBStack *stack);
+int usb_stack_create(USBStack *usb_stack, uint8_t bus_number, uint8_t device_address);
+void usb_stack_destroy(USBStack *usb_stack);
 
 #endif // BRICKD_USB_STACK_H
