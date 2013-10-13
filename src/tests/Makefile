@@ -17,9 +17,11 @@ CC ?= gcc
 ifeq ($(OS),Windows_NT)
 	PLATFORM := Windows
 	RM := del /F /Q
+	FIX_PATH = $(subst /,\,$1)
 else
 	PLATFORM := $(shell uname)
 	RM := rm -f --
+	FIX_PATH = $1
 endif
 
 ifneq ($(findstring $(MAKEFLAGS),s),s)
@@ -28,22 +30,22 @@ ifndef V
 endif
 endif
 
-SOURCES := throughput.c ip_connection.c brick_master.c ../brickd/utils.c
+SOURCES := throughput_test.c ip_connection.c brick_master.c $(call FIX_PATH,../brickd/utils.c)
 
 ifeq ($(PLATFORM),Windows)
-	SOURCES += ../brickd/fixes_mingw.c
+	SOURCES += $(call FIX_PATH,../brickd/fixes_mingw.c)
 endif
 
 OBJECTS := ${SOURCES:.c=.o}
 DEPENDS := ${SOURCES:.c=.d}
 
 ifeq ($(PLATFORM),Windows)
-	TARGET := throughput.exe
+	TARGET := throughput_test.exe
 else
-	TARGET := throughput
+	TARGET := throughput_test
 endif
 
-CFLAGS += -O2 -Wall -Wextra -I../brickd
+CFLAGS += -O2 -Wall -Wextra
 #CFLAGS += -O0 -g -ggdb
 
 ifeq ($(PLATFORM),Windows)

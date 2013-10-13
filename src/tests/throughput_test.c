@@ -2,7 +2,7 @@
  * brickd
  * Copyright (C) 2013 Matthias Bolte <matthias@tinkerforge.com>
  *
- * throughput.c: A probably meaningless throughput test
+ * throughput_test.c: A probably meaningless throughput test
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -24,7 +24,7 @@
 
 #include "ip_connection.h"
 #include "brick_master.h"
-#include "utils.h"
+#include "../brickd/utils.h"
 
 /*
 

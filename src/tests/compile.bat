@@ -8,11 +8,12 @@
  goto done
 )
 
-@set CC=cl /nologo /c /MD /O2 /W4 /wd4200 /wd4214 /FI..\brickd\fixes_msvc.h^
- /FIbool_msvc.h /DWIN32_LEAN_AND_MEAN /DNDEBUG
+rem @set CC=cl /nologo /c /MD /O2 /W4 /wd4200 /wd4214 /FI..\brickd\fixes_msvc.h /FIbool_msvc.h /DWIN32_LEAN_AND_MEAN /DNDEBUG
+@set CC=cl /nologo /c /MD /Zi /EHsc /Oy- /Ob0 /W4 /wd4200 /wd4214 /FI..\brickd\fixes_msvc.h /FIbool_msvc.h /DWIN32_LEAN_AND_MEAN /DDEBUG
 @set MC=mc
 @set RC=rc /dWIN32 /r
-@set LD=link /nologo /opt:ref /opt:icf /release
+rem @set LD=link /nologo /opt:ref /opt:icf /release
+@set LD=link /nologo /debug
 @set AR=link /lib /nologo
 @set MT=mt /nologo
 
@@ -27,20 +28,20 @@
  echo non-WDK build
 )
 
-@set CC=%CC% /I. /I..\brickd /I..\build_data\windows
+@set CC=%CC% /I. /I..\build_data\windows
 
 @del *.obj *.res *.bin *.exp *.manifest *.exe
 
-%CC% throughput.c^
+%CC% throughput_test.c^
  ip_connection.c^
  brick_master.c^
  ..\brickd\fixes_msvc.c^
  ..\brickd\utils.c
 
-%LD% /out:throughput.exe *.obj *.res ws2_32.lib
+%LD% /out:throughput_test.exe *.obj *.res ws2_32.lib
 
-@if exist throughput.exe.manifest^
- %MT% /manifest throughput.exe.manifest -outputresource:throughput.exe
+@if exist throughput_test.exe.manifest^
+ %MT% /manifest throughput_test.exe.manifest -outputresource:throughput_test.exe
 
 @del *.obj *.res *.bin *.exp *.manifest
 
