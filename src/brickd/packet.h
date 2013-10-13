@@ -35,21 +35,7 @@ enum {
 	ENUMERATION_TYPE_DISCONNECTED = 2
 };
 
-#if defined _MSC_VER || defined __BORLANDC__
-	#pragma pack(push)
-	#pragma pack(1)
-	#define ATTRIBUTE_PACKED
-#elif defined __GNUC__
-	#ifdef _WIN32
-		// workaround struct packing bug in GCC 4.7 on Windows
-		// http://gcc.gnu.org/bugzilla/show_bug.cgi?id=52991
-		#define ATTRIBUTE_PACKED __attribute__((gcc_struct, packed))
-	#else
-		#define ATTRIBUTE_PACKED __attribute__((packed))
-	#endif
-#else
-	#error unknown compiler, do not know how to enable struct packing
-#endif
+#include "packed_begin.h"
 
 typedef struct {
 	uint32_t uid; // always little endian
@@ -76,17 +62,12 @@ typedef struct {
 	uint8_t enumeration_type;
 } ATTRIBUTE_PACKED EnumerateCallback;
 
-#if defined _MSC_VER || defined __BORLANDC__
-	#pragma pack(pop)
-#endif
-#undef ATTRIBUTE_PACKED
+#include "packed_end.h"
 
 int packet_header_is_valid_request(PacketHeader *header, const char **message);
-
 int packet_header_is_valid_response(PacketHeader *header, const char **message);
 
 uint8_t packet_header_get_sequence_number(PacketHeader *header);
-
 void packet_header_set_sequence_number(PacketHeader *header, uint8_t sequence_number);
 
 uint8_t packet_header_get_response_expected(PacketHeader *header);
