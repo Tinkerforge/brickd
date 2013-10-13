@@ -70,8 +70,7 @@ static const GUID GUID_DEVINTERFACE_USB_DEVICE =
 static char _config_filename[1024];
 static int _run_as_service = 1;
 static int _pause_before_exit = 0;
-static EventHandle _notification_pipe[2] = { INVALID_EVENT_HANDLE,
-                                             INVALID_EVENT_HANDLE };
+static Pipe _notification_pipe;
 static HWND _message_pump_hwnd = NULL;
 static Thread _message_pump_thread;
 static int _message_pump_running = 0;
@@ -195,7 +194,7 @@ static void forward_notifications(void *opaque) {
 
 	(void)opaque;
 
-	if (pipe_read(_notification_pipe[0], &byte, sizeof(byte)) < 0) {
+	if (pipe_read(&_notification_pipe, &byte, sizeof(byte)) < 0) {
 		log_error("Could not read from notification pipe: %s (%d)",
 		          get_errno_name(errno), errno);
 
@@ -212,7 +211,7 @@ static void handle_device_event(DWORD event_type) {
 	case DBT_DEVICEARRIVAL:
 		log_debug("Received device notification (type: arrival)");
 
-		if (pipe_write(_notification_pipe[1], &byte, sizeof(byte)) < 0) {
+		if (pipe_write(&_notification_pipe, &byte, sizeof(byte)) < 0) {
 			log_error("Could not write to notification pipe: %s (%d)",
 			          get_errno_name(errno), errno);
 		}
@@ -222,7 +221,7 @@ static void handle_device_event(DWORD event_type) {
 	case DBT_DEVICEREMOVECOMPLETE:
 		log_debug("Received device notification (type: removal)");
 
-		if (pipe_write(_notification_pipe[1], &byte, sizeof(byte)) < 0) {
+		if (pipe_write(&_notification_pipe, &byte, sizeof(byte)) < 0) {
 			log_error("Could not write to notification pipe: %s (%d)",
 			          get_errno_name(errno), errno);
 		}
@@ -629,7 +628,7 @@ error_mutex:
 	}
 
 	// create notification pipe
-	if (pipe_create(_notification_pipe) < 0) {
+	if (pipe_create(&_notification_pipe) < 0) {
 		// FIXME: set service_exit_code
 
 		log_error("Could not create notification pipe: %s (%d)",
@@ -638,7 +637,7 @@ error_mutex:
 		goto error_pipe;
 	}
 
-	if (event_add_source(_notification_pipe[0], EVENT_SOURCE_TYPE_GENERIC,
+	if (event_add_source(_notification_pipe.read_end, EVENT_SOURCE_TYPE_GENERIC,
 	                     EVENT_READ, forward_notifications, NULL) < 0) {
 		// FIXME: set service_exit_code
 		goto error_pipe_add;
@@ -704,10 +703,10 @@ error_notification:
 		message_pump_stop();
 	}
 
-	event_remove_source(_notification_pipe[0], EVENT_SOURCE_TYPE_GENERIC);
+	event_remove_source(_notification_pipe.read_end, EVENT_SOURCE_TYPE_GENERIC);
 
 error_pipe_add:
-	pipe_destroy(_notification_pipe);
+	pipe_destroy(&_notification_pipe);
 
 error_pipe:
 	usb_exit();

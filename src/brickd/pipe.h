@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2012 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2012-2013 Matthias Bolte <matthias@tinkerforge.com>
  *
  * pipe.h: Pipe specific functions
  *
@@ -24,10 +24,15 @@
 
 #include "event.h"
 
-int pipe_create(EventHandle handles[2]);
-void pipe_destroy(EventHandle handles[2]);
+typedef struct {
+	EventHandle read_end;
+	EventHandle write_end;
+} Pipe;
 
-int pipe_read(EventHandle handle, void *buffer, int length);
-int pipe_write(EventHandle handle, void *buffer, int length);
+int pipe_create(Pipe *pipe);
+void pipe_destroy(Pipe *pipe);
+
+int pipe_read(Pipe *pipe, void *buffer, int length);
+int pipe_write(Pipe *pipe, void *buffer, int length);
 
 #endif // BRICKD_PIPE_H

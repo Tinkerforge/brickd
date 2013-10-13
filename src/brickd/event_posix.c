@@ -35,15 +35,14 @@
 #define LOG_CATEGORY LOG_CATEGORY_EVENT
 
 static Array _pollfds;
-static EventHandle _signal_pipe[2] = { INVALID_EVENT_HANDLE,
-                                       INVALID_EVENT_HANDLE };
+static Pipe _signal_pipe;
 
 static void event_handle_signal(void *opaque) {
 	int signal_number;
 
 	(void)opaque;
 
-	if (pipe_read(_signal_pipe[0], &signal_number, sizeof(signal_number)) < 0) {
+	if (pipe_read(&_signal_pipe, &signal_number, sizeof(signal_number)) < 0) {
 		log_error("Could not read from signal pipe: %s (%d)",
 		          get_errno_name(errno), errno);
 
@@ -65,7 +64,7 @@ static void event_handle_signal(void *opaque) {
 }
 
 static void event_forward_signal(int signal_number) {
-	pipe_write(_signal_pipe[1], &signal_number, sizeof(signal_number));
+	pipe_write(&_signal_pipe, &signal_number, sizeof(signal_number));
 }
 
 int event_init_platform(void) {
@@ -82,7 +81,7 @@ int event_init_platform(void) {
 	phase = 1;
 
 	// create signal pipe
-	if (pipe_create(_signal_pipe) < 0) {
+	if (pipe_create(&_signal_pipe) < 0) {
 		log_error("Could not create signal pipe: %s (%d)",
 		          get_errno_name(errno), errno);
 
@@ -91,7 +90,7 @@ int event_init_platform(void) {
 
 	phase = 2;
 
-	if (event_add_source(_signal_pipe[0], EVENT_SOURCE_TYPE_GENERIC,
+	if (event_add_source(_signal_pipe.read_end, EVENT_SOURCE_TYPE_GENERIC,
 	                     EVENT_READ, event_handle_signal, NULL) < 0) {
 		goto cleanup;
 	}
@@ -147,10 +146,10 @@ cleanup:
 		signal(SIGINT, SIG_DFL);
 
 	case 3:
-		event_remove_source(_signal_pipe[0], EVENT_SOURCE_TYPE_GENERIC);
+		event_remove_source(_signal_pipe.read_end, EVENT_SOURCE_TYPE_GENERIC);
 
 	case 2:
-		pipe_destroy(_signal_pipe);
+		pipe_destroy(&_signal_pipe);
 
 	case 1:
 		array_destroy(&_pollfds, NULL);
@@ -168,8 +167,8 @@ void event_exit_platform(void) {
 	signal(SIGTERM, SIG_DFL);
 	signal(SIGINT, SIG_DFL);
 
-	event_remove_source(_signal_pipe[0], EVENT_SOURCE_TYPE_GENERIC);
-	pipe_destroy(_signal_pipe);
+	event_remove_source(_signal_pipe.read_end, EVENT_SOURCE_TYPE_GENERIC);
+	pipe_destroy(&_signal_pipe);
 
 	array_destroy(&_pollfds, NULL);
 }

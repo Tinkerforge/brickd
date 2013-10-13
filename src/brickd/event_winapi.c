@@ -62,7 +62,7 @@ typedef struct {
 	int running;
 	int stuck;
 	int suspend_pipe[2];
-	EventHandle ready_pipe[2];
+	Pipe ready_pipe;
 	Semaphore resume;
 	Semaphore suspend;
 	Array pollfds;
@@ -72,8 +72,7 @@ typedef struct {
 
 static SocketSet *_socket_read_set = NULL;
 static SocketSet *_socket_write_set = NULL;
-static EventHandle _stop_pipe[2] = { INVALID_EVENT_HANDLE,
-                                     INVALID_EVENT_HANDLE };
+static Pipe _stop_pipe;
 static USBPoller _usb_poller;
 
 static int event_reserve_socket_set(SocketSet **socket_set, int size) {
@@ -221,7 +220,7 @@ static void event_poll_usb_events(void *opaque) {
 
 		_usb_poller.pollfds_ready = ready;
 
-		if (pipe_write(_usb_poller.ready_pipe[1], &byte, sizeof(byte)) < 0) {
+		if (pipe_write(&_usb_poller.ready_pipe, &byte, sizeof(byte)) < 0) {
 			log_error("Could not write to USB ready pipe: %s (%d)",
 			          get_errno_name(errno), errno);
 
@@ -254,7 +253,7 @@ static void event_forward_usb_events(void *opaque) {
 
 	(void)opaque;
 
-	if (pipe_read(_usb_poller.ready_pipe[0], &byte, sizeof(byte)) < 0) {
+	if (pipe_read(&_usb_poller.ready_pipe, &byte, sizeof(byte)) < 0) {
 		log_error("Could not read from USB ready pipe: %s (%d)",
 		          get_errno_name(errno), errno);
 
@@ -343,7 +342,7 @@ int event_init_platform(void) {
 	phase = 2;
 
 	// create stop pipe
-	if (pipe_create(_stop_pipe) < 0) {
+	if (pipe_create(&_stop_pipe) < 0) {
 		log_error("Could not create stop pipe: %s (%d)",
 		          get_errno_name(errno), errno);
 
@@ -352,7 +351,7 @@ int event_init_platform(void) {
 
 	phase = 3;
 
-	if (event_add_source(_stop_pipe[0], EVENT_SOURCE_TYPE_GENERIC,
+	if (event_add_source(_stop_pipe.read_end, EVENT_SOURCE_TYPE_GENERIC,
 	                     EVENT_READ, NULL, NULL) < 0) {
 		goto cleanup;
 	}
@@ -371,7 +370,7 @@ int event_init_platform(void) {
 
 	phase = 5;
 
-	if (pipe_create(_usb_poller.ready_pipe) < 0) {
+	if (pipe_create(&_usb_poller.ready_pipe) < 0) {
 		log_error("Could not create USB ready pipe: %s (%d)",
 		          get_errno_name(errno), errno);
 
@@ -416,17 +415,17 @@ cleanup:
 		semaphore_destroy(&_usb_poller.resume);
 
 	case 6:
-		pipe_destroy(_usb_poller.ready_pipe);
+		pipe_destroy(&_usb_poller.ready_pipe);
 
 	case 5:
 		usbi_close(_usb_poller.suspend_pipe[0]);
 		usbi_close(_usb_poller.suspend_pipe[1]);
 
 	case 4:
-		event_remove_source(_stop_pipe[0], EVENT_SOURCE_TYPE_GENERIC);
+		event_remove_source(_stop_pipe.read_end, EVENT_SOURCE_TYPE_GENERIC);
 
 	case 3:
-		pipe_destroy(_stop_pipe);
+		pipe_destroy(&_stop_pipe);
 
 	case 2:
 		free(_socket_write_set);
@@ -447,13 +446,13 @@ void event_exit_platform(void) {
 
 	array_destroy(&_usb_poller.pollfds, NULL);
 
-	pipe_destroy(_usb_poller.ready_pipe);
+	pipe_destroy(&_usb_poller.ready_pipe);
 
 	usbi_close(_usb_poller.suspend_pipe[0]);
 	usbi_close(_usb_poller.suspend_pipe[1]);
 
-	event_remove_source(_stop_pipe[0], EVENT_SOURCE_TYPE_GENERIC);
-	pipe_destroy(_stop_pipe);
+	event_remove_source(_stop_pipe.read_end, EVENT_SOURCE_TYPE_GENERIC);
+	pipe_destroy(&_stop_pipe);
 
 	free(_socket_write_set);
 	free(_socket_read_set);
@@ -472,9 +471,9 @@ int event_run_platform(Array *event_sources, int *running) {
 	int event_source_count;
 	int received_events;
 
-	if (event_add_source(_usb_poller.ready_pipe[0], EVENT_SOURCE_TYPE_GENERIC,
-	                     EVENT_READ, event_forward_usb_events,
-	                     event_sources) < 0) {
+	if (event_add_source(_usb_poller.ready_pipe.read_end,
+	                     EVENT_SOURCE_TYPE_GENERIC, EVENT_READ,
+	                     event_forward_usb_events, event_sources) < 0) {
 		return -1;
 	}
 
@@ -660,7 +659,7 @@ cleanup:
 
 	thread_destroy(&_usb_poller.thread);
 
-	event_remove_source(_usb_poller.ready_pipe[0], EVENT_SOURCE_TYPE_GENERIC);
+	event_remove_source(_usb_poller.ready_pipe.read_end, EVENT_SOURCE_TYPE_GENERIC);
 
 	return result;
 }
@@ -668,7 +667,7 @@ cleanup:
 int event_stop_platform(void) {
 	uint8_t byte = 0;
 
-	if (pipe_write(_stop_pipe[1], &byte, sizeof(byte)) < 0) {
+	if (pipe_write(&_stop_pipe, &byte, sizeof(byte)) < 0) {
 		log_error("Could not write to stop pipe: %s (%d)",
 		          get_errno_name(errno), errno);
 

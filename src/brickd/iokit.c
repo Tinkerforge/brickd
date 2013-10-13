@@ -60,8 +60,7 @@
 
 #define LOG_CATEGORY LOG_CATEGORY_HOTPLUG
 
-static EventHandle _notification_pipe[2] = { INVALID_EVENT_HANDLE,
-                                             INVALID_EVENT_HANDLE };
+static Pipe _notification_pipe;
 static Thread _poller_thread;
 static int _running = 0;
 static CFRunLoopRef _run_loop = NULL;
@@ -93,7 +92,7 @@ static void iokit_forward_notifications(void *opaque) {
 
 	(void)opaque;
 
-	if (pipe_read(_notification_pipe[0], &byte, sizeof(byte)) < 0) {
+	if (pipe_read(&_notification_pipe, &byte, sizeof(byte)) < 0) {
 		log_error("Could not read from notification pipe: %s (%d)",
 		          get_errno_name(errno), errno);
 
@@ -122,7 +121,7 @@ static void iokit_handle_notifications(void *opaque, io_iterator_t iterator) {
 	if (found) {
 		log_debug("Received IOKit notification (type: %s)", type);
 
-		if (pipe_write(_notification_pipe[1], &byte, sizeof(byte)) < 0) {
+		if (pipe_write(&_notification_pipe, &byte, sizeof(byte)) < 0) {
 			log_error("Could not write to notification pipe: %s (%d)",
 			          get_errno_name(errno), errno);
 		}
@@ -262,7 +261,7 @@ int iokit_init(void) {
 	log_debug("Initializing IOKit subsystem");
 
 	// create notification pipe
-	if (pipe_create(_notification_pipe) < 0) {
+	if (pipe_create(&_notification_pipe) < 0) {
 		log_error("Could not create notification pipe: %s (%d)",
 		          get_errno_name(errno), errno);
 
@@ -271,7 +270,7 @@ int iokit_init(void) {
 
 	phase = 1;
 
-	if (event_add_source(_notification_pipe[0], EVENT_SOURCE_TYPE_GENERIC,
+	if (event_add_source(_notification_pipe.read_end, EVENT_SOURCE_TYPE_GENERIC,
 	                     EVENT_READ, iokit_forward_notifications, NULL) < 0) {
 		goto cleanup;
 	}
@@ -307,10 +306,10 @@ cleanup:
 		thread_destroy(&_poller_thread);
 
 	case 2:
-		event_remove_source(_notification_pipe[0], EVENT_SOURCE_TYPE_GENERIC);
+		event_remove_source(_notification_pipe.read_end, EVENT_SOURCE_TYPE_GENERIC);
 
 	case 1:
-		pipe_destroy(_notification_pipe);
+		pipe_destroy(&_notification_pipe);
 
 	default:
 		break;
@@ -333,7 +332,7 @@ void iokit_exit(void) {
 
 	thread_destroy(&_poller_thread);
 
-	event_remove_source(_notification_pipe[0], EVENT_SOURCE_TYPE_GENERIC);
+	event_remove_source(_notification_pipe.read_end, EVENT_SOURCE_TYPE_GENERIC);
 
-	pipe_destroy(_notification_pipe);
+	pipe_destroy(&_notification_pipe);
 }

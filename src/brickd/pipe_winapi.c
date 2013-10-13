@@ -34,14 +34,14 @@
 
 // sets errno on error
 // FIXME: maybe use IPv6 if available
-int pipe_create(EventHandle handles[2]) {
+int pipe_create(Pipe *pipe) {
 	SOCKET listener;
 	struct sockaddr_in address;
 	int length = sizeof(address);
 	int rc;
 
-	handles[0] = INVALID_SOCKET;
-	handles[1] = INVALID_SOCKET;
+	pipe->read_end = INVALID_SOCKET;
+	pipe->write_end = INVALID_SOCKET;
 
 	listener = socket(AF_INET, SOCK_STREAM, 0);
 
@@ -71,21 +71,21 @@ int pipe_create(EventHandle handles[2]) {
 		goto error;
 	}
 
-	handles[0] = socket(AF_INET, SOCK_STREAM, 0);
+	pipe->read_end = socket(AF_INET, SOCK_STREAM, 0);
 
-	if (handles[0] == INVALID_SOCKET) {
+	if (pipe->read_end == INVALID_SOCKET) {
 		goto error;
 	}
 
-	rc = connect(handles[0], (const struct sockaddr *)&address, length);
+	rc = connect(pipe->read_end, (const struct sockaddr *)&address, length);
 
 	if (rc == SOCKET_ERROR) {
 		goto error;
 	}
 
-	handles[1] = accept(listener, NULL, NULL);
+	pipe->write_end = accept(listener, NULL, NULL);
 
-	if (handles[1] == INVALID_SOCKET) {
+	if (pipe->write_end == INVALID_SOCKET) {
 		goto error;
 	}
 
@@ -97,23 +97,23 @@ error:
 	rc = WSAGetLastError();
 
 	closesocket(listener);
-	closesocket(handles[0]);
-	closesocket(handles[1]);
+	closesocket(pipe->read_end);
+	closesocket(pipe->write_end);
 
 	errno = ERRNO_WINAPI_OFFSET + rc;
 
 	return -1;
 }
 
-void pipe_destroy(EventHandle handles[2]) {
-	closesocket(handles[0]);
-	closesocket(handles[1]);
+void pipe_destroy(Pipe *pipe) {
+	closesocket(pipe->read_end);
+	closesocket(pipe->write_end);
 }
 
 // sets errno on error
-int pipe_read(EventHandle handle, void *buffer, int length) {
+int pipe_read(Pipe *pipe, void *buffer, int length) {
 	// FIXME: handle partial read and interruption
-	length = recv(handle, (char *)buffer, length, 0);
+	length = recv(pipe->read_end, (char *)buffer, length, 0);
 
 	if (length == SOCKET_ERROR) {
 		errno = ERRNO_WINAPI_OFFSET + WSAGetLastError();
@@ -123,9 +123,9 @@ int pipe_read(EventHandle handle, void *buffer, int length) {
 }
 
 // sets errno on error
-int pipe_write(EventHandle handle, void *buffer, int length) {
+int pipe_write(Pipe *pipe, void *buffer, int length) {
 	// FIXME: handle partial write and interruption
-	length = send(handle, (const char *)buffer, length, 0);
+	length = send(pipe->write_end, (const char *)buffer, length, 0);
 
 	if (length == SOCKET_ERROR) {
 		errno = ERRNO_WINAPI_OFFSET + WSAGetLastError();

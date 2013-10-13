@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2012 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2012-2013 Matthias Bolte <matthias@tinkerforge.com>
  *
  * pipe_posix.c: POSIX based pipe implementation
  *
@@ -31,34 +31,42 @@
 #include "utils.h"
 
 // sets errno on error
-int pipe_create(EventHandle handles[2]) {
-	return pipe(handles);
+int pipe_create(Pipe *pipe_) {
+	int rc;
+	EventHandle handles[2];
+
+	rc = pipe(handles);
+
+	pipe_->read_end = handles[0];
+	pipe_->write_end = handles[1];
+
+	return rc;
 }
 
-void pipe_destroy(EventHandle handles[2]) {
-	close(handles[0]);
-	close(handles[1]);
+void pipe_destroy(Pipe *pipe) {
+	close(pipe->read_end);
+	close(pipe->write_end);
 }
 
 // sets errno on error
-int pipe_read(EventHandle handle, void *buffer, int length) {
+int pipe_read(Pipe *pipe, void *buffer, int length) {
 	int rc;
 
 	// FIXME: handle partial read
 	do {
-		rc = read(handle, buffer, length);
+		rc = read(pipe->read_end, buffer, length);
 	} while (rc < 0 && errno_interrupted());
 
 	return rc;
 }
 
 // sets errno on error
-int pipe_write(EventHandle handle, void *buffer, int length) {
+int pipe_write(Pipe *pipe, void *buffer, int length) {
 	int rc;
 
 	// FIXME: handle partial write
 	do {
-		rc = write(handle, buffer, length);
+		rc = write(pipe->write_end, buffer, length);
 	} while (rc < 0 && errno_interrupted());
 
 	return rc;
