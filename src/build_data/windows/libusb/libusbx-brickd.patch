@@ -117,7 +117,7 @@ index ae49757..c801b5b 100644
  			VALUE "OriginalFilename", "libusb-1.0.dll\0"
  			VALUE "PrivateBuild", "\0"
 -			VALUE "ProductName", "libusb-1.0\0"
-+			VALUE "ProductName", "libusb-1.0-a9cd54f24d566062a461d27f615365f41a3d11e8-tf-8\0"
++			VALUE "ProductName", "libusb-1.0-7b62a0a171ac0141a3d12237ab496c49cccd79df-tf-9\0"
  			VALUE "ProductVersion", LIBUSB_VERSIONSTRING
  			VALUE "SpecialBuild", "\0"
  		END
