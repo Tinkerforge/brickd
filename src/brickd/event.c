@@ -30,7 +30,7 @@
 
 #define LOG_CATEGORY LOG_CATEGORY_EVENT
 
-static Array _event_sources = ARRAY_INITIALIZER;
+static Array _event_sources;
 static int _running = 0;
 static int _stop_requested = 0;
 

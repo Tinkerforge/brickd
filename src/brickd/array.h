@@ -28,13 +28,11 @@ typedef void (*FreeFunction)(void *item);
 
 typedef struct {
 	int allocated;
-	int count;
-	int size;
-	int relocatable;
+	int count; // number of items in the array
+	int size; // size of a single item in bytes
+	int relocatable; // true if item can be moved in memory
 	uint8_t *bytes;
 } Array;
-
-#define ARRAY_INITIALIZER { 0, 0, 0, 1, NULL }
 
 int array_create(Array *array, int reserved, int size, int relocatable);
 void array_destroy(Array *array, FreeFunction function);

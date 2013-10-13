@@ -37,7 +37,7 @@
 
 static int _libusb_debug = 0;
 static libusb_context *_context = NULL;
-static Array _stacks = ARRAY_INITIALIZER;
+static Array _stacks;
 static int _initialized_hotplug = 0;
 
 extern int usb_init_platform(void);

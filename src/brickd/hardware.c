@@ -31,7 +31,7 @@
 
 #define LOG_CATEGORY LOG_CATEGORY_HARDWARE
 
-static Array _stacks = ARRAY_INITIALIZER;
+static Array _stacks;
 
 int hardware_init(void) {
 	log_debug("Initializing hardware subsystem");

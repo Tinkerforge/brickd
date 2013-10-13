@@ -40,7 +40,7 @@
 #define LOG_CATEGORY LOG_CATEGORY_NETWORK
 
 static uint16_t _port = 4223;
-static Array _clients = ARRAY_INITIALIZER;
+static Array _clients;
 static EventHandle _server_socket = INVALID_EVENT_HANDLE;
 
 static void network_handle_accept(void *opaque) {

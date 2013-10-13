@@ -34,7 +34,7 @@
 
 #define LOG_CATEGORY LOG_CATEGORY_EVENT
 
-static Array _pollfds = ARRAY_INITIALIZER;
+static Array _pollfds;
 static EventHandle _signal_pipe[2] = { INVALID_EVENT_HANDLE,
                                        INVALID_EVENT_HANDLE };
 
