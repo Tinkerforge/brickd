@@ -39,7 +39,6 @@
 
 #define LOG_CATEGORY LOG_CATEGORY_NETWORK
 
-static uint16_t _port = 4223;
 static Array _clients;
 static EventHandle _server_socket = INVALID_EVENT_HANDLE;
 
@@ -115,11 +114,10 @@ static const char *network_get_address_family_name(int family, int report_dual_s
 int network_init(void) {
 	int phase = 0;
 	const char *listen_address = config_get_listen_address();
+	uint16_t port = config_get_listen_port();
 	struct addrinfo *resolved_address = NULL;
 
 	log_debug("Initializing network subsystem");
-
-	_port = config_get_listen_port();
 
 	// the Client struct is not relocatable, because it is passed by reference
 	// as opaque parameter to the event subsystem
@@ -136,11 +134,11 @@ int network_init(void) {
 	// FIXME: bind to all returned addresses, instead of just the first one.
 	//        requires special handling if IPv4 and IPv6 addresses are returned
 	//        and dual-stack mode is enabled
-	resolved_address = socket_hostname_to_address(listen_address, _port);
+	resolved_address = socket_hostname_to_address(listen_address, port);
 
 	if (resolved_address == NULL) {
 		log_error("Could not resolve listen address '%s' (port: %u): %s (%d)",
-		          listen_address, _port, get_errno_name(errno), errno);
+		          listen_address, port, get_errno_name(errno), errno);
 
 		goto cleanup;
 	}
@@ -188,7 +186,7 @@ int network_init(void) {
 	                resolved_address->ai_addrlen) < 0) {
 		log_error("Could not bind %s server socket to '%s' on port %u: %s (%d)",
 		          network_get_address_family_name(resolved_address->ai_family, 1),
-		          listen_address, _port, get_errno_name(errno), errno);
+		          listen_address, port, get_errno_name(errno), errno);
 
 		goto cleanup;
 	}
@@ -196,7 +194,7 @@ int network_init(void) {
 	if (socket_listen(_server_socket, 10) < 0) {
 		log_error("Could not listen to %s server socket bound to '%s' on port %u: %s (%d)",
 		          network_get_address_family_name(resolved_address->ai_family, 1),
-		          listen_address, _port, get_errno_name(errno), errno);
+		          listen_address, port, get_errno_name(errno), errno);
 
 		goto cleanup;
 	}
@@ -204,7 +202,7 @@ int network_init(void) {
 	log_debug("Started listening to '%s' (%s) on port %u",
 	          listen_address,
 	          network_get_address_family_name(resolved_address->ai_family, 1),
-	          _port);
+	          port);
 
 	if (socket_set_non_blocking(_server_socket, 1) < 0) {
 		log_error("Could not enable non-blocking mode for server socket: %s (%d)",
