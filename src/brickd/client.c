@@ -52,8 +52,8 @@ static void client_handle_receive(void *opaque) {
 	PendingRequest *pending_request;
 
 	length = socket_receive(client->socket,
-	                        (uint8_t *)&client->packet + client->packet_used,
-	                        sizeof(Packet) - client->packet_used);
+	                        (uint8_t *)&client->request + client->request_used,
+	                        sizeof(Packet) - client->request_used);
 
 	if (length < 0) {
 		if (errno_interrupted()) {
@@ -78,28 +78,28 @@ static void client_handle_receive(void *opaque) {
 		return;
 	}
 
-	client->packet_used += length;
+	client->request_used += length;
 
-	while (client->packet_used > 0) {
-		if (client->packet_used < (int)sizeof(PacketHeader)) {
+	while (client->request_used > 0) {
+		if (client->request_used < (int)sizeof(PacketHeader)) {
 			// wait for complete header
 			break;
 		}
 
-		length = client->packet.header.length;
+		length = client->request.header.length;
 
-		if (client->packet_used < length) {
+		if (client->request_used < length) {
 			// wait for complete packet
 			break;
 		}
 
-		if (!packet_header_is_valid_request(&client->packet.header, &message)) {
+		if (!packet_header_is_valid_request(&client->request.header, &message)) {
 			log_warn("Got invalid request (U: %s, L: %u, F: %u, S: %u, R: %u) from client (socket: %d, peer: %s): %s",
-			         base58_encode(base58, uint32_from_le(client->packet.header.uid)),
-			         client->packet.header.length,
-			         client->packet.header.function_id,
-			         packet_header_get_sequence_number(&client->packet.header),
-			         packet_header_get_response_expected(&client->packet.header),
+			         base58_encode(base58, uint32_from_le(client->request.header.uid)),
+			         client->request.header.length,
+			         client->request.header.function_id,
+			         packet_header_get_sequence_number(&client->request.header),
+			         packet_header_get_response_expected(&client->request.header),
 			         client->socket, client->peer,
 			         message);
 
@@ -107,19 +107,19 @@ static void client_handle_receive(void *opaque) {
 				// skip the complete header if length was too small
 				length = sizeof(PacketHeader);
 			}
-		} else if (client->packet.header.function_id == FUNCTION_DISCONNECT_PROBE) {
+		} else if (client->request.header.function_id == FUNCTION_DISCONNECT_PROBE) {
 			log_debug("Got disconnect probe from client (socket: %d, peer: %s), dropping it",
 			          client->socket, client->peer);
 		} else {
 			log_debug("Got request (U: %s, L: %u, F: %u, S: %u, R: %u) from client (socket: %d, peer: %s)",
-			          base58_encode(base58, uint32_from_le(client->packet.header.uid)),
-			          client->packet.header.length,
-			          client->packet.header.function_id,
-			          packet_header_get_sequence_number(&client->packet.header),
-			          packet_header_get_response_expected(&client->packet.header),
+			          base58_encode(base58, uint32_from_le(client->request.header.uid)),
+			          client->request.header.length,
+			          client->request.header.function_id,
+			          packet_header_get_sequence_number(&client->request.header),
+			          packet_header_get_response_expected(&client->request.header),
 			          client->socket, client->peer);
 
-			if (packet_header_get_response_expected(&client->packet.header)) {
+			if (packet_header_get_response_expected(&client->request.header)) {
 				if (client->pending_requests.count >= MAX_PENDING_REQUESTS) {
 					log_warn("Dropping %d items from pending request array of client (socket: %d, peer: %s)",
 					         client->pending_requests.count - MAX_PENDING_REQUESTS + 1,
@@ -136,7 +136,7 @@ static void client_handle_receive(void *opaque) {
 					log_error("Could not append to pending request array: %s (%d)",
 					          get_errno_name(errno), errno);
 				} else {
-					memcpy(&pending_request->header, &client->packet.header, sizeof(PacketHeader));
+					memcpy(&pending_request->header, &client->request.header, sizeof(PacketHeader));
 #ifdef BRICKD_WITH_PROFILING
 					pending_request->arrival_time = microseconds();
 #endif
@@ -148,17 +148,17 @@ static void client_handle_receive(void *opaque) {
 					          packet_header_get_sequence_number(&pending_request->header),
 					          client->socket, client->peer);
 
-					hardware_dispatch_packet(&client->packet);
+					hardware_dispatch_request(&client->request);
 				}
 			} else {
-				hardware_dispatch_packet(&client->packet);
+				hardware_dispatch_request(&client->request);
 			}
 		}
 
-		memmove(&client->packet, (uint8_t *)&client->packet + length,
-		        client->packet_used - length);
+		memmove(&client->request, (uint8_t *)&client->request + length,
+		        client->request_used - length);
 
-		client->packet_used -= length;
+		client->request_used -= length;
 	}
 }
 
@@ -167,7 +167,7 @@ int client_create(Client *client, EventHandle socket,
 	log_debug("Creating client from socket (handle: %d)", socket);
 
 	client->socket = socket;
-	client->packet_used = 0;
+	client->request_used = 0;
 	client->disconnected = 0;
 
 	// create pending request array
@@ -220,8 +220,8 @@ void client_destroy(Client *client) {
 	array_destroy(&client->pending_requests, NULL);
 }
 
-// returns -1 on error, 0 if the packet was not dispatched and 1 if it was dispatch
-int client_dispatch_packet(Client *client, Packet *packet, int force) {
+// returns -1 on error, 0 if the response was not dispatched and 1 if it was dispatch
+int client_dispatch_response(Client *client, Packet *response, int force) {
 	int i;
 	PendingRequest *pending_request = NULL;
 	int found = -1;
@@ -241,7 +241,7 @@ int client_dispatch_packet(Client *client, Packet *packet, int force) {
 		for (i = 0; i < client->pending_requests.count; ++i) {
 			pending_request = array_get(&client->pending_requests, i);
 
-			if (packet_is_matching_response(packet, &pending_request->header)) {
+			if (packet_is_matching_response(response, &pending_request->header)) {
 				found = i;
 
 				break;
@@ -250,7 +250,7 @@ int client_dispatch_packet(Client *client, Packet *packet, int force) {
 	}
 
 	if (force || found >= 0) {
-		if (socket_send(client->socket, packet, packet->header.length) < 0) {
+		if (socket_send(client->socket, response, response->header.length) < 0) {
 			log_error("Could not send response to client (socket: %d, peer: %s), disconnecting it: %s (%d)",
 			          client->socket, client->peer, get_errno_name(errno), errno);
 

@@ -36,8 +36,8 @@ typedef struct {
 	EventHandle socket;
 	char *peer;
 	int disconnected;
-	Packet packet;
-	int packet_used;
+	Packet request;
+	int request_used;
 	Array pending_requests;
 } Client;
 
@@ -45,6 +45,6 @@ int client_create(Client *client, EventHandle socket,
                   struct sockaddr *address, socklen_t length);
 void client_destroy(Client *client);
 
-int client_dispatch_packet(Client *client, Packet *packet, int force);
+int client_dispatch_response(Client *client, Packet *response, int force);
 
 #endif // BRICKD_CLIENT_H

@@ -90,7 +90,7 @@ int hardware_remove_stack(Stack *stack) {
 	return -1;
 }
 
-void hardware_dispatch_packet(Packet *packet) {
+void hardware_dispatch_request(Packet *request) {
 	char base58[MAX_BASE58_STR_SIZE];
 	int i;
 	Stack *stack;
@@ -99,37 +99,37 @@ void hardware_dispatch_packet(Packet *packet) {
 
 	if (_stacks.count == 0) {
 		log_debug("No stacks connected, dropping request (U: %s, L: %u, F: %u, S: %u, R: %u)",
-		          base58_encode(base58, uint32_from_le(packet->header.uid)),
-		          packet->header.length,
-		          packet->header.function_id,
-		          packet_header_get_sequence_number(&packet->header),
-		          packet_header_get_response_expected(&packet->header));
+		          base58_encode(base58, uint32_from_le(request->header.uid)),
+		          request->header.length,
+		          request->header.function_id,
+		          packet_header_get_sequence_number(&request->header),
+		          packet_header_get_response_expected(&request->header));
 
 		return;
 	}
 
-	if (packet->header.uid == 0) {
+	if (request->header.uid == 0) {
 		log_debug("Broadcasting request (U: %s, L: %u, F: %u, S: %u, R: %u) to %d stack(s)",
-		          base58_encode(base58, uint32_from_le(packet->header.uid)),
-		          packet->header.length,
-		          packet->header.function_id,
-		          packet_header_get_sequence_number(&packet->header),
-		          packet_header_get_response_expected(&packet->header),
+		          base58_encode(base58, uint32_from_le(request->header.uid)),
+		          request->header.length,
+		          request->header.function_id,
+		          packet_header_get_sequence_number(&request->header),
+		          packet_header_get_response_expected(&request->header),
 		          _stacks.count);
 
 		// broadcast to all stacks
 		for (i = 0; i < _stacks.count; ++i) {
 			stack = *(Stack **)array_get(&_stacks, i);
 
-			stack_dispatch_packet(stack, packet, 1);
+			stack_dispatch_request(stack, request, 1);
 		}
 	} else {
 		log_debug("Dispatching request (U: %s, L: %u, F: %u, S: %u, R: %u) to %d stack(s)",
-		          base58_encode(base58, uint32_from_le(packet->header.uid)),
-		          packet->header.length,
-		          packet->header.function_id,
-		          packet_header_get_sequence_number(&packet->header),
-		          packet_header_get_response_expected(&packet->header),
+		          base58_encode(base58, uint32_from_le(request->header.uid)),
+		          request->header.length,
+		          request->header.function_id,
+		          packet_header_get_sequence_number(&request->header),
+		          packet_header_get_response_expected(&request->header),
 		          _stacks.count);
 
 		// dispatch to all stacks, not only the first one that might claim to
@@ -137,7 +137,7 @@ void hardware_dispatch_packet(Packet *packet) {
 		for (i = 0; i < _stacks.count; ++i) {
 			stack = *(Stack **)array_get(&_stacks, i);
 
-			rc = stack_dispatch_packet(stack, packet, 0);
+			rc = stack_dispatch_request(stack, request, 0);
 
 			if (rc < 0) {
 				continue;
@@ -156,7 +156,7 @@ void hardware_dispatch_packet(Packet *packet) {
 		for (i = 0; i < _stacks.count; ++i) {
 			stack = *(Stack **)array_get(&_stacks, i);
 
-			stack_dispatch_packet(stack, packet, 1);
+			stack_dispatch_request(stack, request, 1);
 		}
 	}
 }

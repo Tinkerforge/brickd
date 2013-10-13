@@ -98,7 +98,7 @@ static void usb_stack_read_callback(USBTransfer *transfer) {
 		return;
 	}
 
-	network_dispatch_packet(&transfer->packet);
+	network_dispatch_response(&transfer->packet);
 }
 
 static void usb_stack_write_callback(USBTransfer *transfer) {
@@ -139,13 +139,10 @@ static void usb_stack_write_callback(USBTransfer *transfer) {
 	}
 }
 
-// returns -1 on error, 0 if the packet was not dispatched and 1 if it was dispatch
-static int usb_stack_dispatch_packet(USBStack *stack, Packet *packet) {
+static int usb_stack_dispatch_request(USBStack *stack, Packet *request) {
 	int i;
 	USBTransfer *transfer;
-	int submitted = 0;
-	Packet *queued_packet;
-	int rc = -1;
+	Packet *queued_request;
 
 	for (i = 0; i < stack->write_transfers.count; ++i) {
 		transfer = array_get(&stack->write_transfers, i);
@@ -154,7 +151,7 @@ static int usb_stack_dispatch_packet(USBStack *stack, Packet *packet) {
 			continue;
 		}
 
-		memcpy(&transfer->packet, packet, packet->header.length);
+		memcpy(&transfer->packet, request, request->header.length);
 
 		if (usb_transfer_submit(transfer) < 0) {
 			// FIXME: how to handle a failed submission, try to re-submit?
@@ -162,47 +159,34 @@ static int usb_stack_dispatch_packet(USBStack *stack, Packet *packet) {
 			continue;
 		}
 
-		submitted = 1;
-
-		break;
+		return 0;
 	}
 
-	if (!submitted) {
-		if (stack->write_queue.count >= MAX_QUEUED_WRITES) {
-			log_warn("Dropping %d item(s) from write queue array of %s",
-			         stack->write_queue.count - MAX_QUEUED_WRITES + 1,
-			         stack->base.name);
+	if (stack->write_queue.count >= MAX_QUEUED_WRITES) {
+		log_warn("Dropping %d item(s) from write queue array of %s",
+		         stack->write_queue.count - MAX_QUEUED_WRITES + 1,
+		         stack->base.name);
 
-			while (stack->write_queue.count >= MAX_QUEUED_WRITES) {
-				array_remove(&stack->write_queue, 0, NULL);
-			}
+		while (stack->write_queue.count >= MAX_QUEUED_WRITES) {
+			array_remove(&stack->write_queue, 0, NULL);
 		}
-
-		queued_packet = array_append(&stack->write_queue);
-
-		if (queued_packet == NULL) {
-			log_error("Could not append to write queue array of %s: %s (%d)",
-			          stack->base.name, get_errno_name(errno), errno);
-
-			goto cleanup;
-		}
-
-		log_warn("Could not find a free write transfer for %s, put request into write queue (count: %d)",
-		         stack->base.name, stack->write_queue.count);
-
-		memcpy(queued_packet, packet, packet->header.length);
-
-		submitted = 1;
 	}
 
-	rc = 0;
+	queued_request = array_append(&stack->write_queue);
 
-cleanup:
-	if (submitted && rc == 0) {
-		rc = 1;
+	if (queued_request == NULL) {
+		log_error("Could not append to write queue array of %s: %s (%d)",
+		          stack->base.name, get_errno_name(errno), errno);
+
+		return -1;
 	}
 
-	return rc;
+	log_warn("Could not find a free write transfer for %s, put request into write queue (count: %d)",
+	         stack->base.name, stack->write_queue.count);
+
+	memcpy(queued_request, request, request->header.length);
+
+	return 0;
 }
 
 int usb_stack_create(USBStack *stack, uint8_t bus_number, uint8_t device_address) {
@@ -230,7 +214,7 @@ int usb_stack_create(USBStack *stack, uint8_t bus_number, uint8_t device_address
 	preliminary_name[sizeof(preliminary_name) - 1] = '\0';
 
 	if (stack_create(&stack->base, preliminary_name,
-	                 (DispatchPacketFunction)usb_stack_dispatch_packet) < 0) {
+	                 (DispatchRequestFunction)usb_stack_dispatch_request) < 0) {
 		log_error("Could not create base stack for %s: %s (%d)",
 		          preliminary_name, get_errno_name(errno), errno);
 

@@ -30,6 +30,6 @@ void network_exit(void);
 
 void network_cleanup_clients(void);
 
-void network_dispatch_packet(Packet *packet);
+void network_dispatch_response(Packet *response);
 
 #endif // BRICKD_NETWORK_H

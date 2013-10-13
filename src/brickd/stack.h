@@ -27,23 +27,23 @@
 
 typedef struct _Stack Stack;
 
-typedef int (*DispatchPacketFunction)(Stack *stack, Packet *packet);
+typedef int (*DispatchRequestFunction)(Stack *stack, Packet *request);
 
 #define MAX_STACK_NAME 128
 
 struct _Stack {
 	char name[MAX_STACK_NAME]; // for display purpose
-	DispatchPacketFunction dispatch_packet;
+	DispatchRequestFunction dispatch_request;
 	Array uids;
 };
 
 int stack_create(Stack *stack, const char *name,
-                 DispatchPacketFunction dispatch_packet);
+                 DispatchRequestFunction dispatch_request);
 void stack_destroy(Stack *stack);
 
 int stack_add_uid(Stack *stack, uint32_t uid /* always little endian */);
 int stack_knows_uid(Stack *stack, uint32_t uid /* always little endian */);
 
-int stack_dispatch_packet(Stack *stack, Packet *packet, int force);
+int stack_dispatch_request(Stack *stack, Packet *request, int force);
 
 #endif // BRICKD_STACK_H

@@ -326,7 +326,7 @@ int usb_update(void) {
 			log_debug("Sending enumerate-disconnected callback (uid: %s)",
 			          enumerate_callback.uid);
 
-			network_dispatch_packet((Packet *)&enumerate_callback);
+			network_dispatch_response((Packet *)&enumerate_callback);
 		}
 
 		array_remove(&_stacks, i, (FreeFunction)usb_stack_destroy);

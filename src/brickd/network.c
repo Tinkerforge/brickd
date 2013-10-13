@@ -283,7 +283,7 @@ void network_cleanup_clients(void) {
 	}
 }
 
-void network_dispatch_packet(Packet *packet) {
+void network_dispatch_response(Packet *response) {
 	char base58[MAX_BASE58_STR_SIZE];
 	int i;
 	Client *client;
@@ -291,50 +291,50 @@ void network_dispatch_packet(Packet *packet) {
 	int dispatched = 0;
 
 	if (_clients.count == 0) {
-		if (packet_header_get_sequence_number(&packet->header) == 0) {
+		if (packet_header_get_sequence_number(&response->header) == 0) {
 			log_debug("No clients connected, dropping %scallback (U: %s, L: %u, F: %u)",
-			          packet_get_callback_type(packet),
-			          base58_encode(base58, uint32_from_le(packet->header.uid)),
-			          packet->header.length,
-			          packet->header.function_id);
+			          packet_get_callback_type(response),
+			          base58_encode(base58, uint32_from_le(response->header.uid)),
+			          response->header.length,
+			          response->header.function_id);
 		} else {
 			log_debug("No clients connected, dropping response (U: %s, L: %u, F: %u, S: %u, E: %u)",
-			          base58_encode(base58, uint32_from_le(packet->header.uid)),
-			          packet->header.length,
-			          packet->header.function_id,
-			          packet_header_get_sequence_number(&packet->header),
-			          packet_header_get_error_code(&packet->header));
+			          base58_encode(base58, uint32_from_le(response->header.uid)),
+			          response->header.length,
+			          response->header.function_id,
+			          packet_header_get_sequence_number(&response->header),
+			          packet_header_get_error_code(&response->header));
 		}
 
 		return;
 	}
 
-	if (packet_header_get_sequence_number(&packet->header) == 0) {
+	if (packet_header_get_sequence_number(&response->header) == 0) {
 		log_debug("Broadcasting %scallback (U: %s, L: %u, F: %u) to %d client(s)",
-		          packet_get_callback_type(packet),
-		          base58_encode(base58, uint32_from_le(packet->header.uid)),
-		          packet->header.length,
-		          packet->header.function_id,
+		          packet_get_callback_type(response),
+		          base58_encode(base58, uint32_from_le(response->header.uid)),
+		          response->header.length,
+		          response->header.function_id,
 		          _clients.count);
 
 		for (i = 0; i < _clients.count; ++i) {
 			client = array_get(&_clients, i);
 
-			client_dispatch_packet(client, packet, 1);
+			client_dispatch_response(client, response, 1);
 		}
 	} else {
 		log_debug("Dispatching response (U: %s, L: %u, F: %u, S: %u, E: %u) to %d client(s)",
-		          base58_encode(base58, uint32_from_le(packet->header.uid)),
-		          packet->header.length,
-		          packet->header.function_id,
-		          packet_header_get_sequence_number(&packet->header),
-		          packet_header_get_error_code(&packet->header),
+		          base58_encode(base58, uint32_from_le(response->header.uid)),
+		          response->header.length,
+		          response->header.function_id,
+		          packet_header_get_sequence_number(&response->header),
+		          packet_header_get_error_code(&response->header),
 		          _clients.count);
 
 		for (i = 0; i < _clients.count; ++i) {
 			client = array_get(&_clients, i);
 
-			rc = client_dispatch_packet(client, packet, 0);
+			rc = client_dispatch_response(client, response, 0);
 
 			if (rc < 0) {
 				continue;
@@ -352,7 +352,7 @@ void network_dispatch_packet(Packet *packet) {
 		for (i = 0; i < _clients.count; ++i) {
 			client = array_get(&_clients, i);
 
-			client_dispatch_packet(client, packet, 1);
+			client_dispatch_response(client, response, 1);
 		}
 	}
 }

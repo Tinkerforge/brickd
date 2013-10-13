@@ -27,7 +27,7 @@
  * the Stack type is used as a generic base for specific types such as the
  * USBStack that deals with the USB communication. it keeps track of the list
  * of known UIDs for a stack and provides a generic dispatch function to send
- * packets to a stack. the interface specific implementation of the dispatch
+ * requests to a stack. the interface specific implementation of the dispatch
  * function is done in the specific stack types such as the USBStack.
  */
 
@@ -44,10 +44,10 @@
 #define LOG_CATEGORY LOG_CATEGORY_HARDWARE
 
 int stack_create(Stack *stack, const char *name,
-                 DispatchPacketFunction dispatch_packet) {
+                 DispatchRequestFunction dispatch_request) {
 	string_copy(stack->name, name, sizeof(stack->name));
 
-	stack->dispatch_packet = dispatch_packet;
+	stack->dispatch_request = dispatch_request;
 
 	if (array_create(&stack->uids, 32, sizeof(uint32_t), 1) < 0) {
 		log_error("Could not create UID array: %s (%d)",
@@ -105,21 +105,21 @@ int stack_knows_uid(Stack *stack, uint32_t uid /* always little endian */) {
 	return 0;
 }
 
-// returns -1 on error, 0 if the packet was not dispatched and 1 if it was dispatch
-int stack_dispatch_packet(Stack *stack, Packet *packet, int force) {
-	int rc = 0;
-
-	if (force || stack_knows_uid(stack, packet->header.uid)) {
-		rc = stack->dispatch_packet(stack, packet);
-
-		if (rc == 1) {
-			if (force) {
-				log_debug("Forced to sent request to %s", stack->name);
-			} else {
-				log_debug("Sent request to %s", stack->name);
-			}
-		}
+// returns -1 on error, 0 if the request was not dispatched and 1 if it was dispatch
+int stack_dispatch_request(Stack *stack, Packet *request, int force) {
+	if (!stack_knows_uid(stack, request->header.uid) && !force) {
+		return 0;
 	}
 
-	return rc;
+	if (stack->dispatch_request(stack, request) < 0) {
+		return -1;
+	}
+
+	if (force) {
+		log_debug("Forced to sent request to %s", stack->name);
+	} else {
+		log_debug("Sent request to %s", stack->name);
+	}
+
+	return 1;
 }
