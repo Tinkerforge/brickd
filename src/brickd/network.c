@@ -218,6 +218,8 @@ int network_init(void) {
 
 	phase = 4;
 
+	freeaddrinfo(resolved_address);
+
 cleanup:
 	switch (phase) { // no breaks, all cases fall through intentionally
 	case 3:
