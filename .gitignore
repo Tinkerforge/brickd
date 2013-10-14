@@ -5,4 +5,4 @@ src/brickd/brickd
 src/brickd/brickd.exe
 src/brickd/log_messages.h
 src/brickd/log_messages.rc
-src/tests/throughput
+src/tests/throughput_test
