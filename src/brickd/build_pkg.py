@@ -40,7 +40,7 @@ def build_macosx_pkg():
     if os.path.exists(dist_dir):
         shutil.rmtree(dist_dir)
 
-    build_data_dir = os.path.join(os.getcwd(), '..', 'build_data', 'macos')
+    build_data_dir = os.path.join(os.getcwd(), '..', 'build_data', 'macosx')
     shutil.copytree(build_data_dir, dist_dir)
 
     contents_dir = os.path.join(os.getcwd(), 'dist', 'data', 'brickd.app', 'Contents')
