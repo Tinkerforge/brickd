@@ -148,7 +148,7 @@ void usb_transfer_destroy(USBTransfer *transfer) {
 
 		// FIXME: if libusb_cancel_transfer fails with LIBUSB_ERROR_NO_DEVICE
 		//        then probably free the transfer anyway, as it fails constantly
-		//        this way on Windows XP and Mac OSX. but need to verify that
+		//        this way on Windows XP and Mac OS X. but need to verify that
 		//        in those cases freeing the transfer won't trigger a segfault.
 		//        the libusb docs forbid to free an active transfer.
 

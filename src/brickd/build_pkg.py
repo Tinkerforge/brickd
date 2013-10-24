@@ -32,7 +32,7 @@ import glob
 
 def build_macosx_pkg():
     os.system('make clean')
-    os.system('CC=gcc WITH_IOKIT=yes make')
+    os.system('CC=gcc make')
 
     version = subprocess.check_output(['./brickd', '--version']).replace('\n', '')
 
@@ -55,12 +55,11 @@ def build_macosx_pkg():
         lines.append(line)
     file(plist_name, 'wb').writelines(lines)
 
-    libusb_path = subprocess.check_output("otool -L brickd | grep libusb | awk '{ print $1 }'", shell=True).replace('\n', '')
-    libusb_name = os.path.split(libusb_path)[1]
+    libusb_path = os.path.join(os.getcwd(), '..', 'build_data', 'macosx', 'libusb', 'libusb-1.0.dylib')
 
     shutil.copy(libusb_path, macos_dir)
 
-    os.system('install_name_tool -change {0} @executable_path/{1} {2}'.format(libusb_path, libusb_name, os.path.join(macos_dir, 'brickd')))
+    os.system('install_name_tool -change {0} @executable_path/{1} {2}'.format(libusb_path, 'libusb-1.0.dylib', os.path.join(macos_dir, 'brickd')))
 
     rc = os.system('./build_dmg.sh')
 

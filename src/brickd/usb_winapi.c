@@ -27,7 +27,7 @@
  * once libusb gains hotplug support for Windows and the libusbx fork bundled
  * with brickd gets updated to include it brickd will also have to used the
  * hotplug handling in libusb on Windows. there is a similar race in event
- * handling to expect as on Linux and Mac OSX.
+ * handling to expect as on Linux and Mac OS X.
  */
 
 #include "usb.h"

@@ -18,7 +18,6 @@ CC ?= gcc
 
 WITH_LIBUDEV ?= check
 WITH_LIBUDEV_DLOPEN ?= no
-WITH_IOKIT ?= check
 WITH_LOGGING ?= yes
 WITH_PROFILING ?= no
 
@@ -75,15 +74,13 @@ endif
 
 LIBUSB_STATUS := no
 LIBUDEV_STATUS := no
-IOKIT_STATUS := no
 
 ifeq ($(PLATFORM),Windows)
 	HOTPLUG := WinAPI
-else
-	HOTPLUG := $(shell pkg-config --exists 'libusb-1.0 >= 1.0.16' && echo libusb || echo libusb \(if supported\))
 endif
 
 ifeq ($(PLATFORM),Linux)
+	HOTPLUG := $(shell pkg-config --exists 'libusb-1.0 >= 1.0.16' && echo libusb || echo libusb \(if supported\))
 ifeq ($(WITH_LIBUDEV),check)
 ifeq ($(HOTPLUG),libusb)
 	# libusb hotplug, libudev not required
@@ -95,24 +92,8 @@ else
 endif
 endif
 else
-	# not Linux, libudev not avialable
+	# not Linux, libudev not available
 	WITH_LIBUDEV := no
-endif
-
-ifeq ($(PLATFORM),Darwin)
-ifeq ($(WITH_IOKIT),check)
-ifeq ($(HOTPLUG),libusb)
-	# libusb hotplug, IOKit not required
-	WITH_IOKIT := no
-	IOKIT_STATUS := not required
-else
-	# no libusb hotplug, use IOKit instead
-	WITH_IOKIT := yes
-endif
-endif
-else
-	# not Darwin, IOKit not avialable
-	WITH_IOKIT := no
 endif
 
 ifeq ($(WITH_LIBUDEV),yes)
@@ -121,10 +102,8 @@ ifeq ($(HOTPLUG),libusb (if supported))
 endif
 endif
 
-ifeq ($(WITH_IOKIT),yes)
-ifeq ($(HOTPLUG),libusb (if supported))
-	HOTPLUG := libusb (if supported) or IOKit
-endif
+ifeq ($(PLATFORM),Darwin)
+	HOTPLUG := libusb
 endif
 
 SOURCES := array.c client.c config.c event.c hardware.c log.c network.c \
@@ -154,10 +133,6 @@ ifeq ($(WITH_LIBUDEV),yes)
 	SOURCES += udev.c
 endif
 
-ifeq ($(WITH_IOKIT),yes)
-	SOURCES += iokit.c
-endif
-
 OBJECTS := ${SOURCES:.c=.o}
 DEPENDS := ${SOURCES:.c=.d}
 
@@ -183,11 +158,13 @@ else
 endif
 
 ifeq ($(PLATFORM),Windows)
-	LIBUSB_STATUS := fork
-	LIBUSB_CFLAGS := -I../build_data/Windows/libusb
-	LIBUSB_LDFLAGS := -L../build_data/Windows/libusb
+	LIBUSB_STATUS := 1.0.17 (fork)
+	LIBUSB_CFLAGS := -I../build_data/windows/libusb
+	LIBUSB_LDFLAGS := -L../build_data/windows/libusb
 	LIBUSB_LIBS := -lusb-1.0
-else
+endif
+
+ifeq ($(PLATFORM),Linux)
 LIBUSB_VERSION := $(shell pkg-config --exists 'libusb-1.0 >= 1.0.6' && echo okay)
 ifeq ($(LIBUSB_VERSION),okay)
 	LIBUSB_STATUS := $(shell pkg-config --modversion libusb-1.0)
@@ -199,6 +176,13 @@ ifneq ($(MAKECMDGOALS),clean)
 $(error Could not find libusb-1.0 >= 1.0.6)
 endif
 endif
+endif
+
+ifeq ($(PLATFORM),Darwin)
+	LIBUSB_STATUS := 1.0.17 (fork)
+	LIBUSB_CFLAGS := -I../build_data/macosx/libusb
+	LIBUSB_LDFLAGS := -L../build_data/macosx/libusb
+	LIBUSB_LIBS := -lusb-1.0
 endif
 
 CFLAGS += $(LIBUSB_CFLAGS)
@@ -231,15 +215,6 @@ ifeq ($(HOTPLUG),libusb)
 endif
 endif
 
-ifeq ($(WITH_IOKIT),yes)
-	IOKIT_STATUS := system
-	CFLAGS += -DBRICKD_WITH_IOKIT
-	LIBS += -Wl,-framework,IOKit -Wl,-framework,CoreFoundation -lobjc
-ifeq ($(HOTPLUG),libusb)
-	IOKIT_STATUS := $(IOKIT_STATUS) (unused)
-endif
-endif
-
 ifneq ($(PLATFORM),Windows)
 	LIBS += -ldl
 endif
@@ -264,7 +239,6 @@ endif
 ifneq ($(MAKECMDGOALS),clean)
 $(info libusb: $(LIBUSB_STATUS))
 $(info libudev: $(LIBUDEV_STATUS))
-$(info IOKit: $(IOKIT_STATUS))
 $(info hotplug: $(HOTPLUG))
 endif
 
