@@ -40,8 +40,8 @@ def build_macosx_pkg():
     if os.path.exists(dist_dir):
         shutil.rmtree(dist_dir)
 
-    build_data_dir = os.path.join(os.getcwd(), '..', 'build_data', 'macosx')
-    shutil.copytree(build_data_dir, dist_dir)
+    installer_dir = os.path.join(os.getcwd(), '..', 'build_data', 'macosx', 'installer')
+    shutil.copytree(installer_dir, dist_dir)
 
     contents_dir = os.path.join(os.getcwd(), 'dist', 'data', 'brickd.app', 'Contents')
     macos_dir = os.path.join(contents_dir, 'MacOS')
@@ -88,7 +88,7 @@ def build_windows_pkg():
         lines.append(line)
     file('dist/nsis/brickd_installer.nsi', 'wb').writelines(lines)
 
-    build_data_dir = os.path.join(os.getcwd(), '..', 'build_data', 'Windows')
+    build_data_dir = os.path.join(os.getcwd(), '..', 'build_data', 'windows')
     drivers_dir = os.path.join(build_data_dir, 'drivers')
     eventlog_dir = os.path.join(build_data_dir, 'eventlog')
     dist_dir = os.path.join(os.getcwd(), 'dist')
