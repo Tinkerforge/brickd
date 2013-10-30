@@ -30,11 +30,24 @@ import subprocess
 import re
 import glob
 
+def check_output(*popenargs, **kwargs):
+    if 'stdout' in kwargs:
+        raise ValueError('stdout argument not allowed, it will be overridden.')
+    process = subprocess.Popen(stdout=subprocess.PIPE, *popenargs, **kwargs)
+    output, unused_err = process.communicate()
+    retcode = process.poll()
+    if retcode:
+        cmd = kwargs.get("args")
+        if cmd is None:
+            cmd = popenargs[0]
+        raise subprocess.CalledProcessError(retcode, cmd, output=output)
+    return output
+
 def build_macosx_pkg():
     os.system('make clean')
     os.system('CC=gcc make')
 
-    version = subprocess.check_output(['./brickd', '--version']).replace('\n', '')
+    version = check_output(['./brickd', '--version']).replace('\n', '')
 
     dist_dir = os.path.join(os.getcwd(), 'dist')
     if os.path.exists(dist_dir):
@@ -76,7 +89,7 @@ def build_windows_pkg():
 
     os.system('compile.bat')
 
-    version = subprocess.check_output(['dist\\brickd.exe', '--version']).replace('\r\n', '')
+    version = check_output(['dist\\brickd.exe', '--version']).replace('\r\n', '')
 
     nsis_dir = os.path.join(os.getcwd(), 'dist', 'nsis')
     os.makedirs(nsis_dir)
@@ -109,7 +122,7 @@ def build_linux_pkg():
         sys.stderr.write("build_pkg for Linux has to be started as root, exiting\n")
         sys.exit(1)
 
-    architecture = subprocess.check_output(['dpkg', '--print-architecture']).replace('\n', '')
+    architecture = check_output(['dpkg', '--print-architecture']).replace('\n', '')
 
     print 'Building version for ' + architecture
 
@@ -120,7 +133,7 @@ def build_linux_pkg():
     else:
         os.system('CC=gcc WITH_LIBUDEV=yes WITH_LIBUDEV_DLOPEN=yes make')
 
-    version = subprocess.check_output(['./brickd', '--version']).replace('\n', '').replace(' ', '-')
+    version = check_output(['./brickd', '--version']).replace('\n', '').replace(' ', '-')
 
     dist_dir = os.path.join(os.getcwd(), 'dist')
     if os.path.exists(dist_dir):
@@ -157,9 +170,7 @@ def build_linux_pkg():
 
 # call python build_pkg.py to build the windows/linux/macosx package
 if __name__ == "__main__":
-    if sys.hexversion < 0x02070000:
-        print 'error: requiring Python >= 2.7'
-    elif sys.platform.startswith('linux'):
+    if sys.platform.startswith('linux'):
         build_linux_pkg()
     elif sys.platform == 'win32':
         build_windows_pkg()
