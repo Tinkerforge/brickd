@@ -56,7 +56,10 @@ def build_macosx_pkg():
     installer_dir = os.path.join(os.getcwd(), '..', 'build_data', 'macosx', 'installer')
     shutil.copytree(installer_dir, dist_dir)
 
-    contents_dir = os.path.join(os.getcwd(), 'dist', 'data', 'brickd.app', 'Contents')
+    install_app_dir = os.path.join(os.getcwd(), 'dist', 'INSTALL.app')
+    brickd_app_dir = os.path.join(os.getcwd(), 'dist', 'data', 'brickd.app')
+
+    contents_dir = os.path.join(brickd_app_dir, 'Contents')
     macos_dir = os.path.join(contents_dir, 'MacOS')
     os.makedirs(macos_dir)
     shutil.copy('brickd', macos_dir)
@@ -73,6 +76,13 @@ def build_macosx_pkg():
     shutil.copy(libusb_path, macos_dir)
 
     os.system('install_name_tool -change {0} @executable_path/{1} {2}'.format(libusb_path, 'libusb-1.0.dylib', os.path.join(macos_dir, 'brickd')))
+
+    print 'signing...'
+    codesign_command = 'codesign --force --verify --verbose --sign "${{CODESIGN_IDENTITY}}" {0}'
+
+    os.system(codesign_command.format(install_app_dir))
+    os.system(codesign_command.format(os.path.join(macos_dir, 'libusb-1.0.dylib')))
+    os.system(codesign_command.format(brickd_app_dir))
 
     rc = os.system('./build_dmg.sh')
 
