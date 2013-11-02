@@ -22,7 +22,7 @@
 /*
  * this is a specific implementation of the generic Stack type for USB. it
  * handles USB device lookup based on bus number and device address and takes
- * care of sending an receiving packets over USB.
+ * care of sending and receiving packets over USB.
  */
 
 #include <errno.h>
@@ -139,13 +139,13 @@ static void usb_stack_write_callback(USBTransfer *transfer) {
 	}
 }
 
-static int usb_stack_dispatch_request(USBStack *stack, Packet *request) {
+static int usb_stack_dispatch_request(USBStack *usb_stack, Packet *request) {
 	int i;
 	USBTransfer *transfer;
 	Packet *queued_request;
 
-	for (i = 0; i < stack->write_transfers.count; ++i) {
-		transfer = array_get(&stack->write_transfers, i);
+	for (i = 0; i < usb_stack->write_transfers.count; ++i) {
+		transfer = array_get(&usb_stack->write_transfers, i);
 
 		if (transfer->submitted) {
 			continue;
@@ -162,27 +162,27 @@ static int usb_stack_dispatch_request(USBStack *stack, Packet *request) {
 		return 0;
 	}
 
-	if (stack->write_queue.count >= MAX_QUEUED_WRITES) {
+	if (usb_stack->write_queue.count >= MAX_QUEUED_WRITES) {
 		log_warn("Dropping %d item(s) from write queue array of %s",
-		         stack->write_queue.count - MAX_QUEUED_WRITES + 1,
-		         stack->base.name);
+		         usb_stack->write_queue.count - MAX_QUEUED_WRITES + 1,
+		         usb_stack->base.name);
 
-		while (stack->write_queue.count >= MAX_QUEUED_WRITES) {
-			array_remove(&stack->write_queue, 0, NULL);
+		while (usb_stack->write_queue.count >= MAX_QUEUED_WRITES) {
+			array_remove(&usb_stack->write_queue, 0, NULL);
 		}
 	}
 
-	queued_request = array_append(&stack->write_queue);
+	queued_request = array_append(&usb_stack->write_queue);
 
 	if (queued_request == NULL) {
 		log_error("Could not append to write queue array of %s: %s (%d)",
-		          stack->base.name, get_errno_name(errno), errno);
+		          usb_stack->base.name, get_errno_name(errno), errno);
 
 		return -1;
 	}
 
 	log_warn("Could not find a free write transfer for %s, put request into write queue (count: %d)",
-	         stack->base.name, stack->write_queue.count);
+	         usb_stack->base.name, usb_stack->write_queue.count);
 
 	memcpy(queued_request, request, request->header.length);
 
