@@ -30,20 +30,36 @@ ifndef V
 endif
 endif
 
-SOURCES := throughput_test.c ip_connection.c brick_master.c $(call FIX_PATH,../brickd/utils.c)
+ARRAY_TEST_SOURCES := array_test.c $(call FIX_PATH,../brickd/array.c)
+QUEUE_TEST_SOURCES := queue_test.c $(call FIX_PATH,../brickd/queue.c)
+THROUGHPUT_TEST_SOURCES := throughput_test.c ip_connection.c brick_master.c $(call FIX_PATH,../brickd/utils.c)
+
+SOURCES := $(ARRAY_TEST_SOURCES) $(QUEUE_TEST_SOURCES) $(THROUGHPUT_TEST_SOURCES)
 
 ifeq ($(PLATFORM),Windows)
-	SOURCES += $(call FIX_PATH,../brickd/fixes_mingw.c)
+	ARRAY_TEST_SOURCES += $(call FIX_PATH,../brickd/fixes_mingw.c)
+	QUEUE_TEST_SOURCES += $(call FIX_PATH,../brickd/fixes_mingw.c)
+	THROUGHPUT_TEST_SOURCES += $(call FIX_PATH,../brickd/fixes_mingw.c)
 endif
 
-OBJECTS := ${SOURCES:.c=.o}
-DEPENDS := ${SOURCES:.c=.d}
+ARRAY_TEST_OBJECTS := ${ARRAY_TEST_SOURCES:.c=.test.o}
+QUEUE_TEST_OBJECTS := ${QUEUE_TEST_SOURCES:.c=.test.o}
+THROUGHPUT_TEST_OBJECTS := ${THROUGHPUT_TEST_SOURCES:.c=.test.o}
+
+OBJECTS := $(ARRAY_TEST_OBJECTS) $(QUEUE_TEST_OBJECTS) $(THROUGHPUT_TEST_OBJECTS)
+DEPENDS := ${ARRAY_TEST_SOURCES:.c=.test.d} ${QUEUE_TEST_SOURCES:.c=.test.d} ${THROUGHPUT_TEST_SOURCES:.c=.test.d}
 
 ifeq ($(PLATFORM),Windows)
-	TARGET := throughput_test.exe
+	ARRAY_TEST_TARGET := array_test.exe
+	QUEUE_TEST_TARGET := queue_test.exe
+	THROUGHPUT_TEST_TARGET := throughput_test.exe
 else
-	TARGET := throughput_test
+	ARRAY_TEST_TARGET := array_test
+	QUEUE_TEST_TARGET := queue_test
+	THROUGHPUT_TEST_TARGET := throughput_test
 endif
+
+TARGETS := $(ARRAY_TEST_TARGET) $(QUEUE_TEST_TARGET) $(THROUGHPUT_TEST_TARGET)
 
 CFLAGS += -O2 -Wall -Wextra
 #CFLAGS += -O0 -g -ggdb
@@ -58,32 +74,36 @@ endif
 
 .PHONY: all clean
 
-all: $(TARGET) Makefile
+all: $(TARGETS) Makefile
 
 clean: Makefile
-	$(E)$(RM) $(GENERATED) $(OBJECTS) $(TARGET)
+	$(E)$(RM) $(GENERATED) $(OBJECTS) $(TARGETS)
 
 clean-depend: Makefile
 	$(E)$(RM) $(DEPENDS)
 
-$(TARGET): $(OBJECTS) Makefile
+$(ARRAY_TEST_TARGET): $(ARRAY_TEST_OBJECTS) Makefile
 	@echo LD $@
-	$(E)$(CC) -o $(TARGET) $(LDFLAGS) $(OBJECTS) $(LIBS)
+	$(E)$(CC) -o $(ARRAY_TEST_TARGET) $(LDFLAGS) $(ARRAY_TEST_OBJECTS) $(LIBS)
 
-%.o: %.c $(GENERATED) Makefile
+$(QUEUE_TEST_TARGET): $(QUEUE_TEST_OBJECTS) Makefile
+	@echo LD $@
+	$(E)$(CC) -o $(QUEUE_TEST_TARGET) $(LDFLAGS) $(QUEUE_TEST_OBJECTS) $(LIBS)
+
+$(THROUGHPUT_TEST_TARGET): $(THROUGHPUT_TEST_OBJECTS) Makefile
+	@echo LD $@
+	$(E)$(CC) -o $(THROUGHPUT_TEST_TARGET) $(LDFLAGS) $(THROUGHPUT_TEST_OBJECTS) $(LIBS)
+
+%.test.o: %.c $(GENERATED) Makefile
 	@echo CC $@
 	$(E)$(CC) $(CFLAGS) -c -o $@ $<
 
-%.o: %.rc Makefile
-	@echo GEN $@
-	$(E)windres $< $@
-
 # FIXME: make dependency handling work for MinGW
 ifneq ($(PLATFORM),Windows)
-	-include $(subst .c,.d,$(SOURCES))
+	-include $(subst .c,.test.d,$(SOURCES))
 endif
 
-%.d: %.c Makefile
+%.test.d: %.c Makefile
 	$(E)$(CC) -M $(CFLAGS) $< > $@.tmp; \
 	sed 's,\($*\)\.o[ :]*,\1.o $@ : ,g' < $@.tmp > $@; \
 	rm -f -- $@.tmp

@@ -45,5 +45,27 @@ rem @set LD=link /nologo /opt:ref /opt:icf /release
 
 @del *.obj *.res *.bin *.exp *.manifest
 
+%CC% array_test.c^
+ ..\brickd\fixes_msvc.c^
+ ..\brickd\array.c
+
+%LD% /out:array_test.exe *.obj
+
+@if exist array_test.exe.manifest^
+ %MT% /manifest array_test.exe.manifest -outputresource:array_test.exe
+
+@del *.obj *.res *.bin *.exp *.manifest
+
+%CC% queue_test.c^
+ ..\brickd\fixes_msvc.c^
+ ..\brickd\queue.c
+
+%LD% /out:queue_test.exe *.obj
+
+@if exist queue_test.exe.manifest^
+ %MT% /manifest array_test.exe.manifest -outputresource:queue_test.exe
+
+@del *.obj *.res *.bin *.exp *.manifest
+
 :done
 @endlocal
