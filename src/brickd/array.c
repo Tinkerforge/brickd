@@ -19,6 +19,15 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
+/*
+ * an Array stores items in a continuous block of memory and provides random
+ * access to it. when items are added/removed from the Array then other items
+ * might have to be moved in memory to keep the block of memory continuous.
+ * this requires that the items are relocatable in memory. if the items do not
+ * have this property then the Array will allocate extra memory per item and
+ * store a pointer to this extra memory in its continuous block of memory.
+ */
+
 #include <errno.h>
 #include <stdlib.h>
 #include <string.h>

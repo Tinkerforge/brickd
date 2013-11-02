@@ -49,6 +49,7 @@
  network.c^
  packet.c^
  pipe_winapi.c^
+ queue.c^
  service.c^
  socket_winapi.c^
  stack.c^

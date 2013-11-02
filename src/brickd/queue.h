@@ -2,7 +2,7 @@
  * brickd
  * Copyright (C) 2013 Matthias Bolte <matthias@tinkerforge.com>
  *
- * usb_stack.h: USB stack specific functions
+ * queue.h: Queue specific functions
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,30 +19,31 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-#ifndef BRICKD_USB_STACK_H
-#define BRICKD_USB_STACK_H
+#ifndef BRICKD_QUEUE_H
+#define BRICKD_QUEUE_H
 
-#include <libusb.h>
+#include <stdint.h>
 
-#include "array.h"
-#include "queue.h"
-#include "stack.h"
+typedef void (*FreeFunction)(void *item);
+
+typedef struct _QueueNode QueueNode;
+
+struct _QueueNode {
+	QueueNode *next;
+};
 
 typedef struct {
-	Stack base;
+	int count; // number of items in the queue
+	int size; // size of a single item in bytes
+	QueueNode *head;
+	QueueNode *tail;
+} Queue;
 
-	uint8_t bus_number;
-	uint8_t device_address;
-	libusb_context *context;
-	libusb_device *device;
-	libusb_device_handle *device_handle;
-	Array read_transfers;
-	Array write_transfers;
-	Queue write_queue;
-	int connected;
-} USBStack;
+int queue_create(Queue *queue, int size);
+void queue_destroy(Queue *queue, FreeFunction function);
 
-int usb_stack_create(USBStack *usb_stack, uint8_t bus_number, uint8_t device_address);
-void usb_stack_destroy(USBStack *usb_stack);
+void *queue_push(Queue *queue);
+void queue_pop(Queue *queue, FreeFunction function);
+void *queue_peek(Queue *queue);
 
-#endif // BRICKD_USB_STACK_H
+#endif // BRICKD_QUEUE_H

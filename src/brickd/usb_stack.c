@@ -106,7 +106,7 @@ static void usb_stack_write_callback(USBTransfer *transfer) {
 	char base58[MAX_BASE58_STR_SIZE];
 
 	if (transfer->usb_stack->write_queue.count > 0) {
-		request = array_get(&transfer->usb_stack->write_queue, 0);
+		request = queue_peek(&transfer->usb_stack->write_queue);
 
 		memcpy(&transfer->packet, request, request->header.length);
 
@@ -123,7 +123,7 @@ static void usb_stack_write_callback(USBTransfer *transfer) {
 			return;
 		}
 
-		array_remove(&transfer->usb_stack->write_queue, 0, NULL);
+		queue_pop(&transfer->usb_stack->write_queue, NULL);
 
 		log_debug("Sent queued request (U: %s, L: %u, F: %u, S: %u, R: %u) to %s",
 		          base58_encode(base58, uint32_from_le(transfer->packet.header.uid)),
@@ -168,11 +168,11 @@ static int usb_stack_dispatch_request(USBStack *usb_stack, Packet *request) {
 		         usb_stack->base.name);
 
 		while (usb_stack->write_queue.count >= MAX_QUEUED_WRITES) {
-			array_remove(&usb_stack->write_queue, 0, NULL);
+			queue_pop(&usb_stack->write_queue, NULL);
 		}
 	}
 
-	queued_request = array_append(&usb_stack->write_queue);
+	queued_request = queue_push(&usb_stack->write_queue);
 
 	if (queued_request == NULL) {
 		log_error("Could not append to write queue array of %s: %s (%d)",
@@ -344,8 +344,8 @@ int usb_stack_create(USBStack *usb_stack, uint8_t bus_number, uint8_t device_add
 	phase = 6;
 
 	// allocate write queue
-	if (array_create(&usb_stack->write_queue, 32, sizeof(Packet), 1) < 0) {
-		log_error("Could not create write queue array for %s: %s (%d)",
+	if (queue_create(&usb_stack->write_queue, sizeof(Packet)) < 0) {
+		log_error("Could not create write queue for %s: %s (%d)",
 		          usb_stack->base.name, get_errno_name(errno), errno);
 
 		goto cleanup;
@@ -396,7 +396,7 @@ cleanup:
 		array_destroy(&usb_stack->write_transfers, (FreeFunction)usb_transfer_destroy);
 
 	case 7:
-		array_destroy(&usb_stack->write_queue, NULL);
+		queue_destroy(&usb_stack->write_queue, NULL);
 
 	case 6:
 		array_destroy(&usb_stack->read_transfers, (FreeFunction)usb_transfer_destroy);
@@ -431,7 +431,7 @@ void usb_stack_destroy(USBStack *usb_stack) {
 	array_destroy(&usb_stack->read_transfers, (FreeFunction)usb_transfer_destroy);
 	array_destroy(&usb_stack->write_transfers, (FreeFunction)usb_transfer_destroy);
 
-	array_destroy(&usb_stack->write_queue, NULL);
+	queue_destroy(&usb_stack->write_queue, NULL);
 
 	libusb_release_interface(usb_stack->device_handle, USB_BRICK_INTERFACE);
 
