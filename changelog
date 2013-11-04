@@ -55,3 +55,11 @@
        Fix text of some USB related error messages
        Don't set SO_REUSEADDR for server socket on Windows
 2.0.8: Fix dynamic loading of libudev on Linux
+2.0.9: Use libusb hotplug support if available on Linux
+       Update bundled libusb to 1.0.17 on Mac OS X, libusb hotplug replaces custom IOKit code
+       Update bundled libusb to 1.0.17 on Windows, adds support for VIA VL805 USB 3.0 host controllers
+       Add --libusb-debug option to enable libusb debug output
+       Report too long lines in config file as errors instead of silently ignoring them
+       Add IPv6 support with configurable dual-stack handling
+       Don't interfere with Apple's USB Ethernet Adapter on Mac OS X
+       Sign brickd.app and installer on Mac OS X to silence the Gate Keeper
