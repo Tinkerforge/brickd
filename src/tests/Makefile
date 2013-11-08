@@ -42,12 +42,12 @@ ifeq ($(PLATFORM),Windows)
 	THROUGHPUT_TEST_SOURCES += $(call FIX_PATH,../brickd/fixes_mingw.c)
 endif
 
-ARRAY_TEST_OBJECTS := ${ARRAY_TEST_SOURCES:.c=.test.o}
-QUEUE_TEST_OBJECTS := ${QUEUE_TEST_SOURCES:.c=.test.o}
-THROUGHPUT_TEST_OBJECTS := ${THROUGHPUT_TEST_SOURCES:.c=.test.o}
+ARRAY_TEST_OBJECTS := ${ARRAY_TEST_SOURCES:.c=.o}
+QUEUE_TEST_OBJECTS := ${QUEUE_TEST_SOURCES:.c=.o}
+THROUGHPUT_TEST_OBJECTS := ${THROUGHPUT_TEST_SOURCES:.c=.o}
 
 OBJECTS := $(ARRAY_TEST_OBJECTS) $(QUEUE_TEST_OBJECTS) $(THROUGHPUT_TEST_OBJECTS)
-DEPENDS := ${ARRAY_TEST_SOURCES:.c=.test.d} ${QUEUE_TEST_SOURCES:.c=.test.d} ${THROUGHPUT_TEST_SOURCES:.c=.test.d}
+DEPENDS := ${ARRAY_TEST_SOURCES:.c=.p} ${QUEUE_TEST_SOURCES:.c=.p} ${THROUGHPUT_TEST_SOURCES:.c=.p}
 
 ifeq ($(PLATFORM),Windows)
 	ARRAY_TEST_TARGET := array_test.exe
@@ -77,10 +77,7 @@ endif
 all: $(TARGETS) Makefile
 
 clean: Makefile
-	$(E)$(RM) $(GENERATED) $(OBJECTS) $(TARGETS)
-
-clean-depend: Makefile
-	$(E)$(RM) $(DEPENDS)
+	$(E)$(RM) $(GENERATED) $(OBJECTS) $(TARGETS) $(DEPENDS)
 
 $(ARRAY_TEST_TARGET): $(ARRAY_TEST_OBJECTS) Makefile
 	@echo LD $@
@@ -94,16 +91,15 @@ $(THROUGHPUT_TEST_TARGET): $(THROUGHPUT_TEST_OBJECTS) Makefile
 	@echo LD $@
 	$(E)$(CC) -o $(THROUGHPUT_TEST_TARGET) $(LDFLAGS) $(THROUGHPUT_TEST_OBJECTS) $(LIBS)
 
-%.test.o: %.c $(GENERATED) Makefile
+%.o: %.c $(GENERATED) Makefile
 	@echo CC $@
+ifneq ($(PLATFORM),Windows)
+	$(E)$(CC) -M $(CFLAGS) -o $*.d $<; cp $*.d $*.p; sed -e 's/#.*//' -e 's/^[^:]*: *//' -e 's/ *\\$$//' -e '/^$$/ d' -e 's/$$/ :/' < $*.d >> $*.p; rm -f $*.d
+endif
 	$(E)$(CC) $(CFLAGS) -c -o $@ $<
 
 # FIXME: make dependency handling work for MinGW
+# http://make.paulandlesley.org/autodep.html
 ifneq ($(PLATFORM),Windows)
-	-include $(subst .c,.test.d,$(SOURCES))
+-include $(DEPENDS)
 endif
-
-%.test.d: %.c Makefile
-	$(E)$(CC) -M $(CFLAGS) $< > $@.tmp; \
-	sed 's,\($*\)\.o[ :]*,\1.o $@ : ,g' < $@.tmp > $@; \
-	rm -f -- $@.tmp

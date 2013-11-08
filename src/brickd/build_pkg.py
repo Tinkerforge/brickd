@@ -176,7 +176,6 @@ def build_linux_pkg():
     os.system('dpkg -b dist brickd-' + version + '_' + architecture + '.deb')
 
     os.system('make clean')
-    os.system('make clean-depend')
 
 
 # call python build_pkg.py to build the windows/linux/macosx package

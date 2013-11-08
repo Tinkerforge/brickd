@@ -134,7 +134,7 @@ ifeq ($(WITH_LIBUDEV),yes)
 endif
 
 OBJECTS := ${SOURCES:.c=.o}
-DEPENDS := ${SOURCES:.c=.d}
+DEPENDS := ${SOURCES:.c=.p}
 
 ifeq ($(PLATFORM),Windows)
 	OBJECTS += brickd.o log_messages.o
@@ -254,10 +254,7 @@ dist\brickd.exe: $(TARGET) Makefile
 	$(E)copy "..\build_data\Windows\libusb\libusb-1.0.dll" "dist\"
 
 clean: Makefile
-	$(E)$(RM) $(GENERATED) $(OBJECTS) $(TARGET)
-
-clean-depend: Makefile
-	$(E)$(RM) $(DEPENDS)
+	$(E)$(RM) $(GENERATED) $(OBJECTS) $(TARGET) $(DEPENDS)
 
 $(TARGET): $(OBJECTS) Makefile
 	@echo LD $@
@@ -290,6 +287,9 @@ log_messages.h log_messages.rc: log_messages.mc Makefile
 
 %.o: %.c $(GENERATED) Makefile
 	@echo CC $@
+ifneq ($(PLATFORM),Windows)
+	$(E)$(CC) -M $(CFLAGS) -o $*.d $<; cp $*.d $*.p; sed -e 's/#.*//' -e 's/^[^:]*: *//' -e 's/ *\\$$//' -e '/^$$/ d' -e 's/$$/ :/' < $*.d >> $*.p; rm -f $*.d
+endif
 	$(E)$(CC) $(CFLAGS) -c -o $@ $<
 
 %.o: %.rc Makefile
@@ -297,11 +297,7 @@ log_messages.h log_messages.rc: log_messages.mc Makefile
 	$(E)windres $< $@
 
 # FIXME: make dependency handling work for MinGW
+# http://make.paulandlesley.org/autodep.html
 ifneq ($(PLATFORM),Windows)
-	-include $(subst .c,.d,$(SOURCES))
+-include $(DEPENDS)
 endif
-
-%.d: %.c Makefile
-	$(E)$(CC) -M $(CFLAGS) $< > $@.tmp; \
-	sed 's,\($*\)\.o[ :]*,\1.o $@ : ,g' < $@.tmp > $@; \
-	rm -f -- $@.tmp
