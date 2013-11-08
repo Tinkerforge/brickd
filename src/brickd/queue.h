@@ -24,7 +24,7 @@
 
 #include <stdint.h>
 
-typedef void (*FreeFunction)(void *item);
+#include "utils.h"
 
 typedef struct _QueueNode QueueNode;
 

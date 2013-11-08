@@ -27,6 +27,8 @@
 #define ERRNO_WINAPI_OFFSET 71000000
 #define ERRNO_ADDRINFO_OFFSET 72000000
 
+typedef void (*FreeFunction)(void *item);
+
 int errno_interrupted(void);
 
 const char *get_errno_name(int error_code);
