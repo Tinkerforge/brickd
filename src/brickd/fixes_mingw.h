@@ -32,6 +32,10 @@ void fixes_init(void);
 	#define PROCESS_QUERY_LIMITED_INFORMATION 0x1000
 #endif
 
+#ifndef IPV6_V6ONLY
+	#define IPV6_V6ONLY 27
+#endif
+
 struct tm *localtime_r(const time_t *timep, struct tm *result);
 
 #endif // __MINGW32__
