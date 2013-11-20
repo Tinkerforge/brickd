@@ -125,17 +125,14 @@ static void usb_stack_write_callback(USBTransfer *transfer) {
 
 		queue_pop(&transfer->usb_stack->write_queue, NULL);
 
-		log_debug("Sent queued request (U: %s, L: %u, F: %u, S: %u, R: %u) to %s",
+		log_debug("Sent queued request (U: %s, L: %u, F: %u, S: %u, R: %u) to %s, %d request(s) left in write queue",
 		          base58_encode(base58, uint32_from_le(transfer->packet.header.uid)),
 		          transfer->packet.header.length,
 		          transfer->packet.header.function_id,
 		          packet_header_get_sequence_number(&transfer->packet.header),
 		          packet_header_get_response_expected(&transfer->packet.header),
-		          transfer->usb_stack->base.name);
-
-		log_info("Handled queued request for %s, %d request(s) left in write queue",
-		         transfer->usb_stack->base.name,
-		         transfer->usb_stack->write_queue.count);
+		          transfer->usb_stack->base.name,
+		          transfer->usb_stack->write_queue.count);
 	}
 }
 
@@ -162,10 +159,13 @@ static int usb_stack_dispatch_request(USBStack *usb_stack, Packet *request) {
 		return 0;
 	}
 
+	log_debug("Could not find a free write transfer for %s, adding request to write queue (count: %d +1)",
+	          usb_stack->base.name, usb_stack->write_queue.count);
+
 	if (usb_stack->write_queue.count >= MAX_QUEUED_WRITES) {
-		log_warn("Dropping %d item(s) from write queue array of %s",
-		         usb_stack->write_queue.count - MAX_QUEUED_WRITES + 1,
-		         usb_stack->base.name);
+		log_warn("Write queue of %s is full, dropping %d queued request(s)",
+		         usb_stack->base.name,
+		         usb_stack->write_queue.count - MAX_QUEUED_WRITES + 1);
 
 		while (usb_stack->write_queue.count >= MAX_QUEUED_WRITES) {
 			queue_pop(&usb_stack->write_queue, NULL);
@@ -175,14 +175,11 @@ static int usb_stack_dispatch_request(USBStack *usb_stack, Packet *request) {
 	queued_request = queue_push(&usb_stack->write_queue);
 
 	if (queued_request == NULL) {
-		log_error("Could not append to write queue array of %s: %s (%d)",
+		log_error("Could not push to write queue of %s: %s (%d)",
 		          usb_stack->base.name, get_errno_name(errno), errno);
 
 		return -1;
 	}
-
-	log_warn("Could not find a free write transfer for %s, put request into write queue (count: %d)",
-	         usb_stack->base.name, usb_stack->write_queue.count);
 
 	memcpy(queued_request, request, request->header.length);
 
