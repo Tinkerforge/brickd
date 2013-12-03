@@ -41,6 +41,7 @@ struct _USBTransfer {
 	USBTransferType type;
 	int submitted;
 	int completed;
+	int canceled;
 	USBTransferFunction function;
 	struct libusb_transfer *handle;
 	Packet packet;

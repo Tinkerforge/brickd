@@ -204,6 +204,8 @@ int usb_stack_create(USBStack *usb_stack, uint8_t bus_number, uint8_t device_add
 	usb_stack->context = NULL;
 	usb_stack->device = NULL;
 	usb_stack->device_handle = NULL;
+	usb_stack->connected = 1;
+	usb_stack->active = 0;
 
 	// create stack base
 	snprintf(preliminary_name, sizeof(preliminary_name) - 1,
@@ -381,6 +383,8 @@ int usb_stack_create(USBStack *usb_stack, uint8_t bus_number, uint8_t device_add
 	phase = 8;
 
 	// add to stacks array
+	usb_stack->active = 1;
+
 	if (hardware_add_stack(&usb_stack->base) < 0) {
 		goto cleanup;
 	}
@@ -422,6 +426,8 @@ cleanup:
 
 void usb_stack_destroy(USBStack *usb_stack) {
 	char name[MAX_STACK_NAME];
+
+	usb_stack->active = 0;
 
 	hardware_remove_stack(&usb_stack->base);
 

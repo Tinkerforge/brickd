@@ -84,16 +84,26 @@ static void LIBUSB_CALL usb_transfer_wrapper(struct libusb_transfer *handle) {
 		         usb_transfer_get_status_name(transfer->handle->status),
 		         transfer->handle->status);
 	} else {
-		log_debug("%s transfer %p returned successfully from %s",
+		log_debug("%s transfer %p returned successfully from %s%s",
 		         usb_transfer_get_type_name(transfer->type, 1), transfer,
-		         transfer->usb_stack->base.name);
+		         transfer->usb_stack->base.name,
+		         transfer->canceled
+		           ? ", but it was canceled in the meantime"
+		           : (!transfer->usb_stack->active
+		                ? ", but the corresponding USB device is not active anymore"
+		                : ""));
+
+		if (transfer->canceled || !transfer->usb_stack->active) {
+			return;
+		}
 
 		if (transfer->function != NULL) {
 			transfer->function(transfer);
 		}
 	}
 
-	if (transfer->type == USB_TRANSFER_TYPE_READ) {
+	if (transfer->type == USB_TRANSFER_TYPE_READ && !transfer->canceled &&
+	    transfer->usb_stack->active) {
 		usb_transfer_submit(transfer);
 	}
 }
@@ -117,6 +127,7 @@ int usb_transfer_create(USBTransfer *transfer, USBStack *usb_stack,
 	transfer->type = type;
 	transfer->submitted = 0;
 	transfer->completed = 0;
+	transfer->canceled = 0;
 	transfer->function = function;
 	transfer->handle = libusb_alloc_transfer(0);
 
@@ -143,6 +154,7 @@ void usb_transfer_destroy(USBTransfer *transfer) {
 
 	if (transfer->submitted) {
 		transfer->completed = 0;
+		transfer->canceled = 1;
 
 		rc = libusb_cancel_transfer(transfer->handle);
 

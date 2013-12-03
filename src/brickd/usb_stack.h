@@ -40,6 +40,7 @@ typedef struct {
 	Array write_transfers;
 	Queue write_queue;
 	int connected;
+	int active;
 } USBStack;
 
 int usb_stack_create(USBStack *usb_stack, uint8_t bus_number, uint8_t device_address);
