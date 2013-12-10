@@ -65,7 +65,11 @@ log entires from the Windows Event Log.
 You can also use the --log-to-file option, then Brick Daemon will write a log
 file named brickd.log in the folder where brickd.exe is located. In this mode
 error, warning and information messages are written to the log by default. You
-an use the --debug option to include debug messages as well.
+can use the --debug option to include debug messages as well.
+
+For debugging problems in libusb itself the --libusb-debug option can be used.
+Then brickd will enable libusb logging and include libusb log messages into its
+own log output.
 
 If started from a command prompt and without the --log-to-file option log
 messages are written to the command prompt window.
