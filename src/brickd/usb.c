@@ -437,12 +437,12 @@ int usb_get_device_name(libusb_device_handle *device_handle, char *name, int len
 	libusb_device *device = libusb_get_device(device_handle);
 	uint8_t bus_number = libusb_get_bus_number(device);
 	uint8_t device_address = libusb_get_device_address(device);
-	struct libusb_device_descriptor device_descriptor;
+	struct libusb_device_descriptor descriptor;
 	char product[64];
 	char serial_number[64];
 
 	// get device descriptor
-	rc = libusb_get_device_descriptor(device, &device_descriptor);
+	rc = libusb_get_device_descriptor(device, &descriptor);
 
 	if (rc < 0) {
 		log_error("Could not get device descriptor for USB device (bus: %u, device: %u): %s (%d)",
@@ -453,7 +453,7 @@ int usb_get_device_name(libusb_device_handle *device_handle, char *name, int len
 
 	// get product string descriptor
 	rc = libusb_get_string_descriptor_ascii(device_handle,
-	                                        device_descriptor.iProduct,
+	                                        descriptor.iProduct,
 	                                        (unsigned char *)product,
 	                                        sizeof(product));
 
@@ -466,7 +466,7 @@ int usb_get_device_name(libusb_device_handle *device_handle, char *name, int len
 
 	// get serial number string descriptor
 	rc = libusb_get_string_descriptor_ascii(device_handle,
-	                                        device_descriptor.iSerialNumber,
+	                                        descriptor.iSerialNumber,
 	                                        (unsigned char *)serial_number,
 	                                        sizeof(serial_number));
 
