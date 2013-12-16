@@ -65,5 +65,5 @@
        Sign brickd.app and installer on Mac OS X to silence the Gate Keeper
        Linux packages build on older Debian/Ubuntu release to lower required glibc version
 2.0.10: Reduce log level of messages about USB write queue usage, packet burst are expected for the LED Strip Bricklet
-        Handle USB transfers that complete during usb_stack_destroy() correctly
+        Handle USB transfers correctly that complete during usb_stack_destroy()
         Add Queue type and use if for the USB stack's write queue instead of Array type
