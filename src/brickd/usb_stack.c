@@ -44,113 +44,113 @@
 #define MAX_WRITE_TRANSFERS 5
 #define MAX_QUEUED_WRITES 256
 
-static void usb_stack_read_callback(USBTransfer *transfer) {
+static void usb_stack_read_callback(USBTransfer *usb_transfer) {
 	const char *message = NULL;
 	char base58[MAX_BASE58_STR_SIZE];
 
-	if (transfer->handle->actual_length < (int)sizeof(PacketHeader)) {
+	if (usb_transfer->handle->actual_length < (int)sizeof(PacketHeader)) {
 		log_error("Read transfer %p returned response with incomplete header (actual: %u < minimum: %d) from %s",
-		          transfer, transfer->handle->actual_length, (int)sizeof(PacketHeader),
-		          transfer->usb_stack->base.name);
+		          usb_transfer, usb_transfer->handle->actual_length, (int)sizeof(PacketHeader),
+		          usb_transfer->usb_stack->base.name);
 
 		return;
 	}
 
-	if (transfer->handle->actual_length != transfer->packet.header.length) {
+	if (usb_transfer->handle->actual_length != usb_transfer->packet.header.length) {
 		log_error("Read transfer %p returned response with length mismatch (actual: %u != expected: %u) from %s",
-		          transfer, transfer->handle->actual_length, transfer->packet.header.length,
-		          transfer->usb_stack->base.name);
+		          usb_transfer, usb_transfer->handle->actual_length, usb_transfer->packet.header.length,
+		          usb_transfer->usb_stack->base.name);
 
 		return;
 	}
 
-	if (!packet_header_is_valid_response(&transfer->packet.header, &message)) {
+	if (!packet_header_is_valid_response(&usb_transfer->packet.header, &message)) {
 		log_debug("Got invalid response (U: %s, L: %u, F: %u, S: %u, E: %u) from %s: %s",
-		          base58_encode(base58, uint32_from_le(transfer->packet.header.uid)),
-		          transfer->packet.header.length,
-		          transfer->packet.header.function_id,
-		          packet_header_get_sequence_number(&transfer->packet.header),
-		          packet_header_get_error_code(&transfer->packet.header),
-		          transfer->usb_stack->base.name,
+		          base58_encode(base58, uint32_from_le(usb_transfer->packet.header.uid)),
+		          usb_transfer->packet.header.length,
+		          usb_transfer->packet.header.function_id,
+		          packet_header_get_sequence_number(&usb_transfer->packet.header),
+		          packet_header_get_error_code(&usb_transfer->packet.header),
+		          usb_transfer->usb_stack->base.name,
 		          message);
 
 		return;
 	}
 
-	if (packet_header_get_sequence_number(&transfer->packet.header) == 0) {
+	if (packet_header_get_sequence_number(&usb_transfer->packet.header) == 0) {
 		log_debug("Got %scallback (U: %s, L: %u, F: %u) from %s",
-		          packet_get_callback_type(&transfer->packet),
-		          base58_encode(base58, uint32_from_le(transfer->packet.header.uid)),
-		          transfer->packet.header.length,
-		          transfer->packet.header.function_id,
-		          transfer->usb_stack->base.name);
+		          packet_get_callback_type(&usb_transfer->packet),
+		          base58_encode(base58, uint32_from_le(usb_transfer->packet.header.uid)),
+		          usb_transfer->packet.header.length,
+		          usb_transfer->packet.header.function_id,
+		          usb_transfer->usb_stack->base.name);
 	} else {
 		log_debug("Got response (U: %s, L: %u, F: %u, S: %u, E: %u) from %s",
-		          base58_encode(base58, uint32_from_le(transfer->packet.header.uid)),
-		          transfer->packet.header.length,
-		          transfer->packet.header.function_id,
-		          packet_header_get_sequence_number(&transfer->packet.header),
-		          packet_header_get_error_code(&transfer->packet.header),
-		          transfer->usb_stack->base.name);
+		          base58_encode(base58, uint32_from_le(usb_transfer->packet.header.uid)),
+		          usb_transfer->packet.header.length,
+		          usb_transfer->packet.header.function_id,
+		          packet_header_get_sequence_number(&usb_transfer->packet.header),
+		          packet_header_get_error_code(&usb_transfer->packet.header),
+		          usb_transfer->usb_stack->base.name);
 	}
 
-	if (stack_add_uid(&transfer->usb_stack->base, transfer->packet.header.uid) < 0) {
+	if (stack_add_uid(&usb_transfer->usb_stack->base, usb_transfer->packet.header.uid) < 0) {
 		return;
 	}
 
-	network_dispatch_response(&transfer->packet);
+	network_dispatch_response(&usb_transfer->packet);
 }
 
-static void usb_stack_write_callback(USBTransfer *transfer) {
+static void usb_stack_write_callback(USBTransfer *usb_transfer) {
 	Packet *request;
 	char base58[MAX_BASE58_STR_SIZE];
 
-	if (transfer->usb_stack->write_queue.count > 0) {
-		request = queue_peek(&transfer->usb_stack->write_queue);
+	if (usb_transfer->usb_stack->write_queue.count > 0) {
+		request = queue_peek(&usb_transfer->usb_stack->write_queue);
 
-		memcpy(&transfer->packet, request, request->header.length);
+		memcpy(&usb_transfer->packet, request, request->header.length);
 
-		if (usb_transfer_submit(transfer) < 0) {
+		if (usb_transfer_submit(usb_transfer) < 0) {
 			log_error("Could not send queued request (U: %s, L: %u, F: %u, S: %u, R: %u) to %s: %s (%d)",
-			          base58_encode(base58, uint32_from_le(transfer->packet.header.uid)),
-			          transfer->packet.header.length,
-			          transfer->packet.header.function_id,
-			          packet_header_get_sequence_number(&transfer->packet.header),
-			          packet_header_get_response_expected(&transfer->packet.header),
-			          transfer->usb_stack->base.name,
+			          base58_encode(base58, uint32_from_le(usb_transfer->packet.header.uid)),
+			          usb_transfer->packet.header.length,
+			          usb_transfer->packet.header.function_id,
+			          packet_header_get_sequence_number(&usb_transfer->packet.header),
+			          packet_header_get_response_expected(&usb_transfer->packet.header),
+			          usb_transfer->usb_stack->base.name,
 			          get_errno_name(errno), errno);
 
 			return;
 		}
 
-		queue_pop(&transfer->usb_stack->write_queue, NULL);
+		queue_pop(&usb_transfer->usb_stack->write_queue, NULL);
 
 		log_debug("Sent queued request (U: %s, L: %u, F: %u, S: %u, R: %u) to %s, %d request(s) left in write queue",
-		          base58_encode(base58, uint32_from_le(transfer->packet.header.uid)),
-		          transfer->packet.header.length,
-		          transfer->packet.header.function_id,
-		          packet_header_get_sequence_number(&transfer->packet.header),
-		          packet_header_get_response_expected(&transfer->packet.header),
-		          transfer->usb_stack->base.name,
-		          transfer->usb_stack->write_queue.count);
+		          base58_encode(base58, uint32_from_le(usb_transfer->packet.header.uid)),
+		          usb_transfer->packet.header.length,
+		          usb_transfer->packet.header.function_id,
+		          packet_header_get_sequence_number(&usb_transfer->packet.header),
+		          packet_header_get_response_expected(&usb_transfer->packet.header),
+		          usb_transfer->usb_stack->base.name,
+		          usb_transfer->usb_stack->write_queue.count);
 	}
 }
 
 static int usb_stack_dispatch_request(USBStack *usb_stack, Packet *request) {
 	int i;
-	USBTransfer *transfer;
+	USBTransfer *usb_transfer;
 	Packet *queued_request;
 
 	for (i = 0; i < usb_stack->write_transfers.count; ++i) {
-		transfer = array_get(&usb_stack->write_transfers, i);
+		usb_transfer = array_get(&usb_stack->write_transfers, i);
 
-		if (transfer->submitted) {
+		if (usb_transfer->submitted) {
 			continue;
 		}
 
-		memcpy(&transfer->packet, request, request->header.length);
+		memcpy(&usb_transfer->packet, request, request->header.length);
 
-		if (usb_transfer_submit(transfer) < 0) {
+		if (usb_transfer_submit(usb_transfer) < 0) {
 			// FIXME: how to handle a failed submission, try to re-submit?
 
 			continue;
@@ -193,7 +193,7 @@ int usb_stack_create(USBStack *usb_stack, uint8_t bus_number, uint8_t device_add
 	libusb_device *device;
 	int i = 0;
 	char preliminary_name[MAX_STACK_NAME];
-	USBTransfer *transfer;
+	USBTransfer *usb_transfer;
 
 	log_debug("Acquiring USB device (bus: %u, device: %u)",
 	          bus_number, device_address);
@@ -318,16 +318,16 @@ int usb_stack_create(USBStack *usb_stack, uint8_t bus_number, uint8_t device_add
 	}
 
 	for (i = 0; i < MAX_READ_TRANSFERS; ++i) {
-		transfer = array_append(&usb_stack->read_transfers);
+		usb_transfer = array_append(&usb_stack->read_transfers);
 
-		if (transfer == NULL) {
+		if (usb_transfer == NULL) {
 			log_error("Could not append to read transfer array of %s: %s (%d)",
 			          usb_stack->base.name, get_errno_name(errno), errno);
 
 			goto cleanup;
 		}
 
-		if (usb_transfer_create(transfer, usb_stack, USB_TRANSFER_TYPE_READ,
+		if (usb_transfer_create(usb_transfer, usb_stack, USB_TRANSFER_TYPE_READ,
 		                        usb_stack_read_callback) < 0) {
 			array_remove(&usb_stack->read_transfers,
 			             usb_stack->read_transfers.count -1, NULL);
@@ -335,7 +335,7 @@ int usb_stack_create(USBStack *usb_stack, uint8_t bus_number, uint8_t device_add
 			goto cleanup;
 		}
 
-		if (usb_transfer_submit(transfer) < 0) {
+		if (usb_transfer_submit(usb_transfer) < 0) {
 			goto cleanup;
 		}
 	}
@@ -362,16 +362,16 @@ int usb_stack_create(USBStack *usb_stack, uint8_t bus_number, uint8_t device_add
 	}
 
 	for (i = 0; i < MAX_WRITE_TRANSFERS; ++i) {
-		transfer = array_append(&usb_stack->write_transfers);
+		usb_transfer = array_append(&usb_stack->write_transfers);
 
-		if (transfer == NULL) {
+		if (usb_transfer == NULL) {
 			log_error("Could not append to write transfer array of %s: %s (%d)",
 			          usb_stack->base.name, get_errno_name(errno), errno);
 
 			goto cleanup;
 		}
 
-		if (usb_transfer_create(transfer, usb_stack, USB_TRANSFER_TYPE_WRITE,
+		if (usb_transfer_create(usb_transfer, usb_stack, USB_TRANSFER_TYPE_WRITE,
 		                        usb_stack_write_callback) < 0) {
 			array_remove(&usb_stack->write_transfers,
 			             usb_stack->write_transfers.count -1, NULL);

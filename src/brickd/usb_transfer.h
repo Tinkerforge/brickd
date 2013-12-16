@@ -34,7 +34,7 @@ typedef enum {
 
 typedef struct _USBTransfer USBTransfer;
 
-typedef void (*USBTransferFunction)(USBTransfer *transfer);
+typedef void (*USBTransferFunction)(USBTransfer *usb_transfer);
 
 struct _USBTransfer {
 	USBStack *usb_stack;
@@ -49,10 +49,10 @@ struct _USBTransfer {
 
 const char *usb_transfer_get_type_name(USBTransferType type, int upper);
 
-int usb_transfer_create(USBTransfer *transfer, USBStack *usb_stack,
+int usb_transfer_create(USBTransfer *usb_transfer, USBStack *usb_stack,
                         USBTransferType type, USBTransferFunction function);
-void usb_transfer_destroy(USBTransfer *transfer);
+void usb_transfer_destroy(USBTransfer *usb_transfer);
 
-int usb_transfer_submit(USBTransfer *transfer);
+int usb_transfer_submit(USBTransfer *usb_transfer);
 
 #endif // BRICKD_USB_TRANSFER_H
