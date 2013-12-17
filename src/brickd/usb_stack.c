@@ -317,6 +317,8 @@ int usb_stack_create(USBStack *usb_stack, uint8_t bus_number, uint8_t device_add
 		goto cleanup;
 	}
 
+	phase = 6;
+
 	for (i = 0; i < MAX_READ_TRANSFERS; ++i) {
 		usb_transfer = array_append(&usb_stack->read_transfers);
 
@@ -340,8 +342,6 @@ int usb_stack_create(USBStack *usb_stack, uint8_t bus_number, uint8_t device_add
 		}
 	}
 
-	phase = 6;
-
 	// allocate write queue
 	if (queue_create(&usb_stack->write_queue, sizeof(Packet)) < 0) {
 		log_error("Could not create write queue for %s: %s (%d)",
@@ -361,6 +361,8 @@ int usb_stack_create(USBStack *usb_stack, uint8_t bus_number, uint8_t device_add
 		goto cleanup;
 	}
 
+	phase = 8;
+
 	for (i = 0; i < MAX_WRITE_TRANSFERS; ++i) {
 		usb_transfer = array_append(&usb_stack->write_transfers);
 
@@ -379,8 +381,6 @@ int usb_stack_create(USBStack *usb_stack, uint8_t bus_number, uint8_t device_add
 			goto cleanup;
 		}
 	}
-
-	phase = 8;
 
 	// add to stacks array
 	usb_stack->active = 1;
