@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2013 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2013-2014 Matthias Bolte <matthias@tinkerforge.com>
  *
  * usb_stack.h: USB stack specific functions
  *
@@ -34,7 +34,6 @@ typedef struct {
 	uint8_t bus_number;
 	uint8_t device_address;
 	libusb_context *context;
-	libusb_device *device;
 	libusb_device_handle *device_handle;
 	Array read_transfers;
 	Array write_transfers;

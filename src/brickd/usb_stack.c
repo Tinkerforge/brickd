@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2012-2013 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2012-2014 Matthias Bolte <matthias@tinkerforge.com>
  *
  * usb_stack.c: USB stack specific functions
  *
@@ -191,6 +191,7 @@ int usb_stack_create(USBStack *usb_stack, uint8_t bus_number, uint8_t device_add
 	int rc;
 	libusb_device **devices;
 	libusb_device *device;
+	struct libusb_device_descriptor descriptor;
 	int i = 0;
 	char preliminary_name[MAX_STACK_NAME];
 	USBTransfer *usb_transfer;
@@ -202,7 +203,6 @@ int usb_stack_create(USBStack *usb_stack, uint8_t bus_number, uint8_t device_add
 	usb_stack->device_address = device_address;
 
 	usb_stack->context = NULL;
-	usb_stack->device = NULL;
 	usb_stack->device_handle = NULL;
 	usb_stack->connected = 1;
 	usb_stack->active = 0;
@@ -240,35 +240,57 @@ int usb_stack_create(USBStack *usb_stack, uint8_t bus_number, uint8_t device_add
 	}
 
 	for (device = devices[0]; device != NULL; device = devices[++i]) {
-		if (usb_stack->bus_number == libusb_get_bus_number(device) &&
-			usb_stack->device_address == libusb_get_device_address(device)) {
-			usb_stack->device = libusb_ref_device(device);
-
-			break;
+		if (libusb_get_bus_number(device) != usb_stack->bus_number ||
+		    libusb_get_device_address(device) != usb_stack->device_address) {
+			continue;
 		}
+
+		rc = libusb_get_device_descriptor(device, &descriptor);
+
+		if (rc < 0) {
+			log_warn("Could not get device descriptor for %s, ignoring it: %s (%d)",
+			         usb_stack->base.name, usb_get_error_name(rc), rc);
+
+			continue;
+		}
+
+		if (descriptor.idVendor != USB_BRICK_VENDOR_ID ||
+		    descriptor.idProduct != USB_BRICK_PRODUCT_ID) {
+			log_warn("Found non-Brick USB device (bus: %u, device: %u, vendor: 0x%04X, product: 0x%04X) with address collision, ignoring it",
+			         usb_stack->bus_number, usb_stack->device_address, descriptor.idVendor, descriptor.idProduct);
+
+			continue;
+		}
+
+		if (descriptor.bcdDevice < USB_BRICK_DEVICE_RELEASE) {
+			log_warn("%s has protocol 1.0 firmware, ignoring it",
+			         usb_stack->base.name);
+
+			continue;
+		}
+
+		// open device
+		rc = libusb_open(device, &usb_stack->device_handle);
+
+		if (rc < 0) {
+			log_warn("Could not open %s, ignoring it: %s (%d)",
+			         usb_stack->base.name, usb_get_error_name(rc), rc);
+
+			continue;
+		}
+
+		break;
 	}
 
 	libusb_free_device_list(devices, 1);
 
-	if (usb_stack->device == NULL) {
+	if (usb_stack->device_handle == NULL) {
 		log_error("Could not find %s", usb_stack->base.name);
 
 		goto cleanup;
 	}
 
 	phase = 3;
-
-	// open device
-	rc = libusb_open(usb_stack->device, &usb_stack->device_handle);
-
-	if (rc < 0) {
-		log_error("Could not open %s: %s (%d)",
-		          usb_stack->base.name, usb_get_error_name(rc), rc);
-
-		goto cleanup;
-	}
-
-	phase = 4;
 
 	// reset device
 	rc = libusb_reset_device(usb_stack->device_handle);
@@ -300,7 +322,7 @@ int usb_stack_create(USBStack *usb_stack, uint8_t bus_number, uint8_t device_add
 		goto cleanup;
 	}
 
-	phase = 5;
+	phase = 4;
 
 	// update stack name
 	if (usb_get_device_name(usb_stack->device_handle, usb_stack->base.name,
@@ -317,7 +339,7 @@ int usb_stack_create(USBStack *usb_stack, uint8_t bus_number, uint8_t device_add
 		goto cleanup;
 	}
 
-	phase = 6;
+	phase = 5;
 
 	for (i = 0; i < MAX_READ_TRANSFERS; ++i) {
 		usb_transfer = array_append(&usb_stack->read_transfers);
@@ -350,7 +372,7 @@ int usb_stack_create(USBStack *usb_stack, uint8_t bus_number, uint8_t device_add
 		goto cleanup;
 	}
 
-	phase = 7;
+	phase = 6;
 
 	// allocate write transfers
 	if (array_create(&usb_stack->write_transfers, MAX_WRITE_TRANSFERS,
@@ -361,7 +383,7 @@ int usb_stack_create(USBStack *usb_stack, uint8_t bus_number, uint8_t device_add
 		goto cleanup;
 	}
 
-	phase = 8;
+	phase = 7;
 
 	for (i = 0; i < MAX_WRITE_TRANSFERS; ++i) {
 		usb_transfer = array_append(&usb_stack->write_transfers);
@@ -389,27 +411,24 @@ int usb_stack_create(USBStack *usb_stack, uint8_t bus_number, uint8_t device_add
 		goto cleanup;
 	}
 
-	phase = 9;
+	phase = 8;
 
 cleanup:
 	switch (phase) { // no breaks, all cases fall through intentionally
-	case 8:
+	case 7:
 		array_destroy(&usb_stack->write_transfers, (FreeFunction)usb_transfer_destroy);
 
-	case 7:
+	case 6:
 		queue_destroy(&usb_stack->write_queue, NULL);
 
-	case 6:
+	case 5:
 		array_destroy(&usb_stack->read_transfers, (FreeFunction)usb_transfer_destroy);
 
-	case 5:
+	case 4:
 		libusb_release_interface(usb_stack->device_handle, USB_BRICK_INTERFACE);
 
-	case 4:
-		libusb_close(usb_stack->device_handle);
-
 	case 3:
-		libusb_unref_device(usb_stack->device);
+		libusb_close(usb_stack->device_handle);
 
 	case 2:
 		usb_destroy_context(usb_stack->context);
@@ -421,7 +440,7 @@ cleanup:
 		break;
 	}
 
-	return phase == 9 ? 0 : -1;
+	return phase == 8 ? 0 : -1;
 }
 
 void usb_stack_destroy(USBStack *usb_stack) {
@@ -439,8 +458,6 @@ void usb_stack_destroy(USBStack *usb_stack) {
 	libusb_release_interface(usb_stack->device_handle, USB_BRICK_INTERFACE);
 
 	libusb_close(usb_stack->device_handle);
-
-	libusb_unref_device(usb_stack->device);
 
 	usb_destroy_context(usb_stack->context);
 

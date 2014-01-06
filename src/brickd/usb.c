@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2012-2013 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2012-2014 Matthias Bolte <matthias@tinkerforge.com>
  *
  * usb.c: USB specific functions
  *
@@ -76,7 +76,7 @@ static int usb_enumerate(void) {
 		rc = libusb_get_device_descriptor(device, &descriptor);
 
 		if (rc < 0) {
-			log_warn("Could not get descriptor for USB device (bus: %u, device: %u), ignoring it: %s (%d)",
+			log_warn("Could not get device descriptor for USB device (bus: %u, device: %u), ignoring it: %s (%d)",
 			         bus_number, device_address, usb_get_error_name(rc), rc);
 
 			continue;
