@@ -1,8 +1,8 @@
 diff --git a/libusb/core.c b/libusb/core.c
-index 72faac4..ce09ef5 100644
+index f48517b..953739c 100644
 --- a/libusb/core.c
 +++ b/libusb/core.c
-@@ -2031,40 +2031,21 @@ int usbi_gettimeofday(struct timeval *tp, void *tzp)
+@@ -2045,40 +2045,21 @@ int usbi_gettimeofday(struct timeval *tp, void *tzp)
  }
  #endif
  
@@ -54,7 +54,7 @@ index 72faac4..ce09ef5 100644
  	UNUSED(ctx);
  	UNUSED(level);
  }
-@@ -2240,3 +2221,7 @@ const struct libusb_version * LIBUSB_CALL libusb_get_version(void)
+@@ -2261,3 +2242,7 @@ const struct libusb_version * LIBUSB_CALL libusb_get_version(void)
  {
  	return &libusb_version_internal;
  }
@@ -63,10 +63,10 @@ index 72faac4..ce09ef5 100644
 +	free(ptr);
 +}
 diff --git a/libusb/io.c b/libusb/io.c
-index 4f22963..6da4895 100644
+index a2c3dda..e567e77 100644
 --- a/libusb/io.c
 +++ b/libusb/io.c
-@@ -2483,7 +2483,6 @@ DEFAULT_VISIBILITY
+@@ -2494,7 +2494,6 @@ DEFAULT_VISIBILITY
  const struct libusb_pollfd ** LIBUSB_CALL libusb_get_pollfds(
  	libusb_context *ctx)
  {
@@ -74,7 +74,7 @@ index 4f22963..6da4895 100644
  	struct libusb_pollfd **ret = NULL;
  	struct usbi_pollfd *ipollfd;
  	size_t i = 0;
-@@ -2505,11 +2504,6 @@ const struct libusb_pollfd ** LIBUSB_CALL libusb_get_pollfds(
+@@ -2516,11 +2515,6 @@ const struct libusb_pollfd ** LIBUSB_CALL libusb_get_pollfds(
  out:
  	usbi_mutex_unlock(&ctx->pollfds_lock);
  	return (const struct libusb_pollfd **) ret;
@@ -109,7 +109,7 @@ index cb0e32a..53cda36 100644
 +  libusb_free
 +  libusb_free@4 = libusb_free
 diff --git a/libusb/libusb-1.0.rc b/libusb/libusb-1.0.rc
-index ae49757..c801b5b 100644
+index ae49757..98935d9 100644
 --- a/libusb/libusb-1.0.rc
 +++ b/libusb/libusb-1.0.rc
 @@ -49,7 +49,7 @@ BEGIN
@@ -117,12 +117,12 @@ index ae49757..c801b5b 100644
  			VALUE "OriginalFilename", "libusb-1.0.dll\0"
  			VALUE "PrivateBuild", "\0"
 -			VALUE "ProductName", "libusb-1.0\0"
-+			VALUE "ProductName", "libusb-1.0-7b62a0a171ac0141a3d12237ab496c49cccd79df-tf-9\0"
++			VALUE "ProductName", "libusb-1.0-8b46e1c088167eb86b1712765896e2f17d70d148-tf-9\0"
  			VALUE "ProductVersion", LIBUSB_VERSIONSTRING
  			VALUE "SpecialBuild", "\0"
  		END
 diff --git a/libusb/libusb.h b/libusb/libusb.h
-index da3f1ef..1dd478a 100644
+index 8267ee3..5d6dd1d 100644
 --- a/libusb/libusb.h
 +++ b/libusb/libusb.h
 @@ -60,6 +60,7 @@ typedef unsigned __int32  uint32_t;
@@ -236,10 +236,10 @@ index deed206..294dbe8 100644
  void init_polling(void);
  void exit_polling(void);
 diff --git a/libusb/os/windows_usb.c b/libusb/os/windows_usb.c
-index 4493088..3c59e22 100644
+index 5abadc1..0df19d4 100644
 --- a/libusb/os/windows_usb.c
 +++ b/libusb/os/windows_usb.c
-@@ -1126,6 +1126,11 @@ static int init_device(struct libusb_device* dev, struct libusb_device* parent_d
+@@ -1140,6 +1140,11 @@ static int init_device(struct libusb_device* dev, struct libusb_device* parent_d
  	}
  	memset(&conn_info, 0, sizeof(conn_info));
  	if (priv->depth != 0) {	// Not a HCD hub
@@ -251,7 +251,7 @@ index 4493088..3c59e22 100644
  		handle = CreateFileA(parent_priv->path, GENERIC_WRITE, FILE_SHARE_WRITE, NULL, OPEN_EXISTING,
  			FILE_FLAG_OVERLAPPED, NULL);
  		if (handle == INVALID_HANDLE_VALUE) {
-@@ -2077,6 +2082,10 @@ static void windows_transfer_callback(struct usbi_transfer *itransfer, uint32_t
+@@ -2091,6 +2096,10 @@ static void windows_transfer_callback(struct usbi_transfer *itransfer, uint32_t
  			status = LIBUSB_TRANSFER_CANCELLED;
  		}
  		break;
@@ -262,7 +262,7 @@ index 4493088..3c59e22 100644
  	default:
  		usbi_err(ITRANSFER_CTX(itransfer), "detected I/O error %d: %s", io_result, windows_error_str(io_result));
  		status = LIBUSB_TRANSFER_ERROR;
-@@ -2152,7 +2161,7 @@ static int windows_handle_events(struct libusb_context *ctx, struct pollfd *fds,
+@@ -2166,7 +2175,7 @@ static int windows_handle_events(struct libusb_context *ctx, struct pollfd *fds,
  			windows_handle_callback(transfer, io_result, io_size);
  		} else {
  			usbi_err(ctx, "could not find a matching transfer for fd %x", fds[i]);

@@ -1,7 +1,7 @@
 This is a special version of libusbx for brickd build with WDK 7 for x86.
 
-Based on libusbx github.org commit 7b62a0a171ac0141a3d12237ab496c49cccd79df
-(libusbx version 1.0.17 plus a few fixes) with the libusbx-brickd.patch
+Based on libusbx github.org commit 8b46e1c088167eb86b1712765896e2f17d70d148
+(libusbx version 1.0.17 plus some fixes) with the libusbx-brickd.patch
 applied to it.
 
 The MinGW import lib libusb-1.0.dll.a was created from libusb-1.0.def using:
