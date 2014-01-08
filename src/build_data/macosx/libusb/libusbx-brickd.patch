@@ -1,8 +1,8 @@
 diff --git a/libusb/os/darwin_usb.c b/libusb/os/darwin_usb.c
-index 204e1ef..c6f2f67 100644
+index 35385d5..f4f29d7 100644
 --- a/libusb/os/darwin_usb.c
 +++ b/libusb/os/darwin_usb.c
-@@ -623,7 +623,13 @@ static int darwin_cache_device_descriptor (struct libusb_context *ctx, struct da
+@@ -625,7 +625,13 @@ static int darwin_cache_device_descriptor (struct libusb_context *ctx, struct da
    /* According to Apple's documentation the device must be open for DeviceRequest but we may not be able to open some
     * devices and Apple's USB Prober doesn't bother to open the device before issuing a descriptor request.  Still,
     * to follow the spec as closely as possible, try opening the device */
