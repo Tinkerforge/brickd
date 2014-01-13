@@ -250,23 +250,6 @@ void network_exit(void) {
 	socket_destroy(_server_socket);
 }
 
-void network_client_disconnected(Client *client) {
-	int i;
-	Client *item;
-
-	for (i = 0; i < _clients.count; ++i) {
-		item = array_get(&_clients, i);
-
-		if (item->socket == client->socket) {
-			array_remove(&_clients, i, (FreeFunction)client_destroy);
-			return;
-		}
-	}
-
-	log_error("Client (socket: %d, peer: %s) not found in client array",
-	          client->socket, client->peer);
-}
-
 // remove clients that got marked as disconnected
 void network_cleanup_clients(void) {
 	int i;
