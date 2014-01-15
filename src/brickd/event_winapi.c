@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2012-2013 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2012-2014 Matthias Bolte <matthias@tinkerforge.com>
  *
  * event_winapi.c: Select based event loop
  *
@@ -273,7 +273,7 @@ static void event_forward_usb_events(void *opaque) {
 	// items of the event source array (with N = items in pollfd array - 1) are
 	// not removed or replaced during the iteration over the pollfd array.
 	// because of this event_remove_source only marks event sources as removed,
-	// the actual removal is done later
+	// the actual removal is done later by event_cleanup_sources
 	for (i = 0, k = 1; i < event_source_count && k < _usb_poller.pollfds.count && _usb_poller.pollfds_ready > handled; ++i) {
 		event_source = array_get(event_sources, i);
 

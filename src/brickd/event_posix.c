@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2012-2013 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2012-2014 Matthias Bolte <matthias@tinkerforge.com>
  *
  * event_posix.c: Poll based event loop
  *
@@ -229,11 +229,11 @@ int event_run_platform(Array *event_sources, int *running) {
 		handled = 0;
 
 		// this loop assumes that event source array and pollfd array can be
-		// matched by index. this means that the first n items of the event
-		// source array (with n = items in pollfd array) are not removed
+		// matched by index. this means that the first N items of the event
+		// source array (with N = items in pollfd array) are not removed
 		// or replaced during the iteration over the pollfd array. because
 		// of this event_remove_source only marks event sources as removed,
-		// the actual removal is done after this loop
+		// the actual removal is done after this loop by event_cleanup_sources
 		for (i = 0; i < _pollfds.count && ready > handled; ++i) {
 			pollfd = array_get(&_pollfds, i);
 
