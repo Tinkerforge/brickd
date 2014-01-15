@@ -141,7 +141,9 @@ static void client_handle_receive(void *opaque) {
 					log_error("Could not append to pending request array: %s (%d)",
 					          get_errno_name(errno), errno);
 				} else {
-					memcpy(&pending_request->header, &client->request.header, sizeof(PacketHeader));
+					memcpy(&pending_request->header, &client->request.header,
+					       sizeof(PacketHeader));
+
 #ifdef BRICKD_WITH_PROFILING
 					pending_request->arrival_time = microseconds();
 #endif
@@ -152,12 +154,10 @@ static void client_handle_receive(void *opaque) {
 					          pending_request->header.function_id,
 					          packet_header_get_sequence_number(&pending_request->header),
 					          client->socket, client->peer);
-
-					hardware_dispatch_request(&client->request);
 				}
-			} else {
-				hardware_dispatch_request(&client->request);
 			}
+
+			hardware_dispatch_request(&client->request);
 		}
 
 		memmove(&client->request, (uint8_t *)&client->request + length,
