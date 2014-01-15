@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2012-2013 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2012-2014 Matthias Bolte <matthias@tinkerforge.com>
  *
  * client.c: Client specific functions
  *
@@ -86,6 +86,25 @@ static void client_handle_receive(void *opaque) {
 			break;
 		}
 
+		if (!client->request_header_checked) {
+			if (!packet_header_is_valid_request(&client->request.header, &message)) {
+				log_error("Got invalid request (U: %s, L: %u, F: %u, S: %u, R: %u) from client (socket: %d, peer: %s), disconnecting it: %s",
+				          base58_encode(base58, uint32_from_le(client->request.header.uid)),
+				          client->request.header.length,
+				          client->request.header.function_id,
+				          packet_header_get_sequence_number(&client->request.header),
+				          packet_header_get_response_expected(&client->request.header),
+				          client->socket, client->peer,
+				          message);
+
+				client->disconnected = 1;
+
+				return;
+			}
+
+			client->request_header_checked = 1;
+		}
+
 		length = client->request.header.length;
 
 		if (client->request_used < length) {
@@ -93,21 +112,7 @@ static void client_handle_receive(void *opaque) {
 			break;
 		}
 
-		if (!packet_header_is_valid_request(&client->request.header, &message)) {
-			log_warn("Got invalid request (U: %s, L: %u, F: %u, S: %u, R: %u) from client (socket: %d, peer: %s): %s",
-			         base58_encode(base58, uint32_from_le(client->request.header.uid)),
-			         client->request.header.length,
-			         client->request.header.function_id,
-			         packet_header_get_sequence_number(&client->request.header),
-			         packet_header_get_response_expected(&client->request.header),
-			         client->socket, client->peer,
-			         message);
-
-			if (length < (int)sizeof(PacketHeader)) {
-				// skip the complete header if length was too small
-				length = sizeof(PacketHeader);
-			}
-		} else if (client->request.header.function_id == FUNCTION_DISCONNECT_PROBE) {
+		if (client->request.header.function_id == FUNCTION_DISCONNECT_PROBE) {
 			log_debug("Got disconnect probe from client (socket: %d, peer: %s), dropping it",
 			          client->socket, client->peer);
 		} else {
@@ -159,6 +164,7 @@ static void client_handle_receive(void *opaque) {
 		        client->request_used - length);
 
 		client->request_used -= length;
+		client->request_header_checked = 0;
 	}
 }
 
@@ -167,8 +173,9 @@ int client_create(Client *client, EventHandle socket,
 	log_debug("Creating client from socket (handle: %d)", socket);
 
 	client->socket = socket;
-	client->request_used = 0;
 	client->disconnected = 0;
+	client->request_used = 0;
+	client->request_header_checked = 0;
 
 	// create pending request array
 	if (array_create(&client->pending_requests, 32,

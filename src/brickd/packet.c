@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2012-2013 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2012-2014 Matthias Bolte <matthias@tinkerforge.com>
  *
  * packet.c: Packet definiton for protocol version 2
  *
@@ -39,6 +39,12 @@ int packet_header_is_valid_request(PacketHeader *header, const char **message) {
 		return 0;
 	}
 
+	if (header->length > (int)sizeof(Packet)) {
+		*message = "Length is too big";
+
+		return 0;
+	}
+
 	if (header->function_id == 0) {
 		*message = "Invalid function ID";
 
@@ -57,6 +63,12 @@ int packet_header_is_valid_request(PacketHeader *header, const char **message) {
 int packet_header_is_valid_response(PacketHeader *header, const char **message) {
 	if (header->length < (int)sizeof(PacketHeader)) {
 		*message = "Length is too small";
+
+		return 0;
+	}
+
+	if (header->length > (int)sizeof(Packet)) {
+		*message = "Length is too big";
 
 		return 0;
 	}

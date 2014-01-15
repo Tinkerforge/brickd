@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2012-2013 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2012-2014 Matthias Bolte <matthias@tinkerforge.com>
  *
  * client.h: Client specific functions
  *
@@ -38,6 +38,7 @@ typedef struct {
 	int disconnected;
 	Packet request;
 	int request_used;
+	int request_header_checked;
 	Array pending_requests;
 } Client;
 
