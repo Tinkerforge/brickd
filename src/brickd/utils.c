@@ -55,6 +55,14 @@ int errno_interrupted(void) {
 #endif
 }
 
+int errno_would_block(void) {
+#ifdef _WIN32
+	return errno == ERRNO_WINAPI_OFFSET + WSAEWOULDBLOCK ? 1 : 0;
+#else
+	return errno == EWOULDBLOCK || errno == EAGAIN ? 1 : 0;
+#endif
+}
+
 const char *get_errno_name(int error_code) {
 	#define ERRNO_NAME(code) case code: return #code
 	#define WINAPI_ERROR_NAME(code) case ERRNO_WINAPI_OFFSET + code: return #code

@@ -30,6 +30,7 @@
 typedef void (*FreeFunction)(void *item);
 
 int errno_interrupted(void);
+int errno_would_block(void);
 
 const char *get_errno_name(int error_code);
 

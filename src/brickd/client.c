@@ -57,7 +57,10 @@ static void client_handle_receive(void *opaque) {
 
 	if (length < 0) {
 		if (errno_interrupted()) {
-			log_debug("Receiving from client (socket: %d, peer: %s) was interrupted",
+			log_debug("Receiving from client (socket: %d, peer: %s) was interrupted, retrying",
+			          client->socket, client->peer);
+		} else if (errno_would_block()) {
+			log_debug("Receiving from client (socket: %d, peer: %s) would block, retrying",
 			          client->socket, client->peer);
 		} else {
 			log_error("Could not receive from client (socket: %d, peer: %s), disconnecting it: %s (%d)",
