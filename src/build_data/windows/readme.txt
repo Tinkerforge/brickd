@@ -1,8 +1,12 @@
 Tinkerforge Brick Daemon
 ========================
 
-The Brick Daemon (brickd.exe) acts as a proxy between the Bricks/Bricklets and
-the API bindings for the different programming languages.
+The Brick Daemon (brickd.exe) program is part of the Tinkerforge software
+infrastructure. It routes Tinkerforge Protocol (TFP) messages between USB and
+TCP/IP. This allows user programs to use TCP/IP sockets to communicate with
+Bricks and their Bricklets connected to USB without having to deal with USB
+themselves. The TCP/IP communicate itself is encapsulated in API bindings
+available for various programming languages.
 
 The installer registers and starts brickd.exe as a Windows Service. It runs
 in the background and normally you should not see anything of it or have to
