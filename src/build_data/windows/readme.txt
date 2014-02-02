@@ -5,7 +5,7 @@ The Brick Daemon (brickd.exe) program is part of the Tinkerforge software
 infrastructure. It routes Tinkerforge Protocol (TFP) messages between
 Tinkerforge USB devices (Bricks) and TCP/IP sockets. This allows user programs
 to use TCP/IP sockets to communicate with Bricks and their Bricklets connected
-to USB without having to deal with USB themselves. The TCP/IP communicate
+to USB without having to deal with USB themselves. The TCP/IP communication
 itself is encapsulated in API bindings available for various programming
 languages.
 
