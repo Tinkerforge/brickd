@@ -145,6 +145,17 @@ static int config_parse_log_level(char *string, LogLevel *value) {
 	return 0;
 }
 
+static const char *config_format_log_level(LogLevel level) {
+	switch (level) {
+	case LOG_LEVEL_NONE:  return "none";
+	case LOG_LEVEL_ERROR: return "error";
+	case LOG_LEVEL_WARN:  return "warn";
+	case LOG_LEVEL_INFO:  return "info";
+	case LOG_LEVEL_DEBUG: return "debug";
+	default:              return "<unknown>";
+	}
+}
+
 static void config_parse_line(char *string) {
 	char *p;
 	char *option;
@@ -262,10 +273,11 @@ int config_check(const char *filename) {
 	_check_only = 1;
 
 	config_init(filename);
-	config_exit();
 
 	if (_has_error) {
 		fprintf(stderr, "Errors found in config file '%s'\n", filename);
+
+		config_exit();
 
 		return -1;
 	}
@@ -273,6 +285,20 @@ int config_check(const char *filename) {
 	if (!_using_default_values) {
 		printf("No errors found in config file '%s'\n", filename);
 	}
+
+	printf("\n");
+	printf("Using the following config values:\n");
+	printf("  listen.address     = %s\n", config_get_listen_address());
+	printf("  listen.port        = %u\n", config_get_listen_port());
+	printf("  listen.dual_stack  = %s\n", config_get_listen_dual_stack() ? "on" : "off");
+	printf("  log_level.event    = %s\n", config_format_log_level(config_get_log_level(LOG_CATEGORY_EVENT)));
+	printf("  log_level.usb      = %s\n", config_format_log_level(config_get_log_level(LOG_CATEGORY_USB)));
+	printf("  log_level.network  = %s\n", config_format_log_level(config_get_log_level(LOG_CATEGORY_NETWORK)));
+	printf("  log_level.hotplug  = %s\n", config_format_log_level(config_get_log_level(LOG_CATEGORY_HOTPLUG)));
+	printf("  log_level.hardware = %s\n", config_format_log_level(config_get_log_level(LOG_CATEGORY_HARDWARE)));
+	printf("  log_level.other    = %s\n", config_format_log_level(config_get_log_level(LOG_CATEGORY_OTHER)));
+
+	config_exit();
 
 	return 0;
 }
