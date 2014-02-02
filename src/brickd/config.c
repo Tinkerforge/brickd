@@ -162,11 +162,11 @@ static void config_parse_line(char *string) {
 	char *value;
 	int port;
 
-	// remove comment
-	p = strchr(string, '#');
+	string = config_trim_string(string);
 
-	if (p != NULL) {
-		*p = '\0';
+	// ignore comment
+	if (*string == '#') {
+		return;
 	}
 
 	// split option and value
