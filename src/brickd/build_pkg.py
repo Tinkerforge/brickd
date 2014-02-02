@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 brickd (Brick Daemon)
-Copyright (C) 2012-2013 Matthias Bolte <matthias@tinkerforge.com>
+Copyright (C) 2012-2014 Matthias Bolte <matthias@tinkerforge.com>
 Copyright (C) 2011 Olaf Lüke <olaf@tinkerforge.com>
 Copyright (C) 2011 Bastian Nordmeyer <bastian@tinkerforge.com>
 
@@ -165,17 +165,42 @@ def build_linux_pkg():
         lines.append(line)
     file(control_name, 'wb').writelines(lines)
 
+    os.system('objcopy --strip-debug --strip-unneeded dist/usr/bin/brickd')
+
+    os.system('cp ../../changelog dist/usr/share/doc/brickd/')
+
+    os.system('gzip -9 dist/usr/share/doc/brickd/changelog')
+    os.system('gzip -9 dist/usr/share/man/man8/brickd.8')
+    os.system('gzip -9 dist/usr/share/man/man5/brickd.conf.5')
+
+    os.system('cd dist; find usr -type f -exec md5sum {} \; >> DEBIAN/md5sums')
+
     os.system('chown -R root:root dist/usr')
     os.system('chown -R root:root dist/etc')
 
-    os.system('chmod 0644 dist/DEBIAN/md5sums')
-    os.system('chmod 0755 dist/DEBIAN/preinst')
-    os.system('chmod 0755 dist/DEBIAN/postinst')
-    os.system('chmod 0755 dist/DEBIAN/prerm')
+    os.system('find dist -type d -exec chmod 0755 {} \;')
 
+    os.chmod('dist/DEBIAN/conffiles', 0644)
+    os.chmod('dist/DEBIAN/md5sums', 0644)
+
+    os.chmod('dist/DEBIAN/preinst', 0755)
+    os.chmod('dist/DEBIAN/postinst', 0755)
+    os.chmod('dist/DEBIAN/prerm', 0755)
+    os.chmod('dist/DEBIAN/postrm', 0755)
+
+    os.chmod('dist/etc/brickd.conf', 0644)
+    os.chmod('dist/usr/share/man/man8/brickd.8.gz', 0644)
+    os.chmod('dist/usr/share/man/man5/brickd.conf.5.gz', 0644)
+
+    print 'Packaging...'
     os.system('dpkg -b dist brickd-' + version + '_' + architecture + '.deb')
 
+    print 'Checking...'
+    os.system('lintian --allow-root --pedantic brickd-' + version + '_' + architecture + '.deb')
+
     os.system('make clean')
+
+    print 'Done'
 
 
 # call python build_pkg.py to build the windows/linux/macosx package

@@ -3,8 +3,13 @@ Version: <<BRICKD_VERSION>>
 Section: electronics
 Maintainer: Olaf Lüke <olaf@tinkerforge.com>
 Architecture: <<BRICKD_ARCHITECTURE>>
+Priority: optional
 Installed-Size: 142
-Depends: libusb-1.0-0, libudev1 | libudev0
-Description: Brick Daemon
- Brick Daemon is a small bridge between the USB port of Bricks and 
- the TCP/IP socket connection to the language binding APIs.
+Depends: libc6, libusb-1.0-0, libudev1 | libudev0
+Description: Tinkerforge Brick Daemon
+ The Brick Daemon program is part of the Tinkerforge software infrastructure.
+ It routes Tinkerforge Protocol (TFP) messages between Tinkerforge USB devices
+ (Bricks) and TCP/IP sockets. This allows user programs to use TCP/IP sockets
+ to communicate with Bricks and their Bricklets connected to USB without having
+ to deal with USB themselves. The TCP/IP communication itself is encapsulated
+ in API bindings available for various programming languages

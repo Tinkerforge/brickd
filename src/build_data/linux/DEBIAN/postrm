@@ -1,0 +1,13 @@
+#!/bin/sh
+
+set -e
+
+if [ "$1" = "purge" ]; then
+	rm -f /var/log/brickd.log
+
+	if [ -x /etc/init.d/brickd ]; then
+		update-rc.d brickd remove > /dev/null
+	fi
+fi
+
+exit 0

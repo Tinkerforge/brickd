@@ -1,0 +1,81 @@
+.\" Process this file with: groff -man -Tascii brickd.8
+.TH BRICKD 8 2014-01-30 Tinkerforge
+.\" Turn off justification for nroff. Always turn off hyphenation.
+.if n .ad l
+.nh
+.SH NAME
+brickd \- Tinkerforge Brick Daemon
+.SH SYNOPSIS
+.B brickd
+[--help|--version|--check-config|--daemon] [--debug] [--libusb-debug]
+.SH DESCRIPTION
+The
+.B brickd
+program is part of the Tinkerforge software infrastructure. It routes
+Tinkerforge Protocol (TFP) messages between Tinkerforge USB devices (Bricks)
+and TCP/IP sockets. This allows user programs to use TCP/IP sockets to
+communicate with Bricks and their Bricklets connected to USB without having to
+deal with USB themselves. The TCP/IP communicate itself is encapsulated in API
+bindings available for various programming languages.
+.PP
+Bricks connected to USB are identified using their vendor ID (16D0) and product
+ID (063D).
+.PP
+By default, brickd binds to 0.0.0.0 (IPv4) and listens on port 4223 for
+incoming TCP/IP connections. The bind address (IPv4 or IPv6), listen port and
+dual-stack operation can be configured in the configuration file.
+.SH OPTIONS
+.IP "\fB\-\-help\fR" 4
+Print help for command line options and exit.
+.IP "\fB\-\-version\fR" 4
+Print version number and exit.
+.IP "\fB\-\-check-config\fR" 4
+Check configuration file for errors, print the result and exit.
+.IP "\fB\-\-daemon\fR" 4
+Run as daemon and write PID and log file.
+.IP "\fB\-\-debug\fR" 4
+Set all log levels to debug, overriding configuration file values.
+.IP "\fB\-\-libusb-debug\fR" 4
+Enable libusb log output. Only works if libusb was compiled with log output
+enabled.
+.SH SIGNALS
+On reception of
+.B SIGUSR1
+brickd will scan for added or removed USB devices. This is only useful if brickd
+has no other means to detect USB hotplug on its own. That is the case if brickd
+was compiled without libudev support and is using a libusb-1.0 version without
+hotplug support (libusb-1.0 before 1.0.16).
+.SH FILES
+.SS "When run as \fBroot\fP"
+.IP "\fI/etc/brickd.conf\fR" 4
+The system wide configuration file. See
+.IR brickd.conf (5)
+for further details.
+.IP "\fI/var/log/brickd.log\fR" 4
+Per system wide log file.
+.IP "\fI/var/run/brickd.pid\fR" 4
+Per system wide PID file.
+.SS "When run as \fBnon-root\fP"
+.IP "\fI~/.brickd/brickd.conf\fR" 4
+Per user configuration file. See
+.IR brickd.conf (5)
+for further details.
+.IP "\fI~/.brickd/brickd.log\fR" 4
+Per user log file.
+.IP "\fI~/.brickd/brickd.pid\fR" 4
+Per user PID file.
+.SH BUGS
+Please report all bugs you discover to
+\fI\%https://github.com/Tinkerforge/brickd/issues\fR
+.SH AUTHOR
+Matthias Bolte <matthias@tinkerforge.com>
+.SH COPYRIGHT
+Copyright (C) 2012-2014 Matthias Bolte
+.SH LICENSE
+brickd is distributed under the terms of the GNU GPL v2+. This is free
+software; see the source for copying conditions. There is NO warranty;
+not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+.SH "SEE ALSO"
+.IR brickd.conf (5)
+
+For further information see \fI\%http://www.tinkerforge.com\fR
