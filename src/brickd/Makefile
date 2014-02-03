@@ -55,6 +55,10 @@ else
 endif
 endif
 
+ifndef datadir
+	datadir := $(prefix)/share
+endif
+
 endif
 
 ifneq ($(findstring $(MAKEFLAGS),s),s)
@@ -264,21 +268,41 @@ install: all
 ifeq ($(PLATFORM),Linux)
 	@echo "MD $(bindir)"
 	$(E)$(INSTALL) -d -m 755 $(bindir)
+
 	@echo "MD $(sysconfdir)"
 	$(E)$(INSTALL) -d -m 755 $(sysconfdir)
+
 	@echo "MD $(sysconfdir)/init.d"
 	$(E)$(INSTALL) -d -m 755 $(sysconfdir)/init.d
+
 	@echo "MD $(localstatedir)/log"
 	$(E)$(INSTALL) -d -m 755 $(localstatedir)/log
+
 	@echo "MD $(localstatedir)/run"
 	$(E)$(INSTALL) -d -m 755 $(localstatedir)/run
 
+	@echo "MD $(datadir)/man/man8"
+	$(E)$(INSTALL) -d -m 755 $(datadir)/man/man8
+
+	@echo "MD $(datadir)/man/man5"
+	$(E)$(INSTALL) -d -m 755 $(datadir)/man/man5
+
 	@echo "CP brickd"
 	$(E)$(INSTALL) -m 755 brickd $(bindir)
+
 	@echo "CP brickd.conf"
 	$(E)$(INSTALL) -m 644 ../build_data/linux/etc/brickd.conf $(sysconfdir)
+
 	@echo "CP brickd (init script)"
 	$(E)$(INSTALL) -m 755 ../build_data/linux/etc/init.d/brickd $(sysconfdir)/init.d
+
+	@echo "CP brickd.8"
+	$(E)$(INSTALL) -m 644 ../build_data/linux/usr/share/man/man8/brickd.8 $(datadir)/man/man8
+	$(E)gzip $(datadir)/man/man8/brickd.8
+
+	@echo "CP brickd.conf.5"
+	$(E)$(INSTALL) -m 644 ../build_data/linux/usr/share/man/man5/brickd.conf.5 $(datadir)/man/man5
+	$(E)gzip $(datadir)/man/man5/brickd.conf.5
 endif
 
 log_messages.h log_messages.rc: log_messages.mc Makefile
