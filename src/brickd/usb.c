@@ -240,7 +240,7 @@ int usb_init(int libusb_debug) {
 		log_debug("libusb does not support hotplug");
 	}
 
-	if (usb_update() < 0) {
+	if (usb_rescan() < 0) {
 		goto cleanup;
 	}
 
@@ -278,12 +278,9 @@ void usb_exit(void) {
 	usb_exit_platform();
 }
 
-int usb_update(void) {
+int usb_rescan(void) {
 	int i;
 	USBStack *usb_stack;
-	int k;
-	uint32_t uid; // always little endian
-	EnumerateCallback enumerate_callback;
 
 	// mark all known USB stacks as potentially removed
 	for (i = 0; i < _usb_stacks.count; ++i) {
@@ -311,29 +308,33 @@ int usb_update(void) {
 		         usb_stack->bus_number, usb_stack->device_address, i,
 		         usb_stack->base.name);
 
-		for (k = 0; k < usb_stack->base.uids.count; ++k) {
-			uid = *(uint32_t *)array_get(&usb_stack->base.uids, k);
-
-			memset(&enumerate_callback, 0, sizeof(enumerate_callback));
-
-			enumerate_callback.header.uid = uid;
-			enumerate_callback.header.length = sizeof(enumerate_callback);
-			enumerate_callback.header.function_id = CALLBACK_ENUMERATE;
-			packet_header_set_sequence_number(&enumerate_callback.header, 0);
-
-			base58_encode(enumerate_callback.uid, uint32_from_le(uid));
-			enumerate_callback.enumeration_type = ENUMERATION_TYPE_DISCONNECTED;
-
-			log_debug("Sending enumerate-disconnected callback (uid: %s)",
-			          enumerate_callback.uid);
-
-			network_dispatch_response((Packet *)&enumerate_callback);
-		}
+		usb_stack_announce_disconnect(usb_stack);
 
 		array_remove(&_usb_stacks, i, (FreeFunction)usb_stack_destroy);
 	}
 
 	return 0;
+}
+
+int usb_reopen(void) {
+	int i;
+	USBStack *usb_stack;
+
+	// iterate backwards to avoid memmove in array_remove call
+	while (_usb_stacks.count > 0) {
+		i = _usb_stacks.count - 1;
+		usb_stack = array_get(&_usb_stacks, i);
+
+		log_info("Temporarily removing USB device (bus: %u, device: %u) at index %d: %s ",
+		         usb_stack->bus_number, usb_stack->device_address, i,
+		         usb_stack->base.name);
+
+		usb_stack_announce_disconnect(usb_stack);
+
+		array_remove(&_usb_stacks, i, (FreeFunction)usb_stack_destroy);
+	}
+
+	return usb_rescan();
 }
 
 int usb_create_context(libusb_context **context) {

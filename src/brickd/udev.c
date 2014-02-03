@@ -256,7 +256,7 @@ static void udev_handle_event(void *opaque) {
 		log_debug("Received udev event (action: %s, dev node: %s, sys name: %s)",
 		          action, dev_node, sys_name);
 
-		usb_update();
+		usb_rescan();
 	} else {
 		log_debug("Ignoring udev event (action: %s, dev node: %s, sys name: %s)",
 		          action, dev_node, sys_name);

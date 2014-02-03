@@ -20,6 +20,7 @@ WITH_LIBUDEV ?= check
 WITH_LIBUDEV_DLOPEN ?= no
 WITH_LOGGING ?= yes
 WITH_PROFILING ?= no
+WITH_USB_REOPEN_ON_SIGUSR1 ?= no
 
 ## RULES ######################################################################
 
@@ -234,6 +235,10 @@ endif
 
 ifeq ($(WITH_PROFILING),yes)
 	CFLAGS += -DBRICKD_WITH_PROFILING
+endif
+
+ifeq ($(WITH_USB_REOPEN_ON_SIGUSR1),yes)
+	CFLAGS += -DBRICKD_WITH_USB_REOPEN_ON_SIGUSR1
 endif
 
 ifeq ($(PLATFORM),Windows)

@@ -197,7 +197,7 @@ static int usb_handle_hotplug(libusb_context *context, libusb_device *device,
 		log_debug("Received libusb hotplug event (event: arrived, bus: %u, device: %u)",
 		          bus_number, device_address);
 
-		usb_update();
+		usb_rescan();
 
 		break;
 
@@ -205,7 +205,7 @@ static int usb_handle_hotplug(libusb_context *context, libusb_device *device,
 		log_debug("Received libusb hotplug event (event: left, bus: %u, device: %u)",
 		          bus_number, device_address);
 
-		usb_update();
+		usb_rescan();
 
 		break;
 

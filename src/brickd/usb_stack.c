@@ -468,3 +468,28 @@ void usb_stack_destroy(USBStack *usb_stack) {
 	log_debug("Released USB device (bus: %u, device: %u), was %s",
 	          usb_stack->bus_number, usb_stack->device_address, name);
 }
+
+void usb_stack_announce_disconnect(USBStack *usb_stack) {
+	int k;
+	uint32_t uid; // always little endian
+	EnumerateCallback enumerate_callback;
+
+	for (k = 0; k < usb_stack->base.uids.count; ++k) {
+		uid = *(uint32_t *)array_get(&usb_stack->base.uids, k);
+
+		memset(&enumerate_callback, 0, sizeof(enumerate_callback));
+
+		enumerate_callback.header.uid = uid;
+		enumerate_callback.header.length = sizeof(enumerate_callback);
+		enumerate_callback.header.function_id = CALLBACK_ENUMERATE;
+		packet_header_set_sequence_number(&enumerate_callback.header, 0);
+
+		base58_encode(enumerate_callback.uid, uint32_from_le(uid));
+		enumerate_callback.enumeration_type = ENUMERATION_TYPE_DISCONNECTED;
+
+		log_debug("Sending enumerate-disconnected callback (uid: %s)",
+		          enumerate_callback.uid);
+
+		network_dispatch_response((Packet *)&enumerate_callback);
+	}
+}

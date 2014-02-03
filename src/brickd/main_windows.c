@@ -201,7 +201,7 @@ static void forward_notifications(void *opaque) {
 		return;
 	}
 
-	usb_update();
+	usb_rescan();
 }
 
 static void handle_device_event(DWORD event_type) {

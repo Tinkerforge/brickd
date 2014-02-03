@@ -51,13 +51,20 @@ static void event_handle_signal(void *opaque) {
 
 	if (signal_number == SIGINT) {
 		log_info("Received SIGINT");
+
 		event_stop();
 	} else if (signal_number == SIGTERM) {
 		log_info("Received SIGTERM");
+
 		event_stop();
 	} else if (signal_number == SIGUSR1) {
 		log_info("Received SIGUSR1");
-		usb_update();
+
+#ifdef BRICKD_WITH_USB_REOPEN_ON_SIGUSR1
+		usb_reopen();
+#else
+		usb_rescan();
+#endif
 	} else {
 		log_warn("Received unexpected signal %d", signal_number);
 	}
