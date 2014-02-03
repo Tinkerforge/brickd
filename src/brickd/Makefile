@@ -146,7 +146,7 @@ ifeq ($(PLATFORM),Linux)
 endif
 
 ifeq ($(PLATFORM),Darwin)
-	SOURCES += main_macosx.c
+	SOURCES += main_macosx.c iokit.c
 endif
 
 ifeq ($(WITH_LIBUDEV),yes)
@@ -253,6 +253,7 @@ endif
 ifeq ($(PLATFORM),Darwin)
 	# ensure that there is enough room to rewrite the libusb install name
 	LDFLAGS += -Wl,-headerpad_max_install_names
+	LIBS += -Wl,-framework,IOKit -Wl,-framework,CoreFoundation -lobjc
 endif
 
 ifeq ($(WITH_LOGGING),yes)
