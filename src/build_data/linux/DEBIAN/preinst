@@ -14,7 +14,7 @@ if [ -x /etc/init.d/brickd ] && [ -n "${PIDFILE:-}" -a -r "$PIDFILE" ]; then
 			else
 				/etc/init.d/brickd stop
 			fi
-		elif ps "${pid:-}" > /dev/null 2>&1; then
+		elif ps "${PID:-}" > /dev/null 2>&1; then
 			if [ -x /usr/sbin/invoke-rc.d ]; then
 				invoke-rc.d brickd stop
 			else
