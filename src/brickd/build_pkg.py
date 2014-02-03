@@ -189,6 +189,7 @@ def build_linux_pkg():
     os.chmod('dist/DEBIAN/postrm', 0755)
 
     os.chmod('dist/etc/brickd.conf', 0644)
+    os.chmod('dist/usr/share/doc/brickd/copyright', 0644)
     os.chmod('dist/usr/share/man/man8/brickd.8.gz', 0644)
     os.chmod('dist/usr/share/man/man5/brickd.conf.5.gz', 0644)
 
