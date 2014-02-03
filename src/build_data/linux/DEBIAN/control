@@ -5,7 +5,7 @@ Maintainer: Olaf Lüke <olaf@tinkerforge.com>
 Architecture: <<BRICKD_ARCHITECTURE>>
 Priority: optional
 Installed-Size: 142
-Depends: libc6, libusb-1.0-0, libudev1 | libudev0
+Depends: libc6, libusb-1.0-0, libudev1 | libudev0, pm-utils
 Description: Tinkerforge Brick Daemon
  The Brick Daemon program is part of the Tinkerforge software infrastructure.
  It routes Tinkerforge Protocol (TFP) messages between Tinkerforge USB devices

@@ -5,11 +5,11 @@
 # Tested with libusb: 1.0.6, 1.0.8, 1.0.9, 1.0.16, 1.0.17
 #
 # Debian/Ubuntu:
-# sudo apt-get install build-essential pkg-config libusb-1.0-0-dev libudev-dev
+# sudo apt-get install build-essential pkg-config libusb-1.0-0-dev libudev-dev pm-utils
 #
 # Fedora:
 # sudo yum groupinstall "Development Tools"
-# sudo yum install libusb1-devel libudev-devel
+# sudo yum install libusb1-devel libudev-devel pm-utils-devel
 #
 
 ## CONFIG #####################################################################
@@ -21,6 +21,7 @@ WITH_LIBUDEV_DLOPEN ?= no
 WITH_LOGGING ?= yes
 WITH_PROFILING ?= no
 WITH_USB_REOPEN_ON_SIGUSR1 ?= no
+WITH_PM_UTILS ?= check
 
 ## RULES ######################################################################
 
@@ -79,6 +80,7 @@ endif
 
 LIBUSB_STATUS := no
 LIBUDEV_STATUS := no
+PM_UTILS_STATUS := no
 
 ifeq ($(PLATFORM),Windows)
 	HOTPLUG := WinAPI
@@ -109,6 +111,19 @@ endif
 
 ifeq ($(PLATFORM),Darwin)
 	HOTPLUG := libusb
+endif
+
+ifeq ($(PLATFORM),Linux)
+	PM_UTILS := $(shell pkg-config --exists pm-utils && echo yes || echo no)
+ifeq ($(WITH_PM_UTILS),check)
+ifeq ($(PM_UTILS),yes)
+	WITH_PM_UTILS := yes
+else
+	WITH_PM_UTILS := no
+endif
+endif
+else
+	WITH_PM_UTILS := no
 endif
 
 SOURCES := array.c client.c config.c event.c hardware.c log.c network.c \
@@ -170,7 +185,7 @@ ifeq ($(PLATFORM),Windows)
 endif
 
 ifeq ($(PLATFORM),Linux)
-LIBUSB_VERSION := $(shell pkg-config --exists 'libusb-1.0 >= 1.0.6' && echo okay)
+	LIBUSB_VERSION := $(shell pkg-config --exists 'libusb-1.0 >= 1.0.6' && echo okay)
 ifeq ($(LIBUSB_VERSION),okay)
 	LIBUSB_STATUS := $(shell pkg-config --modversion libusb-1.0)
 	LIBUSB_CFLAGS := $(shell pkg-config --cflags libusb-1.0)
@@ -200,7 +215,7 @@ ifeq ($(WITH_LIBUDEV_DLOPEN),yes)
 	LIBUDEV_STATUS := dlopen
 	CFLAGS += -DBRICKD_WITH_LIBUDEV_DLOPEN
 else
-LIBUDEV_EXISTS := $(shell pkg-config --exists libudev && echo yes)
+	LIBUDEV_EXISTS := $(shell pkg-config --exists libudev && echo yes)
 ifeq ($(LIBUDEV_EXISTS),yes)
 	LIBUDEV_STATUS := $(shell pkg-config --modversion libudev)
 	LIBUDEV_CFLAGS := $(shell pkg-config --cflags libudev)
@@ -217,6 +232,17 @@ endif
 endif
 ifeq ($(HOTPLUG),libusb)
 	LIBUDEV_STATUS := $(LIBUDEV_STATUS) (unused)
+endif
+endif
+
+ifeq ($(WITH_PM_UTILS),yes)
+	PM_UTILS_EXISTS := $(shell pkg-config --exists pm-utils && echo yes)
+ifeq ($(PM_UTILS_EXISTS),yes)
+	PM_UTILS_STATUS := yes
+else
+ifneq ($(MAKECMDGOALS),clean)
+$(error Could not find pm-utils)
+endif
 endif
 endif
 
@@ -248,6 +274,7 @@ endif
 ifneq ($(MAKECMDGOALS),clean)
 $(info libusb: $(LIBUSB_STATUS))
 $(info libudev: $(LIBUDEV_STATUS))
+$(info pm-utils: $(PM_UTILS_STATUS))
 $(info hotplug: $(HOTPLUG))
 endif
 
@@ -286,6 +313,12 @@ ifeq ($(PLATFORM),Linux)
 	@echo "MD $(localstatedir)/run"
 	$(E)$(INSTALL) -d -m 755 $(localstatedir)/run
 
+	@echo "MD $(datadir)"
+	$(E)$(INSTALL) -d -m 755 $(datadir)
+
+	@echo "MD $(datadir)/man"
+	$(E)$(INSTALL) -d -m 755 $(datadir)/man
+
 	@echo "MD $(datadir)/man/man8"
 	$(E)$(INSTALL) -d -m 755 $(datadir)/man/man8
 
@@ -298,16 +331,21 @@ ifeq ($(PLATFORM),Linux)
 	@echo "CP brickd.conf"
 	$(E)$(INSTALL) -m 644 ../build_data/linux/etc/brickd.conf $(sysconfdir)
 
-	@echo "CP brickd (init script)"
+	@echo "CP brickd (init.d script)"
 	$(E)$(INSTALL) -m 755 ../build_data/linux/etc/init.d/brickd $(sysconfdir)/init.d
 
-	@echo "CP brickd.8"
+	@echo "CP brickd.8 (man page)"
 	$(E)$(INSTALL) -m 644 ../build_data/linux/usr/share/man/man8/brickd.8 $(datadir)/man/man8
-	$(E)gzip $(datadir)/man/man8/brickd.8
+	$(E)gzip -f $(datadir)/man/man8/brickd.8
 
-	@echo "CP brickd.conf.5"
+	@echo "CP brickd.conf.5 (man page)"
 	$(E)$(INSTALL) -m 644 ../build_data/linux/usr/share/man/man5/brickd.conf.5 $(datadir)/man/man5
-	$(E)gzip $(datadir)/man/man5/brickd.conf.5
+	$(E)gzip -f $(datadir)/man/man5/brickd.conf.5
+endif
+
+ifeq ($(WITH_PM_UTILS),yes)
+	@echo "CP 42brickd (pm-utils script)"
+	$(E)$(INSTALL) -m 755 ../build_data/linux/usr/lib/pm-utils/sleep.d/42brickd $(shell pkg-config pm-utils --variable pm_sleephooks)
 endif
 
 log_messages.h log_messages.rc: log_messages.mc Makefile

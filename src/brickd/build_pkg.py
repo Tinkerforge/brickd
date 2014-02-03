@@ -140,9 +140,9 @@ def build_linux_pkg():
     os.system('make clean')
 
     if architecture == 'i386':
-        os.system('CC=gcc WITH_LIBUDEV=yes WITH_LIBUDEV_DLOPEN=yes WITH_USB_REOPEN_ON_SIGUSR1=yes CFLAGS=-march=i386 make')
+        os.system('CC=gcc WITH_LIBUDEV=yes WITH_LIBUDEV_DLOPEN=yes WITH_USB_REOPEN_ON_SIGUSR1=yes WITH_PM_UTILS=yes CFLAGS=-march=i386 make')
     else:
-        os.system('CC=gcc WITH_LIBUDEV=yes WITH_LIBUDEV_DLOPEN=yes WITH_USB_REOPEN_ON_SIGUSR1=yes make')
+        os.system('CC=gcc WITH_LIBUDEV=yes WITH_LIBUDEV_DLOPEN=yes WITH_USB_REOPEN_ON_SIGUSR1=yes WITH_PM_UTILS=yes make')
 
     version = check_output(['./brickd', '--version']).replace('\n', '').replace(' ', '-')
 
@@ -182,7 +182,6 @@ def build_linux_pkg():
 
     os.chmod('dist/DEBIAN/conffiles', 0644)
     os.chmod('dist/DEBIAN/md5sums', 0644)
-
     os.chmod('dist/DEBIAN/preinst', 0755)
     os.chmod('dist/DEBIAN/postinst', 0755)
     os.chmod('dist/DEBIAN/prerm', 0755)
@@ -192,6 +191,7 @@ def build_linux_pkg():
     os.chmod('dist/usr/share/doc/brickd/copyright', 0644)
     os.chmod('dist/usr/share/man/man8/brickd.8.gz', 0644)
     os.chmod('dist/usr/share/man/man5/brickd.conf.5.gz', 0644)
+    os.chmod('dist/usr/lib/pm-utils/sleep.d/42brickd', 0755)
 
     print 'Packaging...'
     os.system('dpkg -b dist brickd-' + version + '_' + architecture + '.deb')

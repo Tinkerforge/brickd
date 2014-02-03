@@ -10,18 +10,19 @@ The following libraries are required:
 
 * libusb-1.0
 * libudev (optional for USB hotplug, Linux only)
+* pm-utils (optional for suspend/resume handling, Linux only)
 
 On Debian based Linux distributions try::
 
- sudo apt-get install build-essential pkg-config libusb-1.0-0-dev libudev-dev
+ sudo apt-get install build-essential pkg-config libusb-1.0-0-dev libudev-dev pm-utils
 
 On Fedora Linux try::
 
  sudo yum groupinstall "Development Tools"
- sudo yum install libusb1-devel libudev-devel
+ sudo yum install libusb1-devel libudev-devel pm-utils-devel
 
-For Windows a suitable pre-compiled libusb binary is part of this repository.
-For Mac OS X a suitable libusb version can be obtained via MacPorts or Homebrew.
+For Windows and Mac OS X a suitable pre-compiled libusb binary is part of this
+repository.
 
 Linux
 ^^^^^
@@ -124,6 +125,6 @@ Brick Daemon can autodetect USB hotplug. Different systems are used for this:
 * libudev on Linux
 * IOKit notifications on Mac OS X
 
-On Linux brickd will also check for added or removed Bricks if the USR1 signal
-is received. This is used on OpenWrt where the hotplug2 daemon is told to tell
-brickd about USB hotplug this way, instead of using libudev on OpenWrt.
+On Linux brickd will also check for added or removed Bricks if the SIGUSR1
+signal is received. This is used on OpenWrt where the hotplug2 daemon is told
+to tell brickd about USB hotplug this way, instead of using libudev on OpenWrt.

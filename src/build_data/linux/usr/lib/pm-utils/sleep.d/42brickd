@@ -1,0 +1,23 @@
+#!/bin/sh
+
+set -e
+
+PIDFILE=/var/run/brickd.pid
+
+case $1 in
+	hibernate|suspend)
+		;;
+
+	thaw|resume)
+		PID=`cat "$PIDFILE"`
+
+		if [ -n "${PID:-}" ]; then
+			kill -USR1 "${PID:-}"
+		fi
+		;;
+
+	*)
+		;;
+esac
+
+exit 0
