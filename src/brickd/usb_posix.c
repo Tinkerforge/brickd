@@ -238,7 +238,7 @@ void usb_exit_platform(void) {
 int usb_init_hotplug(libusb_context *context) {
 	int rc;
 
-	// cannot use LIBUSBZ_HOTPLUG_ENUMERATE here for initial ernumeration,
+	// cannot use LIBUSBZ_HOTPLUG_ENUMERATE here for initial enumeration,
 	// because it is broken in libusb 1.0.16 as in calling libusb functions
 	// from the hotplug callback might deadlock.
 	rc = libusbz_hotplug_register_callback(context,

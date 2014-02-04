@@ -335,11 +335,11 @@ ifeq ($(PLATFORM),Linux)
 	@echo "CP brickd (init.d script)"
 	$(E)$(INSTALL) -m 755 ../build_data/linux/etc/init.d/brickd $(sysconfdir)/init.d
 
-	@echo "CP brickd.8 (man page)"
+	@echo "CP brickd.8 (manpage)"
 	$(E)$(INSTALL) -m 644 ../build_data/linux/usr/share/man/man8/brickd.8 $(datadir)/man/man8
 	$(E)gzip -f $(datadir)/man/man8/brickd.8
 
-	@echo "CP brickd.conf.5 (man page)"
+	@echo "CP brickd.conf.5 (manpage)"
 	$(E)$(INSTALL) -m 644 ../build_data/linux/usr/share/man/man5/brickd.conf.5 $(datadir)/man/man5
 	$(E)gzip -f $(datadir)/man/man5/brickd.conf.5
 endif
