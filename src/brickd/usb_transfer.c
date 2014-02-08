@@ -88,10 +88,10 @@ static void LIBUSB_CALL usb_transfer_wrapper(struct libusb_transfer *handle) {
 		          usb_transfer_get_type_name(usb_transfer->type, 1), usb_transfer,
 		          usb_transfer->usb_stack->base.name,
 		          usb_transfer->canceled
-		            ? ", but it was canceled in the meantime"
-		            : (!usb_transfer->usb_stack->active
-		                 ? ", but the corresponding USB device is not active anymore"
-		                 : ""));
+		          ? ", but it was canceled in the meantime"
+			  : (!usb_transfer->usb_stack->active
+		             ? ", but the corresponding USB device is not active anymore"
+			     : ""));
 
 		if (usb_transfer->canceled || !usb_transfer->usb_stack->active) {
 			return;

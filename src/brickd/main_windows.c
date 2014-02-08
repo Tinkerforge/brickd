@@ -324,7 +324,7 @@ static void message_pump_thread_proc(void *opaque) {
 			}
 
 			log_warn("Could not get window message: %s (%d)",
-			          get_errno_name(rc), rc);
+			         get_errno_name(rc), rc);
 		} else {
 			TranslateMessage(&msg);
 			DispatchMessage(&msg);

@@ -226,7 +226,7 @@ int usb_init_platform(void) {
 	}
 #endif
 
-	return 0 ;
+	return 0;
 }
 
 void usb_exit_platform(void) {
