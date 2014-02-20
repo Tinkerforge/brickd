@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2012-2013 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2012-2014 Matthias Bolte <matthias@tinkerforge.com>
  * Copyright (C) 2014 Olaf Lüke <olaf@tinkerforge.com>
  *
  * config.c: Config specific functions
@@ -69,6 +69,7 @@ static void config_reset(void) {
 	}
 
 	_listen_port = 4223;
+	_listen_websocket_port = 80;
 	_listen_dual_stack = 0;
 
 	for (i = 0; i < MAX_LOG_CATEGORIES; ++i) {
