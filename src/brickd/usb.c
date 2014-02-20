@@ -479,8 +479,7 @@ int usb_get_device_name(libusb_device_handle *device_handle, char *name, int len
 	}
 
 	// format name
-	snprintf(name, length - 1, "%s [%s]", product, serial_number);
-	name[length - 1] = '\0';
+	snprintf(name, length, "%s [%s]", product, serial_number);
 
 	return 0;
 }
