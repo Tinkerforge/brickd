@@ -116,7 +116,7 @@ static const char *network_get_address_family_name(int family, int report_dual_s
 
 int network_init_port(uint16_t port, SocketType type) {
 	int phase = 0;
-	const char *listen_address = config_get_listen_address();
+	const char *address = config_get_listen_address();
 	struct addrinfo *resolved_address = NULL;
 	EventHandle *server_socket = type == SOCKET_TYPE_NORMAL ? &_server_socket_normal : &_server_socket_websocket;
 
@@ -126,11 +126,11 @@ int network_init_port(uint16_t port, SocketType type) {
 	// FIXME: bind to all returned addresses, instead of just the first one.
 	//        requires special handling if IPv4 and IPv6 addresses are returned
 	//        and dual-stack mode is enabled
-	resolved_address = socket_hostname_to_address(listen_address, port);
+	resolved_address = socket_hostname_to_address(address, port);
 
 	if (resolved_address == NULL) {
 		log_error("Could not resolve listen address '%s' (port: %u): %s (%d)",
-		          listen_address, port, get_errno_name(errno), errno);
+		          address, port, get_errno_name(errno), errno);
 
 		goto cleanup;
 	}
@@ -178,7 +178,7 @@ int network_init_port(uint16_t port, SocketType type) {
 	                resolved_address->ai_addrlen) < 0) {
 		log_error("Could not bind %s server socket to '%s' on port %u: %s (%d)",
 		          network_get_address_family_name(resolved_address->ai_family, 1),
-		          listen_address, port, get_errno_name(errno), errno);
+		          address, port, get_errno_name(errno), errno);
 
 		goto cleanup;
 	}
@@ -186,13 +186,13 @@ int network_init_port(uint16_t port, SocketType type) {
 	if (socket_listen(*server_socket, 10) < 0) {
 		log_error("Could not listen to %s server socket bound to '%s' on port %u: %s (%d)",
 		          network_get_address_family_name(resolved_address->ai_family, 1),
-		          listen_address, port, get_errno_name(errno), errno);
+		          address, port, get_errno_name(errno), errno);
 
 		goto cleanup;
 	}
 
 	log_debug("Started listening to '%s' (%s) on port %u",
-	          listen_address,
+	          address,
 	          network_get_address_family_name(resolved_address->ai_family, 1),
 	          port);
 
