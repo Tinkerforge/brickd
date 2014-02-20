@@ -34,6 +34,43 @@
 
 #define LOG_CATEGORY LOG_CATEGORY_WEBSOCKET
 
+int websocket_frame_get_opcode(WebsocketFrame *wf) {
+	return wf->opcode_rsv_fin & 0xF;
+}
+
+void websocket_frame_set_opcode(WebsocketFrame *wf, int opcode) {
+	wf->opcode_rsv_fin &= ~0xF;
+	wf->opcode_rsv_fin |= (opcode & 0xF);
+}
+
+int websocket_frame_get_fin(WebsocketFrame *wf) {
+	return (wf->opcode_rsv_fin >> 7) & 0x1;
+}
+
+void websocket_frame_set_fin(WebsocketFrame *wf, int fin) {
+	wf->opcode_rsv_fin &= ~(0x1 << 7);
+	wf->opcode_rsv_fin |= ((fin << 7) & (0x1 << 7));
+}
+
+int websocket_frame_get_payload_length(WebsocketFrame *wf) {
+	return wf->payload_length_mask & 0x7F;
+}
+
+void websocket_frame_set_payload_length(WebsocketFrame *wf, int payload_length) {
+	wf->payload_length_mask &= ~0x7F;
+	wf->payload_length_mask |= (payload_length & 0x7F);
+}
+
+int websocket_frame_get_mask(WebsocketFrame *wf) {
+	return (wf->payload_length_mask >> 7) & 0x1;
+}
+
+void websocket_frame_set_mask(WebsocketFrame *wf, int mask) {
+	wf->payload_length_mask &= ~(0x1 << 7);
+	wf->payload_length_mask |= ((mask << 7) & (0x1 << 7));
+}
+
+
 void websocket_init_storage(SocketType type, SocketStorage *storage) {
 	storage->type = type;
 	storage->websocket_frame_index = 0;
@@ -171,28 +208,28 @@ int websocket_parse_header(EventHandle handle, SocketStorage *storage, void *buf
 		storage->websocket_frame_index += to_copy;
 		return SOCKET_CONTINUE;
 	} else {
-		log_debug("Websocket header received (fin: %d, rsv: [%d, %d %d], opc: %d, len: %d, key: [%d %d %d %d])",
-		          storage->websocket_frame.fin,
-		          storage->websocket_frame.rsv1,
-		          storage->websocket_frame.rsv2,
-		          storage->websocket_frame.rsv3,
-		          storage->websocket_frame.opcode,
-		          storage->websocket_frame.payload_length,
+		int fin = websocket_frame_get_fin(&storage->websocket_frame);
+		int opcode = websocket_frame_get_opcode(&storage->websocket_frame);
+		int payload_length = websocket_frame_get_payload_length(&storage->websocket_frame);
+		int mask = websocket_frame_get_mask(&storage->websocket_frame);
+
+		log_debug("Websocket header received (fin: %d, opc: %d, len: %d, key: [%d %d %d %d])",
+		          fin, opcode, payload_length,
 		          storage->websocket_frame.masking_key[0],
 		          storage->websocket_frame.masking_key[1],
 		          storage->websocket_frame.masking_key[2],
 		          storage->websocket_frame.masking_key[3]);
 
-		if(storage->websocket_frame.mask != 1) {
-			log_error("Websocket frame has invalid mask (%d)", storage->websocket_frame.mask);
+		if(mask != 1) {
+			log_error("Websocket frame has invalid mask (%d)", mask);
 			return -1;
 		}
-		if(storage->websocket_frame.payload_length == 126 || storage->websocket_frame.payload_length == 127) {
-			log_error("Websocket frame with extended payload length not supported (%d)", storage->websocket_frame.payload_length);
+		if(payload_length == 126 || payload_length == 127) {
+			log_error("Websocket frame with extended payload length not supported (%d)", payload_length);
 			return -1;
 		}
 
-		switch(storage->websocket_frame.opcode) {
+		switch(opcode) {
 		case WEBSOCKET_OPCODE_CONTINUATION_FRAME:
 		case WEBSOCKET_OPCODE_TEXT_FRAME:
 			log_error("Websocket opcodes 'continuation' and 'text' not supported");
@@ -201,7 +238,7 @@ int websocket_parse_header(EventHandle handle, SocketStorage *storage, void *buf
 		case WEBSOCKET_OPCODE_BINARY_FRAME: {
 			storage->websocket_mask_index = 0;
 			storage->websocket_frame_index = 0;
-			storage->websocket_to_read = storage->websocket_frame.payload_length;
+			storage->websocket_to_read = payload_length;
 			storage->websocket_state = WEBSOCKET_STATE_WEBSOCKET_HEADER_DONE;
 			if(length - to_copy > 0) {
 				for(i = 0; i < length - websocket_frame_length; i++) {
@@ -228,7 +265,7 @@ int websocket_parse_header(EventHandle handle, SocketStorage *storage, void *buf
 		}
 	}
 
-	log_error("Unknown websocket opcode (%d)", storage->websocket_frame.opcode);
+	log_error("Unknown websocket opcode (%d)", websocket_frame_get_opcode(&storage->websocket_frame));
 	return -1;
 }
 
@@ -293,13 +330,12 @@ int websocket_send(EventHandle handle, SocketStorage *storage, void *buffer, int
 
 	(void)storage;
 
-	wfstc.fin = 1;
-	wfstc.rsv1 = 0;
-	wfstc.rsv2 = 0;
-	wfstc.rsv3 = 0;
-	wfstc.opcode = 2;
-	wfstc.mask = 0;
-	wfstc.payload_length = (uint8_t)length;
+	wfstc.opcode_rsv_fin = 0;
+	wfstc.payload_length_mask = 0;
+	websocket_frame_set_fin((WebsocketFrame*)&wfstc, 1);
+	websocket_frame_set_opcode((WebsocketFrame*)&wfstc, 2);
+	websocket_frame_set_mask((WebsocketFrame*)&wfstc, 0);
+	websocket_frame_set_payload_length((WebsocketFrame*)&wfstc, length);
 
 	memcpy((void*)websocket_data, (void*)&wfstc, sizeof(WebsocketFrameServerToClient));
 	memcpy((void*)(websocket_data + sizeof(WebsocketFrameServerToClient)), buffer, length);

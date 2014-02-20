@@ -49,39 +49,29 @@
 #include "packed_begin.h"
 
 typedef struct {
-	uint8_t opcode : 4;
+/*	uint8_t opcode : 4;
 	uint8_t rsv1 : 1;
 	uint8_t rsv2 : 1;
 	uint8_t rsv3 : 1;
-	uint8_t fin : 1;
+	uint8_t fin : 1;*/
+	uint8_t opcode_rsv_fin;
 
-	uint8_t payload_length : 7;
-	uint8_t mask : 1; // mask is 0, no masking key
+/*	uint8_t payload_length : 7;
+	uint8_t mask : 1;*/ // mask is 0, no masking key
+	uint8_t payload_length_mask;
 } ATTRIBUTE_PACKED WebsocketFrameServerToClient;
 
 typedef struct {
-	uint8_t opcode : 4;
-	uint8_t rsv1 : 1;
-	uint8_t rsv2 : 1;
-	uint8_t rsv3 : 1;
-	uint8_t fin : 1;
-
-	uint8_t payload_length : 7;
-	uint8_t mask : 1;
+	uint8_t opcode_rsv_fin;
+	uint8_t payload_length_mask;
 
 	uint8_t masking_key[WEBSOCKET_MASK_LENGTH]; // only used if mask = 1
 } ATTRIBUTE_PACKED WebsocketFrame;
 
 // Extended is used if payload_length = 126
 typedef struct {
-	uint8_t opcode : 4;
-	uint8_t rsv1 : 1;
-	uint8_t rsv2 : 1;
-	uint8_t rsv3 : 1;
-	uint8_t fin : 1;
-
-	uint8_t payload_length : 7;
-	uint8_t mask : 1;
+	uint8_t opcode_rsv_fin;
+	uint8_t payload_length_mask;
 
 	uint16_t payload_length_extended; // note endianess
 
@@ -90,14 +80,8 @@ typedef struct {
 
 // Extended2 is used if payload_length = 127
 typedef struct {
-	uint8_t opcode : 4;
-	uint8_t rsv1 : 1;
-	uint8_t rsv2 : 1;
-	uint8_t rsv3 : 1;
-	uint8_t fin : 1;
-
-	uint8_t payload_length : 7;
-	uint8_t mask : 1;
+	uint8_t opcode_rsv_fin;
+	uint8_t payload_length_mask;
 
 	uint64_t payload_length_extended; // note endianess
 
@@ -134,6 +118,15 @@ typedef struct {
 
 	int websocket_to_read;
 } SocketStorage;
+
+int websocket_frame_get_opcode(WebsocketFrame *wf);
+void websocket_frame_set_opcode(WebsocketFrame *wf, int opcode);
+int websocket_frame_get_fin(WebsocketFrame *wf);
+void websocket_frame_set_fin(WebsocketFrame *wf, int fin);
+int websocket_frame_get_payload_length(WebsocketFrame *wf);
+void websocket_frame_set_payload_length(WebsocketFrame *wf, int payload_length);
+int websocket_frame_get_mask(WebsocketFrame *wf);
+void websocket_frame_set_mask(WebsocketFrame *wf, int mask);
 
 void websocket_init_storage(SocketType type, SocketStorage *storage);
 int websocket_answer_handshake_error(EventHandle handle);
