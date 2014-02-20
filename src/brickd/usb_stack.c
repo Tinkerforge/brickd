@@ -46,7 +46,7 @@
 
 static void usb_stack_read_callback(USBTransfer *usb_transfer) {
 	const char *message = NULL;
-	char base58[MAX_BASE58_STR_SIZE];
+	char signature[MAX_PACKET_SIGNATURE_STR_SIZE];
 
 	if (usb_transfer->handle->actual_length < (int)sizeof(PacketHeader)) {
 		log_error("Read transfer %p returned response with incomplete header (actual: %u < minimum: %d) from %s",
@@ -65,12 +65,8 @@ static void usb_stack_read_callback(USBTransfer *usb_transfer) {
 	}
 
 	if (!packet_header_is_valid_response(&usb_transfer->packet.header, &message)) {
-		log_debug("Got invalid response (U: %s, L: %u, F: %u, S: %u, E: %u) from %s: %s",
-		          base58_encode(base58, uint32_from_le(usb_transfer->packet.header.uid)),
-		          usb_transfer->packet.header.length,
-		          usb_transfer->packet.header.function_id,
-		          packet_header_get_sequence_number(&usb_transfer->packet.header),
-		          packet_header_get_error_code(&usb_transfer->packet.header),
+		log_debug("Got invalid response (%s) from %s: %s",
+		          packet_get_response_signature(signature, &usb_transfer->packet),
 		          usb_transfer->usb_stack->base.name,
 		          message);
 
@@ -78,19 +74,13 @@ static void usb_stack_read_callback(USBTransfer *usb_transfer) {
 	}
 
 	if (packet_header_get_sequence_number(&usb_transfer->packet.header) == 0) {
-		log_debug("Got %scallback (U: %s, L: %u, F: %u) from %s",
+		log_debug("Got %scallback (%s) from %s",
 		          packet_get_callback_type(&usb_transfer->packet),
-		          base58_encode(base58, uint32_from_le(usb_transfer->packet.header.uid)),
-		          usb_transfer->packet.header.length,
-		          usb_transfer->packet.header.function_id,
+		          packet_get_callback_signature(signature, &usb_transfer->packet),
 		          usb_transfer->usb_stack->base.name);
 	} else {
-		log_debug("Got response (U: %s, L: %u, F: %u, S: %u, E: %u) from %s",
-		          base58_encode(base58, uint32_from_le(usb_transfer->packet.header.uid)),
-		          usb_transfer->packet.header.length,
-		          usb_transfer->packet.header.function_id,
-		          packet_header_get_sequence_number(&usb_transfer->packet.header),
-		          packet_header_get_error_code(&usb_transfer->packet.header),
+		log_debug("Got response (%s) from %s",
+		          packet_get_response_signature(signature, &usb_transfer->packet),
 		          usb_transfer->usb_stack->base.name);
 	}
 
@@ -103,7 +93,7 @@ static void usb_stack_read_callback(USBTransfer *usb_transfer) {
 
 static void usb_stack_write_callback(USBTransfer *usb_transfer) {
 	Packet *request;
-	char base58[MAX_BASE58_STR_SIZE];
+	char signature[MAX_PACKET_SIGNATURE_STR_SIZE];
 
 	if (usb_transfer->usb_stack->write_queue.count > 0) {
 		request = queue_peek(&usb_transfer->usb_stack->write_queue);
@@ -111,12 +101,8 @@ static void usb_stack_write_callback(USBTransfer *usb_transfer) {
 		memcpy(&usb_transfer->packet, request, request->header.length);
 
 		if (usb_transfer_submit(usb_transfer) < 0) {
-			log_error("Could not send queued request (U: %s, L: %u, F: %u, S: %u, R: %u) to %s: %s (%d)",
-			          base58_encode(base58, uint32_from_le(usb_transfer->packet.header.uid)),
-			          usb_transfer->packet.header.length,
-			          usb_transfer->packet.header.function_id,
-			          packet_header_get_sequence_number(&usb_transfer->packet.header),
-			          packet_header_get_response_expected(&usb_transfer->packet.header),
+			log_error("Could not send queued request (%s) to %s: %s (%d)",
+			          packet_get_request_signature(signature, &usb_transfer->packet),
 			          usb_transfer->usb_stack->base.name,
 			          get_errno_name(errno), errno);
 
@@ -125,12 +111,8 @@ static void usb_stack_write_callback(USBTransfer *usb_transfer) {
 
 		queue_pop(&usb_transfer->usb_stack->write_queue, NULL);
 
-		log_debug("Sent queued request (U: %s, L: %u, F: %u, S: %u, R: %u) to %s, %d request(s) left in write queue",
-		          base58_encode(base58, uint32_from_le(usb_transfer->packet.header.uid)),
-		          usb_transfer->packet.header.length,
-		          usb_transfer->packet.header.function_id,
-		          packet_header_get_sequence_number(&usb_transfer->packet.header),
-		          packet_header_get_response_expected(&usb_transfer->packet.header),
+		log_debug("Sent queued request (%s) to %s, %d request(s) left in write queue",
+		          packet_get_request_signature(signature, &usb_transfer->packet),
 		          usb_transfer->usb_stack->base.name,
 		          usb_transfer->usb_stack->write_queue.count);
 	}

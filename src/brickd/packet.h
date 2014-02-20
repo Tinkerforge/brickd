@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2012-2013 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2012-2014 Matthias Bolte <matthias@tinkerforge.com>
  *
  * packet.h: Packet definiton for protocol version 2
  *
@@ -75,6 +75,12 @@ uint8_t packet_header_get_response_expected(PacketHeader *header);
 uint8_t packet_header_get_error_code(PacketHeader *header);
 
 const char *packet_get_callback_type(Packet *packet);
+
+#define MAX_PACKET_SIGNATURE_STR_SIZE 64
+
+char *packet_get_request_signature(char *signature, Packet *packet);
+char *packet_get_response_signature(char *signature, Packet *packet);
+char *packet_get_callback_signature(char *signature, Packet *packet);
 
 int packet_is_matching_response(Packet *packet, PacketHeader *pending_request);
 

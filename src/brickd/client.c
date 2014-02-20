@@ -49,7 +49,7 @@ static void client_handle_receive(void *opaque) {
 	Client *client = opaque;
 	int length;
 	const char *message = NULL;
-	char base58[MAX_BASE58_STR_SIZE];
+	char signature[MAX_PACKET_SIGNATURE_STR_SIZE];
 	PendingRequest *pending_request;
 
 	length = socket_receive(client->socket,
@@ -95,12 +95,8 @@ static void client_handle_receive(void *opaque) {
 
 		if (!client->request_header_checked) {
 			if (!packet_header_is_valid_request(&client->request.header, &message)) {
-				log_error("Got invalid request (U: %s, L: %u, F: %u, S: %u, R: %u) from client (socket: %d, peer: %s), disconnecting it: %s",
-				          base58_encode(base58, uint32_from_le(client->request.header.uid)),
-				          client->request.header.length,
-				          client->request.header.function_id,
-				          packet_header_get_sequence_number(&client->request.header),
-				          packet_header_get_response_expected(&client->request.header),
+				log_error("Got invalid request (%s) from client (socket: %d, peer: %s), disconnecting it: %s",
+				          packet_get_request_signature(signature, &client->request),
 				          client->socket, client->peer,
 				          message);
 
@@ -123,12 +119,8 @@ static void client_handle_receive(void *opaque) {
 			log_debug("Got disconnect probe from client (socket: %d, peer: %s), dropping it",
 			          client->socket, client->peer);
 		} else {
-			log_debug("Got request (U: %s, L: %u, F: %u, S: %u, R: %u) from client (socket: %d, peer: %s)",
-			          base58_encode(base58, uint32_from_le(client->request.header.uid)),
-			          client->request.header.length,
-			          client->request.header.function_id,
-			          packet_header_get_sequence_number(&client->request.header),
-			          packet_header_get_response_expected(&client->request.header),
+			log_debug("Got request (%s) from client (socket: %d, peer: %s)",
+			          packet_get_request_signature(signature, &client->request),
 			          client->socket, client->peer);
 
 			if (packet_header_get_response_expected(&client->request.header)) {
@@ -155,11 +147,8 @@ static void client_handle_receive(void *opaque) {
 					pending_request->arrival_time = microseconds();
 #endif
 
-					log_debug("Added pending request (U: %s, L: %u, F: %u, S: %u) for client (socket: %d, peer: %s)",
-					          base58_encode(base58, uint32_from_le(pending_request->header.uid)),
-					          pending_request->header.length,
-					          pending_request->header.function_id,
-					          packet_header_get_sequence_number(&pending_request->header),
+					log_debug("Added pending request (%s) for client (socket: %d, peer: %s)",
+					          packet_get_request_signature(signature, &client->request),
 					          client->socket, client->peer);
 				}
 			}

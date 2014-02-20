@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2013 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2013-2014 Matthias Bolte <matthias@tinkerforge.com>
  *
  * hardware.c: Hardware specific functions
  *
@@ -91,30 +91,22 @@ int hardware_remove_stack(Stack *stack) {
 }
 
 void hardware_dispatch_request(Packet *request) {
-	char base58[MAX_BASE58_STR_SIZE];
+	char signature[MAX_PACKET_SIGNATURE_STR_SIZE];
 	int i;
 	Stack *stack;
 	int rc;
 	int dispatched = 0;
 
 	if (_stacks.count == 0) {
-		log_debug("No stacks connected, dropping request (U: %s, L: %u, F: %u, S: %u, R: %u)",
-		          base58_encode(base58, uint32_from_le(request->header.uid)),
-		          request->header.length,
-		          request->header.function_id,
-		          packet_header_get_sequence_number(&request->header),
-		          packet_header_get_response_expected(&request->header));
+		log_debug("No stacks connected, dropping request (%s)",
+		          packet_get_request_signature(signature, request));
 
 		return;
 	}
 
 	if (request->header.uid == 0) {
-		log_debug("Broadcasting request (U: %s, L: %u, F: %u, S: %u, R: %u) to %d stack(s)",
-		          base58_encode(base58, uint32_from_le(request->header.uid)),
-		          request->header.length,
-		          request->header.function_id,
-		          packet_header_get_sequence_number(&request->header),
-		          packet_header_get_response_expected(&request->header),
+		log_debug("Broadcasting request (%s) to %d stack(s)",
+		          packet_get_request_signature(signature, request),
 		          _stacks.count);
 
 		// broadcast to all stacks
@@ -124,12 +116,8 @@ void hardware_dispatch_request(Packet *request) {
 			stack_dispatch_request(stack, request, 1);
 		}
 	} else {
-		log_debug("Dispatching request (U: %s, L: %u, F: %u, S: %u, R: %u) to %d stack(s)",
-		          base58_encode(base58, uint32_from_le(request->header.uid)),
-		          request->header.length,
-		          request->header.function_id,
-		          packet_header_get_sequence_number(&request->header),
-		          packet_header_get_response_expected(&request->header),
+		log_debug("Dispatching request (%s) to %d stack(s)",
+		          packet_get_request_signature(signature, request),
 		          _stacks.count);
 
 		// dispatch to all stacks, not only the first one that might claim to

@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2012-2013 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2012-2014 Matthias Bolte <matthias@tinkerforge.com>
  * Copyright (C) 2014 Olaf Lüke <olaf@tinkerforge.com>
  *
  * network.c: Network specific functions
@@ -287,7 +287,7 @@ void network_cleanup_clients(void) {
 }
 
 void network_dispatch_response(Packet *response) {
-	char base58[MAX_BASE58_STR_SIZE];
+	char signature[MAX_PACKET_SIGNATURE_STR_SIZE];
 	int i;
 	Client *client;
 	int rc;
@@ -295,29 +295,21 @@ void network_dispatch_response(Packet *response) {
 
 	if (_clients.count == 0) {
 		if (packet_header_get_sequence_number(&response->header) == 0) {
-			log_debug("No clients connected, dropping %scallback (U: %s, L: %u, F: %u)",
+			log_debug("No clients connected, dropping %scallback (%s)",
 			          packet_get_callback_type(response),
-			          base58_encode(base58, uint32_from_le(response->header.uid)),
-			          response->header.length,
-			          response->header.function_id);
+			          packet_get_callback_signature(signature, response));
 		} else {
-			log_debug("No clients connected, dropping response (U: %s, L: %u, F: %u, S: %u, E: %u)",
-			          base58_encode(base58, uint32_from_le(response->header.uid)),
-			          response->header.length,
-			          response->header.function_id,
-			          packet_header_get_sequence_number(&response->header),
-			          packet_header_get_error_code(&response->header));
+			log_debug("No clients connected, dropping response (%s)",
+			          packet_get_response_signature(signature, response));
 		}
 
 		return;
 	}
 
 	if (packet_header_get_sequence_number(&response->header) == 0) {
-		log_debug("Broadcasting %scallback (U: %s, L: %u, F: %u) to %d client(s)",
+		log_debug("Broadcasting %scallback (%s) to %d client(s)",
 		          packet_get_callback_type(response),
-		          base58_encode(base58, uint32_from_le(response->header.uid)),
-		          response->header.length,
-		          response->header.function_id,
+		          packet_get_callback_signature(signature, response),
 		          _clients.count);
 
 		for (i = 0; i < _clients.count; ++i) {
@@ -326,12 +318,8 @@ void network_dispatch_response(Packet *response) {
 			client_dispatch_response(client, response, 1);
 		}
 	} else {
-		log_debug("Dispatching response (U: %s, L: %u, F: %u, S: %u, E: %u) to %d client(s)",
-		          base58_encode(base58, uint32_from_le(response->header.uid)),
-		          response->header.length,
-		          response->header.function_id,
-		          packet_header_get_sequence_number(&response->header),
-		          packet_header_get_error_code(&response->header),
+		log_debug("Dispatching response (%s) to %d client(s)",
+		          packet_get_response_signature(signature, response),
 		          _clients.count);
 
 		for (i = 0; i < _clients.count; ++i) {

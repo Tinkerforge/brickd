@@ -23,6 +23,8 @@
  * functions for validating, packing, unpacking and comparing packets.
  */
 
+#include <stdio.h>
+
 #include "packet.h"
 
 #include "macros.h"
@@ -111,23 +113,60 @@ uint8_t packet_header_get_error_code(PacketHeader *header) {
 }
 
 const char *packet_get_callback_type(Packet *packet) {
-	if (packet->header.function_id == CALLBACK_ENUMERATE) {
-		switch (((EnumerateCallback *)packet)->enumeration_type) {
-		case ENUMERATION_TYPE_AVAILABLE:
-			return "enumerate-available ";
-
-		case ENUMERATION_TYPE_CONNECTED:
-			return "enumerate-connected ";
-
-		case ENUMERATION_TYPE_DISCONNECTED:
-			return "enumerate-disconnected ";
-
-		default:
-			return "enumerate-<unknown> ";
-		}
-	} else {
+	if (packet->header.function_id != CALLBACK_ENUMERATE) {
 		return "";
 	}
+
+	switch (((EnumerateCallback *)packet)->enumeration_type) {
+	case ENUMERATION_TYPE_AVAILABLE:
+		return "enumerate-available ";
+
+	case ENUMERATION_TYPE_CONNECTED:
+		return "enumerate-connected ";
+
+	case ENUMERATION_TYPE_DISCONNECTED:
+		return "enumerate-disconnected ";
+
+	default:
+		return "enumerate-<unknown> ";
+	}
+}
+
+char *packet_get_request_signature(char *signature, Packet *packet) {
+	char base58[MAX_BASE58_STR_SIZE];
+
+	snprintf(signature, MAX_PACKET_SIGNATURE_STR_SIZE, "U: %s, L: %u, F: %u, S: %u, R: %u",
+	         base58_encode(base58, uint32_from_le(packet->header.uid)),
+	         packet->header.length,
+	         packet->header.function_id,
+	         packet_header_get_sequence_number(&packet->header),
+	         packet_header_get_response_expected(&packet->header));
+
+	return signature;
+}
+
+char *packet_get_response_signature(char *signature, Packet *packet) {
+	char base58[MAX_BASE58_STR_SIZE];
+
+	snprintf(signature, MAX_PACKET_SIGNATURE_STR_SIZE, "U: %s, L: %u, F: %u, S: %u, E: %u",
+	         base58_encode(base58, uint32_from_le(packet->header.uid)),
+	         packet->header.length,
+	         packet->header.function_id,
+	         packet_header_get_sequence_number(&packet->header),
+	         packet_header_get_error_code(&packet->header));
+
+	return signature;
+}
+
+char *packet_get_callback_signature(char *signature, Packet *packet) {
+	char base58[MAX_BASE58_STR_SIZE];
+
+	snprintf(signature, MAX_PACKET_SIGNATURE_STR_SIZE, "U: %s, L: %u, F: %u",
+	         base58_encode(base58, uint32_from_le(packet->header.uid)),
+	         packet->header.length,
+	         packet->header.function_id);
+
+	return signature;
 }
 
 int packet_is_matching_response(Packet *packet, PacketHeader *pending_request) {
