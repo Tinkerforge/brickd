@@ -322,6 +322,7 @@ int config_check(const char *filename) {
 	printf("  log_level.network     = %s\n", config_format_log_level(config_get_log_level(LOG_CATEGORY_NETWORK)));
 	printf("  log_level.hotplug     = %s\n", config_format_log_level(config_get_log_level(LOG_CATEGORY_HOTPLUG)));
 	printf("  log_level.hardware    = %s\n", config_format_log_level(config_get_log_level(LOG_CATEGORY_HARDWARE)));
+	printf("  log_level.websocket   = %s\n", config_format_log_level(config_get_log_level(LOG_CATEGORY_WEBSOCKET)));
 	printf("  log_level.other       = %s\n", config_format_log_level(config_get_log_level(LOG_CATEGORY_OTHER)));
 
 	config_exit();
