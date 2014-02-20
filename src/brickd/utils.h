@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2012-2013 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2012-2014 Matthias Bolte <matthias@tinkerforge.com>
  * Copyright (C) 2014 Olaf Lüke <olaf@tinkerforge.com>
  *
  * utils.h: Utility functions
@@ -52,7 +52,7 @@ void string_append(char *destination, const char *source, int size);
 
 #define MAX_BASE58_STR_SIZE 8
 
-char *base58_encode(char *string, uint32_t value);
+char *base58_encode(char *base58, uint32_t value);
 
 uint32_t uint32_from_le(uint32_t value);
 

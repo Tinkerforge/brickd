@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2012-2013 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2012-2014 Matthias Bolte <matthias@tinkerforge.com>
  * Copyright (C) 2014 Olaf Lüke <olaf@tinkerforge.com>
  *
  * utils.c: Utility functions
@@ -345,9 +345,9 @@ void string_append(char *destination, const char *source, int size) {
 	destination[size - 1] = '\0';
 }
 
-static const char BASE58_ALPHABET[] = "123456789abcdefghijkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ";
+static const char *base58_alphabet = "123456789abcdefghijkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ";
 
-char *base58_encode(char *string, uint32_t value) {
+char *base58_encode(char *base58, uint32_t value) {
 	uint32_t digit;
 	char reverse[MAX_BASE58_STR_SIZE] = {'\0'};
 	int i = 0;
@@ -355,22 +355,22 @@ char *base58_encode(char *string, uint32_t value) {
 
 	while (value >= 58) {
 		digit = value % 58;
-		reverse[i] = BASE58_ALPHABET[digit];
+		reverse[i] = base58_alphabet[digit];
 		value = value / 58;
 		++i;
 	}
 
-	reverse[i] = BASE58_ALPHABET[value];
+	reverse[i] = base58_alphabet[value];
 
 	for (k = 0; k <= i; ++k) {
-		string[k] = reverse[i - k];
+		base58[k] = reverse[i - k];
 	}
 
 	for (; k < MAX_BASE58_STR_SIZE; ++k) {
-		string[k] = '\0';
+		base58[k] = '\0';
 	}
 
-	return string;
+	return base58;
 }
 
 uint32_t uint32_from_le(uint32_t value) {
