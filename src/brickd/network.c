@@ -239,8 +239,6 @@ int network_init(void) {
 		log_error("Could not create client array: %s (%d)",
 		          get_errno_name(errno), errno);
 
-		array_destroy(&_clients, (FreeFunction)client_destroy);
-
 		return -1;
 	}
 
@@ -248,6 +246,10 @@ int network_init(void) {
 	ret_websocket = network_init_port(port_websocket, SOCKET_TYPE_WEBSOCKET);
 
 	if (ret_socket < 0 && ret_websocket < 0) {
+		// FIXME: need to destroy server sockets here
+
+		array_destroy(&_clients, (FreeFunction)client_destroy);
+
 		return -1;
 	}
 
