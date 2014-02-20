@@ -1,6 +1,7 @@
 /*
  * brickd
  * Copyright (C) 2012-2013 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2014 Olaf Lüke <olaf@tinkerforge.com>
  *
  * utils.h: Utility functions
  *
@@ -27,6 +28,16 @@
 #define ERRNO_WINAPI_OFFSET 71000000
 #define ERRNO_ADDRINFO_OFFSET 72000000
 
+#ifndef ABS
+	#define ABS(a) (((a) < 0) ? (-(a)) : (a))
+#endif
+#ifndef MIN
+	#define MIN(a,b) ((a) < (b) ? (a) : (b))
+#endif
+#ifndef MAX
+	#define MAX(a,b) ((a) > (b) ? (a) : (b))
+#endif
+
 typedef void (*FreeFunction)(void *item);
 
 int errno_interrupted(void);
@@ -46,5 +57,9 @@ char *base58_encode(char *string, uint32_t value);
 uint32_t uint32_from_le(uint32_t value);
 
 uint64_t microseconds(void);
+
+#ifndef _GNU_SOURCE
+char *strcasestr (char *haystack, char *needle);
+#endif
 
 #endif // BRICKD_UTILS_H

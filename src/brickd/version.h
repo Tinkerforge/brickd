@@ -1,6 +1,7 @@
 /*
  * brickd
  * Copyright (C) 2012-2013 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2014 Olaf Lüke <olaf@tinkerforge.com>
  *
  * version.h: Version information
  *
@@ -23,8 +24,8 @@
 #define BRICKD_VERSION_H
 
 #define VERSION_MAJOR 2
-#define VERSION_MINOR 0
-#define VERSION_RELEASE 10
+#define VERSION_MINOR 1
+#define VERSION_RELEASE 0
 #define VERSION_SUFFIX_STRING ""
 
 #define INT_TO_STRING_(x) #x

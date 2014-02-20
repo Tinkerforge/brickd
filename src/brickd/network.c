@@ -1,6 +1,7 @@
 /*
  * brickd
  * Copyright (C) 2012-2013 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2014 Olaf Lüke <olaf@tinkerforge.com>
  *
  * network.c: Network specific functions
  *
@@ -40,18 +41,20 @@
 #define LOG_CATEGORY LOG_CATEGORY_NETWORK
 
 static Array _clients;
-static EventHandle _server_socket = INVALID_EVENT_HANDLE;
+static EventHandle _server_socket_normal    = INVALID_EVENT_HANDLE;
+static EventHandle _server_socket_websocket = INVALID_EVENT_HANDLE;
 
 static void network_handle_accept(void *opaque) {
 	EventHandle client_socket;
 	struct sockaddr_storage address;
 	socklen_t length = sizeof(address);
 	Client *client;
+	SocketType type = (SocketType)opaque;
+	EventHandle server_socket = type == SOCKET_TYPE_NORMAL ? _server_socket_normal : _server_socket_websocket;
 
-	(void)opaque;
 
 	// accept new client socket
-	if (socket_accept(_server_socket, &client_socket,
+	if (socket_accept(server_socket, &client_socket,
 	                  (struct sockaddr *)&address, &length) < 0) {
 		if (!errno_interrupted()) {
 			log_error("Could not accept new socket: %s (%d)",
@@ -83,7 +86,7 @@ static void network_handle_accept(void *opaque) {
 		return;
 	}
 
-	if (client_create(client, client_socket, (struct sockaddr *)&address, length) < 0) {
+	if (client_create(client, client_socket, type, (struct sockaddr *)&address, length) < 0) {
 		array_remove(&_clients, _clients.count - 1, NULL);
 		socket_destroy(client_socket);
 
@@ -111,24 +114,13 @@ static const char *network_get_address_family_name(int family, int report_dual_s
 	}
 }
 
-int network_init(void) {
+int network_init_port(uint16_t port, SocketType type) {
 	int phase = 0;
 	const char *listen_address = config_get_listen_address();
-	uint16_t port = config_get_listen_port();
 	struct addrinfo *resolved_address = NULL;
+	EventHandle *server_socket = type == SOCKET_TYPE_NORMAL ? &_server_socket_normal : &_server_socket_websocket;
 
-	log_debug("Initializing network subsystem");
-
-	// the Client struct is not relocatable, because it is passed by reference
-	// as opaque parameter to the event subsystem
-	if (array_create(&_clients, 32, sizeof(Client), 0) < 0) {
-		log_error("Could not create client array: %s (%d)",
-		          get_errno_name(errno), errno);
-
-		goto cleanup;
-	}
-
-	phase = 1;
+	log_debug("Initializing network subsystem (type: %d, port: %u)", type, port);
 
 	// resolve listen address
 	// FIXME: bind to all returned addresses, instead of just the first one.
@@ -143,10 +135,10 @@ int network_init(void) {
 		goto cleanup;
 	}
 
-	phase = 2;
+	phase = 1;
 
 	// create socket
-	if (socket_create(&_server_socket, resolved_address->ai_family,
+	if (socket_create(server_socket, resolved_address->ai_family,
 	                  resolved_address->ai_socktype, resolved_address->ai_protocol) < 0) {
 		log_error("Could not create %s server socket: %s (%d)",
 		          network_get_address_family_name(resolved_address->ai_family, 0),
@@ -155,10 +147,10 @@ int network_init(void) {
 		goto cleanup;
 	}
 
-	phase = 3;
+	phase = 2;
 
 	if (resolved_address->ai_family == AF_INET6) {
-		if (socket_set_dual_stack(_server_socket, config_get_listen_dual_stack()) < 0) {
+		if (socket_set_dual_stack(*server_socket, config_get_listen_dual_stack()) < 0) {
 			log_error("Could not %s dual-stack mode for IPv6 server socket: %s (%d)",
 			          config_get_listen_dual_stack() ? "enable" : "disable",
 			          get_errno_name(errno), errno);
@@ -173,7 +165,7 @@ int network_init(void) {
 	// allows to rebind sockets in any state. this is dangerous. therefore,
 	// don't set SO_REUSEADDR on Windows. sockets can be rebound in CLOSE-WAIT
 	// state on Windows by default.
-	if (socket_set_address_reuse(_server_socket, 1) < 0) {
+	if (socket_set_address_reuse(*server_socket, 1) < 0) {
 		log_error("Could not enable address-reuse mode for server socket: %s (%d)",
 		          get_errno_name(errno), errno);
 
@@ -182,7 +174,7 @@ int network_init(void) {
 #endif
 
 	// bind socket and start to listen
-	if (socket_bind(_server_socket, resolved_address->ai_addr,
+	if (socket_bind(*server_socket, resolved_address->ai_addr,
 	                resolved_address->ai_addrlen) < 0) {
 		log_error("Could not bind %s server socket to '%s' on port %u: %s (%d)",
 		          network_get_address_family_name(resolved_address->ai_family, 1),
@@ -191,7 +183,7 @@ int network_init(void) {
 		goto cleanup;
 	}
 
-	if (socket_listen(_server_socket, 10) < 0) {
+	if (socket_listen(*server_socket, 10) < 0) {
 		log_error("Could not listen to %s server socket bound to '%s' on port %u: %s (%d)",
 		          network_get_address_family_name(resolved_address->ai_family, 1),
 		          listen_address, port, get_errno_name(errno), errno);
@@ -204,38 +196,62 @@ int network_init(void) {
 	          network_get_address_family_name(resolved_address->ai_family, 1),
 	          port);
 
-	if (socket_set_non_blocking(_server_socket, 1) < 0) {
+	if (socket_set_non_blocking(*server_socket, 1) < 0) {
 		log_error("Could not enable non-blocking mode for server socket: %s (%d)",
 		          get_errno_name(errno), errno);
 
 		goto cleanup;
 	}
 
-	if (event_add_source(_server_socket, EVENT_SOURCE_TYPE_GENERIC, EVENT_READ,
-	                     network_handle_accept, NULL) < 0) {
+	if (event_add_source(*server_socket, EVENT_SOURCE_TYPE_GENERIC, EVENT_READ,
+	                     network_handle_accept, (void*)type) < 0) {
 		goto cleanup;
 	}
 
-	phase = 4;
+	phase = 3;
 
 	freeaddrinfo(resolved_address);
 
 cleanup:
 	switch (phase) { // no breaks, all cases fall through intentionally
-	case 3:
-		socket_destroy(_server_socket);
-
 	case 2:
-		freeaddrinfo(resolved_address);
+		socket_destroy(*server_socket);
 
 	case 1:
-		array_destroy(&_clients, (FreeFunction)client_destroy);
+		freeaddrinfo(resolved_address);
 
 	default:
 		break;
 	}
 
-	return phase == 4 ? 0 : -1;
+	return phase == 3 ? 0 : -1;
+}
+
+int network_init(void) {
+	uint16_t port_socket = config_get_listen_port();
+	uint16_t port_websocket = config_get_listen_websocket_port();
+	int ret_socket;
+	int ret_websocket;
+
+	// the Client struct is not relocatable, because it is passed by reference
+	// as opaque parameter to the event subsystem
+	if (array_create(&_clients, 32, sizeof(Client), 0) < 0) {
+		log_error("Could not create client array: %s (%d)",
+		          get_errno_name(errno), errno);
+
+		array_destroy(&_clients, (FreeFunction)client_destroy);
+
+		return -1;
+	}
+
+	ret_socket = network_init_port(port_socket, SOCKET_TYPE_NORMAL);
+	ret_websocket = network_init_port(port_websocket, SOCKET_TYPE_WEBSOCKET);
+
+	if (ret_socket < 0 && ret_websocket < 0) {
+		return -1;
+	}
+
+	return 0;
 }
 
 void network_exit(void) {
@@ -245,9 +261,11 @@ void network_exit(void) {
 
 	array_destroy(&_clients, (FreeFunction)client_destroy);
 
-	event_remove_source(_server_socket, EVENT_SOURCE_TYPE_GENERIC);
+	event_remove_source(_server_socket_normal, EVENT_SOURCE_TYPE_GENERIC);
+	event_remove_source(_server_socket_websocket, EVENT_SOURCE_TYPE_GENERIC);
 
-	socket_destroy(_server_socket);
+	socket_destroy(_server_socket_normal);
+	socket_destroy(_server_socket_websocket);
 }
 
 // remove clients that got marked as disconnected

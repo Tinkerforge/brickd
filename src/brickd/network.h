@@ -1,6 +1,7 @@
 /*
  * brickd
  * Copyright (C) 2012 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2014 Olaf Lüke <olaf@tinkerforge.com>
  *
  * network.h: Network specific functions
  *
@@ -25,6 +26,7 @@
 #include "client.h"
 #include "packet.h"
 
+int network_init_port(uint16_t port, SocketType type);
 int network_init(void);
 void network_exit(void);
 

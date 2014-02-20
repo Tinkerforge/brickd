@@ -1,6 +1,7 @@
 /*
  * brickd
  * Copyright (C) 2012-2013 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2014 Olaf Lüke <olaf@tinkerforge.com>
  *
  * log.h: Logging specific functions
  *
@@ -33,10 +34,11 @@ typedef enum {
 	LOG_CATEGORY_NETWORK,
 	LOG_CATEGORY_HOTPLUG,
 	LOG_CATEGORY_HARDWARE,
+	LOG_CATEGORY_WEBSOCKET,
 	LOG_CATEGORY_OTHER
 } LogCategory;
 
-#define MAX_LOG_CATEGORIES 6
+#define MAX_LOG_CATEGORIES 7
 
 typedef enum {
 	LOG_LEVEL_NONE = 0,

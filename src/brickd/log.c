@@ -1,6 +1,7 @@
 /*
  * brickd
  * Copyright (C) 2012 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2014 Olaf Lüke <olaf@tinkerforge.com>
  *
  * log.c: Logging specific functions
  *
@@ -85,12 +86,13 @@ static void log_handler(LogCategory category, LogLevel level, const char *file,
 
 	// format category
 	switch (category) {
-	case LOG_CATEGORY_EVENT:    category_name = "event";    break;
-	case LOG_CATEGORY_USB:      category_name = "usb";      break;
-	case LOG_CATEGORY_NETWORK:  category_name = "network";  break;
-	case LOG_CATEGORY_HOTPLUG:  category_name = "hotplug";  break;
-	case LOG_CATEGORY_HARDWARE: category_name = "hardware"; break;
-	case LOG_CATEGORY_OTHER:    category_name = "other";    break;
+	case LOG_CATEGORY_EVENT:     category_name = "event";     break;
+	case LOG_CATEGORY_USB:       category_name = "usb";       break;
+	case LOG_CATEGORY_NETWORK:   category_name = "network";   break;
+	case LOG_CATEGORY_HOTPLUG:   category_name = "hotplug";   break;
+	case LOG_CATEGORY_HARDWARE:  category_name = "hardware";  break;
+	case LOG_CATEGORY_WEBSOCKET: category_name = "websocket"; break;
+	case LOG_CATEGORY_OTHER:     category_name = "other";     break;
 	}
 
 	// print prefix

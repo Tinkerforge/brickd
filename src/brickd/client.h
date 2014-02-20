@@ -1,6 +1,7 @@
 /*
  * brickd
  * Copyright (C) 2012-2014 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2014 Olaf Lüke <olaf@tinkerforge.com>
  *
  * client.h: Client specific functions
  *
@@ -31,9 +32,11 @@
 #include "array.h"
 #include "event.h"
 #include "packet.h"
+#include "socket.h"
 
 typedef struct {
 	EventHandle socket;
+	SocketStorage storage;
 	char *peer;
 	int disconnected;
 	Packet request;
@@ -42,7 +45,7 @@ typedef struct {
 	Array pending_requests;
 } Client;
 
-int client_create(Client *client, EventHandle socket,
+int client_create(Client *client, EventHandle socket, SocketType type,
                   struct sockaddr *address, socklen_t length);
 void client_destroy(Client *client);
 

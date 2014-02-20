@@ -1,6 +1,7 @@
 /*
  * brickd
  * Copyright (C) 2012-2013 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2014 Olaf Lüke <olaf@tinkerforge.com>
  *
  * socket.h: Socket specific functions
  *
@@ -29,7 +30,10 @@
 #endif
 #include <stdint.h>
 
+#define SOCKET_CONTINUE -2
+
 #include "event.h"
+#include "websocket.h"
 
 int socket_create(EventHandle *handle, int family, int type, int protocol);
 void socket_destroy(EventHandle handle);
@@ -40,8 +44,8 @@ int socket_listen(EventHandle handle, int backlog);
 int socket_accept(EventHandle handle, EventHandle *accepted_handle,
                   struct sockaddr *address, socklen_t *length);
 
-int socket_receive(EventHandle handle, void *buffer, int length);
-int socket_send(EventHandle handle, void *buffer, int length);
+int socket_receive(EventHandle handle, SocketStorage *storage, void *buffer, int length);
+int socket_send(EventHandle handle, SocketStorage *storage, void *buffer, int length);
 
 int socket_set_non_blocking(EventHandle handle, int non_blocking);
 int socket_set_address_reuse(EventHandle handle, int address_reuse);

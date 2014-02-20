@@ -1,6 +1,7 @@
 /*
  * brickd
  * Copyright (C) 2012-2013 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2014 Olaf Lüke <olaf@tinkerforge.com>
  *
  * config.c: Config specific functions
  *
@@ -35,6 +36,7 @@ static int _using_default_values = 1;
 static const char *_default_listen_address = "0.0.0.0";
 static char *_listen_address = NULL;
 static uint16_t _listen_port = 4223;
+static uint16_t _listen_websocket_port = 80;
 static int _listen_dual_stack = 0;
 static LogLevel _log_levels[MAX_LOG_CATEGORIES]; // config_init calls config_reset to initialize this
 
@@ -216,6 +218,20 @@ static void config_parse_line(char *string) {
 		}
 
 		_listen_port = (uint16_t)port;
+	} else if (strcmp(option, "listen.websocket_port") == 0) {
+		if (config_parse_int(value, &port) < 0) {
+			config_error("Value '%s' for listen.port option is not an integer", value);
+
+			return;
+		}
+
+		if (port < 1 || port > UINT16_MAX) {
+			config_error("Value %d for listen.port option is out-of-range", port);
+
+			return;
+		}
+
+		_listen_websocket_port = (uint16_t)port;
 	} else if (strcmp(option, "listen.dual_stack") == 0) {
 		config_lower_string(value);
 
@@ -258,6 +274,12 @@ static void config_parse_line(char *string) {
 
 			return;
 		}
+	} else if (strcmp(option, "log_level.websocket") == 0) {
+		if (config_parse_log_level(value, &_log_levels[LOG_CATEGORY_WEBSOCKET]) < 0) {
+			config_error("Value '%s' for log_level.websocket option is invalid", value);
+
+			return;
+		}
 	} else if (strcmp(option, "log_level.other") == 0) {
 		if (config_parse_log_level(value, &_log_levels[LOG_CATEGORY_OTHER]) < 0) {
 			config_error("Value '%s' for log_level.other option is invalid", value);
@@ -288,15 +310,16 @@ int config_check(const char *filename) {
 
 	printf("\n");
 	printf("Using the following config values:\n");
-	printf("  listen.address     = %s\n", config_get_listen_address());
-	printf("  listen.port        = %u\n", config_get_listen_port());
-	printf("  listen.dual_stack  = %s\n", config_get_listen_dual_stack() ? "on" : "off");
-	printf("  log_level.event    = %s\n", config_format_log_level(config_get_log_level(LOG_CATEGORY_EVENT)));
-	printf("  log_level.usb      = %s\n", config_format_log_level(config_get_log_level(LOG_CATEGORY_USB)));
-	printf("  log_level.network  = %s\n", config_format_log_level(config_get_log_level(LOG_CATEGORY_NETWORK)));
-	printf("  log_level.hotplug  = %s\n", config_format_log_level(config_get_log_level(LOG_CATEGORY_HOTPLUG)));
-	printf("  log_level.hardware = %s\n", config_format_log_level(config_get_log_level(LOG_CATEGORY_HARDWARE)));
-	printf("  log_level.other    = %s\n", config_format_log_level(config_get_log_level(LOG_CATEGORY_OTHER)));
+	printf("  listen.address        = %s\n", config_get_listen_address());
+	printf("  listen.port           = %u\n", config_get_listen_port());
+	printf("  listen.websocket_port = %u\n", config_get_listen_websocket_port());
+	printf("  listen.dual_stack     = %s\n", config_get_listen_dual_stack() ? "on" : "off");
+	printf("  log_level.event       = %s\n", config_format_log_level(config_get_log_level(LOG_CATEGORY_EVENT)));
+	printf("  log_level.usb         = %s\n", config_format_log_level(config_get_log_level(LOG_CATEGORY_USB)));
+	printf("  log_level.network     = %s\n", config_format_log_level(config_get_log_level(LOG_CATEGORY_NETWORK)));
+	printf("  log_level.hotplug     = %s\n", config_format_log_level(config_get_log_level(LOG_CATEGORY_HOTPLUG)));
+	printf("  log_level.hardware    = %s\n", config_format_log_level(config_get_log_level(LOG_CATEGORY_HARDWARE)));
+	printf("  log_level.other       = %s\n", config_format_log_level(config_get_log_level(LOG_CATEGORY_OTHER)));
 
 	config_exit();
 
@@ -376,6 +399,10 @@ const char *config_get_listen_address(void) {
 
 uint16_t config_get_listen_port(void) {
 	return _listen_port;
+}
+
+uint16_t config_get_listen_websocket_port(void) {
+	return _listen_websocket_port;
 }
 
 int config_get_listen_dual_stack(void) {

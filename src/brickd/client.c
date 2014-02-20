@@ -1,6 +1,7 @@
 /*
  * brickd
  * Copyright (C) 2012-2014 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2014 Olaf Lüke <olaf@tinkerforge.com>
  *
  * client.c: Client specific functions
  *
@@ -52,11 +53,23 @@ static void client_handle_receive(void *opaque) {
 	PendingRequest *pending_request;
 
 	length = socket_receive(client->socket,
+	                        &client->storage,
 	                        (uint8_t *)&client->request + client->request_used,
 	                        sizeof(Packet) - client->request_used);
 
+	if (length == 0) {
+		log_info("Client (socket: %d, peer: %s) disconnected by peer",
+		         client->socket, client->peer);
+
+		client->disconnected = 1;
+
+		return;
+	}
+
 	if (length < 0) {
-		if (errno_interrupted()) {
+		if (length == SOCKET_CONTINUE) {
+			length = 0;
+		} else if (errno_interrupted()) {
 			log_debug("Receiving from client (socket: %d, peer: %s) was interrupted, retrying",
 			          client->socket, client->peer);
 		} else if (errno_would_block()) {
@@ -68,15 +81,6 @@ static void client_handle_receive(void *opaque) {
 
 			client->disconnected = 1;
 		}
-
-		return;
-	}
-
-	if (length == 0) {
-		log_info("Client (socket: %d, peer: %s) disconnected by peer",
-		         client->socket, client->peer);
-
-		client->disconnected = 1;
 
 		return;
 	}
@@ -171,7 +175,7 @@ static void client_handle_receive(void *opaque) {
 	}
 }
 
-int client_create(Client *client, EventHandle socket,
+int client_create(Client *client, EventHandle socket, SocketType type,
                   struct sockaddr *address, socklen_t length) {
 	log_debug("Creating client from socket (handle: %d)", socket);
 
@@ -179,6 +183,7 @@ int client_create(Client *client, EventHandle socket,
 	client->disconnected = 0;
 	client->request_used = 0;
 	client->request_header_checked = 0;
+	websocket_init_storage(type, &client->storage);
 
 	// create pending request array
 	if (array_create(&client->pending_requests, 32,
@@ -260,7 +265,7 @@ int client_dispatch_response(Client *client, Packet *response, int force) {
 	}
 
 	if (force || found >= 0) {
-		if (socket_send(client->socket, response, response->header.length) < 0) {
+		if (socket_send(client->socket, &client->storage, response, response->header.length) < 0) {
 			log_error("Could not send response to client (socket: %d, peer: %s), disconnecting it: %s (%d)",
 			          client->socket, client->peer, get_errno_name(errno), errno);
 

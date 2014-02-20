@@ -1,6 +1,7 @@
 /*
  * brickd
  * Copyright (C) 2012-2013 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2014 Olaf Lüke <olaf@tinkerforge.com>
  *
  * socket_winapi.c: WinAPI based socket implementation
  *
@@ -26,6 +27,7 @@
 #include <windows.h>
 
 #include "socket.h"
+#include "websocket.h"
 
 #include "utils.h"
 
@@ -98,7 +100,7 @@ int socket_accept(EventHandle handle, EventHandle *accepted_handle,
 }
 
 // sets errno on error
-int socket_receive(EventHandle handle, void *buffer, int length) {
+int socket_receive(EventHandle handle, SocketStorage *storage, void *buffer, int length) {
 	length = recv(handle, (char *)buffer, length, 0);
 
 	if (length == SOCKET_ERROR) {
@@ -106,11 +108,19 @@ int socket_receive(EventHandle handle, void *buffer, int length) {
 		errno = ERRNO_WINAPI_OFFSET + WSAGetLastError();
 	}
 
+	if (storage != NULL && storage->type == SOCKET_TYPE_WEBSOCKET) {
+		return websocket_receive(handle, storage, buffer, length);
+	}
+
 	return length;
 }
 
 // sets errno on error
-int socket_send(EventHandle handle, void *buffer, int length) {
+int socket_send(EventHandle handle, SocketStorage *storage, void *buffer, int length) {
+	if (storage != NULL && storage->type == SOCKET_TYPE_WEBSOCKET) {
+		return websocket_send(handle, storage, buffer, length);
+	}
+
 	length = send(handle, (const char *)buffer, length, 0);
 
 	if (length == SOCKET_ERROR) {

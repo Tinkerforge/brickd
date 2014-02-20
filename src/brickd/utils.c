@@ -1,6 +1,7 @@
 /*
  * brickd
  * Copyright (C) 2012-2013 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2014 Olaf Lüke <olaf@tinkerforge.com>
  *
  * utils.c: Utility functions
  *
@@ -390,3 +391,26 @@ uint64_t microseconds(void) {
 		return tv.tv_sec * 1000000 + tv.tv_usec;
 	}
 }
+
+#ifndef _GNU_SOURCE
+#include <ctype.h>
+
+char *strcasestr (char *haystack, char *needle) {
+        char *p, *startn = 0, *np = 0;
+
+        for (p = haystack; *p; p++) {
+                if (np) {
+                        if (toupper(*p) == toupper(*np)) {
+                                if (!*++np)
+                                        return startn;
+                        } else
+                                np = 0;
+                } else if (toupper(*p) == toupper(*needle)) {
+                        np = needle + 1;
+                        startn = p;
+                }
+        }
+
+        return 0;
+}
+#endif

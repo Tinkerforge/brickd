@@ -1,6 +1,7 @@
 /*
  * brickd
  * Copyright (C) 2012-2013 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2014 Olaf Lüke <olaf@tinkerforge.com>
  *
  * socket_posix.c: POSIX based socket implementation
  *
@@ -29,6 +30,7 @@
 #include <unistd.h>
 
 #include "socket.h"
+#include "websocket.h"
 
 #include "utils.h"
 
@@ -81,12 +83,22 @@ int socket_accept(EventHandle handle, EventHandle *accepted_handle,
 }
 
 // sets errno on error
-int socket_receive(EventHandle handle, void *buffer, int length) {
-	return recv(handle, buffer, length, 0);
+int socket_receive(EventHandle handle, SocketStorage *storage, void *buffer, int length) {
+	length = recv(handle, buffer, length, 0);
+
+	if (storage != NULL && storage->type == SOCKET_TYPE_WEBSOCKET) {
+		return websocket_receive(handle, storage, buffer, length);
+	}
+
+	return length;
 }
 
 // sets errno on error
-int socket_send(EventHandle handle, void *buffer, int length) {
+int socket_send(EventHandle handle, SocketStorage *storage, void *buffer, int length) {
+	if (storage != NULL && storage->type == SOCKET_TYPE_WEBSOCKET) {
+		return websocket_send(handle, storage, buffer, length);
+	}
+
 #ifdef MSG_NOSIGNAL
 	int flags = MSG_NOSIGNAL;
 #else
