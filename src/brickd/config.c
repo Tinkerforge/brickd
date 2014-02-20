@@ -189,7 +189,7 @@ static void config_parse_line(char *string) {
 	// check option
 	if (strcmp(option, "listen.address") == 0) {
 		if (strlen(value) < 1) {
-			config_error("Empty value is not allowed for listen.address option");
+			config_error("Empty value is not allowed for %s option", option);
 
 			return;
 		}
@@ -203,19 +203,19 @@ static void config_parse_line(char *string) {
 		if (_listen_address == NULL) {
 			_listen_address = (char *)_default_listen_address;
 
-			config_error("Could not duplicate listen.address value '%s'", value);
+			config_error("Could not duplicate %s value '%s'", option, value);
 
 			return;
 		}
 	} else if (strcmp(option, "listen.port") == 0) {
 		if (config_parse_int(value, &port) < 0) {
-			config_error("Value '%s' for listen.port option is not an integer", value);
+			config_error("Value '%s' for %s option is not an integer", value, option);
 
 			return;
 		}
 
 		if (port < 1 || port > UINT16_MAX) {
-			config_error("Value %d for listen.port option is out-of-range", port);
+			config_error("Value %d for %s option is out-of-range", port, option);
 
 			return;
 		}
@@ -223,13 +223,13 @@ static void config_parse_line(char *string) {
 		_listen_port = (uint16_t)port;
 	} else if (strcmp(option, "listen.websocket_port") == 0) {
 		if (config_parse_int(value, &port) < 0) {
-			config_error("Value '%s' for listen.port option is not an integer", value);
+			config_error("Value '%s' for %s option is not an integer", value, option);
 
 			return;
 		}
 
 		if (port < 1 || port > UINT16_MAX) {
-			config_error("Value %d for listen.port option is out-of-range", port);
+			config_error("Value %d for %s option is out-of-range", port, option);
 
 			return;
 		}
@@ -243,49 +243,49 @@ static void config_parse_line(char *string) {
 		} else if (strcmp(value, "off") == 0) {
 			_listen_dual_stack = 0;
 		} else {
-			config_error("Value '%s' for listen.dual_stack option is invalid", value);
+			config_error("Value '%s' for %s option is invalid", value, option);
 
 			return;
 		}
 	} else if (strcmp(option, "log_level.event") == 0) {
 		if (config_parse_log_level(value, &_log_levels[LOG_CATEGORY_EVENT]) < 0) {
-			config_error("Value '%s' for log_level.event option is invalid", value);
+			config_error("Value '%s' for %s option is invalid", value, option);
 
 			return;
 		}
 	} else if (strcmp(option, "log_level.usb") == 0) {
 		if (config_parse_log_level(value, &_log_levels[LOG_CATEGORY_USB]) < 0) {
-			config_error("Value '%s' for log_level.usb option is invalid", value);
+			config_error("Value '%s' for %s option is invalid", value, option);
 
 			return;
 		}
 	} else if (strcmp(option, "log_level.network") == 0) {
 		if (config_parse_log_level(value, &_log_levels[LOG_CATEGORY_NETWORK]) < 0) {
-			config_error("Value '%s' for log_level.network option is invalid", value);
+			config_error("Value '%s' for %s option is invalid", value, option);
 
 			return;
 		}
 	} else if (strcmp(option, "log_level.hotplug") == 0) {
 		if (config_parse_log_level(value, &_log_levels[LOG_CATEGORY_HOTPLUG]) < 0) {
-			config_error("Value '%s' for log_level.hotplug option is invalid", value);
+			config_error("Value '%s' for %s option is invalid", value, option);
 
 			return;
 		}
 	} else if (strcmp(option, "log_level.hardware") == 0) {
 		if (config_parse_log_level(value, &_log_levels[LOG_CATEGORY_HARDWARE]) < 0) {
-			config_error("Value '%s' for log_level.hardware option is invalid", value);
+			config_error("Value '%s' for %s option is invalid", value, option);
 
 			return;
 		}
 	} else if (strcmp(option, "log_level.websocket") == 0) {
 		if (config_parse_log_level(value, &_log_levels[LOG_CATEGORY_WEBSOCKET]) < 0) {
-			config_error("Value '%s' for log_level.websocket option is invalid", value);
+			config_error("Value '%s' for %s option is invalid", value, option);
 
 			return;
 		}
 	} else if (strcmp(option, "log_level.other") == 0) {
 		if (config_parse_log_level(value, &_log_levels[LOG_CATEGORY_OTHER]) < 0) {
-			config_error("Value '%s' for log_level.other option is invalid", value);
+			config_error("Value '%s' for %s option is invalid", value, option);
 
 			return;
 		}
