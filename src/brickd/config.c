@@ -30,14 +30,20 @@
 
 #include "utils.h"
 
+#define DEFAULT_LISTEN_ADDRESS "0.0.0.0"
+#define DEFAULT_LISTEN_PORT 4223
+#define DEFAULT_LISTEN_WEBSOCKET_PORT 80
+#define DEFAULT_LISTEN_DUAL_STACK 0
+#define DEFAULT_LOG_LEVEL LOG_LEVEL_INFO
+
 static int _check_only = 0;
 static int _has_error = 0;
 static int _using_default_values = 1;
-static const char *_default_listen_address = "0.0.0.0";
+static const char *_default_listen_address = DEFAULT_LISTEN_ADDRESS;
 static char *_listen_address = NULL;
-static uint16_t _listen_port = 4223;
-static uint16_t _listen_websocket_port = 80;
-static int _listen_dual_stack = 0;
+static uint16_t _listen_port = DEFAULT_LISTEN_PORT;
+static uint16_t _listen_websocket_port = DEFAULT_LISTEN_WEBSOCKET_PORT;
+static int _listen_dual_stack = DEFAULT_LISTEN_DUAL_STACK;
 static LogLevel _log_levels[MAX_LOG_CATEGORIES]; // config_init calls config_reset to initialize this
 
 static void config_error(const char *format, ...) ATTRIBUTE_FMT_PRINTF(1, 2);
@@ -68,12 +74,12 @@ static void config_reset(void) {
 		_listen_address = (char *)_default_listen_address;
 	}
 
-	_listen_port = 4223;
-	_listen_websocket_port = 80;
-	_listen_dual_stack = 0;
+	_listen_port = DEFAULT_LISTEN_PORT;
+	_listen_websocket_port = DEFAULT_LISTEN_WEBSOCKET_PORT;
+	_listen_dual_stack = DEFAULT_LISTEN_DUAL_STACK;
 
 	for (i = 0; i < MAX_LOG_CATEGORIES; ++i) {
-		_log_levels[i] = LOG_LEVEL_INFO;
+		_log_levels[i] = DEFAULT_LOG_LEVEL;
 	}
 }
 
