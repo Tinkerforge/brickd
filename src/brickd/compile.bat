@@ -37,6 +37,7 @@
 
 %CC%^
  array.c^
+ base64_encode.c^
  client.c^
  config.c^
  event.c^
@@ -51,6 +52,7 @@
  pipe_winapi.c^
  queue.c^
  service.c^
+ sha_1.c^
  socket_winapi.c^
  stack.c^
  threads_winapi.c^
@@ -58,7 +60,8 @@
  usb_stack.c^
  usb_transfer.c^
  usb_winapi.c^
- utils.c
+ utils.c^
+ websocket.c
 
 %RC% /folog_messages.res log_messages.rc
 %RC% /fobrickd.res brickd.rc

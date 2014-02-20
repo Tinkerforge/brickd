@@ -126,9 +126,9 @@ else
 	WITH_PM_UTILS := no
 endif
 
-SOURCES := array.c client.c config.c event.c hardware.c log.c network.c \
-           packet.c queue.c stack.c usb.c usb_stack.c usb_transfer.c utils.c \
-           websocket.c sha_1.c base64_encode.c
+SOURCES := array.c base64_encode.c client.c config.c event.c hardware.c log.c \
+           network.c packet.c queue.c sha_1.c stack.c usb.c usb_stack.c \
+           usb_transfer.c utils.c websocket.c
 
 ifeq ($(PLATFORM),Windows)
 	SOURCES += event_winapi.c fixes_mingw.c log_winapi.c pipe_winapi.c \

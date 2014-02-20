@@ -1,6 +1,7 @@
 /*
  * brickd
  * Copyright (C) 2014 Olaf Lüke <olaf@tinkerforge.com>
+ * Copyright (C) 2014 Matthias Bolte <matthias@tinkerforge.com>
  *
  * websocket.c: Miniature websocket server implementation
  *
@@ -21,6 +22,7 @@
 
 #include "websocket.h"
 
+#include <stdlib.h>
 #include <string.h>
 
 #include "event.h"
@@ -70,6 +72,9 @@ int websocket_answer_handshake_ok(EventHandle handle, char *key, int length) {
 
 int websocket_parse_handshake_line(EventHandle handle, SocketStorage *storage, char *line, int length) {
 	int i;
+	char hash[20];
+	char *ret;
+	uint8_t concat_i = 0;
 
 	// Find "\r\n"
 	for(i = 0; i < length; i++) {
@@ -90,7 +95,6 @@ int websocket_parse_handshake_line(EventHandle handle, SocketStorage *storage, c
 			strcpy(concatkey+strlen(storage->websockte_key), WEBSOCKET_SERVER_KEY);
 
 			// Calculate sha1 hash
-			char hash[20] = {0};
 			SHA1((unsigned char*)concatkey, strlen(concatkey), (unsigned char*)hash);
 
 			// Caluclate base64 from hash
@@ -105,10 +109,10 @@ int websocket_parse_handshake_line(EventHandle handle, SocketStorage *storage, c
 	}
 
 	// Find "Sec-WebSocket-Key"
-	char *ret = strcasestr(line, WEBSOCKET_CLIENT_KEY_STR);
+	ret = strcasestr(line, WEBSOCKET_CLIENT_KEY_STR);
 	if(ret != NULL) {
 		memset(storage->websockte_key, 0, WEBSOCKET_KEY_LENGTH);
-		uint8_t concat_i = 0;
+
 		for(i = strlen(WEBSOCKET_CLIENT_KEY_STR); i < length; i++) {
 			if(line[i] != ' ' && line[i] != '\n' && line[i] != '\r') {
 				storage->websockte_key[concat_i] = line[i];
@@ -282,24 +286,28 @@ int websocket_receive(EventHandle handle, SocketStorage *storage, void *buffer, 
 }
 
 int websocket_send(EventHandle handle, SocketStorage *storage, void *buffer, int length) {
-	(void)storage;
 	int ret;
 	int length_to_send = sizeof(WebsocketFrameServerToClient) + length;
-	char websocket_data[length_to_send];
-
+	char *websocket_data = malloc(length_to_send);
 	WebsocketFrameServerToClient wfstc;
+
+	(void)storage;
+
 	wfstc.fin = 1;
 	wfstc.rsv1 = 0;
 	wfstc.rsv2 = 0;
 	wfstc.rsv3 = 0;
 	wfstc.opcode = 2;
 	wfstc.mask = 0;
-	wfstc.payload_length = length;
+	wfstc.payload_length = (uint8_t)length;
 
 	memcpy((void*)websocket_data, (void*)&wfstc, sizeof(WebsocketFrameServerToClient));
 	memcpy((void*)(websocket_data + sizeof(WebsocketFrameServerToClient)), buffer, length);
 
 	ret = socket_send(handle, NULL, websocket_data, length_to_send);
+
+	free(websocket_data);
+
 	if(ret < 0) {
 		return ret;
 	}
