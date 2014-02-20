@@ -190,6 +190,8 @@ static void config_parse_line(char *string) {
 	if (strcmp(option, "listen.address") == 0) {
 		if (strlen(value) < 1) {
 			config_error("Empty value is not allowed for listen.address option");
+
+			return;
 		}
 
 		if (_listen_address != _default_listen_address) {
