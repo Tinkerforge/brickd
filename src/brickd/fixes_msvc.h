@@ -40,12 +40,12 @@ int gettimeofday(struct timeval *tv, struct timezone *tz);
 
 // avoid warnings from MSVC about deprecated POSIX names
 #define strdup _strdup
-#define stricmp _stricmp
 #define getch _getch
 
 // ensure that functions are avialable under their POSIX names
 #define snprintf(buffer, count, format, ...) \
 	_snprintf_s(buffer, count, _TRUNCATE, format, __VA_ARGS__)
+#define strcasecmp _stricmp
 
 #endif // _MSC_VER
 

@@ -162,14 +162,14 @@ static int started_by_explorer(int log_available) {
 								break;
 							}
 
-							if (stricmp(buffer, "explorer.exe") == 0) {
+							if (strcasecmp(buffer, "explorer.exe") == 0) {
 								result = 1;
 							} else {
 								length = strlen(buffer);
 
 								if (length > 13 /* = strlen("\\explorer.exe") */ &&
-								    (stricmp(buffer + length - 13, "\\explorer.exe") == 0 ||
-								     stricmp(buffer + length - 13, ":explorer.exe") == 0)) {
+								    (strcasecmp(buffer + length - 13, "\\explorer.exe") == 0 ||
+								     strcasecmp(buffer + length - 13, ":explorer.exe") == 0)) {
 									result = 1;
 								}
 							}
