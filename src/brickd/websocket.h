@@ -109,7 +109,7 @@ typedef struct {
 
 	// WebSocket specific data
 	WebSocketState websocket_state;
-	char websockte_key[WEBSOCKET_KEY_LENGTH];
+	char websocket_key[WEBSOCKET_KEY_LENGTH];
 
 	char websocket_line[WEBSOCKET_MAX_LINE_LENGTH];
 	int websocket_line_index;

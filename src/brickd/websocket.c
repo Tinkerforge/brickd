@@ -25,12 +25,12 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "base64_encode.h"
 #include "event.h"
+#include "log.h"
+#include "sha_1.h"
 #include "socket.h"
 #include "utils.h"
-#include "sha_1.h"
-#include "base64_encode.h"
-#include "log.h"
 
 #define LOG_CATEGORY LOG_CATEGORY_WEBSOCKET
 
@@ -70,15 +70,14 @@ void websocket_frame_set_mask(WebsocketFrame *wf, int mask) {
 	wf->payload_length_mask |= ((mask << 7) & (0x1 << 7));
 }
 
-
 void websocket_init_storage(SocketType type, SocketStorage *storage) {
 	storage->type = type;
 	storage->websocket_frame_index = 0;
 	storage->websocket_line_index = 0;
 	storage->websocket_state = WEBSOCKET_STATE_WAIT_FOR_HANDSHAKE;
 	memset(&storage->websocket_frame, 0, sizeof(WebsocketFrame));
-	memset(storage->websocket_line, 0, sizeof(WEBSOCKET_MAX_LINE_LENGTH));
-	memset(storage->websockte_key, 0, sizeof(WEBSOCKET_KEY_LENGTH));
+	memset(storage->websocket_line, 0, WEBSOCKET_MAX_LINE_LENGTH);
+	memset(storage->websocket_key, 0, WEBSOCKET_KEY_LENGTH);
 }
 
 int websocket_answer_handshake_error(EventHandle handle) {
@@ -128,8 +127,8 @@ int websocket_parse_handshake_line(EventHandle handle, SocketStorage *storage, c
 			}
 
 			// Concatenate client and server key
-			strcpy(concatkey, storage->websockte_key);
-			strcpy(concatkey+strlen(storage->websockte_key), WEBSOCKET_SERVER_KEY);
+			strcpy(concatkey, storage->websocket_key);
+			strcpy(concatkey+strlen(storage->websocket_key), WEBSOCKET_SERVER_KEY);
 
 			// Calculate sha1 hash
 			SHA1((unsigned char*)concatkey, strlen(concatkey), (unsigned char*)hash);
@@ -148,11 +147,11 @@ int websocket_parse_handshake_line(EventHandle handle, SocketStorage *storage, c
 	// Find "Sec-WebSocket-Key"
 	ret = strcasestr(line, WEBSOCKET_CLIENT_KEY_STR);
 	if(ret != NULL) {
-		memset(storage->websockte_key, 0, WEBSOCKET_KEY_LENGTH);
+		memset(storage->websocket_key, 0, WEBSOCKET_KEY_LENGTH);
 
 		for(i = strlen(WEBSOCKET_CLIENT_KEY_STR); i < length; i++) {
 			if(line[i] != ' ' && line[i] != '\n' && line[i] != '\r') {
-				storage->websockte_key[concat_i] = line[i];
+				storage->websocket_key[concat_i] = line[i];
 				concat_i++;
 			}
 		}
