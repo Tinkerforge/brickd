@@ -32,10 +32,10 @@
 	#define ABS(a) (((a) < 0) ? (-(a)) : (a))
 #endif
 #ifndef MIN
-	#define MIN(a,b) ((a) < (b) ? (a) : (b))
+	#define MIN(a, b) ((a) < (b) ? (a) : (b))
 #endif
 #ifndef MAX
-	#define MAX(a,b) ((a) > (b) ? (a) : (b))
+	#define MAX(a, b) ((a) > (b) ? (a) : (b))
 #endif
 
 typedef void (*FreeFunction)(void *item);
@@ -59,7 +59,7 @@ uint32_t uint32_from_le(uint32_t value);
 uint64_t microseconds(void);
 
 #ifndef _GNU_SOURCE
-char *strcasestr (char *haystack, char *needle);
+char *strcasestr(char *haystack, char *needle);
 #endif
 
 #endif // BRICKD_UTILS_H
