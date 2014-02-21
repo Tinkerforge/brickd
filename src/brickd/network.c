@@ -43,6 +43,8 @@
 static Array _clients;
 static EventHandle _server_socket_plain = INVALID_EVENT_HANDLE;
 static EventHandle _server_socket_websocket = INVALID_EVENT_HANDLE;
+static int _server_socket_plain_open = 0;
+static int _server_socket_websocket_open = 0;
 
 static void network_handle_accept(void *opaque) {
 	EventHandle client_socket;
@@ -229,8 +231,6 @@ cleanup:
 int network_init(void) {
 	uint16_t port_plain = config_get_listen_plain_port();
 	uint16_t port_websocket = config_get_listen_websocket_port();
-	int ret_plain;
-	int ret_websocket;
 
 	// the Client struct is not relocatable, because it is passed by reference
 	// as opaque parameter to the event subsystem
@@ -241,11 +241,11 @@ int network_init(void) {
 		return -1;
 	}
 
-	ret_plain = network_init_port(port_plain, SOCKET_TYPE_PLAIN);
-	ret_websocket = network_init_port(port_websocket, SOCKET_TYPE_WEBSOCKET);
+	_server_socket_plain_open = network_init_port(port_plain, SOCKET_TYPE_PLAIN) >= 0;
+	_server_socket_websocket_open = network_init_port(port_websocket, SOCKET_TYPE_WEBSOCKET) >= 0;
 
-	if (ret_plain < 0 && ret_websocket < 0) {
-		// FIXME: need to destroy server sockets here
+	if (!_server_socket_plain_open && !_server_socket_websocket_open) {
+		log_error("Could not open any socket to listen to");
 
 		array_destroy(&_clients, (FreeFunction)client_destroy);
 
@@ -262,11 +262,15 @@ void network_exit(void) {
 
 	array_destroy(&_clients, (FreeFunction)client_destroy);
 
-	event_remove_source(_server_socket_plain, EVENT_SOURCE_TYPE_GENERIC);
-	event_remove_source(_server_socket_websocket, EVENT_SOURCE_TYPE_GENERIC);
+	if (_server_socket_plain_open) {
+		event_remove_source(_server_socket_plain, EVENT_SOURCE_TYPE_GENERIC);
+		socket_destroy(_server_socket_plain);
+	}
 
-	socket_destroy(_server_socket_plain);
-	socket_destroy(_server_socket_websocket);
+	if (_server_socket_websocket_open) {
+		event_remove_source(_server_socket_websocket, EVENT_SOURCE_TYPE_GENERIC);
+		socket_destroy(_server_socket_websocket);
+	}
 }
 
 // remove clients that got marked as disconnected
