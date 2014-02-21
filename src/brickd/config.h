@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2012 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2012, 2014 Matthias Bolte <matthias@tinkerforge.com>
  * Copyright (C) 2014 Olaf Lüke <olaf@tinkerforge.com>
  *
  * config.h: Config specific functions
@@ -35,9 +35,10 @@ void config_exit(void);
 int config_has_error(void);
 
 const char *config_get_listen_address(void);
-uint16_t config_get_listen_port(void);
+uint16_t config_get_listen_plain_port(void);
 uint16_t config_get_listen_websocket_port(void);
 int config_get_listen_dual_stack(void);
+
 LogLevel config_get_log_level(LogCategory category);
 
 #endif // BRICKD_CONFIG_H

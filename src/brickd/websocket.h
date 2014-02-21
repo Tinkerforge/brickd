@@ -1,6 +1,7 @@
 /*
  * brickd
  * Copyright (C) 2014 Olaf Lüke <olaf@tinkerforge.com>
+ * Copyright (C) 2014 Matthias Bolte <matthias@tinkerforge.com>
  *
  * websocket.h: Miniature websocket server implementation
  *
@@ -23,6 +24,7 @@
 #define BRICKD_WEBSOCKET_H
 
 #include <stdint.h>
+
 #include "event.h"
 
 #define WEBSOCKET_MAX_LINE_LENGTH 100 // Line length > 100 are not interesting for us
@@ -91,7 +93,7 @@ typedef struct {
 #include "packed_end.h"
 
 typedef enum {
-	SOCKET_TYPE_NORMAL = 0,
+	SOCKET_TYPE_PLAIN = 0,
 	SOCKET_TYPE_WEBSOCKET
 } SocketType;
 
@@ -138,4 +140,4 @@ int websocket_parse_data(EventHandle handle, SocketStorage *storage, uint8_t *bu
 int websocket_receive(EventHandle handle, SocketStorage *storage, void *buffer, int length);
 int websocket_send(EventHandle handle, SocketStorage *storage, void *buffer, int length);
 
-#endif
+#endif // BRICKD_WEBSOCKET_H

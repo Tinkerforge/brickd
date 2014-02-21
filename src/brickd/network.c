@@ -41,7 +41,7 @@
 #define LOG_CATEGORY LOG_CATEGORY_NETWORK
 
 static Array _clients;
-static EventHandle _server_socket_normal    = INVALID_EVENT_HANDLE;
+static EventHandle _server_socket_plain = INVALID_EVENT_HANDLE;
 static EventHandle _server_socket_websocket = INVALID_EVENT_HANDLE;
 
 static void network_handle_accept(void *opaque) {
@@ -50,8 +50,7 @@ static void network_handle_accept(void *opaque) {
 	socklen_t length = sizeof(address);
 	Client *client;
 	SocketType type = (SocketType)opaque;
-	EventHandle server_socket = type == SOCKET_TYPE_NORMAL ? _server_socket_normal : _server_socket_websocket;
-
+	EventHandle server_socket = type == SOCKET_TYPE_PLAIN ? _server_socket_plain : _server_socket_websocket;
 
 	// accept new client socket
 	if (socket_accept(server_socket, &client_socket,
@@ -118,7 +117,7 @@ int network_init_port(uint16_t port, SocketType type) {
 	int phase = 0;
 	const char *address = config_get_listen_address();
 	struct addrinfo *resolved_address = NULL;
-	EventHandle *server_socket = type == SOCKET_TYPE_NORMAL ? &_server_socket_normal : &_server_socket_websocket;
+	EventHandle *server_socket = type == SOCKET_TYPE_PLAIN ? &_server_socket_plain : &_server_socket_websocket;
 
 	log_debug("Initializing network subsystem (type: %d, port: %u)", type, port);
 
@@ -228,9 +227,9 @@ cleanup:
 }
 
 int network_init(void) {
-	uint16_t port_socket = config_get_listen_port();
+	uint16_t port_plain = config_get_listen_plain_port();
 	uint16_t port_websocket = config_get_listen_websocket_port();
-	int ret_socket;
+	int ret_plain;
 	int ret_websocket;
 
 	// the Client struct is not relocatable, because it is passed by reference
@@ -242,10 +241,10 @@ int network_init(void) {
 		return -1;
 	}
 
-	ret_socket = network_init_port(port_socket, SOCKET_TYPE_NORMAL);
+	ret_plain = network_init_port(port_plain, SOCKET_TYPE_PLAIN);
 	ret_websocket = network_init_port(port_websocket, SOCKET_TYPE_WEBSOCKET);
 
-	if (ret_socket < 0 && ret_websocket < 0) {
+	if (ret_plain < 0 && ret_websocket < 0) {
 		// FIXME: need to destroy server sockets here
 
 		array_destroy(&_clients, (FreeFunction)client_destroy);
@@ -263,10 +262,10 @@ void network_exit(void) {
 
 	array_destroy(&_clients, (FreeFunction)client_destroy);
 
-	event_remove_source(_server_socket_normal, EVENT_SOURCE_TYPE_GENERIC);
+	event_remove_source(_server_socket_plain, EVENT_SOURCE_TYPE_GENERIC);
 	event_remove_source(_server_socket_websocket, EVENT_SOURCE_TYPE_GENERIC);
 
-	socket_destroy(_server_socket_normal);
+	socket_destroy(_server_socket_plain);
 	socket_destroy(_server_socket_websocket);
 }
 

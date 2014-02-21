@@ -11,7 +11,8 @@ The
 file specifies the configuration for the
 .BR brickd (8)
 program that routes Tinkerforge Protocol (TFP) messages between Tinkerforge
-USB devices (Bricks) and TCP/IP sockets. For further information see the
+USB devices (Bricks) and sockets; plain TCP/IP sockets and WebSockets are
+supported. For further information see the
 .BR brickd (8)
 manpage.
 .SH "FILE FORMAT"
@@ -36,16 +37,19 @@ The parameters with
 .B listen
 prefix control how
 .BR brickd (8)
-listens for incoming TCP/IP connections.
+listens for incoming plain TCP/IP and WebSocket connections.
 .IP "\fBlisten.address\fR" 4
 .BR brickd (8)
-binds a TCP/IP socket to this address to listen for incoming connections. The
-address can either be a dotted-decimal IPv4 address or a hexadecimal IPv6
-address. It can also be a hostname such as \fIlocalhost\fR. The default value
-is \fI0.0.0.0\fR.
-.IP "\fBlisten.port\fR" 4
-The port number to listen to for incoming connections. The default value is
-\fI4223\fR.
+binds a plain TCP/IP socket and a WebSocket to this address to listen for
+incoming plain TCP/IP and WebSocket connections. The address can either be a
+dotted-decimal IPv4 address or a hexadecimal IPv6 address. It can also be a
+hostname such as \fIlocalhost\fR. The default value is \fI0.0.0.0\fR.
+.IP "\fBlisten.plain_port\fR" 4
+The port number to listen to for incoming plain TCP/IP connections. The default
+value is \fI4223\fR.
+.IP "\fBlisten.websocket_port\fR" 4
+The port number to listen to for incoming WebSocket connections. The default
+value is \fI80\fR.
 .IP "\fBlisten.dual_stack\fR" 4
 If a IPv6 address is given as
 .B listen.address
@@ -78,6 +82,8 @@ Controlls the visibility of log messages from the network subsystem.
 Controlls the visibility of log messages from the (USB) hotplug subsystem.
 .IP "\fBlog_level.hardware\fR" 4
 Controlls the visibility of log messages from the hardware subsystem.
+.IP "\fBlog_level.websocket\fR" 4
+Controlls the visibility of log messages from the WebSocket subsystem.
 .IP "\fBlog_level.other\fR" 4
 Controlls the visibility of log messages that do not fit into any of the
 categories listed above.

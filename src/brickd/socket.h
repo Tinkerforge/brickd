@@ -30,10 +30,10 @@
 #endif
 #include <stdint.h>
 
-#define SOCKET_CONTINUE -2
-
 #include "event.h"
 #include "websocket.h"
+
+#define SOCKET_CONTINUE -2
 
 int socket_create(EventHandle *handle, int family, int type, int protocol);
 void socket_destroy(EventHandle handle);

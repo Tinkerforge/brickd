@@ -31,7 +31,7 @@
 #include "utils.h"
 
 #define DEFAULT_LISTEN_ADDRESS "0.0.0.0"
-#define DEFAULT_LISTEN_PORT 4223
+#define DEFAULT_LISTEN_PLAIN_PORT 4223
 #define DEFAULT_LISTEN_WEBSOCKET_PORT 80
 #define DEFAULT_LISTEN_DUAL_STACK 0
 #define DEFAULT_LOG_LEVEL LOG_LEVEL_INFO
@@ -41,7 +41,7 @@ static int _has_error = 0;
 static int _using_default_values = 1;
 static const char *_default_listen_address = DEFAULT_LISTEN_ADDRESS;
 static char *_listen_address = NULL;
-static uint16_t _listen_port = DEFAULT_LISTEN_PORT;
+static uint16_t _listen_plain_port = DEFAULT_LISTEN_PLAIN_PORT;
 static uint16_t _listen_websocket_port = DEFAULT_LISTEN_WEBSOCKET_PORT;
 static int _listen_dual_stack = DEFAULT_LISTEN_DUAL_STACK;
 static LogLevel _log_levels[MAX_LOG_CATEGORIES]; // config_init calls config_reset to initialize this
@@ -74,7 +74,7 @@ static void config_reset(void) {
 		_listen_address = (char *)_default_listen_address;
 	}
 
-	_listen_port = DEFAULT_LISTEN_PORT;
+	_listen_plain_port = DEFAULT_LISTEN_PLAIN_PORT;
 	_listen_websocket_port = DEFAULT_LISTEN_WEBSOCKET_PORT;
 	_listen_dual_stack = DEFAULT_LISTEN_DUAL_STACK;
 
@@ -213,7 +213,8 @@ static void config_parse_line(char *string) {
 
 			return;
 		}
-	} else if (strcmp(option, "listen.port") == 0) {
+	} else if (strcmp(option, "listen.plain_port") == 0 ||
+	           strcmp(option, "listen.port") == 0) {
 		if (config_parse_int(value, &port) < 0) {
 			config_error("Value '%s' for %s option is not an integer", value, option);
 
@@ -226,7 +227,7 @@ static void config_parse_line(char *string) {
 			return;
 		}
 
-		_listen_port = (uint16_t)port;
+		_listen_plain_port = (uint16_t)port;
 	} else if (strcmp(option, "listen.websocket_port") == 0) {
 		if (config_parse_int(value, &port) < 0) {
 			config_error("Value '%s' for %s option is not an integer", value, option);
@@ -320,7 +321,7 @@ int config_check(const char *filename) {
 	printf("\n");
 	printf("Using the following config values:\n");
 	printf("  listen.address        = %s\n", config_get_listen_address());
-	printf("  listen.port           = %u\n", config_get_listen_port());
+	printf("  listen.plain_port     = %u\n", config_get_listen_plain_port());
 	printf("  listen.websocket_port = %u\n", config_get_listen_websocket_port());
 	printf("  listen.dual_stack     = %s\n", config_get_listen_dual_stack() ? "on" : "off");
 	printf("  log_level.event       = %s\n", config_format_log_level(config_get_log_level(LOG_CATEGORY_EVENT)));
@@ -407,8 +408,8 @@ const char *config_get_listen_address(void) {
 	return _listen_address;
 }
 
-uint16_t config_get_listen_port(void) {
-	return _listen_port;
+uint16_t config_get_listen_plain_port(void) {
+	return _listen_plain_port;
 }
 
 uint16_t config_get_listen_websocket_port(void) {
