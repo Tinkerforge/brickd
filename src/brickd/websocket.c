@@ -306,6 +306,10 @@ int websocket_parse_data(EventHandle handle, SocketStorage *storage, uint8_t *bu
 }
 
 int websocket_receive(EventHandle handle, SocketStorage *storage, void *buffer, int length) {
+	if(length == 0) {
+		return 0;
+	}
+
 	switch(storage->websocket_state) {
 	case WEBSOCKET_STATE_WAIT_FOR_HANDSHAKE:
 	case WEBSOCKET_STATE_HANDSHAKE_FOUND_KEY:
