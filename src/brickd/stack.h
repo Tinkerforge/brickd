@@ -29,10 +29,10 @@ typedef struct _Stack Stack;
 
 typedef int (*DispatchRequestFunction)(Stack *stack, Packet *request);
 
-#define MAX_STACK_NAME 128
+#define STACK_MAX_NAME_LENGTH 128
 
 struct _Stack {
-	char name[MAX_STACK_NAME]; // for display purpose
+	char name[STACK_MAX_NAME_LENGTH]; // for display purpose
 	DispatchRequestFunction dispatch_request;
 	Array uids;
 };

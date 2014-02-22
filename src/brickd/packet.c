@@ -133,9 +133,10 @@ const char *packet_get_callback_type(Packet *packet) {
 }
 
 char *packet_get_request_signature(char *signature, Packet *packet) {
-	char base58[MAX_BASE58_STR_SIZE];
+	char base58[BASE58_MAX_LENGTH];
 
-	snprintf(signature, MAX_PACKET_SIGNATURE_STR_SIZE, "U: %s, L: %u, F: %u, S: %u, R: %u",
+	snprintf(signature, PACKET_MAX_SIGNATURE_LENGTH,
+	         "U: %s, L: %u, F: %u, S: %u, R: %u",
 	         base58_encode(base58, uint32_from_le(packet->header.uid)),
 	         packet->header.length,
 	         packet->header.function_id,
@@ -146,9 +147,10 @@ char *packet_get_request_signature(char *signature, Packet *packet) {
 }
 
 char *packet_get_response_signature(char *signature, Packet *packet) {
-	char base58[MAX_BASE58_STR_SIZE];
+	char base58[BASE58_MAX_LENGTH];
 
-	snprintf(signature, MAX_PACKET_SIGNATURE_STR_SIZE, "U: %s, L: %u, F: %u, S: %u, E: %u",
+	snprintf(signature, PACKET_MAX_SIGNATURE_LENGTH,
+	         "U: %s, L: %u, F: %u, S: %u, E: %u",
 	         base58_encode(base58, uint32_from_le(packet->header.uid)),
 	         packet->header.length,
 	         packet->header.function_id,
@@ -159,9 +161,9 @@ char *packet_get_response_signature(char *signature, Packet *packet) {
 }
 
 char *packet_get_callback_signature(char *signature, Packet *packet) {
-	char base58[MAX_BASE58_STR_SIZE];
+	char base58[BASE58_MAX_LENGTH];
 
-	snprintf(signature, MAX_PACKET_SIGNATURE_STR_SIZE, "U: %s, L: %u, F: %u",
+	snprintf(signature, PACKET_MAX_SIGNATURE_LENGTH, "U: %s, L: %u, F: %u",
 	         base58_encode(base58, uint32_from_le(packet->header.uid)),
 	         packet->header.length,
 	         packet->header.function_id);

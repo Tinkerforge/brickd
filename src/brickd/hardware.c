@@ -91,7 +91,7 @@ int hardware_remove_stack(Stack *stack) {
 }
 
 void hardware_dispatch_request(Packet *request) {
-	char signature[MAX_PACKET_SIGNATURE_STR_SIZE];
+	char packet_signature[PACKET_MAX_SIGNATURE_LENGTH];
 	int i;
 	Stack *stack;
 	int rc;
@@ -99,14 +99,14 @@ void hardware_dispatch_request(Packet *request) {
 
 	if (_stacks.count == 0) {
 		log_debug("No stacks connected, dropping request (%s)",
-		          packet_get_request_signature(signature, request));
+		          packet_get_request_signature(packet_signature, request));
 
 		return;
 	}
 
 	if (request->header.uid == 0) {
 		log_debug("Broadcasting request (%s) to %d stack(s)",
-		          packet_get_request_signature(signature, request),
+		          packet_get_request_signature(packet_signature, request),
 		          _stacks.count);
 
 		// broadcast to all stacks
@@ -117,7 +117,7 @@ void hardware_dispatch_request(Packet *request) {
 		}
 	} else {
 		log_debug("Dispatching request (%s) to %d stack(s)",
-		          packet_get_request_signature(signature, request),
+		          packet_get_request_signature(packet_signature, request),
 		          _stacks.count);
 
 		// dispatch to all stacks, not only the first one that might claim to

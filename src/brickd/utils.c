@@ -349,7 +349,7 @@ static const char *base58_alphabet = "123456789abcdefghijkmnopqrstuvwxyzABCDEFGH
 
 char *base58_encode(char *base58, uint32_t value) {
 	uint32_t digit;
-	char reverse[MAX_BASE58_STR_SIZE] = {'\0'};
+	char reverse[BASE58_MAX_LENGTH];
 	int i = 0;
 	int k = 0;
 
@@ -366,7 +366,7 @@ char *base58_encode(char *base58, uint32_t value) {
 		base58[k] = reverse[i - k];
 	}
 
-	for (; k < MAX_BASE58_STR_SIZE; ++k) {
+	for (; k < BASE58_MAX_LENGTH; ++k) {
 		base58[k] = '\0';
 	}
 

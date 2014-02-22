@@ -50,7 +50,7 @@ const char *get_errno_name(int error_code);
 void string_copy(char *destination, const char *source, int size);
 void string_append(char *destination, const char *source, int size);
 
-#define MAX_BASE58_STR_SIZE 8
+#define BASE58_MAX_LENGTH 8
 
 char *base58_encode(char *base58, uint32_t value);
 

@@ -49,7 +49,7 @@ static void client_handle_receive(void *opaque) {
 	Client *client = opaque;
 	int length;
 	const char *message = NULL;
-	char signature[MAX_PACKET_SIGNATURE_STR_SIZE];
+	char packet_signature[PACKET_MAX_SIGNATURE_LENGTH];
 	PendingRequest *pending_request;
 
 	length = socket_receive(client->socket,
@@ -96,7 +96,7 @@ static void client_handle_receive(void *opaque) {
 		if (!client->request_header_checked) {
 			if (!packet_header_is_valid_request(&client->request.header, &message)) {
 				log_error("Got invalid request (%s) from client (socket: %d, peer: %s), disconnecting it: %s",
-				          packet_get_request_signature(signature, &client->request),
+				          packet_get_request_signature(packet_signature, &client->request),
 				          client->socket, client->peer,
 				          message);
 
@@ -120,7 +120,7 @@ static void client_handle_receive(void *opaque) {
 			          client->socket, client->peer);
 		} else {
 			log_debug("Got request (%s) from client (socket: %d, peer: %s)",
-			          packet_get_request_signature(signature, &client->request),
+			          packet_get_request_signature(packet_signature, &client->request),
 			          client->socket, client->peer);
 
 			if (packet_header_get_response_expected(&client->request.header)) {
@@ -148,7 +148,7 @@ static void client_handle_receive(void *opaque) {
 #endif
 
 					log_debug("Added pending request (%s) for client (socket: %d, peer: %s)",
-					          packet_get_request_signature(signature, &client->request),
+					          packet_get_request_signature(packet_signature, &client->request),
 					          client->socket, client->peer);
 				}
 			}

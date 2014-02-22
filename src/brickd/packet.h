@@ -35,6 +35,8 @@ enum {
 	ENUMERATION_TYPE_DISCONNECTED = 2
 };
 
+#define PACKET_MAX_SIGNATURE_LENGTH 64
+
 #include "packed_begin.h"
 
 typedef struct {
@@ -75,8 +77,6 @@ uint8_t packet_header_get_response_expected(PacketHeader *header);
 uint8_t packet_header_get_error_code(PacketHeader *header);
 
 const char *packet_get_callback_type(Packet *packet);
-
-#define MAX_PACKET_SIGNATURE_STR_SIZE 64
 
 char *packet_get_request_signature(char *signature, Packet *packet);
 char *packet_get_response_signature(char *signature, Packet *packet);

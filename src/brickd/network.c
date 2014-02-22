@@ -292,7 +292,7 @@ void network_cleanup_clients(void) {
 }
 
 void network_dispatch_response(Packet *response) {
-	char signature[MAX_PACKET_SIGNATURE_STR_SIZE];
+	char packet_signature[PACKET_MAX_SIGNATURE_LENGTH];
 	int i;
 	Client *client;
 	int rc;
@@ -302,10 +302,10 @@ void network_dispatch_response(Packet *response) {
 		if (packet_header_get_sequence_number(&response->header) == 0) {
 			log_debug("No clients connected, dropping %scallback (%s)",
 			          packet_get_callback_type(response),
-			          packet_get_callback_signature(signature, response));
+			          packet_get_callback_signature(packet_signature, response));
 		} else {
 			log_debug("No clients connected, dropping response (%s)",
-			          packet_get_response_signature(signature, response));
+			          packet_get_response_signature(packet_signature, response));
 		}
 
 		return;
@@ -314,7 +314,7 @@ void network_dispatch_response(Packet *response) {
 	if (packet_header_get_sequence_number(&response->header) == 0) {
 		log_debug("Broadcasting %scallback (%s) to %d client(s)",
 		          packet_get_callback_type(response),
-		          packet_get_callback_signature(signature, response),
+		          packet_get_callback_signature(packet_signature, response),
 		          _clients.count);
 
 		for (i = 0; i < _clients.count; ++i) {
@@ -324,7 +324,7 @@ void network_dispatch_response(Packet *response) {
 		}
 	} else {
 		log_debug("Dispatching response (%s) to %d client(s)",
-		          packet_get_response_signature(signature, response),
+		          packet_get_response_signature(packet_signature, response),
 		          _clients.count);
 
 		for (i = 0; i < _clients.count; ++i) {

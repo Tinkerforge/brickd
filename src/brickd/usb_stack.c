@@ -46,7 +46,7 @@
 
 static void usb_stack_read_callback(USBTransfer *usb_transfer) {
 	const char *message = NULL;
-	char signature[MAX_PACKET_SIGNATURE_STR_SIZE];
+	char packet_signature[PACKET_MAX_SIGNATURE_LENGTH];
 
 	if (usb_transfer->handle->actual_length < (int)sizeof(PacketHeader)) {
 		log_error("Read transfer %p returned response with incomplete header (actual: %u < minimum: %d) from %s",
@@ -66,7 +66,7 @@ static void usb_stack_read_callback(USBTransfer *usb_transfer) {
 
 	if (!packet_header_is_valid_response(&usb_transfer->packet.header, &message)) {
 		log_debug("Got invalid response (%s) from %s: %s",
-		          packet_get_response_signature(signature, &usb_transfer->packet),
+		          packet_get_response_signature(packet_signature, &usb_transfer->packet),
 		          usb_transfer->usb_stack->base.name,
 		          message);
 
@@ -76,11 +76,11 @@ static void usb_stack_read_callback(USBTransfer *usb_transfer) {
 	if (packet_header_get_sequence_number(&usb_transfer->packet.header) == 0) {
 		log_debug("Got %scallback (%s) from %s",
 		          packet_get_callback_type(&usb_transfer->packet),
-		          packet_get_callback_signature(signature, &usb_transfer->packet),
+		          packet_get_callback_signature(packet_signature, &usb_transfer->packet),
 		          usb_transfer->usb_stack->base.name);
 	} else {
 		log_debug("Got response (%s) from %s",
-		          packet_get_response_signature(signature, &usb_transfer->packet),
+		          packet_get_response_signature(packet_signature, &usb_transfer->packet),
 		          usb_transfer->usb_stack->base.name);
 	}
 
@@ -93,7 +93,7 @@ static void usb_stack_read_callback(USBTransfer *usb_transfer) {
 
 static void usb_stack_write_callback(USBTransfer *usb_transfer) {
 	Packet *request;
-	char signature[MAX_PACKET_SIGNATURE_STR_SIZE];
+	char packet_signature[PACKET_MAX_SIGNATURE_LENGTH];
 
 	if (usb_transfer->usb_stack->write_queue.count > 0) {
 		request = queue_peek(&usb_transfer->usb_stack->write_queue);
@@ -102,7 +102,7 @@ static void usb_stack_write_callback(USBTransfer *usb_transfer) {
 
 		if (usb_transfer_submit(usb_transfer) < 0) {
 			log_error("Could not send queued request (%s) to %s: %s (%d)",
-			          packet_get_request_signature(signature, &usb_transfer->packet),
+			          packet_get_request_signature(packet_signature, &usb_transfer->packet),
 			          usb_transfer->usb_stack->base.name,
 			          get_errno_name(errno), errno);
 
@@ -112,7 +112,7 @@ static void usb_stack_write_callback(USBTransfer *usb_transfer) {
 		queue_pop(&usb_transfer->usb_stack->write_queue, NULL);
 
 		log_debug("Sent queued request (%s) to %s, %d request(s) left in write queue",
-		          packet_get_request_signature(signature, &usb_transfer->packet),
+		          packet_get_request_signature(packet_signature, &usb_transfer->packet),
 		          usb_transfer->usb_stack->base.name,
 		          usb_transfer->usb_stack->write_queue.count);
 	}
@@ -175,7 +175,7 @@ int usb_stack_create(USBStack *usb_stack, uint8_t bus_number, uint8_t device_add
 	libusb_device *device;
 	struct libusb_device_descriptor descriptor;
 	int i = 0;
-	char preliminary_name[MAX_STACK_NAME];
+	char preliminary_name[STACK_MAX_NAME_LENGTH];
 	USBTransfer *usb_transfer;
 
 	log_debug("Acquiring USB device (bus: %u, device: %u)",
@@ -239,7 +239,8 @@ int usb_stack_create(USBStack *usb_stack, uint8_t bus_number, uint8_t device_add
 		if (descriptor.idVendor != USB_BRICK_VENDOR_ID ||
 		    descriptor.idProduct != USB_BRICK_PRODUCT_ID) {
 			log_warn("Found non-Brick USB device (bus: %u, device: %u, vendor: 0x%04X, product: 0x%04X) with address collision, ignoring it",
-			         usb_stack->bus_number, usb_stack->device_address, descriptor.idVendor, descriptor.idProduct);
+			         usb_stack->bus_number, usb_stack->device_address,
+			         descriptor.idVendor, descriptor.idProduct);
 
 			continue;
 		}
@@ -426,7 +427,7 @@ cleanup:
 }
 
 void usb_stack_destroy(USBStack *usb_stack) {
-	char name[MAX_STACK_NAME];
+	char name[STACK_MAX_NAME_LENGTH];
 
 	usb_stack->active = 0;
 

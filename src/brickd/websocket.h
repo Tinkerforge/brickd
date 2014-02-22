@@ -31,7 +31,7 @@
 #define WEBSOCKET_KEY_LENGTH 37 // Can be max 36
 #define WEBSOCKET_CONCATKEY_LENGTH 65  // Can be max 36 (server key) + 28 (base64 hash) = 64
 
-#define WEBSOCKET_CLIENT_KEY_STR "Sec-WebSocket-Key:"
+#define WEBSOCKET_CLIENT_KEY_STRING "Sec-WebSocket-Key:"
 #define WEBSOCKET_SERVER_KEY "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
 
 #define WEBSOCKET_ANSWER_STRING_1 "HTTP/1.1 101 Switching Protocols\r\nAccess-Control-Allow-Origin: *\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: "

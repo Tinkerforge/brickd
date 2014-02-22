@@ -145,11 +145,11 @@ int websocket_parse_handshake_line(EventHandle handle, SocketStorage *storage, c
 	}
 
 	// Find "Sec-WebSocket-Key"
-	ret = strcasestr(line, WEBSOCKET_CLIENT_KEY_STR);
+	ret = strcasestr(line, WEBSOCKET_CLIENT_KEY_STRING);
 	if(ret != NULL) {
 		memset(storage->websocket_key, 0, WEBSOCKET_KEY_LENGTH);
 
-		for(i = strlen(WEBSOCKET_CLIENT_KEY_STR); i < length; i++) {
+		for(i = strlen(WEBSOCKET_CLIENT_KEY_STRING); i < length; i++) {
 			if(line[i] != ' ' && line[i] != '\n' && line[i] != '\r') {
 				storage->websocket_key[concat_i] = line[i];
 				concat_i++;
