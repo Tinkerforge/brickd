@@ -81,7 +81,7 @@ struct sha1_ctxt {
 		unsigned char		b8[64];
 		unsigned int		b32[16];
 	} m;
-	unsigned char			count;
+	size_t				count;
 };
 
 /* sanity check */
