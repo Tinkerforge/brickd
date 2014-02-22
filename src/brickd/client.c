@@ -53,13 +53,13 @@ static void client_handle_receive(void *opaque) {
 	PendingRequest *pending_request;
 
 	length = socket_receive(client->socket,
-	                        &client->storage,
+	                        (SocketStorage *)&client->storage,
 	                        (uint8_t *)&client->request + client->request_used,
 	                        sizeof(Packet) - client->request_used);
 
 	if (length == 0) {
 		log_info("Client (socket: %d, peer: %s) disconnected by peer",
-		         client->socket, client->peer);
+		         client->socket->handle, client->peer);
 
 		client->disconnected = 1;
 
@@ -71,13 +71,13 @@ static void client_handle_receive(void *opaque) {
 			length = 0;
 		} else if (errno_interrupted()) {
 			log_debug("Receiving from client (socket: %d, peer: %s) was interrupted, retrying",
-			          client->socket, client->peer);
+			          client->socket->handle, client->peer);
 		} else if (errno_would_block()) {
 			log_debug("Receiving from client (socket: %d, peer: %s) would block, retrying",
-			          client->socket, client->peer);
+			          client->socket->handle, client->peer);
 		} else {
 			log_error("Could not receive from client (socket: %d, peer: %s), disconnecting it: %s (%d)",
-			          client->socket, client->peer, get_errno_name(errno), errno);
+			          client->socket->handle, client->peer, get_errno_name(errno), errno);
 
 			client->disconnected = 1;
 		}
@@ -97,7 +97,7 @@ static void client_handle_receive(void *opaque) {
 			if (!packet_header_is_valid_request(&client->request.header, &message)) {
 				log_error("Got invalid request (%s) from client (socket: %d, peer: %s), disconnecting it: %s",
 				          packet_get_request_signature(packet_signature, &client->request),
-				          client->socket, client->peer,
+				          client->socket->handle, client->peer,
 				          message);
 
 				client->disconnected = 1;
@@ -117,17 +117,17 @@ static void client_handle_receive(void *opaque) {
 
 		if (client->request.header.function_id == FUNCTION_DISCONNECT_PROBE) {
 			log_debug("Got disconnect probe from client (socket: %d, peer: %s), dropping it",
-			          client->socket, client->peer);
+			          client->socket->handle, client->peer);
 		} else {
 			log_debug("Got request (%s) from client (socket: %d, peer: %s)",
 			          packet_get_request_signature(packet_signature, &client->request),
-			          client->socket, client->peer);
+			          client->socket->handle, client->peer);
 
 			if (packet_header_get_response_expected(&client->request.header)) {
 				if (client->pending_requests.count >= MAX_PENDING_REQUESTS) {
 					log_warn("Dropping %d items from pending request array of client (socket: %d, peer: %s)",
 					         client->pending_requests.count - MAX_PENDING_REQUESTS + 1,
-					         client->socket, client->peer);
+					         client->socket->handle, client->peer);
 
 					while (client->pending_requests.count >= MAX_PENDING_REQUESTS) {
 						array_remove(&client->pending_requests, 0, NULL);
@@ -149,7 +149,7 @@ static void client_handle_receive(void *opaque) {
 
 					log_debug("Added pending request (%s) for client (socket: %d, peer: %s)",
 					          packet_get_request_signature(packet_signature, &client->request),
-					          client->socket, client->peer);
+					          client->socket->handle, client->peer);
 				}
 			}
 
@@ -164,9 +164,9 @@ static void client_handle_receive(void *opaque) {
 	}
 }
 
-int client_create(Client *client, EventHandle socket, SocketType type,
+int client_create(Client *client, Socket *socket, SocketType type,
                   struct sockaddr *address, socklen_t length) {
-	log_debug("Creating client from socket (handle: %d)", socket);
+	log_debug("Creating client from socket (handle: %d)", socket->handle);
 
 	client->socket = socket;
 	client->disconnected = 0;
@@ -188,14 +188,14 @@ int client_create(Client *client, EventHandle socket, SocketType type,
 
 	if (client->peer == NULL) {
 		log_warn("Could not get peer name of client (socket: %d): %s (%d)",
-		         socket, get_errno_name(errno), errno);
+		         socket->handle, get_errno_name(errno), errno);
 
 		client->peer = (char *)_unknown_peer_name;
 	}
 
 	// add socket as event source
-	if (event_add_source(client->socket, EVENT_SOURCE_TYPE_GENERIC, EVENT_READ,
-	                     client_handle_receive, client) < 0) {
+	if (event_add_source(client->socket->handle, EVENT_SOURCE_TYPE_GENERIC,
+	                     EVENT_READ, client_handle_receive, client) < 0) {
 		if (client->peer != _unknown_peer_name) {
 			free(client->peer);
 		}
@@ -211,11 +211,12 @@ int client_create(Client *client, EventHandle socket, SocketType type,
 void client_destroy(Client *client) {
 	if (client->pending_requests.count > 0) {
 		log_warn("Destroying client (socket: %d, peer: %s) while %d request(s) are still pending",
-		         client->socket, client->peer, client->pending_requests.count);
+		         client->socket->handle, client->peer, client->pending_requests.count);
 	}
 
-	event_remove_source(client->socket, EVENT_SOURCE_TYPE_GENERIC);
+	event_remove_source(client->socket->handle, EVENT_SOURCE_TYPE_GENERIC);
 	socket_destroy(client->socket);
+	free(client->socket);
 
 	if (client->peer != _unknown_peer_name) {
 		free(client->peer);
@@ -236,7 +237,7 @@ int client_dispatch_response(Client *client, Packet *response, int force) {
 
 	if (client->disconnected) {
 		log_debug("Ignoring disconnected client (socket: %d, peer: %s)",
-		          client->socket, client->peer);
+		          client->socket->handle, client->peer);
 
 		return 0;
 	}
@@ -254,9 +255,9 @@ int client_dispatch_response(Client *client, Packet *response, int force) {
 	}
 
 	if (force || found >= 0) {
-		if (socket_send(client->socket, &client->storage, response, response->header.length) < 0) {
+		if (socket_send(client->socket, (SocketStorage *)&client->storage, response, response->header.length) < 0) {
 			log_error("Could not send response to client (socket: %d, peer: %s), disconnecting it: %s (%d)",
-			          client->socket, client->peer, get_errno_name(errno), errno);
+			          client->socket->handle, client->peer, get_errno_name(errno), errno);
 
 			client->disconnected = 1;
 
@@ -265,18 +266,18 @@ int client_dispatch_response(Client *client, Packet *response, int force) {
 
 		if (force) {
 			log_debug("Forced to sent response to client (socket: %d, peer: %s)",
-			          client->socket, client->peer);
+			          client->socket->handle, client->peer);
 		} else {
 #ifdef BRICKD_WITH_PROFILING
 			elapsed = microseconds() - pending_request->arrival_time;
 
 			log_debug("Sent response to client (socket: %d, peer: %s), was requested %u.%03u msec ago, %d request(s) still pending",
-			          client->socket, client->peer,
+			          client->socket->handle, client->peer,
 			          (unsigned int)(elapsed / 1000), (unsigned int)(elapsed % 1000),
 			          client->pending_requests.count - 1);
 #else
 			log_debug("Sent response to client (socket: %d, peer: %s), %d request(s) still pending",
-			          client->socket, client->peer,
+			          client->socket->handle, client->peer,
 			          client->pending_requests.count - 1);
 #endif
 		}

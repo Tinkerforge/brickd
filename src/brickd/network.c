@@ -22,6 +22,7 @@
 
 #include <errno.h>
 #include <stdint.h>
+#include <stdlib.h>
 #include <string.h>
 #ifndef _WIN32
 	#include <netdb.h>
@@ -41,26 +42,41 @@
 #define LOG_CATEGORY LOG_CATEGORY_NETWORK
 
 static Array _clients;
-static EventHandle _server_socket_plain = INVALID_EVENT_HANDLE;
-static EventHandle _server_socket_websocket = INVALID_EVENT_HANDLE;
+static Socket _server_socket_plain;
+static Socket _server_socket_websocket;
 static int _server_socket_plain_open = 0;
 static int _server_socket_websocket_open = 0;
 
 static void network_handle_accept(void *opaque) {
-	EventHandle client_socket;
+	Socket *client_socket;
 	struct sockaddr_storage address;
 	socklen_t length = sizeof(address);
 	Client *client;
 	SocketType type = (SocketType)opaque;
-	EventHandle server_socket = type == SOCKET_TYPE_PLAIN ? _server_socket_plain : _server_socket_websocket;
+	Socket *server_socket = type == SOCKET_TYPE_PLAIN ? &_server_socket_plain : &_server_socket_websocket;
+
+	client_socket = calloc(1, sizeof(Socket));
+
+	if (client_socket == NULL) {
+		// because accept() is not called now the event loop will receive
+		// another event on the server socket to indicate the pending
+		// connection attempt. but we're currently in an OOM situation so
+		// there are other things to worry about.
+
+		log_error("Could not allocate socket to accept new client");
+
+		return;
+	}
 
 	// accept new client socket
-	if (socket_accept(server_socket, &client_socket,
+	if (socket_accept(server_socket, client_socket,
 	                  (struct sockaddr *)&address, &length) < 0) {
 		if (!errno_interrupted()) {
-			log_error("Could not accept new socket: %s (%d)",
+			log_error("Could not accept new client: %s (%d)",
 			          get_errno_name(errno), errno);
 		}
+
+		free(client_socket);
 
 		return;
 	}
@@ -68,9 +84,10 @@ static void network_handle_accept(void *opaque) {
 	// enable non-blocking
 	if (socket_set_non_blocking(client_socket, 1) < 0) {
 		log_error("Could not enable non-blocking mode for socket (handle: %d): %s (%d)",
-		          client_socket, get_errno_name(errno), errno);
+		          client_socket->handle, get_errno_name(errno), errno);
 
 		socket_destroy(client_socket);
+		free(client_socket);
 
 		return;
 	}
@@ -83,19 +100,22 @@ static void network_handle_accept(void *opaque) {
 		          get_errno_name(errno), errno);
 
 		socket_destroy(client_socket);
+		free(client_socket);
 
 		return;
 	}
 
+	// create new Client that takes ownership of the client_socket
 	if (client_create(client, client_socket, type, (struct sockaddr *)&address, length) < 0) {
 		array_remove(&_clients, _clients.count - 1, NULL);
 		socket_destroy(client_socket);
+		free(client_socket);
 
 		return;
 	}
 
 	log_info("Added new client (socket: %d, peer: %s)",
-	         client->socket, client->peer);
+	         client->socket->handle, client->peer);
 }
 
 static const char *network_get_address_family_name(int family, int report_dual_stack) {
@@ -119,7 +139,7 @@ int network_init_port(uint16_t port, SocketType type) {
 	int phase = 0;
 	const char *address = config_get_listen_address();
 	struct addrinfo *resolved_address = NULL;
-	EventHandle *server_socket = type == SOCKET_TYPE_PLAIN ? &_server_socket_plain : &_server_socket_websocket;
+	Socket *server_socket = type == SOCKET_TYPE_PLAIN ? &_server_socket_plain : &_server_socket_websocket;
 
 	log_debug("Initializing network subsystem (type: %d, port: %u)", type, port);
 
@@ -151,7 +171,7 @@ int network_init_port(uint16_t port, SocketType type) {
 	phase = 2;
 
 	if (resolved_address->ai_family == AF_INET6) {
-		if (socket_set_dual_stack(*server_socket, config_get_listen_dual_stack()) < 0) {
+		if (socket_set_dual_stack(server_socket, config_get_listen_dual_stack()) < 0) {
 			log_error("Could not %s dual-stack mode for IPv6 server socket: %s (%d)",
 			          config_get_listen_dual_stack() ? "enable" : "disable",
 			          get_errno_name(errno), errno);
@@ -166,7 +186,7 @@ int network_init_port(uint16_t port, SocketType type) {
 	// allows to rebind sockets in any state. this is dangerous. therefore,
 	// don't set SO_REUSEADDR on Windows. sockets can be rebound in CLOSE-WAIT
 	// state on Windows by default.
-	if (socket_set_address_reuse(*server_socket, 1) < 0) {
+	if (socket_set_address_reuse(server_socket, 1) < 0) {
 		log_error("Could not enable address-reuse mode for server socket: %s (%d)",
 		          get_errno_name(errno), errno);
 
@@ -175,7 +195,7 @@ int network_init_port(uint16_t port, SocketType type) {
 #endif
 
 	// bind socket and start to listen
-	if (socket_bind(*server_socket, resolved_address->ai_addr,
+	if (socket_bind(server_socket, resolved_address->ai_addr,
 	                resolved_address->ai_addrlen) < 0) {
 		log_error("Could not bind %s server socket to '%s' on port %u: %s (%d)",
 		          network_get_address_family_name(resolved_address->ai_family, 1),
@@ -184,7 +204,7 @@ int network_init_port(uint16_t port, SocketType type) {
 		goto cleanup;
 	}
 
-	if (socket_listen(*server_socket, 10) < 0) {
+	if (socket_listen(server_socket, 10) < 0) {
 		log_error("Could not listen to %s server socket bound to '%s' on port %u: %s (%d)",
 		          network_get_address_family_name(resolved_address->ai_family, 1),
 		          address, port, get_errno_name(errno), errno);
@@ -197,15 +217,15 @@ int network_init_port(uint16_t port, SocketType type) {
 	          network_get_address_family_name(resolved_address->ai_family, 1),
 	          port);
 
-	if (socket_set_non_blocking(*server_socket, 1) < 0) {
+	if (socket_set_non_blocking(server_socket, 1) < 0) {
 		log_error("Could not enable non-blocking mode for server socket: %s (%d)",
 		          get_errno_name(errno), errno);
 
 		goto cleanup;
 	}
 
-	if (event_add_source(*server_socket, EVENT_SOURCE_TYPE_GENERIC, EVENT_READ,
-	                     network_handle_accept, (void*)type) < 0) {
+	if (event_add_source(server_socket->handle, EVENT_SOURCE_TYPE_GENERIC,
+	                     EVENT_READ, network_handle_accept, (void*)type) < 0) {
 		goto cleanup;
 	}
 
@@ -216,7 +236,7 @@ int network_init_port(uint16_t port, SocketType type) {
 cleanup:
 	switch (phase) { // no breaks, all cases fall through intentionally
 	case 2:
-		socket_destroy(*server_socket);
+		socket_destroy(server_socket);
 
 	case 1:
 		freeaddrinfo(resolved_address);
@@ -263,13 +283,13 @@ void network_exit(void) {
 	array_destroy(&_clients, (FreeFunction)client_destroy);
 
 	if (_server_socket_plain_open) {
-		event_remove_source(_server_socket_plain, EVENT_SOURCE_TYPE_GENERIC);
-		socket_destroy(_server_socket_plain);
+		event_remove_source(_server_socket_plain.handle, EVENT_SOURCE_TYPE_GENERIC);
+		socket_destroy(&_server_socket_plain);
 	}
 
 	if (_server_socket_websocket_open) {
-		event_remove_source(_server_socket_websocket, EVENT_SOURCE_TYPE_GENERIC);
-		socket_destroy(_server_socket_websocket);
+		event_remove_source(_server_socket_websocket.handle, EVENT_SOURCE_TYPE_GENERIC);
+		socket_destroy(&_server_socket_websocket);
 	}
 }
 
@@ -284,7 +304,7 @@ void network_cleanup_clients(void) {
 
 		if (client->disconnected) {
 			log_debug("Removing disconnected client (socket: %d, peer: %s)",
-			          client->socket, client->peer);
+			          client->socket->handle, client->peer);
 
 			array_remove(&_clients, i, (FreeFunction)client_destroy);
 		}

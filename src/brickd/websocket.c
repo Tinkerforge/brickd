@@ -20,10 +20,10 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-#include "websocket.h"
-
 #include <stdlib.h>
 #include <string.h>
+
+#include "websocket.h"
 
 #include "base64_encode.h"
 #include "event.h"
@@ -70,8 +70,8 @@ void websocket_frame_set_mask(WebsocketFrame *wf, int mask) {
 	wf->payload_length_mask |= ((mask << 7) & (0x1 << 7));
 }
 
-void websocket_init_storage(SocketType type, SocketStorage *storage) {
-	storage->type = type;
+void websocket_init_storage(SocketType type, WebsocketStorage *storage) {
+	storage->base.type = type;
 	storage->websocket_frame_index = 0;
 	storage->websocket_line_index = 0;
 	storage->websocket_state = WEBSOCKET_STATE_WAIT_FOR_HANDSHAKE;
@@ -80,25 +80,25 @@ void websocket_init_storage(SocketType type, SocketStorage *storage) {
 	memset(storage->websocket_key, 0, WEBSOCKET_KEY_LENGTH);
 }
 
-int websocket_answer_handshake_error(EventHandle handle) {
-	socket_send(handle, NULL, WEBSOCKET_ERROR_STRING, strlen(WEBSOCKET_ERROR_STRING));
+int websocket_answer_handshake_error(Socket *socket) {
+	socket_send(socket, NULL, WEBSOCKET_ERROR_STRING, strlen(WEBSOCKET_ERROR_STRING));
 	return -1;
 }
 
-int websocket_answer_handshake_ok(EventHandle handle, char *key, int length) {
+int websocket_answer_handshake_ok(Socket *socket, char *key, int length) {
 	int ret;
 
-	ret = socket_send(handle, NULL, WEBSOCKET_ANSWER_STRING_1, strlen(WEBSOCKET_ANSWER_STRING_1));
+	ret = socket_send(socket, NULL, WEBSOCKET_ANSWER_STRING_1, strlen(WEBSOCKET_ANSWER_STRING_1));
 	if(ret < 0) {
 		return ret;
 	}
 
-	ret = socket_send(handle, NULL, key, length);
+	ret = socket_send(socket, NULL, key, length);
 	if(ret < 0) {
 		return ret;
 	}
 
-	ret = socket_send(handle, NULL, WEBSOCKET_ANSWER_STRING_2, strlen(WEBSOCKET_ANSWER_STRING_2));
+	ret = socket_send(socket, NULL, WEBSOCKET_ANSWER_STRING_2, strlen(WEBSOCKET_ANSWER_STRING_2));
 	if(ret < 0) {
 		return ret;
 	}
@@ -106,7 +106,7 @@ int websocket_answer_handshake_ok(EventHandle handle, char *key, int length) {
 	return SOCKET_CONTINUE;
 }
 
-int websocket_parse_handshake_line(EventHandle handle, SocketStorage *storage, char *line, int length) {
+int websocket_parse_handshake_line(Socket *socket, WebsocketStorage *storage, char *line, int length) {
 	int i;
 	char hash[20];
 	char *ret;
@@ -123,7 +123,7 @@ int websocket_parse_handshake_line(EventHandle handle, SocketStorage *storage, c
 			int base64_length;
 
 			if(storage->websocket_state < WEBSOCKET_STATE_HANDSHAKE_FOUND_KEY) {
-				return websocket_answer_handshake_error(handle);
+				return websocket_answer_handshake_error(socket);
 			}
 
 			// Concatenate client and server key
@@ -138,7 +138,7 @@ int websocket_parse_handshake_line(EventHandle handle, SocketStorage *storage, c
 			base64_length = base64_encode_string(hash, 20, concatkey, WEBSOCKET_CONCATKEY_LENGTH);
 
 			storage->websocket_state = WEBSOCKET_STATE_HANDSHAKE_DONE;
-			return websocket_answer_handshake_ok(handle, concatkey, base64_length);
+			return websocket_answer_handshake_ok(socket, concatkey, base64_length);
 		} else {
 			break;
 		}
@@ -164,7 +164,7 @@ int websocket_parse_handshake_line(EventHandle handle, SocketStorage *storage, c
 	return SOCKET_CONTINUE;
 }
 
-int websocket_parse_handshake(EventHandle handle, SocketStorage *storage, char *handshake_part, int length) {
+int websocket_parse_handshake(Socket *socket, WebsocketStorage *storage, char *handshake_part, int length) {
 	int i;
 
 	if(length <= 0) {
@@ -180,7 +180,7 @@ int websocket_parse_handshake(EventHandle handle, SocketStorage *storage, char *
 		}
 		if(handshake_part[i] == '\n') {
 			int ret;
-			ret = websocket_parse_handshake_line(handle, storage, storage->websocket_line, storage->websocket_line_index);
+			ret = websocket_parse_handshake_line(socket, storage, storage->websocket_line, storage->websocket_line_index);
 			memset(storage->websocket_line, 0, WEBSOCKET_MAX_LINE_LENGTH);
 			storage->websocket_line_index = 0;
 
@@ -193,7 +193,7 @@ int websocket_parse_handshake(EventHandle handle, SocketStorage *storage, char *
 	return SOCKET_CONTINUE;
 }
 
-int websocket_parse_header(EventHandle handle, SocketStorage *storage, void *buffer, int length) {
+int websocket_parse_header(Socket *socket, WebsocketStorage *storage, void *buffer, int length) {
 	int i;
 	int websocket_frame_length = sizeof(WebsocketFrame);
 	int to_copy = MIN(length, websocket_frame_length-storage->websocket_frame_index);
@@ -244,7 +244,7 @@ int websocket_parse_header(EventHandle handle, SocketStorage *storage, void *buf
 					((char*)buffer)[i] = ((char*)buffer)[i+websocket_frame_length];
 				}
 
-				return websocket_parse_data(handle, storage, buffer, length - websocket_frame_length);
+				return websocket_parse_data(socket, storage, buffer, length - websocket_frame_length);
 			}
 
 			return SOCKET_CONTINUE;
@@ -268,7 +268,7 @@ int websocket_parse_header(EventHandle handle, SocketStorage *storage, void *buf
 	return -1;
 }
 
-int websocket_parse_data(EventHandle handle, SocketStorage *storage, uint8_t *buffer, int length) {
+int websocket_parse_data(Socket *socket, WebsocketStorage *storage, uint8_t *buffer, int length) {
 	int i;
 	int length_recursive_add = 0;
 	int to_read = MIN(length, storage->websocket_to_read);
@@ -292,7 +292,7 @@ int websocket_parse_data(EventHandle handle, SocketStorage *storage, uint8_t *bu
 	}
 
 	if(length > to_read) {
-		length_recursive_add = websocket_receive(handle, storage, buffer+to_read, length - to_read);
+		length_recursive_add = websocket_receive(socket, (SocketStorage *)storage, buffer+to_read, length - to_read);
 		if(length_recursive_add < 0) {
 			if(length_recursive_add == SOCKET_CONTINUE) {
 				length_recursive_add = 0;
@@ -305,7 +305,9 @@ int websocket_parse_data(EventHandle handle, SocketStorage *storage, uint8_t *bu
 	return length + length_recursive_add;
 }
 
-int websocket_receive(EventHandle handle, SocketStorage *storage, void *buffer, int length) {
+int websocket_receive(Socket *socket, SocketStorage *storage_, void *buffer, int length) {
+	WebsocketStorage *storage = (WebsocketStorage *)storage_;
+
 	if(length == 0) {
 		return 0;
 	}
@@ -313,22 +315,23 @@ int websocket_receive(EventHandle handle, SocketStorage *storage, void *buffer, 
 	switch(storage->websocket_state) {
 	case WEBSOCKET_STATE_WAIT_FOR_HANDSHAKE:
 	case WEBSOCKET_STATE_HANDSHAKE_FOUND_KEY:
-		return websocket_parse_handshake(handle, storage, buffer, length);
+		return websocket_parse_handshake(socket, storage, buffer, length);
 
 	case WEBSOCKET_STATE_HANDSHAKE_DONE:
-		return websocket_parse_header(handle, storage, buffer, length);
+		return websocket_parse_header(socket, storage, buffer, length);
 
 	case WEBSOCKET_STATE_WEBSOCKET_HEADER_DONE:
-		return websocket_parse_data(handle, storage, buffer, length);
+		return websocket_parse_data(socket, storage, buffer, length);
 	}
 
 	return -1;
 }
 
-int websocket_send(EventHandle handle, SocketStorage *storage, void *buffer, int length) {
+int websocket_send(Socket *socket, SocketStorage *storage_, void *buffer, int length) {
+	WebsocketStorage *storage = (WebsocketStorage *)storage_;
 	int ret;
 	int length_to_send = sizeof(WebsocketFrameServerToClient) + length;
-	char *websocket_data = malloc(length_to_send);
+	char *websocket_data = calloc(1, length_to_send); // FIXME: check for NULL
 	WebsocketFrameServerToClient wfstc;
 
 	(void)storage;
@@ -343,7 +346,7 @@ int websocket_send(EventHandle handle, SocketStorage *storage, void *buffer, int
 	memcpy((void*)websocket_data, (void*)&wfstc, sizeof(WebsocketFrameServerToClient));
 	memcpy((void*)(websocket_data + sizeof(WebsocketFrameServerToClient)), buffer, length);
 
-	ret = socket_send(handle, NULL, websocket_data, length_to_send);
+	ret = socket_send(socket, NULL, websocket_data, length_to_send);
 
 	free(websocket_data);
 

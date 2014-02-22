@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2012-2013 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2012-2014 Matthias Bolte <matthias@tinkerforge.com>
  * Copyright (C) 2014 Olaf Lüke <olaf@tinkerforge.com>
  *
  * socket.h: Socket specific functions
@@ -31,25 +31,36 @@
 #include <stdint.h>
 
 #include "event.h"
-#include "websocket.h"
 
 #define SOCKET_CONTINUE -2
 
-int socket_create(EventHandle *handle, int family, int type, int protocol);
-void socket_destroy(EventHandle handle);
+typedef enum {
+	SOCKET_TYPE_PLAIN = 0,
+	SOCKET_TYPE_WEBSOCKET
+} SocketType;
 
-int socket_bind(EventHandle handle, const struct sockaddr *address,
-                socklen_t length);
-int socket_listen(EventHandle handle, int backlog);
-int socket_accept(EventHandle handle, EventHandle *accepted_handle,
+typedef struct {
+	EventHandle handle;
+} Socket;
+
+typedef struct {
+	SocketType type;
+} SocketStorage;
+
+int socket_create(Socket *socket, int family, int type, int protocol);
+void socket_destroy(Socket *socket);
+
+int socket_bind(Socket *sockete, const struct sockaddr *address, socklen_t length);
+int socket_listen(Socket *socket, int backlog);
+int socket_accept(Socket *socket, Socket *accepted_socket,
                   struct sockaddr *address, socklen_t *length);
 
-int socket_receive(EventHandle handle, SocketStorage *storage, void *buffer, int length);
-int socket_send(EventHandle handle, SocketStorage *storage, void *buffer, int length);
+int socket_receive(Socket *socket, SocketStorage *storage, void *buffer, int length);
+int socket_send(Socket *socket, SocketStorage *storage, void *buffer, int length);
 
-int socket_set_non_blocking(EventHandle handle, int non_blocking);
-int socket_set_address_reuse(EventHandle handle, int address_reuse);
-int socket_set_dual_stack(EventHandle handle, int dual_stack);
+int socket_set_non_blocking(Socket *socket, int non_blocking);
+int socket_set_address_reuse(Socket *socket, int address_reuse);
+int socket_set_dual_stack(Socket *socket, int dual_stack);
 
 struct addrinfo *socket_hostname_to_address(const char *hostname, uint16_t port);
 char *socket_address_to_hostname(struct sockaddr *address, socklen_t length);

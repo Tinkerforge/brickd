@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2012-2013 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2012-2014 Matthias Bolte <matthias@tinkerforge.com>
  * Copyright (C) 2014 Olaf Lüke <olaf@tinkerforge.com>
  *
  * socket_winapi.c: WinAPI based socket implementation
@@ -27,27 +27,27 @@
 #include <windows.h>
 
 #include "socket.h"
-#include "websocket.h"
 
 #include "utils.h"
+#include "websocket.h"
 
 // sets errno on error
-int socket_create(EventHandle *handle, int family, int type, int protocol) {
+int socket_create(Socket *socket_, int family, int type, int protocol) {
 	BOOL on = TRUE;
 
-	*handle = socket(family, type, protocol);
+	socket_->handle = socket(family, type, protocol);
 
-	if (*handle == INVALID_SOCKET) {
+	if (socket_->handle == INVALID_SOCKET) {
 		errno = ERRNO_WINAPI_OFFSET + WSAGetLastError();
 
 		return -1;
 	}
 
-	if (setsockopt(*handle, IPPROTO_TCP, TCP_NODELAY, (const char *)&on,
+	if (setsockopt(socket_->handle, IPPROTO_TCP, TCP_NODELAY, (const char *)&on,
 	               sizeof(on)) == SOCKET_ERROR) {
 		errno = ERRNO_WINAPI_OFFSET + WSAGetLastError();
 
-		closesocket(*handle);
+		closesocket(socket_->handle);
 
 		return -1;
 	}
@@ -55,15 +55,14 @@ int socket_create(EventHandle *handle, int family, int type, int protocol) {
 	return 0;
 }
 
-void socket_destroy(EventHandle handle) {
-	shutdown(handle, SD_BOTH);
-	closesocket(handle);
+void socket_destroy(Socket *socket) {
+	shutdown(socket->handle, SD_BOTH);
+	closesocket(socket->handle);
 }
 
 // sets errno on error
-int socket_bind(EventHandle handle, const struct sockaddr *address,
-                socklen_t length) {
-	int rc = bind(handle, address, length);
+int socket_bind(Socket *socket, const struct sockaddr *address, socklen_t length) {
+	int rc = bind(socket->handle, address, length);
 
 	if (rc == SOCKET_ERROR) {
 		rc = -1;
@@ -74,8 +73,8 @@ int socket_bind(EventHandle handle, const struct sockaddr *address,
 }
 
 // sets errno on error
-int socket_listen(EventHandle handle, int backlog) {
-	int rc = listen(handle, backlog);
+int socket_listen(Socket *socket, int backlog) {
+	int rc = listen(socket->handle, backlog);
 
 	if (rc == SOCKET_ERROR) {
 		rc = -1;
@@ -86,11 +85,11 @@ int socket_listen(EventHandle handle, int backlog) {
 }
 
 // sets errno on error
-int socket_accept(EventHandle handle, EventHandle *accepted_handle,
+int socket_accept(Socket *socket, Socket *accepted_socket,
                   struct sockaddr *address, socklen_t *length) {
-	*accepted_handle = accept(handle, address, length);
+	accepted_socket->handle = accept(socket->handle, address, length);
 
-	if (*accepted_handle == INVALID_SOCKET) {
+	if (accepted_socket->handle == INVALID_SOCKET) {
 		errno = ERRNO_WINAPI_OFFSET + WSAGetLastError();
 
 		return -1;
@@ -100,8 +99,8 @@ int socket_accept(EventHandle handle, EventHandle *accepted_handle,
 }
 
 // sets errno on error
-int socket_receive(EventHandle handle, SocketStorage *storage, void *buffer, int length) {
-	length = recv(handle, (char *)buffer, length, 0);
+int socket_receive(Socket *socket, SocketStorage *storage, void *buffer, int length) {
+	length = recv(socket->handle, (char *)buffer, length, 0);
 
 	if (length == SOCKET_ERROR) {
 		length = -1;
@@ -109,19 +108,19 @@ int socket_receive(EventHandle handle, SocketStorage *storage, void *buffer, int
 	}
 
 	if (storage != NULL && storage->type == SOCKET_TYPE_WEBSOCKET) {
-		return websocket_receive(handle, storage, buffer, length);
+		return websocket_receive(socket, storage, buffer, length);
 	}
 
 	return length;
 }
 
 // sets errno on error
-int socket_send(EventHandle handle, SocketStorage *storage, void *buffer, int length) {
+int socket_send(Socket *socket, SocketStorage *storage, void *buffer, int length) {
 	if (storage != NULL && storage->type == SOCKET_TYPE_WEBSOCKET) {
-		return websocket_send(handle, storage, buffer, length);
+		return websocket_send(socket, storage, buffer, length);
 	}
 
-	length = send(handle, (const char *)buffer, length, 0);
+	length = send(socket->handle, (const char *)buffer, length, 0);
 
 	if (length == SOCKET_ERROR) {
 		length = -1;
@@ -132,9 +131,9 @@ int socket_send(EventHandle handle, SocketStorage *storage, void *buffer, int le
 }
 
 // sets errno on error
-int socket_set_non_blocking(EventHandle handle, int non_blocking) {
+int socket_set_non_blocking(Socket *socket, int non_blocking) {
 	unsigned long on = non_blocking ? 1 : 0;
-	int rc = ioctlsocket(handle, FIONBIO, &on);
+	int rc = ioctlsocket(socket->handle, FIONBIO, &on);
 
 	if (rc == SOCKET_ERROR) {
 		rc = -1;
@@ -145,9 +144,10 @@ int socket_set_non_blocking(EventHandle handle, int non_blocking) {
 }
 
 // sets errno on error
-int socket_set_address_reuse(EventHandle handle, int address_reuse) {
+int socket_set_address_reuse(Socket *socket, int address_reuse) {
 	DWORD on = address_reuse ? TRUE : FALSE;
-	int rc = setsockopt(handle, SOL_SOCKET, SO_REUSEADDR, (const char *)&on, sizeof(on));
+	int rc = setsockopt(socket->handle, SOL_SOCKET, SO_REUSEADDR,
+	                    (const char *)&on, sizeof(on));
 
 	if (rc == SOCKET_ERROR) {
 		rc = -1;
@@ -158,7 +158,7 @@ int socket_set_address_reuse(EventHandle handle, int address_reuse) {
 }
 
 // sets errno on error
-int socket_set_dual_stack(EventHandle handle, int dual_stack) {
+int socket_set_dual_stack(Socket *socket, int dual_stack) {
 	DWORD on = dual_stack ? 0 : 1;
 	int rc;
 
@@ -177,7 +177,8 @@ int socket_set_dual_stack(EventHandle handle, int dual_stack) {
 		return 0;
 	}
 
-	rc = setsockopt(handle, IPPROTO_IPV6, IPV6_V6ONLY, (const char *)&on, sizeof(on));
+	rc = setsockopt(socket->handle, IPPROTO_IPV6, IPV6_V6ONLY,
+	                (const char *)&on, sizeof(on));
 
 	if (rc == SOCKET_ERROR) {
 		rc = -1;

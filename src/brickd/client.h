@@ -33,10 +33,11 @@
 #include "event.h"
 #include "packet.h"
 #include "socket.h"
+#include "websocket.h"
 
 typedef struct {
-	EventHandle socket;
-	SocketStorage storage;
+	Socket *socket;
+	WebsocketStorage storage;
 	char *peer;
 	int disconnected;
 	Packet request;
@@ -45,7 +46,7 @@ typedef struct {
 	Array pending_requests;
 } Client;
 
-int client_create(Client *client, EventHandle socket, SocketType type,
+int client_create(Client *client, Socket *socket, SocketType type,
                   struct sockaddr *address, socklen_t length);
 void client_destroy(Client *client);
 
