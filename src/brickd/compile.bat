@@ -53,6 +53,7 @@
  queue.c^
  service.c^
  sha_1.c^
+ socket.c^
  socket_winapi.c^
  stack.c^
  threads_winapi.c^

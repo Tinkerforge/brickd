@@ -34,6 +34,8 @@
 
 #define LOG_CATEGORY LOG_CATEGORY_WEBSOCKET
 
+extern int socket_send_platform(Socket *socket, void *buffer, int length);
+
 int websocket_frame_get_opcode(WebsocketFrame *wf) {
 	return wf->opcode_rsv_fin & 0xF;
 }
@@ -70,35 +72,51 @@ void websocket_frame_set_mask(WebsocketFrame *wf, int mask) {
 	wf->payload_length_mask |= ((mask << 7) & (0x1 << 7));
 }
 
-void websocket_init_storage(SocketType type, WebsocketStorage *storage) {
-	storage->base.type = type;
-	storage->websocket_frame_index = 0;
-	storage->websocket_line_index = 0;
-	storage->websocket_state = WEBSOCKET_STATE_WAIT_FOR_HANDSHAKE;
-	memset(&storage->websocket_frame, 0, sizeof(WebsocketFrame));
-	memset(storage->websocket_line, 0, WEBSOCKET_MAX_LINE_LENGTH);
-	memset(storage->websocket_key, 0, WEBSOCKET_KEY_LENGTH);
+static void websocket_prepare(Websocket *websocket) {
+	websocket->base.receive_epilog = websocket_receive_epilog;
+	websocket->base.send_override = websocket_send_override;
+
+	websocket->websocket_frame_index = 0;
+	websocket->websocket_line_index = 0;
+	websocket->websocket_state = WEBSOCKET_STATE_WAIT_FOR_HANDSHAKE;
+
+	memset(&websocket->websocket_frame, 0, sizeof(WebsocketFrame));
+	memset(websocket->websocket_line, 0, WEBSOCKET_MAX_LINE_LENGTH);
+	memset(websocket->websocket_key, 0, WEBSOCKET_KEY_LENGTH);
 }
 
-int websocket_answer_handshake_error(Socket *socket) {
-	socket_send(socket, NULL, WEBSOCKET_ERROR_STRING, strlen(WEBSOCKET_ERROR_STRING));
+int websocket_create(Websocket *websocket, int family, int type, int protocol) {
+	int rc = socket_create(&websocket->base, family, type, protocol);
+
+	if (rc < 0) {
+		return rc;
+	}
+
+	websocket_prepare(websocket);
+
+	return 0;
+}
+
+int websocket_answer_handshake_error(Websocket *websocket) {
+	socket_send_platform(&websocket->base, WEBSOCKET_ERROR_STRING, strlen(WEBSOCKET_ERROR_STRING));
+
 	return -1;
 }
 
-int websocket_answer_handshake_ok(Socket *socket, char *key, int length) {
+int websocket_answer_handshake_ok(Websocket *websocket, char *key, int length) {
 	int ret;
 
-	ret = socket_send(socket, NULL, WEBSOCKET_ANSWER_STRING_1, strlen(WEBSOCKET_ANSWER_STRING_1));
+	ret = socket_send_platform(&websocket->base, WEBSOCKET_ANSWER_STRING_1, strlen(WEBSOCKET_ANSWER_STRING_1));
 	if(ret < 0) {
 		return ret;
 	}
 
-	ret = socket_send(socket, NULL, key, length);
+	ret = socket_send_platform(&websocket->base, key, length);
 	if(ret < 0) {
 		return ret;
 	}
 
-	ret = socket_send(socket, NULL, WEBSOCKET_ANSWER_STRING_2, strlen(WEBSOCKET_ANSWER_STRING_2));
+	ret = socket_send_platform(&websocket->base, WEBSOCKET_ANSWER_STRING_2, strlen(WEBSOCKET_ANSWER_STRING_2));
 	if(ret < 0) {
 		return ret;
 	}
@@ -106,7 +124,7 @@ int websocket_answer_handshake_ok(Socket *socket, char *key, int length) {
 	return SOCKET_CONTINUE;
 }
 
-int websocket_parse_handshake_line(Socket *socket, WebsocketStorage *storage, char *line, int length) {
+int websocket_parse_handshake_line(Websocket *websocket, char *line, int length) {
 	int i;
 	char hash[20];
 	char *ret;
@@ -122,13 +140,13 @@ int websocket_parse_handshake_line(Socket *socket, WebsocketStorage *storage, ch
 			char concatkey[WEBSOCKET_CONCATKEY_LENGTH] = {0};
 			int base64_length;
 
-			if(storage->websocket_state < WEBSOCKET_STATE_HANDSHAKE_FOUND_KEY) {
-				return websocket_answer_handshake_error(socket);
+			if(websocket->websocket_state < WEBSOCKET_STATE_HANDSHAKE_FOUND_KEY) {
+				return websocket_answer_handshake_error(websocket);
 			}
 
 			// Concatenate client and server key
-			strcpy(concatkey, storage->websocket_key);
-			strcpy(concatkey+strlen(storage->websocket_key), WEBSOCKET_SERVER_KEY);
+			strcpy(concatkey, websocket->websocket_key);
+			strcpy(concatkey+strlen(websocket->websocket_key), WEBSOCKET_SERVER_KEY);
 
 			// Calculate sha1 hash
 			SHA1((unsigned char*)concatkey, strlen(concatkey), (unsigned char*)hash);
@@ -137,8 +155,8 @@ int websocket_parse_handshake_line(Socket *socket, WebsocketStorage *storage, ch
 			memset(concatkey, 0, WEBSOCKET_CONCATKEY_LENGTH);
 			base64_length = base64_encode_string(hash, 20, concatkey, WEBSOCKET_CONCATKEY_LENGTH);
 
-			storage->websocket_state = WEBSOCKET_STATE_HANDSHAKE_DONE;
-			return websocket_answer_handshake_ok(socket, concatkey, base64_length);
+			websocket->websocket_state = WEBSOCKET_STATE_HANDSHAKE_DONE;
+			return websocket_answer_handshake_ok(websocket, concatkey, base64_length);
 		} else {
 			break;
 		}
@@ -147,16 +165,16 @@ int websocket_parse_handshake_line(Socket *socket, WebsocketStorage *storage, ch
 	// Find "Sec-WebSocket-Key"
 	ret = strcasestr(line, WEBSOCKET_CLIENT_KEY_STRING);
 	if(ret != NULL) {
-		memset(storage->websocket_key, 0, WEBSOCKET_KEY_LENGTH);
+		memset(websocket->websocket_key, 0, WEBSOCKET_KEY_LENGTH);
 
 		for(i = strlen(WEBSOCKET_CLIENT_KEY_STRING); i < length; i++) {
 			if(line[i] != ' ' && line[i] != '\n' && line[i] != '\r') {
-				storage->websocket_key[concat_i] = line[i];
+				websocket->websocket_key[concat_i] = line[i];
 				concat_i++;
 			}
 		}
 
-		storage->websocket_state = WEBSOCKET_STATE_HANDSHAKE_FOUND_KEY;
+		websocket->websocket_state = WEBSOCKET_STATE_HANDSHAKE_FOUND_KEY;
 
 		return SOCKET_CONTINUE;
 	}
@@ -164,7 +182,7 @@ int websocket_parse_handshake_line(Socket *socket, WebsocketStorage *storage, ch
 	return SOCKET_CONTINUE;
 }
 
-int websocket_parse_handshake(Socket *socket, WebsocketStorage *storage, char *handshake_part, int length) {
+int websocket_parse_handshake(Websocket *websocket, char *handshake_part, int length) {
 	int i;
 
 	if(length <= 0) {
@@ -174,15 +192,15 @@ int websocket_parse_handshake(Socket *socket, WebsocketStorage *storage, char *h
 	for(i = 0; i < length; i++) {
 		// If line > WEBSOCKET_MAX_LINE_LENGTH we just read over it until we find '\n'
 		// The lines we are interested in can't be that long
-		if(storage->websocket_line_index < WEBSOCKET_MAX_LINE_LENGTH-1) {
-			storage->websocket_line[storage->websocket_line_index] = handshake_part[i];
-			storage->websocket_line_index++;
+		if(websocket->websocket_line_index < WEBSOCKET_MAX_LINE_LENGTH-1) {
+			websocket->websocket_line[websocket->websocket_line_index] = handshake_part[i];
+			websocket->websocket_line_index++;
 		}
 		if(handshake_part[i] == '\n') {
 			int ret;
-			ret = websocket_parse_handshake_line(socket, storage, storage->websocket_line, storage->websocket_line_index);
-			memset(storage->websocket_line, 0, WEBSOCKET_MAX_LINE_LENGTH);
-			storage->websocket_line_index = 0;
+			ret = websocket_parse_handshake_line(websocket, websocket->websocket_line, websocket->websocket_line_index);
+			memset(websocket->websocket_line, 0, WEBSOCKET_MAX_LINE_LENGTH);
+			websocket->websocket_line_index = 0;
 
 			if (ret == -1) {
 				return ret;
@@ -193,31 +211,31 @@ int websocket_parse_handshake(Socket *socket, WebsocketStorage *storage, char *h
 	return SOCKET_CONTINUE;
 }
 
-int websocket_parse_header(Socket *socket, WebsocketStorage *storage, void *buffer, int length) {
+int websocket_parse_header(Websocket *websocket, void *buffer, int length) {
 	int i;
 	int websocket_frame_length = sizeof(WebsocketFrame);
-	int to_copy = MIN(length, websocket_frame_length-storage->websocket_frame_index);
+	int to_copy = MIN(length, websocket_frame_length - websocket->websocket_frame_index);
 	if (to_copy <= 0) {
-		log_error("Websocket frame index has invalid value (%d)", storage->websocket_frame_index);
+		log_error("Websocket frame index has invalid value (%d)", websocket->websocket_frame_index);
 		return -1;
 	}
 
-	memcpy(((char*)&storage->websocket_frame)+storage->websocket_frame_index, buffer, to_copy);
-	if (to_copy + storage->websocket_frame_index < websocket_frame_length) {
-		storage->websocket_frame_index += to_copy;
+	memcpy(((char*)&websocket->websocket_frame) + websocket->websocket_frame_index, buffer, to_copy);
+	if (to_copy + websocket->websocket_frame_index < websocket_frame_length) {
+		websocket->websocket_frame_index += to_copy;
 		return SOCKET_CONTINUE;
 	} else {
-		int fin = websocket_frame_get_fin(&storage->websocket_frame);
-		int opcode = websocket_frame_get_opcode(&storage->websocket_frame);
-		int payload_length = websocket_frame_get_payload_length(&storage->websocket_frame);
-		int mask = websocket_frame_get_mask(&storage->websocket_frame);
+		int fin = websocket_frame_get_fin(&websocket->websocket_frame);
+		int opcode = websocket_frame_get_opcode(&websocket->websocket_frame);
+		int payload_length = websocket_frame_get_payload_length(&websocket->websocket_frame);
+		int mask = websocket_frame_get_mask(&websocket->websocket_frame);
 
 		log_debug("Websocket header received (fin: %d, opc: %d, len: %d, key: [%d %d %d %d])",
 		          fin, opcode, payload_length,
-		          storage->websocket_frame.masking_key[0],
-		          storage->websocket_frame.masking_key[1],
-		          storage->websocket_frame.masking_key[2],
-		          storage->websocket_frame.masking_key[3]);
+		          websocket->websocket_frame.masking_key[0],
+		          websocket->websocket_frame.masking_key[1],
+		          websocket->websocket_frame.masking_key[2],
+		          websocket->websocket_frame.masking_key[3]);
 
 		if(mask != 1) {
 			log_error("Websocket frame has invalid mask (%d)", mask);
@@ -235,16 +253,16 @@ int websocket_parse_header(Socket *socket, WebsocketStorage *storage, void *buff
 			return -1;
 
 		case WEBSOCKET_OPCODE_BINARY_FRAME: {
-			storage->websocket_mask_index = 0;
-			storage->websocket_frame_index = 0;
-			storage->websocket_to_read = payload_length;
-			storage->websocket_state = WEBSOCKET_STATE_WEBSOCKET_HEADER_DONE;
+			websocket->websocket_mask_index = 0;
+			websocket->websocket_frame_index = 0;
+			websocket->websocket_to_read = payload_length;
+			websocket->websocket_state = WEBSOCKET_STATE_WEBSOCKET_HEADER_DONE;
 			if(length - to_copy > 0) {
 				for(i = 0; i < length - websocket_frame_length; i++) {
 					((char*)buffer)[i] = ((char*)buffer)[i+websocket_frame_length];
 				}
 
-				return websocket_parse_data(socket, storage, buffer, length - websocket_frame_length);
+				return websocket_parse_data(websocket, buffer, length - websocket_frame_length);
 			}
 
 			return SOCKET_CONTINUE;
@@ -264,35 +282,35 @@ int websocket_parse_header(Socket *socket, WebsocketStorage *storage, void *buff
 		}
 	}
 
-	log_error("Unknown websocket opcode (%d)", websocket_frame_get_opcode(&storage->websocket_frame));
+	log_error("Unknown websocket opcode (%d)", websocket_frame_get_opcode(&websocket->websocket_frame));
 	return -1;
 }
 
-int websocket_parse_data(Socket *socket, WebsocketStorage *storage, uint8_t *buffer, int length) {
+int websocket_parse_data(Websocket *websocket, uint8_t *buffer, int length) {
 	int i;
 	int length_recursive_add = 0;
-	int to_read = MIN(length, storage->websocket_to_read);
+	int to_read = MIN(length, websocket->websocket_to_read);
 	for(i = 0; i < to_read; i++) {
-		buffer[i] ^= storage->websocket_frame.masking_key[storage->websocket_mask_index];
+		buffer[i] ^= websocket->websocket_frame.masking_key[websocket->websocket_mask_index];
 
-		storage->websocket_mask_index++;
-		if(storage->websocket_mask_index >= WEBSOCKET_MASK_LENGTH) {
-			storage->websocket_mask_index = 0;
+		websocket->websocket_mask_index++;
+		if(websocket->websocket_mask_index >= WEBSOCKET_MASK_LENGTH) {
+			websocket->websocket_mask_index = 0;
 		}
 	}
 
-	storage->websocket_to_read -= to_read;
-	if(storage->websocket_to_read < 0) {
-		log_error("Websocket length mismatch (%d)", storage->websocket_to_read);
+	websocket->websocket_to_read -= to_read;
+	if(websocket->websocket_to_read < 0) {
+		log_error("Websocket length mismatch (%d)", websocket->websocket_to_read);
 		return -1;
-	} else if(storage->websocket_to_read == 0) {
-		storage->websocket_state = WEBSOCKET_STATE_HANDSHAKE_DONE;
-		storage->websocket_mask_index = 0;
-		storage->websocket_frame_index = 0;
+	} else if(websocket->websocket_to_read == 0) {
+		websocket->websocket_state = WEBSOCKET_STATE_HANDSHAKE_DONE;
+		websocket->websocket_mask_index = 0;
+		websocket->websocket_frame_index = 0;
 	}
 
 	if(length > to_read) {
-		length_recursive_add = websocket_receive(socket, (SocketStorage *)storage, buffer+to_read, length - to_read);
+		length_recursive_add = websocket_receive_epilog(&websocket->base, buffer + to_read, length - to_read);
 		if(length_recursive_add < 0) {
 			if(length_recursive_add == SOCKET_CONTINUE) {
 				length_recursive_add = 0;
@@ -305,36 +323,36 @@ int websocket_parse_data(Socket *socket, WebsocketStorage *storage, uint8_t *buf
 	return length + length_recursive_add;
 }
 
-int websocket_receive(Socket *socket, SocketStorage *storage_, void *buffer, int length) {
-	WebsocketStorage *storage = (WebsocketStorage *)storage_;
+int websocket_accept_epilog(Socket *accepted_socket) {
+	websocket_prepare((Websocket *)accepted_socket);
 
-	if(length == 0) {
-		return 0;
-	}
+	return 0;
+}
 
-	switch(storage->websocket_state) {
+int websocket_receive_epilog(Socket *socket, void *buffer, int length) {
+	Websocket *websocket = (Websocket *)socket;
+
+	switch(websocket->websocket_state) {
 	case WEBSOCKET_STATE_WAIT_FOR_HANDSHAKE:
 	case WEBSOCKET_STATE_HANDSHAKE_FOUND_KEY:
-		return websocket_parse_handshake(socket, storage, buffer, length);
+		return websocket_parse_handshake(websocket, buffer, length);
 
 	case WEBSOCKET_STATE_HANDSHAKE_DONE:
-		return websocket_parse_header(socket, storage, buffer, length);
+		return websocket_parse_header(websocket, buffer, length);
 
 	case WEBSOCKET_STATE_WEBSOCKET_HEADER_DONE:
-		return websocket_parse_data(socket, storage, buffer, length);
+		return websocket_parse_data(websocket, buffer, length);
 	}
+
+	log_error("In invalid websocket state (%d)", websocket->websocket_state);
 
 	return -1;
 }
 
-int websocket_send(Socket *socket, SocketStorage *storage_, void *buffer, int length) {
-	WebsocketStorage *storage = (WebsocketStorage *)storage_;
-	int ret;
+int websocket_send_override(Socket *socket, void *buffer, int length) {
 	int length_to_send = sizeof(WebsocketFrameServerToClient) + length;
 	char *websocket_data = calloc(1, length_to_send); // FIXME: check for NULL
 	WebsocketFrameServerToClient wfstc;
-
-	(void)storage;
 
 	wfstc.opcode_rsv_fin = 0;
 	wfstc.payload_length_mask = 0;
@@ -343,16 +361,12 @@ int websocket_send(Socket *socket, SocketStorage *storage_, void *buffer, int le
 	websocket_frame_set_mask((WebsocketFrame*)&wfstc, 0);
 	websocket_frame_set_payload_length((WebsocketFrame*)&wfstc, length);
 
-	memcpy((void*)websocket_data, (void*)&wfstc, sizeof(WebsocketFrameServerToClient));
-	memcpy((void*)(websocket_data + sizeof(WebsocketFrameServerToClient)), buffer, length);
+	memcpy(websocket_data, &wfstc, sizeof(WebsocketFrameServerToClient));
+	memcpy(websocket_data + sizeof(WebsocketFrameServerToClient), buffer, length);
 
-	ret = socket_send(socket, NULL, websocket_data, length_to_send);
+	length = socket_send_platform(socket, websocket_data, length_to_send);
 
 	free(websocket_data);
-
-	if(ret < 0) {
-		return ret;
-	}
 
 	return length;
 }

@@ -38,6 +38,7 @@
 #include "packet.h"
 #include "socket.h"
 #include "utils.h"
+#include "websocket.h"
 
 #define LOG_CATEGORY LOG_CATEGORY_NETWORK
 
@@ -48,14 +49,17 @@ static int _server_socket_plain_open = 0;
 static int _server_socket_websocket_open = 0;
 
 static void network_handle_accept(void *opaque) {
+	Socket *server_socket = opaque;
 	Socket *client_socket;
 	struct sockaddr_storage address;
 	socklen_t length = sizeof(address);
 	Client *client;
-	SocketType type = (SocketType)opaque;
-	Socket *server_socket = type == SOCKET_TYPE_PLAIN ? &_server_socket_plain : &_server_socket_websocket;
 
-	client_socket = calloc(1, sizeof(Socket));
+	if (server_socket == &_server_socket_plain) {
+		client_socket = calloc(1, sizeof(Socket));
+	} else {
+		client_socket = calloc(1, sizeof(Websocket));
+	}
 
 	if (client_socket == NULL) {
 		// because accept() is not called now the event loop will receive
@@ -106,7 +110,7 @@ static void network_handle_accept(void *opaque) {
 	}
 
 	// create new Client that takes ownership of the client_socket
-	if (client_create(client, client_socket, type, (struct sockaddr *)&address, length) < 0) {
+	if (client_create(client, client_socket, (struct sockaddr *)&address, length) < 0) {
 		array_remove(&_clients, _clients.count - 1, NULL);
 		socket_destroy(client_socket);
 		free(client_socket);
@@ -135,13 +139,13 @@ static const char *network_get_address_family_name(int family, int report_dual_s
 	}
 }
 
-int network_init_port(uint16_t port, SocketType type) {
+static int network_open_port(Socket *server_socket, uint16_t port,
+                             SocketAcceptEpilogFunction accept_epilog) {
 	int phase = 0;
 	const char *address = config_get_listen_address();
 	struct addrinfo *resolved_address = NULL;
-	Socket *server_socket = type == SOCKET_TYPE_PLAIN ? &_server_socket_plain : &_server_socket_websocket;
 
-	log_debug("Initializing network subsystem (type: %d, port: %u)", type, port);
+	log_debug("Opening server socket on port %u", port);
 
 	// resolve listen address
 	// FIXME: bind to all returned addresses, instead of just the first one.
@@ -167,6 +171,8 @@ int network_init_port(uint16_t port, SocketType type) {
 
 		goto cleanup;
 	}
+
+	server_socket->accept_epilog = accept_epilog;
 
 	phase = 2;
 
@@ -225,7 +231,7 @@ int network_init_port(uint16_t port, SocketType type) {
 	}
 
 	if (event_add_source(server_socket->handle, EVENT_SOURCE_TYPE_GENERIC,
-	                     EVENT_READ, network_handle_accept, (void*)type) < 0) {
+	                     EVENT_READ, network_handle_accept, server_socket) < 0) {
 		goto cleanup;
 	}
 
@@ -249,8 +255,7 @@ cleanup:
 }
 
 int network_init(void) {
-	uint16_t port_plain = config_get_listen_plain_port();
-	uint16_t port_websocket = config_get_listen_websocket_port();
+	log_debug("Initializing network subsystem");
 
 	// the Client struct is not relocatable, because it is passed by reference
 	// as opaque parameter to the event subsystem
@@ -261,8 +266,16 @@ int network_init(void) {
 		return -1;
 	}
 
-	_server_socket_plain_open = network_init_port(port_plain, SOCKET_TYPE_PLAIN) >= 0;
-	_server_socket_websocket_open = network_init_port(port_websocket, SOCKET_TYPE_WEBSOCKET) >= 0;
+	if (network_open_port(&_server_socket_plain,
+	                      config_get_listen_plain_port(), NULL) >= 0) {
+		_server_socket_plain_open = 1;
+	}
+
+	if (network_open_port(&_server_socket_websocket,
+	                      config_get_listen_websocket_port(),
+	                      websocket_accept_epilog) >= 0) {
+		_server_socket_websocket_open = 1;
+	}
 
 	if (!_server_socket_plain_open && !_server_socket_websocket_open) {
 		log_error("Could not open any socket to listen to");

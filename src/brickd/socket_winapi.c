@@ -32,7 +32,7 @@
 #include "websocket.h"
 
 // sets errno on error
-int socket_create(Socket *socket_, int family, int type, int protocol) {
+int socket_create_platform(Socket *socket_, int family, int type, int protocol) {
 	BOOL on = TRUE;
 
 	socket_->handle = socket(family, type, protocol);
@@ -85,8 +85,8 @@ int socket_listen(Socket *socket, int backlog) {
 }
 
 // sets errno on error
-int socket_accept(Socket *socket, Socket *accepted_socket,
-                  struct sockaddr *address, socklen_t *length) {
+int socket_accept_platform(Socket *socket, Socket *accepted_socket,
+                           struct sockaddr *address, socklen_t *length) {
 	accepted_socket->handle = accept(socket->handle, address, length);
 
 	if (accepted_socket->handle == INVALID_SOCKET) {
@@ -99,7 +99,7 @@ int socket_accept(Socket *socket, Socket *accepted_socket,
 }
 
 // sets errno on error
-int socket_receive(Socket *socket, SocketStorage *storage, void *buffer, int length) {
+int socket_receive_platform(Socket *socket, void *buffer, int length) {
 	length = recv(socket->handle, (char *)buffer, length, 0);
 
 	if (length == SOCKET_ERROR) {
@@ -107,19 +107,11 @@ int socket_receive(Socket *socket, SocketStorage *storage, void *buffer, int len
 		errno = ERRNO_WINAPI_OFFSET + WSAGetLastError();
 	}
 
-	if (storage != NULL && storage->type == SOCKET_TYPE_WEBSOCKET) {
-		return websocket_receive(socket, storage, buffer, length);
-	}
-
 	return length;
 }
 
 // sets errno on error
-int socket_send(Socket *socket, SocketStorage *storage, void *buffer, int length) {
-	if (storage != NULL && storage->type == SOCKET_TYPE_WEBSOCKET) {
-		return websocket_send(socket, storage, buffer, length);
-	}
-
+int socket_send_platform(Socket *socket, void *buffer, int length) {
 	length = send(socket->handle, (const char *)buffer, length, 0);
 
 	if (length == SOCKET_ERROR) {

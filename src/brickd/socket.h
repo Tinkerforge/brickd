@@ -34,29 +34,29 @@
 
 #define SOCKET_CONTINUE -2
 
-typedef enum {
-	SOCKET_TYPE_PLAIN = 0,
-	SOCKET_TYPE_WEBSOCKET
-} SocketType;
+typedef struct Socket_ Socket;
 
-typedef struct {
+typedef int (*SocketAcceptEpilogFunction)(Socket *accepted_socket);
+typedef int (*SocketReceiveEpilogFunction)(Socket *socket, void *buffer, int length);
+typedef int (*SocketSendOverrideFunction)(Socket *socket, void *buffer, int length);
+
+struct Socket_ {
 	EventHandle handle;
-} Socket;
-
-typedef struct {
-	SocketType type;
-} SocketStorage;
+	SocketAcceptEpilogFunction accept_epilog;
+	SocketReceiveEpilogFunction receive_epilog;
+	SocketSendOverrideFunction send_override;
+};
 
 int socket_create(Socket *socket, int family, int type, int protocol);
 void socket_destroy(Socket *socket);
 
-int socket_bind(Socket *sockete, const struct sockaddr *address, socklen_t length);
+int socket_bind(Socket *socket, const struct sockaddr *address, socklen_t length);
 int socket_listen(Socket *socket, int backlog);
 int socket_accept(Socket *socket, Socket *accepted_socket,
                   struct sockaddr *address, socklen_t *length);
 
-int socket_receive(Socket *socket, SocketStorage *storage, void *buffer, int length);
-int socket_send(Socket *socket, SocketStorage *storage, void *buffer, int length);
+int socket_receive(Socket *socket, void *buffer, int length);
+int socket_send(Socket *socket, void *buffer, int length);
 
 int socket_set_non_blocking(Socket *socket, int non_blocking);
 int socket_set_address_reuse(Socket *socket, int address_reuse);

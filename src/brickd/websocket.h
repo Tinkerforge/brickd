@@ -98,13 +98,13 @@ typedef enum {
 	WEBSOCKET_STATE_HANDSHAKE_FOUND_KEY,
 	WEBSOCKET_STATE_HANDSHAKE_DONE,
 	WEBSOCKET_STATE_WEBSOCKET_HEADER_DONE
-} WebSocketState;
+} WebsocketState;
 
 typedef struct {
-	SocketStorage base;
+	Socket base;
 
 	// WebSocket specific data
-	WebSocketState websocket_state;
+	WebsocketState websocket_state;
 	char websocket_key[WEBSOCKET_KEY_LENGTH];
 
 	char websocket_line[WEBSOCKET_MAX_LINE_LENGTH];
@@ -115,7 +115,7 @@ typedef struct {
 	int websocket_mask_index;
 
 	int websocket_to_read;
-} WebsocketStorage;
+} Websocket;
 
 int websocket_frame_get_opcode(WebsocketFrame *wf);
 void websocket_frame_set_opcode(WebsocketFrame *wf, int opcode);
@@ -126,14 +126,17 @@ void websocket_frame_set_payload_length(WebsocketFrame *wf, int payload_length);
 int websocket_frame_get_mask(WebsocketFrame *wf);
 void websocket_frame_set_mask(WebsocketFrame *wf, int mask);
 
-void websocket_init_storage(SocketType type, WebsocketStorage *storage);
-int websocket_answer_handshake_error(Socket *socket);
-int websocket_answer_handshake_ok(Socket *socket, char *key, int length);
-int websocket_parse_handshake_line(Socket *socket, WebsocketStorage *storage, char *line, int length);
-int websocket_parse_handshake(Socket *socket, WebsocketStorage *storage, char *handshake_part, int length);
-int websocket_parse_header(Socket *socket, WebsocketStorage *storage, void *buffer, int length);
-int websocket_parse_data(Socket *socket, WebsocketStorage *storage, uint8_t *buffer, int length);
-int websocket_receive(Socket *socket, SocketStorage *storage, void *buffer, int length);
-int websocket_send(Socket *socket, SocketStorage *storage, void *buffer, int length);
+int websocket_create(Websocket *websocket, int family, int type, int protocol);
+
+int websocket_answer_handshake_error(Websocket *websocket);
+int websocket_answer_handshake_ok(Websocket *websocket, char *key, int length);
+int websocket_parse_handshake_line(Websocket *websocket, char *line, int length);
+int websocket_parse_handshake(Websocket *websocket, char *handshake_part, int length);
+int websocket_parse_header(Websocket *websocket, void *buffer, int length);
+int websocket_parse_data(Websocket *websocket, uint8_t *buffer, int length);
+
+int websocket_accept_epilog(Socket *accepted_socket);
+int websocket_receive_epilog(Socket *socket, void *buffer, int length);
+int websocket_send_override(Socket *socket, void *buffer, int length);
 
 #endif // BRICKD_WEBSOCKET_H

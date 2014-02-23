@@ -35,7 +35,7 @@
 #include "websocket.h"
 
 // sets errno on error
-int socket_create(Socket *socket_, int family, int type, int protocol) {
+int socket_create_platform(Socket *socket_, int family, int type, int protocol) {
 	int on = 1;
 	int saved_errno;
 
@@ -74,30 +74,20 @@ int socket_listen(Socket *socket, int backlog) {
 }
 
 // sets errno on error
-int socket_accept(Socket *socket, Socket *accepted_socket,
-                  struct sockaddr *address, socklen_t *length) {
+int socket_accept_platform(Socket *socket, Socket *accepted_socket,
+                           struct sockaddr *address, socklen_t *length) {
 	accepted_socket->handle = accept(socket->handle, address, length);
 
 	return accepted_socket->handle < 0 ? -1 : 0;
 }
 
 // sets errno on error
-int socket_receive(Socket *socket, SocketStorage *storage, void *buffer, int length) {
-	length = recv(socket->handle, buffer, length, 0);
-
-	if (storage != NULL && storage->type == SOCKET_TYPE_WEBSOCKET) {
-		return websocket_receive(socket, storage, buffer, length);
-	}
-
-	return length;
+int socket_receive_platform(Socket *socket, void *buffer, int length) {
+	return recv(socket->handle, buffer, length, 0);
 }
 
 // sets errno on error
-int socket_send(Socket *socket, SocketStorage *storage, void *buffer, int length) {
-	if (storage != NULL && storage->type == SOCKET_TYPE_WEBSOCKET) {
-		return websocket_send(socket, storage, buffer, length);
-	}
-
+int socket_send_platform(Socket *socket, void *buffer, int length) {
 #ifdef MSG_NOSIGNAL
 	int flags = MSG_NOSIGNAL;
 #else

@@ -53,7 +53,6 @@ static void client_handle_receive(void *opaque) {
 	PendingRequest *pending_request;
 
 	length = socket_receive(client->socket,
-	                        (SocketStorage *)&client->storage,
 	                        (uint8_t *)&client->request + client->request_used,
 	                        sizeof(Packet) - client->request_used);
 
@@ -68,7 +67,7 @@ static void client_handle_receive(void *opaque) {
 
 	if (length < 0) {
 		if (length == SOCKET_CONTINUE) {
-			length = 0;
+			// no actual data received
 		} else if (errno_interrupted()) {
 			log_debug("Receiving from client (socket: %d, peer: %s) was interrupted, retrying",
 			          client->socket->handle, client->peer);
@@ -77,7 +76,8 @@ static void client_handle_receive(void *opaque) {
 			          client->socket->handle, client->peer);
 		} else {
 			log_error("Could not receive from client (socket: %d, peer: %s), disconnecting it: %s (%d)",
-			          client->socket->handle, client->peer, get_errno_name(errno), errno);
+			          client->socket->handle, client->peer,
+			          get_errno_name(errno), errno);
 
 			client->disconnected = 1;
 		}
@@ -164,7 +164,7 @@ static void client_handle_receive(void *opaque) {
 	}
 }
 
-int client_create(Client *client, Socket *socket, SocketType type,
+int client_create(Client *client, Socket *socket,
                   struct sockaddr *address, socklen_t length) {
 	log_debug("Creating client from socket (handle: %d)", socket->handle);
 
@@ -172,11 +172,9 @@ int client_create(Client *client, Socket *socket, SocketType type,
 	client->disconnected = 0;
 	client->request_used = 0;
 	client->request_header_checked = 0;
-	websocket_init_storage(type, &client->storage);
 
 	// create pending request array
-	if (array_create(&client->pending_requests, 32,
-	                 sizeof(PendingRequest), 1) < 0) {
+	if (array_create(&client->pending_requests, 32, sizeof(PendingRequest), 1) < 0) {
 		log_error("Could not create pending request array: %s (%d)",
 		          get_errno_name(errno), errno);
 
@@ -255,9 +253,10 @@ int client_dispatch_response(Client *client, Packet *response, int force) {
 	}
 
 	if (force || found >= 0) {
-		if (socket_send(client->socket, (SocketStorage *)&client->storage, response, response->header.length) < 0) {
+		if (socket_send(client->socket, response, response->header.length) < 0) {
 			log_error("Could not send response to client (socket: %d, peer: %s), disconnecting it: %s (%d)",
-			          client->socket->handle, client->peer, get_errno_name(errno), errno);
+			          client->socket->handle, client->peer,
+			          get_errno_name(errno), errno);
 
 			client->disconnected = 1;
 

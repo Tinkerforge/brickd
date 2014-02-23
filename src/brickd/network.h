@@ -26,7 +26,6 @@
 #include "client.h"
 #include "packet.h"
 
-int network_init_port(uint16_t port, SocketType type);
 int network_init(void);
 void network_exit(void);
 
