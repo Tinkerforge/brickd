@@ -211,10 +211,10 @@ int websocket_parse_handshake(Websocket *websocket, char *handshake_part, int le
 	return SOCKET_CONTINUE;
 }
 
-int websocket_parse_header(Websocket *websocket, void *buffer, int length) {
-	int i;
+int websocket_parse_header(Websocket *websocket, uint8_t *buffer, int length) {
 	int websocket_frame_length = sizeof(WebsocketFrame);
 	int to_copy = MIN(length, websocket_frame_length - websocket->websocket_frame_index);
+
 	if (to_copy <= 0) {
 		log_error("Websocket frame index has invalid value (%d)", websocket->websocket_frame_index);
 		return -1;
@@ -258,11 +258,9 @@ int websocket_parse_header(Websocket *websocket, void *buffer, int length) {
 			websocket->websocket_to_read = payload_length;
 			websocket->websocket_state = WEBSOCKET_STATE_WEBSOCKET_HEADER_DONE;
 			if(length - to_copy > 0) {
-				for(i = 0; i < length - websocket_frame_length; i++) {
-					((char*)buffer)[i] = ((char*)buffer)[i+websocket_frame_length];
-				}
+				memmove(buffer, buffer + to_copy, length - to_copy);
 
-				return websocket_parse_data(websocket, buffer, length - websocket_frame_length);
+				return websocket_parse_data(websocket, buffer, length - to_copy);
 			}
 
 			return SOCKET_CONTINUE;

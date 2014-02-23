@@ -139,7 +139,7 @@ int websocket_answer_handshake_error(Websocket *websocket);
 int websocket_answer_handshake_ok(Websocket *websocket, char *key, int length);
 int websocket_parse_handshake_line(Websocket *websocket, char *line, int length);
 int websocket_parse_handshake(Websocket *websocket, char *handshake_part, int length);
-int websocket_parse_header(Websocket *websocket, void *buffer, int length);
+int websocket_parse_header(Websocket *websocket, uint8_t *buffer, int length);
 int websocket_parse_data(Websocket *websocket, uint8_t *buffer, int length);
 
 int websocket_accept_epilog(Socket *accepted_socket);
