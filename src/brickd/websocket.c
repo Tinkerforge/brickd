@@ -320,7 +320,7 @@ int websocket_parse_data(Websocket *websocket, uint8_t *buffer, int length) {
 		}
 	}
 
-	return length + length_recursive_add;
+	return to_read + length_recursive_add;
 }
 
 int websocket_accept_epilog(Socket *accepted_socket) {
