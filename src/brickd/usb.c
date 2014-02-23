@@ -192,11 +192,13 @@ int usb_init(int libusb_debug) {
 
 	_libusb_debug = libusb_debug;
 
+	if (_libusb_debug) {
+		putenv("LIBUSB_DEBUG=5");
+
 #ifdef LIBUSBX_EXPORTS_SET_LOG_FILE_FUNCTION
-	if (libusb_debug) {
 		libusb_set_log_file(log_get_file());
-	}
 #endif
+	}
 
 	if (usb_init_platform() < 0) {
 		goto cleanup;
