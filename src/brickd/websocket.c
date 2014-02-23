@@ -350,23 +350,25 @@ int websocket_receive_epilog(Socket *socket, void *buffer, int length) {
 }
 
 int websocket_send_override(Socket *socket, void *buffer, int length) {
-	int length_to_send = sizeof(WebsocketFrameServerToClient) + length;
-	char *websocket_data = calloc(1, length_to_send); // FIXME: check for NULL
-	WebsocketFrameServerToClient wfstc;
+	WebsocketFrameServerToClientWithPayload wfstc;
 
-	wfstc.opcode_rsv_fin = 0;
-	wfstc.payload_length_mask = 0;
-	websocket_frame_set_fin((WebsocketFrame*)&wfstc, 1);
-	websocket_frame_set_opcode((WebsocketFrame*)&wfstc, 2);
-	websocket_frame_set_mask((WebsocketFrame*)&wfstc, 0);
-	websocket_frame_set_payload_length((WebsocketFrame*)&wfstc, length);
+	if (length > WEBSOCKET_MAX_UNEXTENDED_PAYLOAD_DATA_LENGTH) {
+		// currently length should never exceed 80 (the current maximum packet
+		// size). so this is just a safeguard for possible later changes to the
+		// maximum packet size that might require agjustments here.
 
-	memcpy(websocket_data, &wfstc, sizeof(WebsocketFrameServerToClient));
-	memcpy(websocket_data + sizeof(WebsocketFrameServerToClient), buffer, length);
+		log_error("Payload to large for unextended websocket frame (%d)", length);
 
-	length = socket_send_platform(socket, websocket_data, length_to_send);
+		return -1;
+	}
 
-	free(websocket_data);
+	wfstc.header.opcode_rsv_fin = 0;
+	wfstc.header.payload_length_mask = 0;
+	websocket_frame_set_fin((WebsocketFrame*)&wfstc.header, 1);
+	websocket_frame_set_opcode((WebsocketFrame*)&wfstc.header, 2);
+	websocket_frame_set_mask((WebsocketFrame*)&wfstc.header, 0);
+	websocket_frame_set_payload_length((WebsocketFrame*)&wfstc.header, length);
+	memcpy(wfstc.payload_data, buffer, length);
 
-	return length;
+	return socket_send_platform(socket, &wfstc, sizeof(WebsocketFrameServerToClient) + length);
 }

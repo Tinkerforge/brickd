@@ -49,6 +49,8 @@
 
 #define WEBSOCKET_MASK_LENGTH 4
 
+#define WEBSOCKET_MAX_UNEXTENDED_PAYLOAD_DATA_LENGTH 125
+
 #include "packed_begin.h"
 
 typedef struct {
@@ -63,6 +65,11 @@ typedef struct {
 	uint8_t mask : 1;*/ // mask is 0, no masking key
 	uint8_t payload_length_mask;
 } ATTRIBUTE_PACKED WebsocketFrameServerToClient;
+
+typedef struct {
+	WebsocketFrameServerToClient header;
+	uint8_t payload_data[WEBSOCKET_MAX_UNEXTENDED_PAYLOAD_DATA_LENGTH];
+} ATTRIBUTE_PACKED WebsocketFrameServerToClientWithPayload;
 
 typedef struct {
 	uint8_t opcode_rsv_fin;
