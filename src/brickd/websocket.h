@@ -54,47 +54,31 @@
 #include "packed_begin.h"
 
 typedef struct {
-/*	uint8_t opcode : 4;
-	uint8_t rsv1 : 1;
-	uint8_t rsv2 : 1;
-	uint8_t rsv3 : 1;
-	uint8_t fin : 1;*/
-	uint8_t opcode_rsv_fin;
-
-/*	uint8_t payload_length : 7;
-	uint8_t mask : 1;*/ // mask is 0, no masking key
-	uint8_t payload_length_mask;
-} ATTRIBUTE_PACKED WebsocketFrameServerToClient;
+	uint8_t opcode_rsv_fin; // opcode: 4, rsv1: 1, rsv2: 1, rsv3: 1, fin: 1
+	uint8_t payload_length_mask; // payload_length: 7, mask: 1
+} ATTRIBUTE_PACKED WebsocketFrameHeader;
 
 typedef struct {
-	WebsocketFrameServerToClient header;
+	WebsocketFrameHeader header;
 	uint8_t payload_data[WEBSOCKET_MAX_UNEXTENDED_PAYLOAD_DATA_LENGTH];
-} ATTRIBUTE_PACKED WebsocketFrameServerToClientWithPayload;
+} ATTRIBUTE_PACKED WebsocketFrameWithPayload;
 
 typedef struct {
-	uint8_t opcode_rsv_fin;
-	uint8_t payload_length_mask;
-
+	WebsocketFrameHeader header;
 	uint8_t masking_key[WEBSOCKET_MASK_LENGTH]; // only used if mask = 1
 } ATTRIBUTE_PACKED WebsocketFrame;
 
 // Extended is used if payload_length = 126
 typedef struct {
-	uint8_t opcode_rsv_fin;
-	uint8_t payload_length_mask;
-
+	WebsocketFrameHeader header;
 	uint16_t payload_length_extended; // note endianess
-
 	uint8_t masking_key[WEBSOCKET_MASK_LENGTH]; // only used if mask = 1
 } ATTRIBUTE_PACKED WebsocketFrameExtended;
 
 // Extended2 is used if payload_length = 127
 typedef struct {
-	uint8_t opcode_rsv_fin;
-	uint8_t payload_length_mask;
-
+	WebsocketFrameHeader header;
 	uint64_t payload_length_extended; // note endianess
-
 	uint8_t masking_key[WEBSOCKET_MASK_LENGTH]; // only used if mask = 1
 } ATTRIBUTE_PACKED WebsocketFrameExtended2;
 
@@ -111,27 +95,27 @@ typedef struct {
 	Socket base;
 
 	// WebSocket specific data
-	WebsocketState websocket_state;
-	char websocket_key[WEBSOCKET_KEY_LENGTH];
+	WebsocketState state;
+	char key[WEBSOCKET_KEY_LENGTH];
 
-	char websocket_line[WEBSOCKET_MAX_LINE_LENGTH];
-	int websocket_line_index;
+	char line[WEBSOCKET_MAX_LINE_LENGTH];
+	int line_index;
 
-	WebsocketFrame websocket_frame;
-	int websocket_frame_index;
-	int websocket_mask_index;
+	WebsocketFrame frame;
+	int frame_index;
+	int mask_index;
 
-	int websocket_to_read;
+	int to_read;
 } Websocket;
 
-int websocket_frame_get_opcode(WebsocketFrame *wf);
-void websocket_frame_set_opcode(WebsocketFrame *wf, int opcode);
-int websocket_frame_get_fin(WebsocketFrame *wf);
-void websocket_frame_set_fin(WebsocketFrame *wf, int fin);
-int websocket_frame_get_payload_length(WebsocketFrame *wf);
-void websocket_frame_set_payload_length(WebsocketFrame *wf, int payload_length);
-int websocket_frame_get_mask(WebsocketFrame *wf);
-void websocket_frame_set_mask(WebsocketFrame *wf, int mask);
+int websocket_frame_get_opcode(WebsocketFrameHeader *header);
+void websocket_frame_set_opcode(WebsocketFrameHeader *header, int opcode);
+int websocket_frame_get_fin(WebsocketFrameHeader *header);
+void websocket_frame_set_fin(WebsocketFrameHeader *header, int fin);
+int websocket_frame_get_payload_length(WebsocketFrameHeader *header);
+void websocket_frame_set_payload_length(WebsocketFrameHeader *header, int payload_length);
+int websocket_frame_get_mask(WebsocketFrameHeader *header);
+void websocket_frame_set_mask(WebsocketFrameHeader *header, int mask);
 
 int websocket_create(Websocket *websocket, int family, int type, int protocol);
 
