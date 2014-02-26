@@ -392,7 +392,7 @@ uint64_t microseconds(void) {
 	}
 }
 
-#ifndef _GNU_SOURCE
+#if !defined _GNU_SOURCE && !defined __APPLE__
 
 #include <ctype.h>
 
