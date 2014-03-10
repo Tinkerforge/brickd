@@ -127,7 +127,6 @@ int websocket_answer_handshake_ok(Websocket *websocket, char *key, int length) {
 int websocket_parse_handshake_line(Websocket *websocket, char *line, int length) {
 	int i;
 	char hash[20];
-	char *ret;
 	uint8_t concat_i = 0;
 
 	// Find "\r\n"
@@ -156,6 +155,7 @@ int websocket_parse_handshake_line(Websocket *websocket, char *line, int length)
 			base64_length = base64_encode_string(hash, 20, concatkey, WEBSOCKET_CONCATKEY_LENGTH);
 
 			websocket->state = WEBSOCKET_STATE_HANDSHAKE_DONE;
+
 			return websocket_answer_handshake_ok(websocket, concatkey, base64_length);
 		} else {
 			break;
@@ -163,8 +163,7 @@ int websocket_parse_handshake_line(Websocket *websocket, char *line, int length)
 	}
 
 	// Find "Sec-WebSocket-Key"
-	ret = strcasestr(line, WEBSOCKET_CLIENT_KEY_STRING);
-	if(ret != NULL) {
+	if(strcasestr(line, WEBSOCKET_CLIENT_KEY_STRING) != NULL) {
 		memset(websocket->key, 0, WEBSOCKET_KEY_LENGTH);
 
 		for(i = strlen(WEBSOCKET_CLIENT_KEY_STRING); i < length; i++) {
