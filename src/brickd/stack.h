@@ -27,18 +27,18 @@
 
 typedef struct _Stack Stack;
 
-typedef int (*DispatchRequestFunction)(Stack *stack, Packet *request);
+typedef int (*StackDispatchRequestFunction)(Stack *stack, Packet *request);
 
 #define STACK_MAX_NAME_LENGTH 128
 
 struct _Stack {
 	char name[STACK_MAX_NAME_LENGTH]; // for display purpose
-	DispatchRequestFunction dispatch_request;
+	StackDispatchRequestFunction dispatch_request;
 	Array uids;
 };
 
 int stack_create(Stack *stack, const char *name,
-                 DispatchRequestFunction dispatch_request);
+                 StackDispatchRequestFunction dispatch_request);
 void stack_destroy(Stack *stack);
 
 int stack_add_uid(Stack *stack, uint32_t uid /* always little endian */);

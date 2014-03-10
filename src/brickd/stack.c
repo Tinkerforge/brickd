@@ -44,7 +44,7 @@
 #define LOG_CATEGORY LOG_CATEGORY_HARDWARE
 
 int stack_create(Stack *stack, const char *name,
-                 DispatchRequestFunction dispatch_request) {
+                 StackDispatchRequestFunction dispatch_request) {
 	string_copy(stack->name, name, sizeof(stack->name));
 
 	stack->dispatch_request = dispatch_request;

@@ -195,7 +195,7 @@ int usb_stack_create(USBStack *usb_stack, uint8_t bus_number, uint8_t device_add
 	preliminary_name[sizeof(preliminary_name) - 1] = '\0';
 
 	if (stack_create(&usb_stack->base, preliminary_name,
-	                 (DispatchRequestFunction)usb_stack_dispatch_request) < 0) {
+	                 (StackDispatchRequestFunction)usb_stack_dispatch_request) < 0) {
 		log_error("Could not create base stack for %s: %s (%d)",
 		          preliminary_name, get_errno_name(errno), errno);
 
