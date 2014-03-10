@@ -457,7 +457,7 @@ static int generic_main(int log_to_file, int debug, int libusb_debug) {
 	int exit_code = EXIT_FAILURE;
 	const char *mutex_name = "Global\\Tinkerforge-Brick-Daemon-Single-Instance";
 	HANDLE mutex_handle = NULL;
-	int mutex_error = 0;
+	int fatal_error = 0;
 	DWORD service_exit_code = NO_ERROR;
 	int rc;
 	char filename[1024];
@@ -476,12 +476,12 @@ static int generic_main(int log_to_file, int debug, int libusb_debug) {
 			rc = service_is_running();
 
 			if (rc < 0) {
-				mutex_error = 1;
+				fatal_error = 1;
 				// FIXME: set service_exit_code
 
 				goto error_mutex;
 			} else if (rc) {
-				mutex_error = 1;
+				fatal_error = 1;
 				service_exit_code = ERROR_SERVICE_ALREADY_RUNNING;
 
 				log_error("Could not start as %s, another instance is already running as service",
@@ -492,7 +492,7 @@ static int generic_main(int log_to_file, int debug, int libusb_debug) {
 		}
 
 		if (rc != ERROR_FILE_NOT_FOUND) {
-			mutex_error = 1;
+			fatal_error = 1;
 			// FIXME: set service_exit_code
 			rc += ERRNO_WINAPI_OFFSET;
 
@@ -504,7 +504,7 @@ static int generic_main(int log_to_file, int debug, int libusb_debug) {
 	}
 
 	if (mutex_handle != NULL) {
-		mutex_error = 1;
+		fatal_error = 1;
 		service_exit_code = ERROR_SERVICE_ALREADY_RUNNING;
 
 		log_error("Could not start as %s, another instance is already running",
@@ -516,7 +516,7 @@ static int generic_main(int log_to_file, int debug, int libusb_debug) {
 	mutex_handle = CreateMutex(NULL, FALSE, mutex_name);
 
 	if (mutex_handle == NULL) {
-		mutex_error = 1;
+		fatal_error = 1;
 		// FIXME: set service_exit_code
 		rc = ERRNO_WINAPI_OFFSET + GetLastError();
 
@@ -591,13 +591,13 @@ error_mutex:
 			goto error;
 		}
 
-		if (!mutex_error) {
+		if (!fatal_error) {
 			// service is starting
 			service_set_status(SERVICE_START_PENDING, NO_ERROR);
 		}
 	}
 
-	if (mutex_error) {
+	if (fatal_error) {
 		goto error;
 	}
 
