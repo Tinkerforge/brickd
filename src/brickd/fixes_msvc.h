@@ -38,6 +38,10 @@ struct tm *localtime_r(const time_t *timep, struct tm *result);
 
 int gettimeofday(struct timeval *tv, struct timezone *tz);
 
+// replace getpid with GetCurrentProcessId
+#include <process.h>
+#define getpid GetCurrentProcessId
+
 // avoid warnings from MSVC about deprecated POSIX names
 #define strdup _strdup
 #define getch _getch

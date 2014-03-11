@@ -23,6 +23,11 @@
 #include <errno.h>
 #ifndef _WIN32
 	#include <netdb.h>
+	#include <sys/types.h>
+	#include <sys/stat.h>
+	#include <fcntl.h>
+	#include <unistd.h>
+	#include <time.h>
 #endif
 #include <stdlib.h>
 #include <string.h>
@@ -32,6 +37,8 @@
 #ifdef _WIN32
 	#include <winsock2.h> // must be included before windows.h
 	#include <windows.h>
+	#include <wincrypt.h>
+	#include <process.h>
 #endif
 
 #include "utils.h"
@@ -390,6 +397,64 @@ uint64_t microseconds(void) {
 	} else {
 		return tv.tv_sec * 1000000 + tv.tv_usec;
 	}
+}
+
+#ifndef _WIN32
+
+static int read_uint32_non_blocking(const char *filename, uint32_t *value) {
+	int fd = open(filename, O_NONBLOCK);
+	int rc;
+
+	if (fd < 0) {
+		return -1;
+	}
+
+	rc = read(fd, value, sizeof(uint32_t));
+
+	close(fd);
+
+	return rc != sizeof(uint32_t) ? -1 : 0;
+}
+
+#endif
+
+// this function is not meant to be called often,
+// this function is meant to provide a good random seed value
+uint32_t get_random_uint32(void) {
+	struct timeval tv;
+	uint32_t r;
+#ifdef _WIN32
+	HCRYPTPROV hprovider;
+
+	if (!CryptAcquireContext(&hprovider, NULL, NULL, PROV_RSA_FULL,
+	                         CRYPT_VERIFYCONTEXT | CRYPT_SILENT)) {
+		goto fallback;
+	}
+
+	if (!CryptGenRandom(hprovider, sizeof(r), (BYTE *)&r)) {
+		CryptReleaseContext(hprovider, 0);
+
+		goto fallback;
+	}
+
+	CryptReleaseContext(hprovider, 0);
+#else
+	if (read_uint32_non_blocking("/dev/random", &r) < 0) {
+		if (read_uint32_non_blocking("/dev/urandom", &r) < 0) {
+			goto fallback;
+		}
+	}
+#endif
+
+	return r;
+
+fallback:
+	if (gettimeofday(&tv, NULL) < 0) {
+		tv.tv_sec = time(NULL);
+		tv.tv_usec = 0;
+	}
+
+	return ((uint32_t)tv.tv_sec << 26 | (uint32_t)tv.tv_sec >> 6) + tv.tv_usec + getpid(); // overflow is intended
 }
 
 #if !defined _GNU_SOURCE && !defined __APPLE__

@@ -58,6 +58,8 @@ uint32_t uint32_from_le(uint32_t value);
 
 uint64_t microseconds(void);
 
+uint32_t get_random_uint32(void);
+
 #if !defined _GNU_SOURCE && !defined __APPLE__
 char *strcasestr(char *haystack, char *needle);
 #endif
