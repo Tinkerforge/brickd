@@ -34,7 +34,6 @@
 
 #include "sha_1.h"
 
-#include <sys/types.h>
 #ifdef WIN32
 
 #ifndef BIG_ENDIAN
@@ -67,22 +66,6 @@ typedef unsigned __int64 u_int64_t;
 #endif
 
 #include <string.h>
-
-struct sha1_ctxt {
-	union {
-		unsigned char		b8[20];
-		unsigned int		b32[5];
-	} h;
-	union {
-		unsigned char		b8[8];
-		u_int64_t		b64[1];
-	} c;
-	union {
-		unsigned char		b8[64];
-		unsigned int		b32[16];
-	} m;
-	size_t				count;
-};
 
 /* sanity check */
 #if BYTE_ORDER != BIG_ENDIAN
@@ -217,7 +200,7 @@ sha1_step(struct sha1_ctxt *ctxt)
 
 /*------------------------------------------------------------*/
 
-static void
+void
 sha1_init(struct sha1_ctxt *ctxt)
 {
 	bzero(ctxt, sizeof(struct sha1_ctxt));

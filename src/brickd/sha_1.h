@@ -35,9 +35,32 @@
 #ifndef SHA_1_H
 #define SHA_1_H
 
-#include <string.h>
 #include <stdint.h>
+#include <sys/types.h>
+
+#define SHA1_DIGEST_LENGTH 20
+#define SHA1_BLOCK_LENGTH 64
+
+struct sha1_ctxt {
+	union {
+		unsigned char b8[20];
+		unsigned int b32[5];
+	} h;
+	union {
+		unsigned char b8[8];
+		uint64_t b64[1];
+	} c;
+	union {
+		unsigned char b8[64];
+		unsigned int b32[16];
+	} m;
+	size_t count;
+};
+
+void sha1_init(struct sha1_ctxt *ctxt);
+void sha1_loop(struct sha1_ctxt *ctxt, const unsigned char *input, size_t len);
+void sha1_result(struct sha1_ctxt *ctxt, void *digest0);
  
-unsigned char* SHA1(const unsigned char *d, size_t n, unsigned char *md);
+unsigned char *SHA1(const unsigned char *d, size_t n, unsigned char *md);
  
 #endif
