@@ -421,8 +421,10 @@ static int read_uint32_non_blocking(const char *filename, uint32_t *value) {
 // this function is not meant to be called often,
 // this function is meant to provide a good random seed value
 uint32_t get_random_uint32(void) {
-	struct timeval tv;
 	uint32_t r;
+	struct timeval tv;
+	uint32_t seconds;
+	uint32_t microseconds;
 #ifdef _WIN32
 	HCRYPTPROV hprovider;
 
@@ -450,11 +452,14 @@ uint32_t get_random_uint32(void) {
 
 fallback:
 	if (gettimeofday(&tv, NULL) < 0) {
-		tv.tv_sec = time(NULL);
-		tv.tv_usec = 0;
+		seconds = (uint32_t)time(NULL);
+		microseconds = 0;
+	} else {
+		seconds = tv.tv_sec;
+		microseconds = tv.tv_usec;
 	}
 
-	return ((uint32_t)tv.tv_sec << 26 | (uint32_t)tv.tv_sec >> 6) + tv.tv_usec + getpid(); // overflow is intended
+	return (seconds << 26 | seconds >> 6) + microseconds + getpid(); // overflow is intended
 }
 
 void hmac_sha1(uint8_t *secret, int secret_length,
