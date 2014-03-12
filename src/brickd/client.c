@@ -87,7 +87,7 @@ static void client_handle_receive(void *opaque) {
 
 	client->request_used += length;
 
-	while (client->request_used > 0) {
+	while (!client->disconnected && client->request_used > 0) {
 		if (client->request_used < (int)sizeof(PacketHeader)) {
 			// wait for complete header
 			break;
