@@ -388,15 +388,22 @@ int main(int argc, char **argv) {
 		}
 	}
 
+	if (config_has_error()) {
+		log_error("Error(s) in config file '%s', run with --check-config option for details",
+		          _config_filename);
+
+		goto error_config;
+	}
+
 	if (daemon) {
 		log_info("Brick Daemon %s started (daemonized)", VERSION_STRING);
 	} else {
 		log_info("Brick Daemon %s started", VERSION_STRING);
 	}
 
-	if (config_has_error()) {
-		log_warn("Errors found in config file '%s', run with --check-config option for details",
-		         _config_filename);
+	if (config_has_warning()) {
+		log_error("Warning(s) in config file '%s', run with --check-config option for details",
+		          _config_filename);
 	}
 
 	if (event_init() < 0) {
@@ -453,6 +460,7 @@ error_hardware:
 error_event:
 	log_info("Brick Daemon %s stopped", VERSION_STRING);
 
+error_config:
 error_log:
 	log_exit();
 

@@ -33,6 +33,7 @@ void config_init(const char *filename);
 void config_exit(void);
 
 int config_has_error(void);
+int config_has_warning(void);
 
 const char *config_get_listen_address(void);
 uint16_t config_get_listen_plain_port(void);

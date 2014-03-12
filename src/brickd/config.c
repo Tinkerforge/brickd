@@ -38,6 +38,7 @@
 
 static int _check_only = 0;
 static int _has_error = 0;
+static int _has_warning = 0;
 static int _using_default_values = 1;
 static const char *_default_listen_address = DEFAULT_LISTEN_ADDRESS;
 static char *_listen_address = NULL;
@@ -46,12 +47,15 @@ static uint16_t _listen_websocket_port = DEFAULT_LISTEN_WEBSOCKET_PORT;
 static int _listen_dual_stack = DEFAULT_LISTEN_DUAL_STACK;
 static LogLevel _log_levels[MAX_LOG_CATEGORIES]; // config_init calls config_reset to initialize this
 
-static void config_error(const char *format, ...) ATTRIBUTE_FMT_PRINTF(1, 2);
+#define config_error(...) config_message(&_has_error, __VA_ARGS__)
+#define config_warn(...) config_message(&_has_warning, __VA_ARGS__)
 
-static void config_error(const char *format, ...) {
+static void config_message(int *has_message, const char *format, ...) ATTRIBUTE_FMT_PRINTF(2, 3);
+
+static void config_message(int *has_message, const char *format, ...) {
 	va_list arguments;
 
-	_has_error = 1;
+	*has_message = 1;
 
 	if (!_check_only) {
 		return;
@@ -195,7 +199,7 @@ static void config_parse_line(char *string) {
 	// check option
 	if (strcmp(option, "listen.address") == 0) {
 		if (strlen(value) < 1) {
-			config_error("Empty value is not allowed for %s option", option);
+			config_warn("Empty value is not allowed for %s option", option);
 
 			return;
 		}
@@ -216,13 +220,13 @@ static void config_parse_line(char *string) {
 	} else if (strcmp(option, "listen.plain_port") == 0 ||
 	           strcmp(option, "listen.port") == 0) {
 		if (config_parse_int(value, &port) < 0) {
-			config_error("Value '%s' for %s option is not an integer", value, option);
+			config_warn("Value '%s' for %s option is not an integer", value, option);
 
 			return;
 		}
 
 		if (port < 1 || port > UINT16_MAX) {
-			config_error("Value %d for %s option is out-of-range", port, option);
+			config_warn("Value %d for %s option is out-of-range", port, option);
 
 			return;
 		}
@@ -230,13 +234,13 @@ static void config_parse_line(char *string) {
 		_listen_plain_port = (uint16_t)port;
 	} else if (strcmp(option, "listen.websocket_port") == 0) {
 		if (config_parse_int(value, &port) < 0) {
-			config_error("Value '%s' for %s option is not an integer", value, option);
+			config_warn("Value '%s' for %s option is not an integer", value, option);
 
 			return;
 		}
 
 		if (port < 1 || port > UINT16_MAX) {
-			config_error("Value %d for %s option is out-of-range", port, option);
+			config_warn("Value %d for %s option is out-of-range", port, option);
 
 			return;
 		}
@@ -250,54 +254,56 @@ static void config_parse_line(char *string) {
 		} else if (strcmp(value, "off") == 0) {
 			_listen_dual_stack = 0;
 		} else {
-			config_error("Value '%s' for %s option is invalid", value, option);
+			config_warn("Value '%s' for %s option is invalid", value, option);
 
 			return;
 		}
 	} else if (strcmp(option, "log_level.event") == 0) {
 		if (config_parse_log_level(value, &_log_levels[LOG_CATEGORY_EVENT]) < 0) {
-			config_error("Value '%s' for %s option is invalid", value, option);
+			config_warn("Value '%s' for %s option is invalid", value, option);
 
 			return;
 		}
 	} else if (strcmp(option, "log_level.usb") == 0) {
 		if (config_parse_log_level(value, &_log_levels[LOG_CATEGORY_USB]) < 0) {
-			config_error("Value '%s' for %s option is invalid", value, option);
+			config_warn("Value '%s' for %s option is invalid", value, option);
 
 			return;
 		}
 	} else if (strcmp(option, "log_level.network") == 0) {
 		if (config_parse_log_level(value, &_log_levels[LOG_CATEGORY_NETWORK]) < 0) {
-			config_error("Value '%s' for %s option is invalid", value, option);
+			config_warn("Value '%s' for %s option is invalid", value, option);
 
 			return;
 		}
 	} else if (strcmp(option, "log_level.hotplug") == 0) {
 		if (config_parse_log_level(value, &_log_levels[LOG_CATEGORY_HOTPLUG]) < 0) {
-			config_error("Value '%s' for %s option is invalid", value, option);
+			config_warn("Value '%s' for %s option is invalid", value, option);
 
 			return;
 		}
 	} else if (strcmp(option, "log_level.hardware") == 0) {
 		if (config_parse_log_level(value, &_log_levels[LOG_CATEGORY_HARDWARE]) < 0) {
-			config_error("Value '%s' for %s option is invalid", value, option);
+			config_warn("Value '%s' for %s option is invalid", value, option);
 
 			return;
 		}
 	} else if (strcmp(option, "log_level.websocket") == 0) {
 		if (config_parse_log_level(value, &_log_levels[LOG_CATEGORY_WEBSOCKET]) < 0) {
-			config_error("Value '%s' for %s option is invalid", value, option);
+			config_warn("Value '%s' for %s option is invalid", value, option);
 
 			return;
 		}
 	} else if (strcmp(option, "log_level.other") == 0) {
 		if (config_parse_log_level(value, &_log_levels[LOG_CATEGORY_OTHER]) < 0) {
-			config_error("Value '%s' for %s option is invalid", value, option);
+			config_warn("Value '%s' for %s option is invalid", value, option);
 
 			return;
 		}
 	} else {
-		config_error("Unknown option '%s'", option);
+		config_warn("Unknown option '%s'", option);
+
+		return;
 	}
 }
 
@@ -307,7 +313,15 @@ int config_check(const char *filename) {
 	config_init(filename);
 
 	if (_has_error) {
-		fprintf(stderr, "Errors found in config file '%s'\n", filename);
+		fprintf(stderr, "Error(s) in config file '%s'\n", filename);
+
+		config_exit();
+
+		return -1;
+	}
+
+	if (_has_warning) {
+		fprintf(stderr, "Warning(s) in config file '%s'\n", filename);
 
 		config_exit();
 
@@ -315,7 +329,7 @@ int config_check(const char *filename) {
 	}
 
 	if (!_using_default_values) {
-		printf("No errors found in config file '%s'\n", filename);
+		printf("No warnings or errors in config file '%s'\n", filename);
 	}
 
 	printf("\n");
@@ -402,6 +416,10 @@ void config_exit(void) {
 
 int config_has_error(void) {
 	return _has_error;
+}
+
+int config_has_warning(void) {
+	return _has_warning;
 }
 
 const char *config_get_listen_address(void) {

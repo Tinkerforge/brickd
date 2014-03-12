@@ -572,18 +572,28 @@ static int generic_main(int log_to_file, int debug, int libusb_debug) {
 		}
 	}
 
+	if (config_has_error()) {
+		log_error("Error(s) in config file '%s', run with --check-config option for details",
+		          _config_filename);
+
+		fatal_error = 1;
+
+		goto error_config;
+	}
+
 	if (_run_as_service) {
 		log_info("Brick Daemon %s started (as service)", VERSION_STRING);
 	} else {
 		log_info("Brick Daemon %s started", VERSION_STRING);
 	}
 
-	if (config_has_error()) {
-		log_warn("Errors found in config file '%s', run with --check-config option for details",
+	if (config_has_warning()) {
+		log_warn("Warning(s) in config file '%s', run with --check-config option for details",
 		         _config_filename);
 	}
 
 	// initialize service status
+error_config:
 error_mutex:
 	if (_run_as_service) {
 		if (service_init(service_control_handler) < 0) {
