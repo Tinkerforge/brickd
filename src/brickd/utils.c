@@ -460,8 +460,9 @@ fallback:
 void hmac_sha1(uint8_t *secret, int secret_length,
                uint8_t *data, int data_length,
                uint8_t digest[SHA1_DIGEST_LENGTH]) {
-	struct sha1_ctxt inner_context;
-	struct sha1_ctxt outer_context;
+	SHA1 secret_sha1;
+	SHA1 inner_sha1;
+	SHA1 outer_sha1;
 	uint8_t secret_digest[SHA1_DIGEST_LENGTH];
 	uint8_t inner_digest[SHA1_DIGEST_LENGTH];
 	uint8_t outer_digest[SHA1_DIGEST_LENGTH];
@@ -470,7 +471,9 @@ void hmac_sha1(uint8_t *secret, int secret_length,
 	int i;
 
 	if (secret_length > SHA1_BLOCK_LENGTH) {
-		SHA1(secret, secret_length, secret_digest);
+		sha1_init(&secret_sha1);
+		sha1_update(&secret_sha1, secret, secret_length);
+		sha1_final(&secret_sha1, secret_digest);
 
 		secret = secret_digest;
 		secret_length = SHA1_DIGEST_LENGTH;
@@ -485,10 +488,10 @@ void hmac_sha1(uint8_t *secret, int secret_length,
 		ipad[i] = 0x36;
 	}
 
-	sha1_init(&inner_context);
-	sha1_loop(&inner_context, ipad, SHA1_BLOCK_LENGTH);
-	sha1_loop(&inner_context, data, data_length);
-	sha1_result(&inner_context, inner_digest);
+	sha1_init(&inner_sha1);
+	sha1_update(&inner_sha1, ipad, SHA1_BLOCK_LENGTH);
+	sha1_update(&inner_sha1, data, data_length);
+	sha1_final(&inner_sha1, inner_digest);
 
 	// outer digest
 	for (i = 0; i < secret_length; ++i) {
@@ -499,10 +502,10 @@ void hmac_sha1(uint8_t *secret, int secret_length,
 		opad[i] = 0x5C;
 	}
 
-	sha1_init(&outer_context);
-	sha1_loop(&outer_context, opad, SHA1_BLOCK_LENGTH);
-	sha1_loop(&outer_context, inner_digest, SHA1_DIGEST_LENGTH);
-	sha1_result(&outer_context, outer_digest);
+	sha1_init(&outer_sha1);
+	sha1_update(&outer_sha1, opad, SHA1_BLOCK_LENGTH);
+	sha1_update(&outer_sha1, inner_digest, SHA1_DIGEST_LENGTH);
+	sha1_final(&outer_sha1, outer_digest);
 
 	memcpy(digest, outer_digest, SHA1_DIGEST_LENGTH);
 }

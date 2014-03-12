@@ -52,7 +52,7 @@
  pipe_winapi.c^
  queue.c^
  service.c^
- sha_1.c^
+ sha1.c^
  socket.c^
  socket_winapi.c^
  stack.c^

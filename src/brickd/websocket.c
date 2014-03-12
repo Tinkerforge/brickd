@@ -28,7 +28,7 @@
 #include "base64_encode.h"
 #include "event.h"
 #include "log.h"
-#include "sha_1.h"
+#include "sha1.h"
 #include "socket.h"
 #include "utils.h"
 
@@ -82,7 +82,7 @@ static void websocket_prepare(Websocket *websocket) {
 
 	memset(&websocket->frame, 0, sizeof(WebsocketFrame));
 	memset(websocket->line, 0, WEBSOCKET_MAX_LINE_LENGTH);
-	memset(websocket->key, 0, WEBSOCKET_KEY_LENGTH);
+	memset(websocket->client_key, 0, WEBSOCKET_CLIENT_KEY_LENGTH);
 }
 
 int websocket_create(Websocket *websocket, int family, int type, int protocol) {
@@ -126,8 +126,11 @@ int websocket_answer_handshake_ok(Websocket *websocket, char *key, int length) {
 
 int websocket_parse_handshake_line(Websocket *websocket, char *line, int length) {
 	int i;
-	char hash[20];
-	uint8_t concat_i = 0;
+	SHA1 sha1;
+	uint8_t digest[SHA1_DIGEST_LENGTH];
+	char base64[WEBSOCKET_BASE64_DIGEST_LENGTH];
+	int base64_length;
+	int k;
 
 	// Find "\r\n"
 	for(i = 0; i < length; i++) {
@@ -136,27 +139,23 @@ int websocket_parse_handshake_line(Websocket *websocket, char *line, int length)
 		}
 
 		if(line[i] == '\r' && line[i+1] == '\n') {
-			char concatkey[WEBSOCKET_CONCATKEY_LENGTH] = {0};
-			int base64_length;
-
 			if(websocket->state < WEBSOCKET_STATE_HANDSHAKE_FOUND_KEY) {
 				return websocket_answer_handshake_error(websocket);
 			}
 
-			// Concatenate client and server key
-			strcpy(concatkey, websocket->key);
-			strcpy(concatkey+strlen(websocket->key), WEBSOCKET_SERVER_KEY);
+			// calculate SHA1 over client and server key
+			sha1_init(&sha1);
+			sha1_update(&sha1, (uint8_t *)websocket->client_key, strlen(websocket->client_key));
+			sha1_update(&sha1, (uint8_t *)WEBSOCKET_SERVER_KEY, strlen(WEBSOCKET_SERVER_KEY));
+			sha1_final(&sha1, digest);
 
-			// Calculate sha1 hash
-			SHA1((unsigned char*)concatkey, strlen(concatkey), (unsigned char*)hash);
-
-			// Caluclate base64 from hash
-			memset(concatkey, 0, WEBSOCKET_CONCATKEY_LENGTH);
-			base64_length = base64_encode_string(hash, 20, concatkey, WEBSOCKET_CONCATKEY_LENGTH);
+			// BASE64 encode SHA1 digest
+			base64_length = base64_encode_string((char *)digest, SHA1_DIGEST_LENGTH,
+			                                     base64, WEBSOCKET_BASE64_DIGEST_LENGTH);
 
 			websocket->state = WEBSOCKET_STATE_HANDSHAKE_DONE;
 
-			return websocket_answer_handshake_ok(websocket, concatkey, base64_length);
+			return websocket_answer_handshake_ok(websocket, base64, base64_length);
 		} else {
 			break;
 		}
@@ -164,12 +163,11 @@ int websocket_parse_handshake_line(Websocket *websocket, char *line, int length)
 
 	// Find "Sec-WebSocket-Key"
 	if(strcasestr(line, WEBSOCKET_CLIENT_KEY_STRING) != NULL) {
-		memset(websocket->key, 0, WEBSOCKET_KEY_LENGTH);
+		memset(websocket->client_key, 0, WEBSOCKET_CLIENT_KEY_LENGTH);
 
-		for(i = strlen(WEBSOCKET_CLIENT_KEY_STRING); i < length; i++) {
+		for(i = strlen(WEBSOCKET_CLIENT_KEY_STRING), k = 0; i < length; i++) {
 			if(line[i] != ' ' && line[i] != '\n' && line[i] != '\r') {
-				websocket->key[concat_i] = line[i];
-				concat_i++;
+				websocket->client_key[k++] = line[i];
 			}
 		}
 

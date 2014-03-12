@@ -25,7 +25,7 @@
 
 #include <stdint.h>
 
-#include "sha_1.h"
+#include "sha1.h"
 
 #define ERRNO_WINAPI_OFFSET 71000000
 #define ERRNO_ADDRINFO_OFFSET 72000000

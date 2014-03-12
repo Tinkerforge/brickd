@@ -29,8 +29,8 @@
 #include "socket.h"
 
 #define WEBSOCKET_MAX_LINE_LENGTH 100 // Line length > 100 are not interesting for us
-#define WEBSOCKET_KEY_LENGTH 37 // Can be max 36
-#define WEBSOCKET_CONCATKEY_LENGTH 65  // Can be max 36 (server key) + 28 (base64 hash) = 64
+#define WEBSOCKET_CLIENT_KEY_LENGTH 37 // Can be max 36
+#define WEBSOCKET_BASE64_DIGEST_LENGTH 30 // Can be max 30 for a 20 byte digest
 
 #define WEBSOCKET_CLIENT_KEY_STRING "Sec-WebSocket-Key:"
 #define WEBSOCKET_SERVER_KEY "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
@@ -96,7 +96,7 @@ typedef struct {
 
 	// WebSocket specific data
 	WebsocketState state;
-	char key[WEBSOCKET_KEY_LENGTH];
+	char client_key[WEBSOCKET_CLIENT_KEY_LENGTH];
 
 	char line[WEBSOCKET_MAX_LINE_LENGTH];
 	int line_index;
