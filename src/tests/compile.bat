@@ -64,7 +64,7 @@ rem @set LD=link /nologo /opt:ref /opt:icf /release
  ..\brickd\sha1.c^
  ..\brickd\utils.c
 
-%LD% /out:throughput_test.exe *.obj *.res ws2_32.lib
+%LD% /out:throughput_test.exe *.obj *.res advapi32.lib ws2_32.lib
 
 @if exist throughput_test.exe.manifest^
  %MT% /manifest throughput_test.exe.manifest -outputresource:throughput_test.exe
