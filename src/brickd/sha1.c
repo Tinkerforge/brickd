@@ -35,7 +35,7 @@
 #define R4(v,w,x,y,z,i) z+=(w^x^y)+blk(i)+0xCA62C1D6+rol(v,5);w=rol(w,30);
 
 // hash a single 512-bit block. this is the core of the algorithm
-static void sha1_transform(SHA1 *sha1, const uint8_t buffer[SHA1_BLOCK_LENGTH]) {
+static uint32_t sha1_transform(SHA1 *sha1, const uint8_t buffer[SHA1_BLOCK_LENGTH]) {
 	uint32_t a, b, c, d, e;
 	uint32_t block[SHA1_BLOCK_LENGTH / 4];
 
@@ -79,6 +79,8 @@ static void sha1_transform(SHA1 *sha1, const uint8_t buffer[SHA1_BLOCK_LENGTH]) 
 
 	// wipe variables
 	a = b = c = d = e = 0;
+
+	return a; // return a to avoid dead-store warning from clang static analyzer
 }
 
 static void sha1_pad(SHA1 *sha1) {
