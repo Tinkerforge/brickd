@@ -11,3 +11,5 @@ src/tests/queue_test
 src/tests/queue_test.exe
 src/tests/throughput_test
 src/tests/throughput_test.exe
+src/tests/sha1_test
+src/tests/sha1_test.exe

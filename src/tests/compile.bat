@@ -32,18 +32,6 @@ rem @set LD=link /nologo /opt:ref /opt:icf /release
 
 @del *.obj *.res *.bin *.exp *.manifest *.exe
 
-%CC% throughput_test.c^
- ip_connection.c^
- brick_master.c^
- ..\brickd\fixes_msvc.c^
- ..\brickd\utils.c
-
-%LD% /out:throughput_test.exe *.obj *.res ws2_32.lib
-
-@if exist throughput_test.exe.manifest^
- %MT% /manifest throughput_test.exe.manifest -outputresource:throughput_test.exe
-
-@del *.obj *.res *.bin *.exp *.manifest
 
 %CC% array_test.c^
  ..\brickd\fixes_msvc.c^
@@ -56,6 +44,7 @@ rem @set LD=link /nologo /opt:ref /opt:icf /release
 
 @del *.obj *.res *.bin *.exp *.manifest
 
+
 %CC% queue_test.c^
  ..\brickd\fixes_msvc.c^
  ..\brickd\queue.c
@@ -63,9 +52,37 @@ rem @set LD=link /nologo /opt:ref /opt:icf /release
 %LD% /out:queue_test.exe *.obj
 
 @if exist queue_test.exe.manifest^
- %MT% /manifest array_test.exe.manifest -outputresource:queue_test.exe
+ %MT% /manifest queue_test.exe.manifest -outputresource:queue_test.exe
 
 @del *.obj *.res *.bin *.exp *.manifest
+
+
+%CC% throughput_test.c^
+ ip_connection.c^
+ brick_master.c^
+ ..\brickd\fixes_msvc.c^
+ ..\brickd\sha1.c^
+ ..\brickd\utils.c
+
+%LD% /out:throughput_test.exe *.obj *.res ws2_32.lib
+
+@if exist throughput_test.exe.manifest^
+ %MT% /manifest throughput_test.exe.manifest -outputresource:throughput_test.exe
+
+@del *.obj *.res *.bin *.exp *.manifest
+
+
+%CC% sha1_test.c^
+ ..\brickd\fixes_msvc.c^
+ ..\brickd\sha1.c
+
+%LD% /out:sha1_test.exe *.obj ws2_32.lib
+
+@if exist sha1_test.exe.manifest^
+ %MT% /manifest sha1_test.exe.manifest -outputresource:sha1_test.exe
+
+@del *.obj *.res *.bin *.exp *.manifest
+
 
 :done
 @endlocal

@@ -32,34 +32,39 @@ endif
 
 ARRAY_TEST_SOURCES := array_test.c $(call FIX_PATH,../brickd/array.c)
 QUEUE_TEST_SOURCES := queue_test.c $(call FIX_PATH,../brickd/queue.c)
-THROUGHPUT_TEST_SOURCES := throughput_test.c ip_connection.c brick_master.c $(call FIX_PATH,../brickd/utils.c)
+THROUGHPUT_TEST_SOURCES := throughput_test.c ip_connection.c brick_master.c $(call FIX_PATH,../brickd/utils.c) $(call FIX_PATH,../brickd/sha1.c)
+SHA1_TEST_SOURCES := sha1_test.c $(call FIX_PATH,../brickd/sha1.c)
 
-SOURCES := $(ARRAY_TEST_SOURCES) $(QUEUE_TEST_SOURCES) $(THROUGHPUT_TEST_SOURCES)
+SOURCES := $(ARRAY_TEST_SOURCES) $(QUEUE_TEST_SOURCES) $(THROUGHPUT_TEST_SOURCES) $(SHA1_TEST_SOURCES)
 
 ifeq ($(PLATFORM),Windows)
 	ARRAY_TEST_SOURCES += $(call FIX_PATH,../brickd/fixes_mingw.c)
 	QUEUE_TEST_SOURCES += $(call FIX_PATH,../brickd/fixes_mingw.c)
 	THROUGHPUT_TEST_SOURCES += $(call FIX_PATH,../brickd/fixes_mingw.c)
+	SHA1_TEST_SOURCES += $(call FIX_PATH,../brickd/fixes_mingw.c)
 endif
 
 ARRAY_TEST_OBJECTS := ${ARRAY_TEST_SOURCES:.c=.o}
 QUEUE_TEST_OBJECTS := ${QUEUE_TEST_SOURCES:.c=.o}
 THROUGHPUT_TEST_OBJECTS := ${THROUGHPUT_TEST_SOURCES:.c=.o}
+SHA1_TEST_OBJECTS := ${SHA1_TEST_SOURCES:.c=.o}
 
-OBJECTS := $(ARRAY_TEST_OBJECTS) $(QUEUE_TEST_OBJECTS) $(THROUGHPUT_TEST_OBJECTS)
-DEPENDS := ${ARRAY_TEST_SOURCES:.c=.p} ${QUEUE_TEST_SOURCES:.c=.p} ${THROUGHPUT_TEST_SOURCES:.c=.p}
+OBJECTS := $(ARRAY_TEST_OBJECTS) $(QUEUE_TEST_OBJECTS) $(THROUGHPUT_TEST_OBJECTS) $(SHA1_TEST_OBJECTS)
+DEPENDS := ${ARRAY_TEST_SOURCES:.c=.p} ${QUEUE_TEST_SOURCES:.c=.p} ${THROUGHPUT_TEST_SOURCES:.c=.p} ${SHA1_TEST_SOURCES:.c=.p}
 
 ifeq ($(PLATFORM),Windows)
 	ARRAY_TEST_TARGET := array_test.exe
 	QUEUE_TEST_TARGET := queue_test.exe
 	THROUGHPUT_TEST_TARGET := throughput_test.exe
+	SHA1_TEST_TARGET := sha1_test.exe
 else
 	ARRAY_TEST_TARGET := array_test
 	QUEUE_TEST_TARGET := queue_test
 	THROUGHPUT_TEST_TARGET := throughput_test
+	SHA1_TEST_TARGET := sha1_test
 endif
 
-TARGETS := $(ARRAY_TEST_TARGET) $(QUEUE_TEST_TARGET) $(THROUGHPUT_TEST_TARGET)
+TARGETS := $(ARRAY_TEST_TARGET) $(QUEUE_TEST_TARGET) $(THROUGHPUT_TEST_TARGET) $(SHA1_TEST_TARGET)
 
 CFLAGS += -O2 -Wall -Wextra
 #CFLAGS += -O0 -g -ggdb
@@ -90,6 +95,10 @@ $(QUEUE_TEST_TARGET): $(QUEUE_TEST_OBJECTS) Makefile
 $(THROUGHPUT_TEST_TARGET): $(THROUGHPUT_TEST_OBJECTS) Makefile
 	@echo LD $@
 	$(E)$(CC) -o $(THROUGHPUT_TEST_TARGET) $(LDFLAGS) $(THROUGHPUT_TEST_OBJECTS) $(LIBS)
+
+$(SHA1_TEST_TARGET): $(SHA1_TEST_OBJECTS) Makefile
+	@echo LD $@
+	$(E)$(CC) -o $(SHA1_TEST_TARGET) $(LDFLAGS) $(SHA1_TEST_OBJECTS) $(LIBS)
 
 %.o: %.c $(GENERATED) Makefile
 	@echo CC $@
