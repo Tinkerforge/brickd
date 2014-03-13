@@ -40,6 +40,8 @@ uint16_t config_get_listen_plain_port(void);
 uint16_t config_get_listen_websocket_port(void);
 int config_get_listen_dual_stack(void);
 
+const char *config_get_authentication_secret(void);
+
 LogLevel config_get_log_level(LogCategory category);
 
 #endif // BRICKD_CONFIG_H

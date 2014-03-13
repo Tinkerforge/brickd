@@ -33,6 +33,9 @@
 STATIC_ASSERT(sizeof(PacketHeader) == 8, "PacketHeader has invalid size");
 STATIC_ASSERT(sizeof(Packet) == 80, "Packet has invalid size");
 STATIC_ASSERT(sizeof(EnumerateCallback) == 34, "EnumerateCallback has invalid size");
+STATIC_ASSERT(sizeof(GetAuthenticationNonceRequest) == 8, "GetAuthenticationNonceRequest has invalid size");
+STATIC_ASSERT(sizeof(GetAuthenticationNonceResponse) == 12, "GetAuthenticationNonceResponse has invalid size");
+STATIC_ASSERT(sizeof(AuthenticateRequest) == 32, "AuthenticateRequest has invalid size");
 
 int packet_header_is_valid_request(PacketHeader *header, const char **message) {
 	if (header->length < (int)sizeof(PacketHeader)) {
@@ -108,8 +111,12 @@ uint8_t packet_header_get_response_expected(PacketHeader *header) {
 	return (header->sequence_number_and_options >> 3) & 0x01;
 }
 
-uint8_t packet_header_get_error_code(PacketHeader *header) {
+ErrorCode packet_header_get_error_code(PacketHeader *header) {
 	return (header->error_code_and_future_use >> 6) & 0x03;
+}
+
+void packet_header_set_error_code(PacketHeader *header, ErrorCode error_code) {
+	header->error_code_and_future_use |= (error_code << 6) & 0xC0;
 }
 
 const char *packet_get_callback_type(Packet *packet) {

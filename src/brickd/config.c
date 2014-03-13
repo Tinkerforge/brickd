@@ -32,7 +32,7 @@
 
 #define DEFAULT_LISTEN_ADDRESS "0.0.0.0"
 #define DEFAULT_LISTEN_PLAIN_PORT 4223
-#define DEFAULT_LISTEN_WEBSOCKET_PORT 4280
+#define DEFAULT_LISTEN_WEBSOCKET_PORT 0 // default to enable: 4280
 #define DEFAULT_LISTEN_DUAL_STACK 0
 #define DEFAULT_LOG_LEVEL LOG_LEVEL_INFO
 
@@ -45,6 +45,7 @@ static char *_listen_address = NULL;
 static uint16_t _listen_plain_port = DEFAULT_LISTEN_PLAIN_PORT;
 static uint16_t _listen_websocket_port = DEFAULT_LISTEN_WEBSOCKET_PORT;
 static int _listen_dual_stack = DEFAULT_LISTEN_DUAL_STACK;
+static char *_authentication_secret = NULL;
 static LogLevel _log_levels[MAX_LOG_CATEGORIES]; // config_init calls config_reset to initialize this
 
 #define config_error(...) config_message(&_has_error, __VA_ARGS__)
@@ -81,6 +82,9 @@ static void config_reset(void) {
 	_listen_plain_port = DEFAULT_LISTEN_PLAIN_PORT;
 	_listen_websocket_port = DEFAULT_LISTEN_WEBSOCKET_PORT;
 	_listen_dual_stack = DEFAULT_LISTEN_DUAL_STACK;
+
+	free(_authentication_secret);
+	_authentication_secret = NULL;
 
 	for (i = 0; i < MAX_LOG_CATEGORIES; ++i) {
 		_log_levels[i] = DEFAULT_LOG_LEVEL;
@@ -174,6 +178,7 @@ static void config_parse_line(char *string) {
 	char *option;
 	char *value;
 	int port;
+	int length;
 
 	string = config_trim_string(string);
 
@@ -239,7 +244,7 @@ static void config_parse_line(char *string) {
 			return;
 		}
 
-		if (port < 1 || port > UINT16_MAX) {
+		if (port < 0 || port > UINT16_MAX) {
 			config_warn("Value %d for %s option is out-of-range", port, option);
 
 			return;
@@ -257,6 +262,25 @@ static void config_parse_line(char *string) {
 			config_warn("Value '%s' for %s option is invalid", value, option);
 
 			return;
+		}
+	} else if (strcmp(option, "authentication.secret") == 0) {
+		free(_authentication_secret);
+		_authentication_secret = NULL;
+
+		length = strlen(value);
+
+		if (length > 64) {
+			config_error("Value '%s' for %s option is longer than 64 characters", value, option);
+
+			return;
+		} else if (length > 0) {
+			_authentication_secret = strdup(value);
+
+			if (_authentication_secret == NULL) {
+				config_error("Could not duplicate %s value '%s'", option, value);
+
+				return;
+			}
 		}
 	} else if (strcmp(option, "log_level.event") == 0) {
 		if (config_parse_log_level(value, &_log_levels[LOG_CATEGORY_EVENT]) < 0) {
@@ -338,6 +362,7 @@ int config_check(const char *filename) {
 	printf("  listen.plain_port     = %u\n", config_get_listen_plain_port());
 	printf("  listen.websocket_port = %u\n", config_get_listen_websocket_port());
 	printf("  listen.dual_stack     = %s\n", config_get_listen_dual_stack() ? "on" : "off");
+	printf("  authentication.secret = %s\n", config_get_authentication_secret() != NULL ? config_get_authentication_secret() : "");
 	printf("  log_level.event       = %s\n", config_format_log_level(config_get_log_level(LOG_CATEGORY_EVENT)));
 	printf("  log_level.usb         = %s\n", config_format_log_level(config_get_log_level(LOG_CATEGORY_USB)));
 	printf("  log_level.network     = %s\n", config_format_log_level(config_get_log_level(LOG_CATEGORY_NETWORK)));
@@ -412,6 +437,8 @@ void config_exit(void) {
 	if (_listen_address != _default_listen_address) {
 		free(_listen_address);
 	}
+
+	free(_authentication_secret);
 }
 
 int config_has_error(void) {
@@ -436,6 +463,10 @@ uint16_t config_get_listen_websocket_port(void) {
 
 int config_get_listen_dual_stack(void) {
 	return _listen_dual_stack;
+}
+
+const char *config_get_authentication_secret(void) {
+	return _authentication_secret;
 }
 
 LogLevel config_get_log_level(LogCategory category) {

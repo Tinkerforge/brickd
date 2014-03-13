@@ -34,7 +34,16 @@
 #include "packet.h"
 #include "socket.h"
 
-typedef struct {
+typedef struct _Client Client;
+
+typedef enum {
+	CLIENT_AUTHENTICATION_STATE_DISABLED = 0,
+	CLIENT_AUTHENTICATION_STATE_ENABLED,
+	CLIENT_AUTHENTICATION_STATE_NONCE_SEND,
+	CLIENT_AUTHENTICATION_STATE_DONE
+} ClientAuthenticationState;
+
+struct _Client {
 	Socket *socket;
 	char *peer;
 	int disconnected;
@@ -42,15 +51,19 @@ typedef struct {
 	int request_used;
 	int request_header_checked;
 	Array pending_requests;
-} Client;
+	ClientAuthenticationState authentication_state;
+	uint32_t authentication_nonce; // server
+};
 
 #define CLIENT_INFO_FORMAT "socket: %d, peer: %s"
 #define client_expand_info(client) (client)->socket->handle, (client)->peer
 
 int client_create(Client *client, Socket *socket,
-                  struct sockaddr *address, socklen_t length);
+                  struct sockaddr *address, socklen_t length,
+                  uint32_t authentication_nonce);
 void client_destroy(Client *client);
 
-int client_dispatch_response(Client *client, Packet *response, int force);
+int client_dispatch_response(Client *client, Packet *response, int force,
+                             int ignore_authentication);
 
 #endif // BRICKD_CLIENT_H

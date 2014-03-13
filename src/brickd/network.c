@@ -47,6 +47,7 @@ static Socket _server_socket_plain;
 static Socket _server_socket_websocket;
 static int _server_socket_plain_open = 0;
 static int _server_socket_websocket_open = 0;
+static uint32_t _next_authentication_nonce = 0;
 
 static void network_handle_accept(void *opaque) {
 	Socket *server_socket = opaque;
@@ -110,7 +111,8 @@ static void network_handle_accept(void *opaque) {
 	}
 
 	// create new Client that takes ownership of the client_socket
-	if (client_create(client, client_socket, (struct sockaddr *)&address, length) < 0) {
+	if (client_create(client, client_socket, (struct sockaddr *)&address, length,
+	                  _next_authentication_nonce++) < 0) {
 		array_remove(&_clients, _clients.count - 1, NULL);
 		socket_destroy(client_socket);
 		free(client_socket);
@@ -254,7 +256,16 @@ cleanup:
 }
 
 int network_init(void) {
+	uint16_t plain_port = config_get_listen_plain_port();
+	uint16_t websocket_port = config_get_listen_websocket_port();
+
 	log_debug("Initializing network subsystem");
+
+	if (config_get_authentication_secret() != NULL) {
+		log_info("Authentication is enabled");
+
+		_next_authentication_nonce = get_random_uint32();
+	}
 
 	// the Client struct is not relocatable, because it is passed by reference
 	// as opaque parameter to the event subsystem
@@ -265,15 +276,19 @@ int network_init(void) {
 		return -1;
 	}
 
-	if (network_open_port(&_server_socket_plain,
-	                      config_get_listen_plain_port(), NULL) >= 0) {
+	if (network_open_port(&_server_socket_plain, plain_port, NULL) >= 0) {
 		_server_socket_plain_open = 1;
 	}
 
-	if (network_open_port(&_server_socket_websocket,
-	                      config_get_listen_websocket_port(),
-	                      websocket_accept_epilog) >= 0) {
-		_server_socket_websocket_open = 1;
+	if (websocket_port != 0) {
+		if (config_get_authentication_secret() == NULL) {
+			log_warn("WebSocket support is enabled without authentication");
+		}
+
+		if (network_open_port(&_server_socket_websocket, websocket_port,
+		                      websocket_accept_epilog) >= 0) {
+			_server_socket_websocket_open = 1;
+		}
 	}
 
 	if (!_server_socket_plain_open && !_server_socket_websocket_open) {
@@ -352,7 +367,7 @@ void network_dispatch_response(Packet *response) {
 		for (i = 0; i < _clients.count; ++i) {
 			client = array_get(&_clients, i);
 
-			client_dispatch_response(client, response, 1);
+			client_dispatch_response(client, response, 1, 0);
 		}
 	} else {
 		log_debug("Dispatching response (%s) to %d client(s)",
@@ -362,7 +377,7 @@ void network_dispatch_response(Packet *response) {
 		for (i = 0; i < _clients.count; ++i) {
 			client = array_get(&_clients, i);
 
-			rc = client_dispatch_response(client, response, 0);
+			rc = client_dispatch_response(client, response, 0, 0);
 
 			if (rc < 0) {
 				continue;
@@ -380,7 +395,7 @@ void network_dispatch_response(Packet *response) {
 		for (i = 0; i < _clients.count; ++i) {
 			client = array_get(&_clients, i);
 
-			client_dispatch_response(client, response, 1);
+			client_dispatch_response(client, response, 1, 0);
 		}
 	}
 }

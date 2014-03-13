@@ -25,15 +25,31 @@
 #include <stdint.h>
 
 enum {
-	FUNCTION_DISCONNECT_PROBE = 128,
-	CALLBACK_ENUMERATE = 253
+	UID_BRICK_DAEMON = 1
 };
 
-enum {
+typedef enum {
+	FUNCTION_GET_AUTHENTICATION_NONCE = 1,
+	FUNCTION_AUTHENTICATE = 2
+} BrickDaemonFunctionID;
+
+typedef enum {
+	FUNCTION_DISCONNECT_PROBE = 128,
+	CALLBACK_ENUMERATE = 253
+} CommonBrickFunctionID;
+
+typedef enum {
 	ENUMERATION_TYPE_AVAILABLE = 0,
 	ENUMERATION_TYPE_CONNECTED = 1,
 	ENUMERATION_TYPE_DISCONNECTED = 2
-};
+} EnumerateCallbackEnumerationType;
+
+typedef enum {
+	ERROR_CODE_OK = 0,
+	ERROR_CODE_INVALID_PARAMETER,
+	ERROR_CODE_FUNCTION_NOT_SUPPORTED,
+	ERROR_CODE_UNKNOWN
+} ErrorCode;
 
 #define PACKET_MAX_SIGNATURE_LENGTH 64
 
@@ -64,6 +80,29 @@ typedef struct {
 	uint8_t enumeration_type;
 } ATTRIBUTE_PACKED EnumerateCallback;
 
+typedef struct {
+	PacketHeader header;
+} ATTRIBUTE_PACKED ErrorCodeResponse;
+
+typedef struct {
+	PacketHeader header;
+} ATTRIBUTE_PACKED GetAuthenticationNonceRequest;
+
+typedef struct {
+	PacketHeader header;
+	uint8_t server_nonce[4];
+} ATTRIBUTE_PACKED GetAuthenticationNonceResponse;
+
+typedef struct {
+	PacketHeader header;
+	uint8_t client_nonce[4];
+	uint8_t digest[20];
+} ATTRIBUTE_PACKED AuthenticateRequest;
+
+typedef struct {
+	PacketHeader header;
+} ATTRIBUTE_PACKED AuthenticateResponse;
+
 #include "packed_end.h"
 
 int packet_header_is_valid_request(PacketHeader *header, const char **message);
@@ -74,7 +113,8 @@ void packet_header_set_sequence_number(PacketHeader *header, uint8_t sequence_nu
 
 uint8_t packet_header_get_response_expected(PacketHeader *header);
 
-uint8_t packet_header_get_error_code(PacketHeader *header);
+ErrorCode packet_header_get_error_code(PacketHeader *header);
+void packet_header_set_error_code(PacketHeader *header, ErrorCode error_code);
 
 const char *packet_get_callback_type(Packet *packet);
 
