@@ -44,6 +44,9 @@ typedef struct {
 	Array pending_requests;
 } Client;
 
+#define CLIENT_INFO_FORMAT "socket: %d, peer: %s"
+#define client_expand_info(client) (client)->socket->handle, (client)->peer
+
 int client_create(Client *client, Socket *socket,
                   struct sockaddr *address, socklen_t length);
 void client_destroy(Client *client);

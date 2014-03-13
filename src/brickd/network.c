@@ -118,8 +118,7 @@ static void network_handle_accept(void *opaque) {
 		return;
 	}
 
-	log_info("Added new client (socket: %d, peer: %s)",
-	         client->socket->handle, client->peer);
+	log_info("Added new client ("CLIENT_INFO_FORMAT")", client_expand_info(client));
 }
 
 static const char *network_get_address_family_name(int family, int report_dual_stack) {
@@ -316,8 +315,8 @@ void network_cleanup_clients(void) {
 		client = array_get(&_clients, i);
 
 		if (client->disconnected) {
-			log_debug("Removing disconnected client (socket: %d, peer: %s)",
-			          client->socket->handle, client->peer);
+			log_debug("Removing disconnected client ("CLIENT_INFO_FORMAT")",
+			          client_expand_info(client));
 
 			array_remove(&_clients, i, (FreeFunction)client_destroy);
 		}
