@@ -468,7 +468,6 @@ void hmac_sha1(uint8_t *secret, int secret_length,
 	SHA1 sha1;
 	uint8_t secret_digest[SHA1_DIGEST_LENGTH];
 	uint8_t inner_digest[SHA1_DIGEST_LENGTH];
-	uint8_t outer_digest[SHA1_DIGEST_LENGTH];
 	uint8_t ipad[SHA1_BLOCK_LENGTH];
 	uint8_t opad[SHA1_BLOCK_LENGTH];
 	int i;
@@ -508,9 +507,7 @@ void hmac_sha1(uint8_t *secret, int secret_length,
 	sha1_init(&sha1);
 	sha1_update(&sha1, opad, SHA1_BLOCK_LENGTH);
 	sha1_update(&sha1, inner_digest, SHA1_DIGEST_LENGTH);
-	sha1_final(&sha1, outer_digest);
-
-	memcpy(digest, outer_digest, SHA1_DIGEST_LENGTH);
+	sha1_final(&sha1, digest);
 }
 
 #if !defined _GNU_SOURCE && !defined __APPLE__
