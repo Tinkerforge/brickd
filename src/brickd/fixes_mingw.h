@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2013 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2013-2014 Matthias Bolte <matthias@tinkerforge.com>
  *
  * fixes_mingw.h: Fixes for problems with the MinGW headers and libs
  *
@@ -24,6 +24,7 @@
 
 #ifdef __MINGW32__
 
+#include <stdlib.h> // ensure putenv() is declared before fixed_putenv()
 #include <time.h>
 
 void fixes_init(void);
@@ -37,6 +38,10 @@ void fixes_init(void);
 #endif
 
 struct tm *localtime_r(const time_t *timep, struct tm *result);
+
+// replace putenv with fixed_putenv
+int fixed_putenv(char *string);
+#define putenv fixed_putenv
 
 #endif // __MINGW32__
 

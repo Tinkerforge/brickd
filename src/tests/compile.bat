@@ -8,8 +8,10 @@
  goto done
 )
 
-rem @set CC=cl /nologo /c /MD /O2 /W4 /wd4200 /wd4214 /FI..\brickd\fixes_msvc.h /FIbool_msvc.h /DWIN32_LEAN_AND_MEAN /DNDEBUG
-@set CC=cl /nologo /c /MD /Zi /EHsc /Oy- /Ob0 /W4 /wd4200 /wd4214 /FI..\brickd\fixes_msvc.h /FIbool_msvc.h /DWIN32_LEAN_AND_MEAN /DDEBUG
+rem @set CC=cl /nologo /c /MD /O2 /W4 /wd4200 /wd4214 /FI..\brickd\fixes_msvc.h^
+ /FIbool_msvc.h /DWIN32_LEAN_AND_MEAN /DNDEBUG
+@set CC=cl /nologo /c /MD /Zi /EHsc /Oy- /Ob0 /W4 /wd4200 /wd4214^
+ /FI..\brickd\fixes_msvc.h /FIbool_msvc.h /DWIN32_LEAN_AND_MEAN /DDEBUG
 @set MC=mc
 @set RC=rc /dWIN32 /r
 rem @set LD=link /nologo /opt:ref /opt:icf /release
@@ -80,6 +82,17 @@ rem @set LD=link /nologo /opt:ref /opt:icf /release
 
 @if exist sha1_test.exe.manifest^
  %MT% /manifest sha1_test.exe.manifest -outputresource:sha1_test.exe
+
+@del *.obj *.res *.bin *.exp *.manifest
+
+
+%CC% putenv_test.c^
+ ..\brickd\fixes_msvc.c
+
+%LD% /out:putenv_test.exe *.obj ws2_32.lib
+
+@if exist putenv_test.exe.manifest^
+ %MT% /manifest putenv_test.exe.manifest -outputresource:putenv_test.exe
 
 @del *.obj *.res *.bin *.exp *.manifest
 

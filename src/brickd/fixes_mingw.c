@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2013 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2013-2014 Matthias Bolte <matthias@tinkerforge.com>
  *
  * fixes_mingw.c: Fixes for problems with the MinGW headers and libs
  *
@@ -21,6 +21,7 @@
 
 #ifdef __MINGW32__
 
+#include <errno.h>
 #include <string.h>
 
 #include "fixes_mingw.h"
@@ -43,6 +44,47 @@ struct tm *localtime_r(const time_t *timep, struct tm *result) {
 	memcpy(result, temp, sizeof(*result));
 
 	return result;
+}
+
+#undef putenv // undefine to avoid calling fixed_putenv() from fixed_putenv()
+
+// MinGW's putenv might require to call putenv("NAME=") to remove NAME
+// instead of putenv("NAME")
+int fixed_putenv(char *string) {
+	char *buffer;
+	int length;
+	int rc;
+
+	if (strchr(string, '=') != NULL) {
+		return putenv(string);
+	}
+
+	rc = putenv(string);
+
+	if (rc >= 0) {
+		// no fix necessary
+		return rc;
+	}
+
+	length = strlen(string);
+	buffer = malloc(length + 2);
+
+	if (buffer == NULL) {
+		errno = ENOMEM;
+
+		return -1;
+	}
+
+	strcpy(buffer, string);
+
+	buffer[length + 0] = '=';
+	buffer[length + 1] = '\0';
+
+	rc = putenv(buffer);
+
+	free(buffer);
+
+	return rc;
 }
 
 #endif // __MINGW32__

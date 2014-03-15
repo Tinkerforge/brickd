@@ -13,3 +13,5 @@ src/tests/throughput_test
 src/tests/throughput_test.exe
 src/tests/sha1_test
 src/tests/sha1_test.exe
+src/tests/putenv_test
+src/tests/putenv_test.exe

@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2012-2013 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2012-2014 Matthias Bolte <matthias@tinkerforge.com>
  *
  * fixes_msvc.h: Fixes for problems with the MSVC/WDK headers and libs
  *
@@ -24,6 +24,8 @@
 
 #ifdef _MSC_VER
 
+#include <stdlib.h> // ensure putenv() is declared before msvc_putenv()
+#include <process.h> // for GetCurrentProcessId()
 #include <time.h>
 #include <winsock2.h> // for struct timeval
 
@@ -38,13 +40,17 @@ struct tm *localtime_r(const time_t *timep, struct tm *result);
 
 int gettimeofday(struct timeval *tv, struct timezone *tz);
 
+// replace _putenv with fixed_putenv
+int fixed_putenv(char *string);
+#define _putenv fixed_putenv
+
 // replace getpid with GetCurrentProcessId
-#include <process.h>
 #define getpid GetCurrentProcessId
 
 // avoid warnings from MSVC about deprecated POSIX names
 #define strdup _strdup
 #define getch _getch
+#define putenv _putenv
 
 // ensure that functions are avialable under their POSIX names
 #define snprintf(buffer, count, format, ...) \

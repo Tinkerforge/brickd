@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2012-2013 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2012-2014 Matthias Bolte <matthias@tinkerforge.com>
  *
  * fixes_msvc.c: Fixes for problems with the MSVC/WDK headers and libs
  *
@@ -21,13 +21,15 @@
 
 #ifdef _MSC_VER
 
+#include <errno.h>
 #include <stdarg.h>
 #include <stdint.h>
-#include <stdio.h>
 #include <time.h>
 #include <windows.h>
 
 #include "fixes_msvc.h"
+
+#include "utils.h"
 
 typedef void (WINAPI *GETSYSTEMTIMEPRECISEASFILETIME)(LPFILETIME);
 
@@ -41,7 +43,7 @@ void fixes_init(void) {
 
 #ifdef BRICKD_WDK_BUILD
 
-// implement localtime_r based on localtime, the WDK is missing localtime_s
+// implement localtime_r based on localtime, WDK is missing localtime_s
 struct tm *localtime_r(const time_t *timep, struct tm *result) {
 	struct tm *temp;
 
@@ -95,6 +97,49 @@ int gettimeofday(struct timeval *tv, struct timezone *tz) {
 
 		tv->tv_sec = (long)(t / 1000000UL);
 		tv->tv_usec = (long)(t % 1000000UL);
+	}
+
+	return 0;
+}
+
+// implement putenv based on _putenv_s. WDK is missing putenv and MSVC's putenv
+// requires to call putenv("NAME=") to remove NAME instead of putenv("NAME")
+int fixed_putenv(char *string) {
+	char *value = strchr(string, '=');
+	char *buffer;
+	errno_t rc;
+
+	if (value == NULL) {
+		rc = _putenv_s(string, "");
+
+		if (rc != 0) {
+			errno = rc;
+
+			return -1;
+		}
+	} else {
+		buffer = strdup(string);
+
+		if (buffer == NULL) {
+			errno = ENOMEM;
+
+			return -1;
+		}
+
+		value = strchr(buffer, '=');
+		*value++ = '\0';
+
+		rc = _putenv_s(buffer, value);
+
+		if (rc != 0) {
+			errno = rc;
+
+			free(buffer);
+
+			return -1;
+		}
+
+		free(buffer);
 	}
 
 	return 0;
