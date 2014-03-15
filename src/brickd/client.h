@@ -55,8 +55,11 @@ struct _Client {
 	uint32_t authentication_nonce; // server
 };
 
-#define CLIENT_INFO_FORMAT "socket: %d, peer: %s"
-#define client_expand_info(client) (client)->socket->handle, (client)->peer
+#define CLIENT_INFO_FORMAT "socket: %d, type: %s, peer: %s, auth-state: %s"
+#define client_expand_info(client) (client)->socket->handle, (client)->socket->type, \
+	(client)->peer, client_get_authentication_state_name((client)->authentication_state)
+
+const char *client_get_authentication_state_name(ClientAuthenticationState state);
 
 int client_create(Client *client, Socket *socket,
                   struct sockaddr *address, socklen_t length,

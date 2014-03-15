@@ -73,6 +73,7 @@ void websocket_frame_set_mask(WebsocketFrameHeader *header, int mask) {
 }
 
 static void websocket_prepare(Websocket *websocket) {
+	websocket->base.type = "WebSocket";
 	websocket->base.receive_epilog = websocket_receive_epilog;
 	websocket->base.send_override = websocket_send_override;
 

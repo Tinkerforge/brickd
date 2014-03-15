@@ -46,25 +46,6 @@ typedef struct {
 #endif
 } PendingRequest;
 
-static const char *client_get_authentication_state_name(ClientAuthenticationState state) {
-	switch (state) {
-	case CLIENT_AUTHENTICATION_STATE_DISABLED:
-		return "disabled";
-
-	case CLIENT_AUTHENTICATION_STATE_ENABLED:
-		return "enabled";
-
-	case CLIENT_AUTHENTICATION_STATE_NONCE_SEND:
-		return "nonce-send";
-
-	case CLIENT_AUTHENTICATION_STATE_DONE:
-		return "done";
-
-	default:
-		return "<unknown>";
-	}
-}
-
 static void client_handle_get_authentication_nonce_request(Client *client, GetAuthenticationNonceRequest *request) {
 	GetAuthenticationNonceResponse response;
 
@@ -326,6 +307,25 @@ static void client_handle_receive(void *opaque) {
 	}
 }
 
+const char *client_get_authentication_state_name(ClientAuthenticationState state) {
+	switch (state) {
+	case CLIENT_AUTHENTICATION_STATE_DISABLED:
+		return "disabled";
+
+	case CLIENT_AUTHENTICATION_STATE_ENABLED:
+		return "enabled";
+
+	case CLIENT_AUTHENTICATION_STATE_NONCE_SEND:
+		return "nonce-send";
+
+	case CLIENT_AUTHENTICATION_STATE_DONE:
+		return "done";
+
+	default:
+		return "<unknown>";
+	}
+}
+
 int client_create(Client *client, Socket *socket,
                   struct sockaddr *address, socklen_t length,
                   uint32_t authentication_nonce) {
@@ -413,8 +413,8 @@ int client_dispatch_response(Client *client, Packet *response, int force,
 	if (!ignore_authentication &&
 	    client->authentication_state != CLIENT_AUTHENTICATION_STATE_DISABLED &&
 	    client->authentication_state != CLIENT_AUTHENTICATION_STATE_DONE) {
-		log_debug("Ignoring unauthenticated client (socket: %d, peer: %s)",
-		          client->socket->handle, client->peer);
+		log_debug("Ignoring unauthenticated client ("CLIENT_INFO_FORMAT")",
+		          client_expand_info(client));
 
 		return 0;
 	}

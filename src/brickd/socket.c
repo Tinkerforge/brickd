@@ -31,6 +31,7 @@ extern int socket_receive_platform(Socket *socket, void *buffer, int length);
 extern int socket_send_platform(Socket *socket, void *buffer, int length);
 
 static void socket_prepare(Socket *socket) {
+	socket->type = "plain";
 	socket->accept_epilog = NULL;
 	socket->receive_epilog = NULL;
 	socket->send_override = NULL;

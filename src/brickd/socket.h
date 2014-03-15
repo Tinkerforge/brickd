@@ -42,6 +42,7 @@ typedef int (*SocketSendOverrideFunction)(Socket *socket, void *buffer, int leng
 
 struct Socket_ {
 	EventHandle handle;
+	const char *type;
 	SocketAcceptEpilogFunction accept_epilog;
 	SocketReceiveEpilogFunction receive_epilog;
 	SocketSendOverrideFunction send_override;
