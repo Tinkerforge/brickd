@@ -56,32 +56,14 @@ static void network_handle_accept(void *opaque) {
 	socklen_t length = sizeof(address);
 	Client *client;
 
-	if (server_socket == &_server_socket_plain) {
-		client_socket = calloc(1, sizeof(Socket));
-	} else {
-		client_socket = calloc(1, sizeof(Websocket));
-	}
+	// accept new client socket
+	client_socket = socket_accept(server_socket, (struct sockaddr *)&address, &length);
 
 	if (client_socket == NULL) {
-		// because accept() is not called now the event loop will receive
-		// another event on the server socket to indicate the pending
-		// connection attempt. but we're currently in an OOM situation so
-		// there are other things to worry about.
-
-		log_error("Could not allocate socket to accept new client");
-
-		return;
-	}
-
-	// accept new client socket
-	if (socket_accept(server_socket, client_socket,
-	                  (struct sockaddr *)&address, &length) < 0) {
 		if (!errno_interrupted()) {
 			log_error("Could not accept new client: %s (%d)",
 			          get_errno_name(errno), errno);
 		}
-
-		free(client_socket);
 
 		return;
 	}
@@ -141,7 +123,7 @@ static const char *network_get_address_family_name(int family, int report_dual_s
 }
 
 static int network_open_port(Socket *server_socket, uint16_t port,
-                             SocketAcceptEpilogFunction accept_epilog) {
+                             SocketAllocateFunction allocate) {
 	int phase = 0;
 	const char *address = config_get_listen_address();
 	struct addrinfo *resolved_address = NULL;
@@ -173,7 +155,7 @@ static int network_open_port(Socket *server_socket, uint16_t port,
 		goto cleanup;
 	}
 
-	server_socket->accept_epilog = accept_epilog;
+	server_socket->allocate = allocate;
 
 	phase = 2;
 
@@ -276,7 +258,7 @@ int network_init(void) {
 		return -1;
 	}
 
-	if (network_open_port(&_server_socket_plain, plain_port, NULL) >= 0) {
+	if (network_open_port(&_server_socket_plain, plain_port, socket_allocate) >= 0) {
 		_server_socket_plain_open = 1;
 	}
 
@@ -286,7 +268,7 @@ int network_init(void) {
 		}
 
 		if (network_open_port(&_server_socket_websocket, websocket_port,
-		                      websocket_accept_epilog) >= 0) {
+		                      websocket_allocate) >= 0) {
 			_server_socket_websocket_open = 1;
 		}
 	}

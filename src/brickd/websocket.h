@@ -117,8 +117,6 @@ void websocket_frame_set_payload_length(WebsocketFrameHeader *header, int payloa
 int websocket_frame_get_mask(WebsocketFrameHeader *header);
 void websocket_frame_set_mask(WebsocketFrameHeader *header, int mask);
 
-int websocket_create(Websocket *websocket, int family, int type, int protocol);
-
 int websocket_answer_handshake_error(Websocket *websocket);
 int websocket_answer_handshake_ok(Websocket *websocket, char *key, int length);
 int websocket_parse_handshake_line(Websocket *websocket, char *line, int length);
@@ -126,7 +124,7 @@ int websocket_parse_handshake(Websocket *websocket, char *handshake_part, int le
 int websocket_parse_header(Websocket *websocket, uint8_t *buffer, int length);
 int websocket_parse_data(Websocket *websocket, uint8_t *buffer, int length);
 
-int websocket_accept_epilog(Socket *accepted_socket);
+Socket *websocket_allocate(void);
 int websocket_receive_epilog(Socket *socket, void *buffer, int length);
 int websocket_send_override(Socket *socket, void *buffer, int length);
 

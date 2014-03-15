@@ -72,32 +72,6 @@ void websocket_frame_set_mask(WebsocketFrameHeader *header, int mask) {
 	header->payload_length_mask |= ((mask << 7) & (0x1 << 7));
 }
 
-static void websocket_prepare(Websocket *websocket) {
-	websocket->base.type = "WebSocket";
-	websocket->base.receive_epilog = websocket_receive_epilog;
-	websocket->base.send_override = websocket_send_override;
-
-	websocket->frame_index = 0;
-	websocket->line_index = 0;
-	websocket->state = WEBSOCKET_STATE_WAIT_FOR_HANDSHAKE;
-
-	memset(&websocket->frame, 0, sizeof(WebsocketFrame));
-	memset(websocket->line, 0, WEBSOCKET_MAX_LINE_LENGTH);
-	memset(websocket->client_key, 0, WEBSOCKET_CLIENT_KEY_LENGTH);
-}
-
-int websocket_create(Websocket *websocket, int family, int type, int protocol) {
-	int rc = socket_create(&websocket->base, family, type, protocol);
-
-	if (rc < 0) {
-		return rc;
-	}
-
-	websocket_prepare(websocket);
-
-	return 0;
-}
-
 int websocket_answer_handshake_error(Websocket *websocket) {
 	socket_send_platform(&websocket->base, WEBSOCKET_ERROR_STRING, strlen(WEBSOCKET_ERROR_STRING));
 
@@ -319,10 +293,26 @@ int websocket_parse_data(Websocket *websocket, uint8_t *buffer, int length) {
 	return to_read + length_recursive_add;
 }
 
-int websocket_accept_epilog(Socket *accepted_socket) {
-	websocket_prepare((Websocket *)accepted_socket);
+Socket *websocket_allocate(void) {
+	Websocket *websocket = calloc(1, sizeof(Websocket));
 
-	return 0;
+	if (websocket == NULL) {
+		return NULL;
+	}
+
+	websocket->base.type = "WebSocket";
+	websocket->base.receive_epilog = websocket_receive_epilog;
+	websocket->base.send_override = websocket_send_override;
+
+	websocket->frame_index = 0;
+	websocket->line_index = 0;
+	websocket->state = WEBSOCKET_STATE_WAIT_FOR_HANDSHAKE;
+
+	memset(&websocket->frame, 0, sizeof(WebsocketFrame));
+	memset(websocket->line, 0, WEBSOCKET_MAX_LINE_LENGTH);
+	memset(websocket->client_key, 0, WEBSOCKET_CLIENT_KEY_LENGTH);
+
+	return &websocket->base;
 }
 
 int websocket_receive_epilog(Socket *socket, void *buffer, int length) {

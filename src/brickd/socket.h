@@ -36,25 +36,26 @@
 
 typedef struct Socket_ Socket;
 
-typedef int (*SocketAcceptEpilogFunction)(Socket *accepted_socket);
+typedef Socket *(*SocketAllocateFunction)(void);
 typedef int (*SocketReceiveEpilogFunction)(Socket *socket, void *buffer, int length);
 typedef int (*SocketSendOverrideFunction)(Socket *socket, void *buffer, int length);
 
 struct Socket_ {
 	EventHandle handle;
 	const char *type;
-	SocketAcceptEpilogFunction accept_epilog;
+	SocketAllocateFunction allocate;
 	SocketReceiveEpilogFunction receive_epilog;
 	SocketSendOverrideFunction send_override;
 };
+
+Socket *socket_allocate(void);
 
 int socket_create(Socket *socket, int family, int type, int protocol);
 void socket_destroy(Socket *socket);
 
 int socket_bind(Socket *socket, const struct sockaddr *address, socklen_t length);
 int socket_listen(Socket *socket, int backlog);
-int socket_accept(Socket *socket, Socket *accepted_socket,
-                  struct sockaddr *address, socklen_t *length);
+Socket *socket_accept(Socket *socket, struct sockaddr *address, socklen_t *length);
 
 int socket_receive(Socket *socket, void *buffer, int length);
 int socket_send(Socket *socket, void *buffer, int length);

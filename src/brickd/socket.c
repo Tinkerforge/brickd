@@ -32,9 +32,16 @@ extern int socket_send_platform(Socket *socket, void *buffer, int length);
 
 static void socket_prepare(Socket *socket) {
 	socket->type = "plain";
-	socket->accept_epilog = NULL;
 	socket->receive_epilog = NULL;
 	socket->send_override = NULL;
+}
+
+Socket *socket_allocate(void) {
+	Socket *socket = calloc(1, sizeof(Socket));
+
+	socket_prepare(socket);
+
+	return socket;
 }
 
 // sets errno on error
@@ -45,29 +52,29 @@ int socket_create(Socket *socket, int family, int type, int protocol) {
 }
 
 // sets errno on error
-int socket_accept(Socket *socket, Socket *accepted_socket,
-                  struct sockaddr *address, socklen_t *length) {
+Socket *socket_accept(Socket *socket, struct sockaddr *address, socklen_t *length) {
 	int rc;
+	Socket *allocated_socket = socket->allocate();
 
-	socket_prepare(accepted_socket);
+	if (allocated_socket == NULL) {
+		// because accept() is not called now the event loop will receive
+		// another event on the server socket to indicate the pending
+		// connection attempt. but we're currently in an OOM situation so
+		// there are other things to worry about.
+		errno = ENOMEM;
 
-	rc = socket_accept_platform(socket, accepted_socket, address, length);
+		return NULL;
+	}
+
+	rc = socket_accept_platform(socket, allocated_socket, address, length);
 
 	if (rc < 0) {
-		return rc;
+		free(allocated_socket);
+
+		return NULL;
 	}
 
-	if (socket->accept_epilog == NULL) {
-		return 0;
-	}
-
-	rc = socket->accept_epilog(accepted_socket);
-
-	if (rc < 0) {
-		socket_destroy(accepted_socket);
-	}
-
-	return rc;
+	return allocated_socket;
 }
 
 // sets errno on error
