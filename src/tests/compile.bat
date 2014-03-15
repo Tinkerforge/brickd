@@ -30,7 +30,7 @@ rem @set LD=link /nologo /opt:ref /opt:icf /release
 
 @set CC=%CC% /I. /I..\build_data\windows
 
-@del *.obj *.res *.bin *.exp *.manifest *.exe
+@del *.obj *.res *.bin *.exp *.manifest *.pdb *.exe
 
 
 %CC% array_test.c^

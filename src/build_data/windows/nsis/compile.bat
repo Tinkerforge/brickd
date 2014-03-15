@@ -26,7 +26,7 @@
  echo non-WDK build
 )
 
-@del *.obj *.res *.bin *.exp *.manifest *.exe
+@del *.obj *.res *.bin *.exp *.manifest *.pdb *.exe
 
 %CC% drvupd64.c
 

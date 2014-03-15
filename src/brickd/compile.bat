@@ -31,7 +31,7 @@
 @set CC=%CC% /I..\build_data\windows /I..\build_data\windows\libusb
 @set LD=%LD% /libpath:..\build_data\windows\libusb
 
-@del *.obj *.res *.bin *.exp *.manifest *.exe
+@del *.obj *.res *.bin *.exp *.manifest *.pdb *.exe
 
 %MC% -A -b log_messages.mc
 
