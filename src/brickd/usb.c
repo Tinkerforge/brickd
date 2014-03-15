@@ -195,7 +195,7 @@ int usb_init(int libusb_debug) {
 	if (_libusb_debug) {
 		putenv("LIBUSB_DEBUG=5");
 
-#ifdef LIBUSBX_EXPORTS_SET_LOG_FILE_FUNCTION
+#ifdef _WIN32
 		libusb_set_log_file(log_get_file());
 #endif
 	}
@@ -401,7 +401,7 @@ cleanup:
 		break;
 	}
 
-#ifdef LIBUSBX_EXPORTS_FREE_FUNCTION
+#ifdef _WIN32
 	libusb_free(pollfds); // avoid possible heap-mismatch on Windows
 #else
 	free(pollfds);
@@ -425,7 +425,7 @@ void usb_destroy_context(libusb_context *context) {
 			event_remove_source((*pollfd)->fd, EVENT_SOURCE_TYPE_USB);
 		}
 
-#ifdef LIBUSBX_EXPORTS_FREE_FUNCTION
+#ifdef _WIN32
 		libusb_free(pollfds); // avoid possible heap-mismatch on Windows
 #else
 		free(pollfds);

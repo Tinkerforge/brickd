@@ -1,5 +1,5 @@
 diff --git a/libusb/core.c b/libusb/core.c
-index f48517b..953739c 100644
+index af92854..0237cda 100644
 --- a/libusb/core.c
 +++ b/libusb/core.c
 @@ -2045,40 +2045,21 @@ int usbi_gettimeofday(struct timeval *tp, void *tzp)
@@ -63,7 +63,7 @@ index f48517b..953739c 100644
 +	free(ptr);
 +}
 diff --git a/libusb/io.c b/libusb/io.c
-index a2c3dda..e567e77 100644
+index a9c611d..fadcd45 100644
 --- a/libusb/io.c
 +++ b/libusb/io.c
 @@ -2494,7 +2494,6 @@ DEFAULT_VISIBILITY
@@ -79,7 +79,7 @@ index a2c3dda..e567e77 100644
  	usbi_mutex_unlock(&ctx->pollfds_lock);
  	return (const struct libusb_pollfd **) ret;
 -#else
--	usbi_err(ctx, "external polling of libusbx's internal descriptors "\
+-	usbi_err(ctx, "external polling of libusb's internal descriptors "\
 -		"is not yet supported on Windows platforms");
 -	return NULL;
 -#endif
@@ -109,7 +109,7 @@ index cb0e32a..53cda36 100644
 +  libusb_free
 +  libusb_free@4 = libusb_free
 diff --git a/libusb/libusb-1.0.rc b/libusb/libusb-1.0.rc
-index ae49757..98935d9 100644
+index 3dce6d5..b1ec488 100644
 --- a/libusb/libusb-1.0.rc
 +++ b/libusb/libusb-1.0.rc
 @@ -49,7 +49,7 @@ BEGIN
@@ -117,12 +117,12 @@ index ae49757..98935d9 100644
  			VALUE "OriginalFilename", "libusb-1.0.dll\0"
  			VALUE "PrivateBuild", "\0"
 -			VALUE "ProductName", "libusb-1.0\0"
-+			VALUE "ProductName", "libusb-1.0-8b46e1c088167eb86b1712765896e2f17d70d148-tf-9\0"
++			VALUE "ProductName", "libusb-1.0-8facad00ea66e0609d93ad8aa4e174a6e7be8b3c-tf-9\0"
  			VALUE "ProductVersion", LIBUSB_VERSIONSTRING
  			VALUE "SpecialBuild", "\0"
  		END
 diff --git a/libusb/libusb.h b/libusb/libusb.h
-index 8267ee3..5d6dd1d 100644
+index 409b510..ef320c5 100644
 --- a/libusb/libusb.h
 +++ b/libusb/libusb.h
 @@ -60,6 +60,7 @@ typedef unsigned __int32  uint32_t;
@@ -132,7 +132,7 @@ index 8267ee3..5d6dd1d 100644
 +#include <stdio.h>
  
  /* 'interface' might be defined as a macro on Windows, so we need to
-  * undefine it so as not to break the current libusbx API, because
+  * undefine it so as not to break the current libusb API, because
 @@ -67,6 +68,7 @@ typedef unsigned __int32  uint32_t;
   * As this can be problematic if you include windows.h after libusb.h
   * in your sources, we force windows.h to be included first. */
@@ -141,15 +141,11 @@ index 8267ee3..5d6dd1d 100644
  #include <windows.h>
  #if defined(interface)
  #undef interface
-@@ -1948,6 +1950,14 @@ int LIBUSB_CALL libusb_hotplug_register_callback(libusb_context *ctx,
+@@ -1951,6 +1953,10 @@ int LIBUSB_CALL libusb_hotplug_register_callback(libusb_context *ctx,
  void LIBUSB_CALL libusb_hotplug_deregister_callback(libusb_context *ctx,
  						libusb_hotplug_callback_handle handle);
  
-+#define LIBUSBX_EXPORTS_SET_LOG_FILE_FUNCTION 1
-+
 +void LIBUSB_CALL libusb_set_log_file(FILE *file);
-+
-+#define LIBUSBX_EXPORTS_FREE_FUNCTION 1
 +
 +void LIBUSB_CALL libusb_free(void *ptr);
 +
@@ -157,7 +153,7 @@ index 8267ee3..5d6dd1d 100644
  }
  #endif
 diff --git a/libusb/os/poll_windows.c b/libusb/os/poll_windows.c
-index abe8761..bd86a3d 100644
+index 2a75c5e..3e88b1d 100644
 --- a/libusb/os/poll_windows.c
 +++ b/libusb/os/poll_windows.c
 @@ -256,7 +256,7 @@ void exit_polling(void)
@@ -236,7 +232,7 @@ index deed206..294dbe8 100644
  void init_polling(void);
  void exit_polling(void);
 diff --git a/libusb/os/windows_usb.c b/libusb/os/windows_usb.c
-index 5abadc1..0df19d4 100644
+index e130bc9..9eb8661 100644
 --- a/libusb/os/windows_usb.c
 +++ b/libusb/os/windows_usb.c
 @@ -1140,6 +1140,11 @@ static int init_device(struct libusb_device* dev, struct libusb_device* parent_d

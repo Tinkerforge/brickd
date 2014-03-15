@@ -79,7 +79,8 @@
 #define LOG_CATEGORY LOG_CATEGORY_USB
 
 // if compiled with a hotplug capable libusb then don't use dlopen to probe
-#if defined(LIBUSBX_API_VERSION) && (LIBUSBX_API_VERSION >= 0x01000102)
+#if (defined(LIBUSB_API_VERSION)  && (LIBUSB_API_VERSION  >= 0x01000102)) || \
+    (defined(LIBUSBX_API_VERSION) && (LIBUSBX_API_VERSION >= 0x01000102))
 	#define DLOPEN_HOTPLUG_FUNCTIONS 0
 #else
 	#define DLOPEN_HOTPLUG_FUNCTIONS 1

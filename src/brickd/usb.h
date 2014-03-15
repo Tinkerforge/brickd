@@ -24,7 +24,7 @@
 
 #include <libusb.h>
 
-// libusbx defines LIBUSB_CALL but libusb doesn't
+// newer libusb defines LIBUSB_CALL but older libusb doesn't
 #ifndef LIBUSB_CALL
 	#define LIBUSB_CALL
 #endif
