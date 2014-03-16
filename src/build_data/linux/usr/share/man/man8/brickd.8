@@ -23,9 +23,12 @@ Bricks connected to USB are identified using their vendor ID (16D0) and product
 ID (063D).
 .PP
 By default, brickd binds to 0.0.0.0 (IPv4) and listens on port 4223 for
-incoming TCP/IP connections and on port 4280 for incoming WebSocket
-connections. The bind address (IPv4 or IPv6), listen ports and dual-stack
-operation can be configured in the configuration file.
+incoming TCP/IP connections. Listening for incoming WebSocket connections is
+disabled by default for security reasons. The bind address (IPv4 or IPv6),
+listen ports, dual-stack operation and WebSocket support can be configured in
+the configuration file. See
+.IR brickd.conf (5)
+for further details.
 .SH OPTIONS
 .IP "\fB\-\-help\fR" 4
 Print help for command line options and exit.
