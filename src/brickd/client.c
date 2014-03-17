@@ -127,10 +127,10 @@ static void client_handle_authenticate_request(Client *client, AuthenticateReque
 		return;
 	}
 
+	client->authentication_state = CLIENT_AUTHENTICATION_STATE_DONE;
+
 	log_info("Client ("CLIENT_INFO_FORMAT") successfully finished authentication",
 	         client_expand_info(client));
-
-	client->authentication_state = CLIENT_AUTHENTICATION_STATE_DONE;
 
 	if (packet_header_get_response_expected(&request->header) != 0) {
 		response.header = request->header;
