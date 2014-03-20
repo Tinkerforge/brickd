@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2012 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2012, 2014 Matthias Bolte <matthias@tinkerforge.com>
  *
  * event.h: Event specific functions
  *
@@ -78,9 +78,9 @@ const char *event_get_source_type_name(EventSourceType type, int upper);
 int event_init(void);
 void event_exit(void);
 
-int event_add_source(EventHandle handle, EventSourceType type,
-                     int events, EventFunction function, void *opaque);
-void event_remove_source(EventHandle handle, EventSourceType type);
+int event_add_source(EventHandle handle, EventSourceType type, int events,
+                     EventFunction function, void *opaque);
+void event_remove_source(EventHandle handle, EventSourceType type, int events);
 void event_cleanup_sources(void);
 
 int event_run(void);

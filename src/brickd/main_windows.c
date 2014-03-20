@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2012-2013 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2012-2014 Matthias Bolte <matthias@tinkerforge.com>
  *
  * main_windows.c: Brick Daemon starting point for Windows
  *
@@ -713,7 +713,7 @@ error_notification:
 		message_pump_stop();
 	}
 
-	event_remove_source(_notification_pipe.read_end, EVENT_SOURCE_TYPE_GENERIC);
+	event_remove_source(_notification_pipe.read_end, EVENT_SOURCE_TYPE_GENERIC, EVENT_READ);
 
 error_pipe_add:
 	pipe_destroy(&_notification_pipe);

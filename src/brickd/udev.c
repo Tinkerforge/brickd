@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2012-2013 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2012-2014 Matthias Bolte <matthias@tinkerforge.com>
  *
  * udev.c: udev specific functions
  *
@@ -352,7 +352,7 @@ cleanup:
 void udev_exit(void) {
 	log_debug("Shutting down udev subsystem");
 
-	event_remove_source(_udev_monitor_fd, EVENT_SOURCE_TYPE_GENERIC);
+	event_remove_source(_udev_monitor_fd, EVENT_SOURCE_TYPE_GENERIC, EVENT_READ);
 
 	udev_monitor_unref(_udev_monitor);
 	udev_unref(_udev_context);

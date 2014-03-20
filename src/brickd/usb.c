@@ -182,7 +182,7 @@ static void LIBUSB_CALL usb_remove_pollfd(int fd, void *opaque) {
 
 	log_debug("Got told to remove libusb pollfd (handle: %d)", fd);
 
-	event_remove_source(fd, EVENT_SOURCE_TYPE_USB);
+	event_remove_source(fd, EVENT_SOURCE_TYPE_USB, -1);
 }
 
 int usb_init(int libusb_debug) {
@@ -391,7 +391,7 @@ cleanup:
 	switch (phase) { // no breaks, all cases fall through intentionally
 	case 2:
 		for (pollfd = pollfds; pollfd != last_added_pollfd; ++pollfd) {
-			event_remove_source((*pollfd)->fd, EVENT_SOURCE_TYPE_USB);
+			event_remove_source((*pollfd)->fd, EVENT_SOURCE_TYPE_USB, -1);
 		}
 
 	case 1:
@@ -422,7 +422,7 @@ void usb_destroy_context(libusb_context *context) {
 		log_error("Could not get pollfds from main libusb context");
 	} else {
 		for (pollfd = pollfds; *pollfd != NULL; ++pollfd) {
-			event_remove_source((*pollfd)->fd, EVENT_SOURCE_TYPE_USB);
+			event_remove_source((*pollfd)->fd, EVENT_SOURCE_TYPE_USB, -1);
 		}
 
 #ifdef _WIN32

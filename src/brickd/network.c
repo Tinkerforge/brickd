@@ -292,12 +292,12 @@ void network_exit(void) {
 	array_destroy(&_clients, (FreeFunction)client_destroy);
 
 	if (_server_socket_plain_open) {
-		event_remove_source(_server_socket_plain.handle, EVENT_SOURCE_TYPE_GENERIC);
+		event_remove_source(_server_socket_plain.handle, EVENT_SOURCE_TYPE_GENERIC, EVENT_READ);
 		socket_destroy(&_server_socket_plain);
 	}
 
 	if (_server_socket_websocket_open) {
-		event_remove_source(_server_socket_websocket.handle, EVENT_SOURCE_TYPE_GENERIC);
+		event_remove_source(_server_socket_websocket.handle, EVENT_SOURCE_TYPE_GENERIC, EVENT_READ);
 		socket_destroy(&_server_socket_websocket);
 	}
 }

@@ -422,7 +422,7 @@ cleanup:
 		usbi_close(_usb_poller.suspend_pipe[1]);
 
 	case 4:
-		event_remove_source(_stop_pipe.read_end, EVENT_SOURCE_TYPE_GENERIC);
+		event_remove_source(_stop_pipe.read_end, EVENT_SOURCE_TYPE_GENERIC, EVENT_READ);
 
 	case 3:
 		pipe_destroy(&_stop_pipe);
@@ -451,7 +451,7 @@ void event_exit_platform(void) {
 	usbi_close(_usb_poller.suspend_pipe[0]);
 	usbi_close(_usb_poller.suspend_pipe[1]);
 
-	event_remove_source(_stop_pipe.read_end, EVENT_SOURCE_TYPE_GENERIC);
+	event_remove_source(_stop_pipe.read_end, EVENT_SOURCE_TYPE_GENERIC, EVENT_READ);
 	pipe_destroy(&_stop_pipe);
 
 	free(_socket_write_set);
@@ -659,7 +659,7 @@ cleanup:
 
 	thread_destroy(&_usb_poller.thread);
 
-	event_remove_source(_usb_poller.ready_pipe.read_end, EVENT_SOURCE_TYPE_GENERIC);
+	event_remove_source(_usb_poller.ready_pipe.read_end, EVENT_SOURCE_TYPE_GENERIC, EVENT_READ);
 
 	return result;
 }

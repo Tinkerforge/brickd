@@ -381,7 +381,7 @@ void client_destroy(Client *client) {
 		         client_expand_info(client), client->pending_requests.count);
 	}
 
-	event_remove_source(client->socket->handle, EVENT_SOURCE_TYPE_GENERIC);
+	event_remove_source(client->socket->handle, EVENT_SOURCE_TYPE_GENERIC, -1);
 	socket_destroy(client->socket);
 	free(client->socket);
 

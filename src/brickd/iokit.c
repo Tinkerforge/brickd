@@ -224,7 +224,7 @@ cleanup:
 		thread_destroy(&_poller_thread);
 
 	case 2:
-		event_remove_source(_notification_pipe.read_end, EVENT_SOURCE_TYPE_GENERIC);
+		event_remove_source(_notification_pipe.read_end, EVENT_SOURCE_TYPE_GENERIC, EVENT_READ);
 
 	case 1:
 		pipe_destroy(&_notification_pipe);
@@ -250,7 +250,7 @@ void iokit_exit(void) {
 
 	thread_destroy(&_poller_thread);
 
-	event_remove_source(_notification_pipe.read_end, EVENT_SOURCE_TYPE_GENERIC);
+	event_remove_source(_notification_pipe.read_end, EVENT_SOURCE_TYPE_GENERIC, EVENT_READ);
 
 	pipe_destroy(&_notification_pipe);
 }

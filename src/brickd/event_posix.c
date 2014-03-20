@@ -153,7 +153,7 @@ cleanup:
 		signal(SIGINT, SIG_DFL);
 
 	case 3:
-		event_remove_source(_signal_pipe.read_end, EVENT_SOURCE_TYPE_GENERIC);
+		event_remove_source(_signal_pipe.read_end, EVENT_SOURCE_TYPE_GENERIC, EVENT_READ);
 
 	case 2:
 		pipe_destroy(&_signal_pipe);
@@ -174,7 +174,7 @@ void event_exit_platform(void) {
 	signal(SIGTERM, SIG_DFL);
 	signal(SIGINT, SIG_DFL);
 
-	event_remove_source(_signal_pipe.read_end, EVENT_SOURCE_TYPE_GENERIC);
+	event_remove_source(_signal_pipe.read_end, EVENT_SOURCE_TYPE_GENERIC, EVENT_READ);
 	pipe_destroy(&_signal_pipe);
 
 	array_destroy(&_pollfds, NULL);

@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2012-2013 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2012-2014 Matthias Bolte <matthias@tinkerforge.com>
  *
  * event.c: Event specific functions
  *
@@ -95,7 +95,8 @@ int event_add_source(EventHandle handle, EventSourceType type, int events,
 		event_source = array_get(&_event_sources, i);
 
 		if (event_source->handle == handle &&
-		    event_source->type == type) {
+		    event_source->type == type &&
+		    event_source->events == events) {
 			if (event_source->state == EVENT_SOURCE_STATE_REMOVED) {
 				event_source->events = events;
 				event_source->state = EVENT_SOURCE_STATE_READDED;
@@ -142,8 +143,9 @@ int event_add_source(EventHandle handle, EventSourceType type, int events,
 }
 
 // only mark event sources as removed here, because the event loop might be in
-// the middle of iterating the event sources array when this function is called
-void event_remove_source(EventHandle handle, EventSourceType type) {
+// the middle of iterating the event sources array when this function is called.
+// events can be negative to match all events
+void event_remove_source(EventHandle handle, EventSourceType type, int events) {
 	int i;
 	EventSource *event_source;
 
@@ -152,7 +154,8 @@ void event_remove_source(EventHandle handle, EventSourceType type) {
 		event_source = array_get(&_event_sources, i);
 
 		if (event_source->handle == handle &&
-		    event_source->type == type) {
+		    event_source->type == type &&
+		    (events < 0 || event_source->events == events)) {
 			if (event_source->state == EVENT_SOURCE_STATE_REMOVED) {
 				log_warn("%s event source (handle: %d, events: %d) already marked as removed at index %d",
 				         event_get_source_type_name(event_source->type, 1),
@@ -169,8 +172,8 @@ void event_remove_source(EventHandle handle, EventSourceType type) {
 		}
 	}
 
-	log_warn("Could not mark unknown %s event source (handle: %d) as removed",
-	         event_get_source_type_name(type, 0), handle);
+	log_warn("Could not mark unknown %s event source (handle: %d, events: %d) as removed",
+	         event_get_source_type_name(type, 0), handle, events);
 }
 
 // remove event sources that got marked as removed
