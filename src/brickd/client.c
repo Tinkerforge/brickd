@@ -35,7 +35,7 @@
 
 #define LOG_CATEGORY LOG_CATEGORY_NETWORK
 
-#define MAX_PENDING_REQUESTS 256
+#define MAX_PENDING_REQUESTS 512
 
 static const char *_unknown_peer_name = "<unknown>";
 

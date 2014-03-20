@@ -42,7 +42,7 @@
 
 #define MAX_READ_TRANSFERS 5
 #define MAX_WRITE_TRANSFERS 5
-#define MAX_QUEUED_WRITES 256
+#define MAX_QUEUED_WRITES 512
 
 static void usb_stack_read_callback(USBTransfer *usb_transfer) {
 	const char *message = NULL;
