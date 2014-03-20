@@ -122,7 +122,9 @@ static int usb_stack_dispatch_request(USBStack *usb_stack, Packet *request) {
 	int i;
 	USBTransfer *usb_transfer;
 	Packet *queued_request;
+	char packet_signature[PACKET_MAX_SIGNATURE_LENGTH];
 
+	// find free write transfer
 	for (i = 0; i < usb_stack->write_transfers.count; ++i) {
 		usb_transfer = array_get(&usb_stack->write_transfers, i);
 
@@ -141,7 +143,8 @@ static int usb_stack_dispatch_request(USBStack *usb_stack, Packet *request) {
 		return 0;
 	}
 
-	log_debug("Could not find a free write transfer for %s, adding request to write queue (count: %d +1)",
+	// no free write transfer available, push it to write queue
+	log_debug("Could not find a free write transfer for %s, pushing request to write queue (count: %d +1)",
 	          usb_stack->base.name, usb_stack->write_queue.count);
 
 	if (usb_stack->write_queue.count >= MAX_QUEUED_WRITES) {
@@ -157,8 +160,10 @@ static int usb_stack_dispatch_request(USBStack *usb_stack, Packet *request) {
 	queued_request = queue_push(&usb_stack->write_queue);
 
 	if (queued_request == NULL) {
-		log_error("Could not push to write queue of %s: %s (%d)",
-		          usb_stack->base.name, get_errno_name(errno), errno);
+		log_error("Could not push to write queue of %s, discarding request (%s): %s (%d)",
+		          usb_stack->base.name,
+		          packet_get_request_signature(packet_signature, request),
+		          get_errno_name(errno), errno);
 
 		return -1;
 	}

@@ -72,6 +72,8 @@ static void LIBUSB_CALL usb_transfer_wrapper(struct libusb_transfer *handle) {
 
 		return;
 	} else if (handle->status == LIBUSB_TRANSFER_STALL) {
+		// FIXME: maybe use libusb_clear_halt to clear halt condition?
+
 		log_debug("%s transfer %p for %s got stalled",
 		          usb_transfer_get_type_name(usb_transfer->type, 1), usb_transfer,
 		          usb_transfer->usb_stack->base.name);
