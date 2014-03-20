@@ -32,6 +32,7 @@
 #include "array.h"
 #include "event.h"
 #include "packet.h"
+#include "queue.h"
 #include "socket.h"
 
 typedef struct _Client Client;
@@ -53,6 +54,7 @@ struct _Client {
 	Array pending_requests;
 	ClientAuthenticationState authentication_state;
 	uint32_t authentication_nonce; // server
+	Queue send_queue;
 };
 
 #define CLIENT_INFO_FORMAT "socket: %d, type: %s, peer: %s, auth-state: %s"

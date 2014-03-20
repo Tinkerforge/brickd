@@ -36,6 +36,7 @@
 #define LOG_CATEGORY LOG_CATEGORY_NETWORK
 
 #define MAX_PENDING_REQUESTS 512
+#define MAX_QUEUED_SENDS 512
 
 static const char *_unknown_peer_name = "<unknown>";
 
@@ -190,6 +191,39 @@ static void client_handle_request(Client *client, Packet *request) {
 	}
 }
 
+static void client_handle_send(void *opaque) {
+	Client *client = opaque;
+	Packet *response;
+	char packet_signature[PACKET_MAX_SIGNATURE_LENGTH];
+
+	if (client->send_queue.count == 0) {
+		return;
+	}
+
+	response = queue_peek(&client->send_queue);
+
+	if (socket_send(client->socket, response, response->header.length) < 0) {
+		log_error("Could not send queued response (%s) to client ("CLIENT_INFO_FORMAT"), disconnecting it: %s (%d)",
+		          packet_get_request_signature(packet_signature, response),
+		          client_expand_info(client), get_errno_name(errno), errno);
+
+		client->disconnected = 1;
+
+		return;
+	}
+
+	queue_pop(&client->send_queue, NULL);
+
+	log_debug("Sent queued response (%s) to client ("CLIENT_INFO_FORMAT"), %d response(s) left in send queue",
+	          packet_get_request_signature(packet_signature, response),
+	          client_expand_info(client), client->send_queue.count);
+
+	if (client->send_queue.count == 0) {
+		// last queued response handled, deregister for write events
+		event_remove_source(client->socket->handle, EVENT_SOURCE_TYPE_GENERIC, EVENT_WRITE);
+	}
+}
+
 static void client_handle_receive(void *opaque) {
 	Client *client = opaque;
 	int length;
@@ -326,9 +360,53 @@ const char *client_get_authentication_state_name(ClientAuthenticationState state
 	}
 }
 
+static int client_push_response_to_send_queue(Client *client, Packet *response) {
+	Packet *queued_response;
+	char packet_signature[PACKET_MAX_SIGNATURE_LENGTH];
+
+	log_debug("Client ("CLIENT_INFO_FORMAT") is not ready to send, pushing response to send queue (count: %d +1)",
+	          client_expand_info(client), client->send_queue.count);
+
+	if (client->send_queue.count >= MAX_QUEUED_SENDS) {
+		log_warn("Send queue of client ("CLIENT_INFO_FORMAT") is full, dropping %d queued response(s)",
+		         client_expand_info(client),
+		         client->send_queue.count - MAX_QUEUED_SENDS + 1);
+
+		while (client->send_queue.count >= MAX_QUEUED_SENDS) {
+			queue_pop(&client->send_queue, NULL);
+		}
+	}
+
+	queued_response = queue_push(&client->send_queue);
+
+	if (queued_response == NULL) {
+		log_error("Could not push to send queue of client ("CLIENT_INFO_FORMAT"), discarding response (%s): %s (%d)",
+		          client_expand_info(client),
+		          packet_get_request_signature(packet_signature, response),
+		          get_errno_name(errno), errno);
+
+		return -1;
+	}
+
+	memcpy(queued_response, response, response->header.length);
+
+	if (client->send_queue.count == 1) {
+		// first queued response, register for write events
+		if (event_add_source(client->socket->handle, EVENT_SOURCE_TYPE_GENERIC,
+		                     EVENT_WRITE, client_handle_send, client) < 0) {
+			// FIXME: how to handle this error?
+			return -1;
+		}
+	}
+
+	return 0;
+}
+
 int client_create(Client *client, Socket *socket,
                   struct sockaddr *address, socklen_t length,
                   uint32_t authentication_nonce) {
+	int phase = 0;
+
 	log_debug("Creating client from socket (handle: %d)", socket->handle);
 
 	client->socket = socket;
@@ -347,8 +425,20 @@ int client_create(Client *client, Socket *socket,
 		log_error("Could not create pending request array: %s (%d)",
 		          get_errno_name(errno), errno);
 
-		return -1;
+		goto cleanup;
 	}
+
+	phase = 1;
+
+	// create send queue
+	if (queue_create(&client->send_queue, sizeof(Packet)) < 0) {
+		log_error("Could not create send queue: %s (%d)",
+		          get_errno_name(errno), errno);
+
+		goto cleanup;
+	}
+
+	phase = 2;
 
 	// get peer name
 	client->peer = socket_address_to_hostname(address, length);
@@ -358,27 +448,49 @@ int client_create(Client *client, Socket *socket,
 		         socket->handle, get_errno_name(errno), errno);
 
 		client->peer = (char *)_unknown_peer_name;
+
+		goto cleanup;
 	}
+
+	phase = 3;
 
 	// add socket as event source
 	if (event_add_source(client->socket->handle, EVENT_SOURCE_TYPE_GENERIC,
 	                     EVENT_READ, client_handle_receive, client) < 0) {
+		goto cleanup;
+	}
+
+	phase = 4;
+
+cleanup:
+	switch (phase) { // no breaks, all cases fall through intentionally
+	case 3:
 		if (client->peer != _unknown_peer_name) {
 			free(client->peer);
 		}
 
+	case 2:
+		queue_destroy(&client->send_queue, NULL);
+
+	case 1:
 		array_destroy(&client->pending_requests, NULL);
 
-		return -1;
+	default:
+		break;
 	}
 
-	return 0;
+	return phase == 4 ? 0 : -1;
 }
 
 void client_destroy(Client *client) {
 	if (client->pending_requests.count > 0) {
 		log_warn("Destroying client ("CLIENT_INFO_FORMAT") while %d request(s) are still pending",
 		         client_expand_info(client), client->pending_requests.count);
+	}
+
+	if (client->send_queue.count > 0) {
+		log_warn("Destroying client ("CLIENT_INFO_FORMAT") while %d response(s) have not beed send",
+		         client_expand_info(client), client->send_queue.count);
 	}
 
 	event_remove_source(client->socket->handle, EVENT_SOURCE_TYPE_GENERIC, -1);
@@ -390,6 +502,7 @@ void client_destroy(Client *client) {
 	}
 
 	array_destroy(&client->pending_requests, NULL);
+	queue_destroy(&client->send_queue, NULL);
 }
 
 // returns -1 on error, 0 if the response was not dispatched and 1 if it was dispatch
@@ -398,6 +511,7 @@ int client_dispatch_response(Client *client, Packet *response, int force,
 	int i;
 	PendingRequest *pending_request = NULL;
 	int found = -1;
+	int enqueued = 0;
 	int rc = -1;
 #ifdef BRICKD_WITH_PROFILING
 	uint64_t elapsed;
@@ -432,29 +546,46 @@ int client_dispatch_response(Client *client, Packet *response, int force,
 	}
 
 	if (force || found >= 0) {
-		if (socket_send(client->socket, response, response->header.length) < 0) {
-			log_error("Could not send response to client ("CLIENT_INFO_FORMAT"), disconnecting it: %s (%d)",
-			          client_expand_info(client), get_errno_name(errno), errno);
+		if (client->send_queue.count > 0) {
+			if (client_push_response_to_send_queue(client, response) < 0) {
+				goto cleanup;
+			}
 
-			client->disconnected = 1;
+			enqueued = 1;
+		} else {
+			if (socket_send(client->socket, response, response->header.length) < 0) {
+				if (!errno_would_block()) {
+					log_error("Could not send response to client ("CLIENT_INFO_FORMAT"), disconnecting it: %s (%d)",
+					          client_expand_info(client), get_errno_name(errno), errno);
 
-			goto cleanup;
+					client->disconnected = 1;
+
+					goto cleanup;
+				}
+
+				if (client_push_response_to_send_queue(client, response) < 0) {
+					goto cleanup;
+				}
+
+				enqueued = 1;
+			}
 		}
 
 		if (force) {
-			log_debug("Forced to sent response to client ("CLIENT_INFO_FORMAT")",
-			          client_expand_info(client));
+			log_debug("Forced to %s response to client ("CLIENT_INFO_FORMAT")",
+			          enqueued ? "enqueue" : "send", client_expand_info(client));
 		} else {
 #ifdef BRICKD_WITH_PROFILING
 			elapsed = microseconds() - pending_request->arrival_time;
 
-			log_debug("Sent response to client ("CLIENT_INFO_FORMAT"), was requested %u.%03u msec ago, %d request(s) still pending",
-			          client_expand_info(client),
+			log_debug("%s response to client ("CLIENT_INFO_FORMAT"), was requested %u.%03u msec ago, %d request(s) still pending",
+			          enqueued ? "Enqueue" : "Sent", client_expand_info(client),
 			          (unsigned int)(elapsed / 1000), (unsigned int)(elapsed % 1000),
 			          client->pending_requests.count - 1);
 #else
-			log_debug("Sent response to client ("CLIENT_INFO_FORMAT"), %d request(s) still pending",
-			          client_expand_info(client), client->pending_requests.count - 1);
+			log_debug("%s response to client ("CLIENT_INFO_FORMAT"), %d request(s) still pending",
+			          enqueued ? "Enqueue" : "Sent", client_expand_info(client),
+			          client->pending_requests.count - 1);
 #endif
 		}
 	}
