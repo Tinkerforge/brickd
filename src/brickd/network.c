@@ -324,8 +324,6 @@ void network_dispatch_response(Packet *response) {
 	char packet_signature[PACKET_MAX_SIGNATURE_LENGTH];
 	int i;
 	Client *client;
-	int rc;
-	int dispatched = 0;
 
 	if (_clients.count == 0) {
 		if (packet_header_get_sequence_number(&response->header) == 0) {
@@ -359,17 +357,10 @@ void network_dispatch_response(Packet *response) {
 		for (i = 0; i < _clients.count; ++i) {
 			client = array_get(&_clients, i);
 
-			rc = client_dispatch_response(client, response, 0, 0);
-
-			if (rc < 0) {
-				continue;
-			} else if (rc > 0) {
-				dispatched = 1;
+			if (client_dispatch_response(client, response, 0, 0) > 0) {
+				// found client with matching pending request
+				return;
 			}
-		}
-
-		if (dispatched) {
-			return;
 		}
 
 		log_warn("Broadcasting response (%s) because no client has a matching pending request",
