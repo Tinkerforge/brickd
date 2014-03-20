@@ -372,7 +372,8 @@ void network_dispatch_response(Packet *response) {
 			return;
 		}
 
-		log_warn("Broadcasting response because no client has a matching pending request");
+		log_warn("Broadcasting response (%s) because no client has a matching pending request",
+		         packet_get_response_signature(packet_signature, response));
 
 		for (i = 0; i < _clients.count; ++i) {
 			client = array_get(&_clients, i);

@@ -67,6 +67,7 @@ int stack_add_uid(Stack *stack, uint32_t uid /* always little endian */) {
 	int i;
 	uint32_t known_uid;
 	uint32_t *new_uid;
+	char base58[BASE58_MAX_LENGTH];
 
 	for (i = 0; i < stack->uids.count; ++i) {
 		known_uid = *(uint32_t *)array_get(&stack->uids, i);
@@ -79,7 +80,8 @@ int stack_add_uid(Stack *stack, uint32_t uid /* always little endian */) {
 	new_uid = array_append(&stack->uids);
 
 	if (new_uid == NULL) {
-		log_error("Could not append to UID array: %s (%d)",
+		log_error("Could not append %s to UID array: %s (%d)",
+		          base58_encode(base58, uint32_from_le(uid)),
 		          get_errno_name(errno), errno);
 
 		return -1;

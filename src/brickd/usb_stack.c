@@ -160,9 +160,9 @@ static int usb_stack_dispatch_request(USBStack *usb_stack, Packet *request) {
 	queued_request = queue_push(&usb_stack->write_queue);
 
 	if (queued_request == NULL) {
-		log_error("Could not push to write queue of %s, discarding request (%s): %s (%d)",
-		          usb_stack->base.name,
+		log_error("Could not push request (%s) to write queue of %s, discarding request: %s (%d)",
 		          packet_get_request_signature(packet_signature, request),
+		          usb_stack->base.name,
 		          get_errno_name(errno), errno);
 
 		return -1;
@@ -235,7 +235,7 @@ int usb_stack_create(USBStack *usb_stack, uint8_t bus_number, uint8_t device_add
 		rc = libusb_get_device_descriptor(device, &descriptor);
 
 		if (rc < 0) {
-			log_warn("Could not get device descriptor for %s, ignoring it: %s (%d)",
+			log_warn("Could not get device descriptor for %s, ignoring USB device: %s (%d)",
 			         usb_stack->base.name, usb_get_error_name(rc), rc);
 
 			continue;
@@ -243,7 +243,7 @@ int usb_stack_create(USBStack *usb_stack, uint8_t bus_number, uint8_t device_add
 
 		if (descriptor.idVendor != USB_BRICK_VENDOR_ID ||
 		    descriptor.idProduct != USB_BRICK_PRODUCT_ID) {
-			log_warn("Found non-Brick USB device (bus: %u, device: %u, vendor: 0x%04X, product: 0x%04X) with address collision, ignoring it",
+			log_warn("Found non-Brick USB device (bus: %u, device: %u, vendor: 0x%04X, product: 0x%04X) with address collision, ignoring USB device",
 			         usb_stack->bus_number, usb_stack->device_address,
 			         descriptor.idVendor, descriptor.idProduct);
 
@@ -251,7 +251,7 @@ int usb_stack_create(USBStack *usb_stack, uint8_t bus_number, uint8_t device_add
 		}
 
 		if (descriptor.bcdDevice < USB_BRICK_DEVICE_RELEASE) {
-			log_warn("%s has protocol 1.0 firmware, ignoring it",
+			log_warn("%s has protocol 1.0 firmware, ignoring USB device",
 			         usb_stack->base.name);
 
 			continue;
@@ -261,7 +261,7 @@ int usb_stack_create(USBStack *usb_stack, uint8_t bus_number, uint8_t device_add
 		rc = libusb_open(device, &usb_stack->device_handle);
 
 		if (rc < 0) {
-			log_warn("Could not open %s, ignoring it: %s (%d)",
+			log_warn("Could not open %s, ignoring USB device: %s (%d)",
 			         usb_stack->base.name, usb_get_error_name(rc), rc);
 
 			continue;

@@ -203,7 +203,7 @@ static void client_handle_send(void *opaque) {
 	response = queue_peek(&client->send_queue);
 
 	if (socket_send(client->socket, response, response->header.length) < 0) {
-		log_error("Could not send queued response (%s) to client ("CLIENT_INFO_FORMAT"), disconnecting it: %s (%d)",
+		log_error("Could not send queued response (%s) to client ("CLIENT_INFO_FORMAT"), disconnecting client: %s (%d)",
 		          packet_get_request_signature(packet_signature, response),
 		          client_expand_info(client), get_errno_name(errno), errno);
 
@@ -254,7 +254,7 @@ static void client_handle_receive(void *opaque) {
 			log_debug("Receiving from client ("CLIENT_INFO_FORMAT") would block, retrying",
 			          client_expand_info(client));
 		} else {
-			log_error("Could not receive from client ("CLIENT_INFO_FORMAT"), disconnecting it: %s (%d)",
+			log_error("Could not receive from client ("CLIENT_INFO_FORMAT"), disconnecting client: %s (%d)",
 			          client_expand_info(client), get_errno_name(errno), errno);
 
 			client->disconnected = 1;
@@ -273,7 +273,7 @@ static void client_handle_receive(void *opaque) {
 
 		if (!client->request_header_checked) {
 			if (!packet_header_is_valid_request(&client->request.header, &message)) {
-				log_error("Got invalid request (%s) from client ("CLIENT_INFO_FORMAT"), disconnecting it: %s",
+				log_error("Got invalid request (%s) from client ("CLIENT_INFO_FORMAT"), disconnecting client: %s",
 				          packet_get_request_signature(packet_signature, &client->request),
 				          client_expand_info(client), message);
 
@@ -293,7 +293,7 @@ static void client_handle_receive(void *opaque) {
 		}
 
 		if (client->request.header.function_id == FUNCTION_DISCONNECT_PROBE) {
-			log_debug("Got disconnect probe from client ("CLIENT_INFO_FORMAT"), dropping it",
+			log_debug("Got disconnect probe from client ("CLIENT_INFO_FORMAT"), dropping request",
 			          client_expand_info(client));
 		} else {
 			log_debug("Got request (%s) from client ("CLIENT_INFO_FORMAT")",
@@ -302,9 +302,9 @@ static void client_handle_receive(void *opaque) {
 
 			if (packet_header_get_response_expected(&client->request.header)) {
 				if (client->pending_requests.count >= MAX_PENDING_REQUESTS) {
-					log_warn("Dropping %d items from pending request array of client ("CLIENT_INFO_FORMAT")",
-					         client->pending_requests.count - MAX_PENDING_REQUESTS + 1,
-					         client_expand_info(client));
+					log_warn("Pending requests array of client ("CLIENT_INFO_FORMAT") is full, dropping %d pending request(s)",
+					         client_expand_info(client),
+					         client->pending_requests.count - MAX_PENDING_REQUESTS + 1);
 
 					while (client->pending_requests.count >= MAX_PENDING_REQUESTS) {
 						array_remove(&client->pending_requests, 0, NULL);
@@ -314,8 +314,8 @@ static void client_handle_receive(void *opaque) {
 				pending_request = array_append(&client->pending_requests);
 
 				if (pending_request == NULL) {
-					log_error("Could not append to pending request array: %s (%d)",
-					          get_errno_name(errno), errno);
+					log_error("Could not append to pending requests array of client ("CLIENT_INFO_FORMAT"): %s (%d)",
+					          client_expand_info(client), get_errno_name(errno), errno);
 				} else {
 					memcpy(&pending_request->header, &client->request.header,
 					       sizeof(PacketHeader));
@@ -380,9 +380,9 @@ static int client_push_response_to_send_queue(Client *client, Packet *response) 
 	queued_response = queue_push(&client->send_queue);
 
 	if (queued_response == NULL) {
-		log_error("Could not push to send queue of client ("CLIENT_INFO_FORMAT"), discarding response (%s): %s (%d)",
-		          client_expand_info(client),
+		log_error("Could not push response (%s) to send queue of client ("CLIENT_INFO_FORMAT"), discarding response: %s (%d)",
 		          packet_get_request_signature(packet_signature, response),
+		          client_expand_info(client),
 		          get_errno_name(errno), errno);
 
 		return -1;
@@ -512,6 +512,7 @@ int client_dispatch_response(Client *client, Packet *response, int force,
 	PendingRequest *pending_request = NULL;
 	int found = -1;
 	int enqueued = 0;
+	char packet_signature[PACKET_MAX_SIGNATURE_LENGTH];
 	int rc = -1;
 #ifdef BRICKD_WITH_PROFILING
 	uint64_t elapsed;
@@ -555,7 +556,8 @@ int client_dispatch_response(Client *client, Packet *response, int force,
 		} else {
 			if (socket_send(client->socket, response, response->header.length) < 0) {
 				if (!errno_would_block()) {
-					log_error("Could not send response to client ("CLIENT_INFO_FORMAT"), disconnecting it: %s (%d)",
+					log_error("Could not send response (%s) to client ("CLIENT_INFO_FORMAT"), disconnecting client: %s (%d)",
+					          packet_get_request_signature(packet_signature, response),
 					          client_expand_info(client), get_errno_name(errno), errno);
 
 					client->disconnected = 1;

@@ -76,7 +76,7 @@ static int usb_enumerate(void) {
 		rc = libusb_get_device_descriptor(device, &descriptor);
 
 		if (rc < 0) {
-			log_warn("Could not get device descriptor for USB device (bus: %u, device: %u), ignoring it: %s (%d)",
+			log_warn("Could not get device descriptor for USB device (bus: %u, device: %u), ignoring USB device: %s (%d)",
 			         bus_number, device_address, usb_get_error_name(rc), rc);
 
 			continue;
@@ -88,7 +88,7 @@ static int usb_enumerate(void) {
 		}
 
 		if (descriptor.bcdDevice < USB_BRICK_DEVICE_RELEASE) {
-			log_warn("USB device (bus: %u, device: %u) has protocol 1.0 firmware, ignoring it",
+			log_warn("USB device (bus: %u, device: %u) has protocol 1.0 firmware, ignoring USB device",
 			         bus_number, device_address);
 
 			continue;
