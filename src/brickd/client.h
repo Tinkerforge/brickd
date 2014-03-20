@@ -57,7 +57,7 @@ struct _Client {
 	Queue send_queue;
 };
 
-#define CLIENT_INFO_FORMAT "socket: %d, type: %s, peer: %s, auth-state: %s"
+#define CLIENT_INFO_FORMAT "S: %d, T: %s, P: %s, A: %s"
 #define client_expand_info(client) (client)->socket->handle, (client)->socket->type, \
 	(client)->peer, client_get_authentication_state_name((client)->authentication_state)
 
