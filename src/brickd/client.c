@@ -51,7 +51,7 @@ static void client_handle_get_authentication_nonce_request(Client *client, GetAu
 	GetAuthenticationNonceResponse response;
 
 	if (client->authentication_state == CLIENT_AUTHENTICATION_STATE_DISABLED) {
-		log_error("Client ("CLIENT_INFO_FORMAT") tries to authenticate, but authentication is disabled, disconnecting it",
+		log_error("Client ("CLIENT_INFO_FORMAT") tries to authenticate, but authentication is disabled, disconnecting client",
 		          client_expand_info(client));
 
 		client->disconnected = 1;
@@ -67,7 +67,7 @@ static void client_handle_get_authentication_nonce_request(Client *client, GetAu
 	}
 
 	if (client->authentication_state != CLIENT_AUTHENTICATION_STATE_ENABLED) {
-		log_error("Client ("CLIENT_INFO_FORMAT") performed invalid authentication sequence (%s -> %s), disconnecting it",
+		log_error("Client ("CLIENT_INFO_FORMAT") performed invalid authentication sequence (%s -> %s), disconnecting client",
 		          client_expand_info(client),
 		          client_get_authentication_state_name(client->authentication_state),
 		          client_get_authentication_state_name(CLIENT_AUTHENTICATION_STATE_NONCE_SEND));
@@ -93,7 +93,7 @@ static void client_handle_authenticate_request(Client *client, AuthenticateReque
 	AuthenticateResponse response;
 
 	if (client->authentication_state == CLIENT_AUTHENTICATION_STATE_DISABLED) {
-		log_error("Client ("CLIENT_INFO_FORMAT") tries to authenticate, but authentication is disabled, disconnecting it",
+		log_error("Client ("CLIENT_INFO_FORMAT") tries to authenticate, but authentication is disabled, disconnecting client",
 		          client_expand_info(client));
 
 		client->disconnected = 1;
@@ -102,7 +102,7 @@ static void client_handle_authenticate_request(Client *client, AuthenticateReque
 	}
 
 	if (client->authentication_state != CLIENT_AUTHENTICATION_STATE_NONCE_SEND) {
-		log_error("Client ("CLIENT_INFO_FORMAT") performed invalid authentication sequence (%s -> %s), disconnecting it",
+		log_error("Client ("CLIENT_INFO_FORMAT") performed invalid authentication sequence (%s -> %s), disconnecting client",
 		          client_expand_info(client),
 		          client_get_authentication_state_name(client->authentication_state),
 		          client_get_authentication_state_name(CLIENT_AUTHENTICATION_STATE_DONE));
@@ -120,7 +120,7 @@ static void client_handle_authenticate_request(Client *client, AuthenticateReque
 	          (uint8_t *)nonces, sizeof(nonces), digest);
 
 	if (memcmp(request->digest, digest, SHA1_DIGEST_LENGTH) != 0) {
-		log_error("Authentication request of client ("CLIENT_INFO_FORMAT") did not contain the expected data, disconnecting it",
+		log_error("Authentication request of client ("CLIENT_INFO_FORMAT") did not contain the expected data, disconnecting client",
 		          client_expand_info(client));
 
 		client->disconnected = 1;
@@ -150,7 +150,7 @@ static void client_handle_request(Client *client, Packet *request) {
 	if (uint32_from_le(request->header.uid) == UID_BRICK_DAEMON) {
 		if (request->header.function_id == FUNCTION_GET_AUTHENTICATION_NONCE) {
 			if (request->header.length != sizeof(GetAuthenticationNonceRequest)) {
-				log_error("Received authentication request (%s) from client ("CLIENT_INFO_FORMAT") with wrong length, disconnecting it",
+				log_error("Received authentication request (%s) from client ("CLIENT_INFO_FORMAT") with wrong length, disconnecting client",
 				          packet_get_request_signature(packet_signature, request),
 				          client_expand_info(client));
 
@@ -162,7 +162,7 @@ static void client_handle_request(Client *client, Packet *request) {
 			client_handle_get_authentication_nonce_request(client, (GetAuthenticationNonceRequest *)request);
 		} else if (request->header.function_id == FUNCTION_AUTHENTICATE) {
 			if (request->header.length != sizeof(AuthenticateRequest)) {
-				log_error("Received authentication request (%s) from client ("CLIENT_INFO_FORMAT") with wrong length, disconnecting it",
+				log_error("Received authentication request (%s) from client ("CLIENT_INFO_FORMAT") with wrong length, disconnecting client",
 				          packet_get_request_signature(packet_signature, request),
 				          client_expand_info(client));
 

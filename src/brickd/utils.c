@@ -441,6 +441,8 @@ uint32_t get_random_uint32(void) {
 
 	CryptReleaseContext(hprovider, 0);
 #else
+	// try /dev/random first, if not available or a read would block then
+	// fallback to the non-blocking /dev/urandom
 	if (read_uint32_non_blocking("/dev/random", &r) < 0) {
 		if (read_uint32_non_blocking("/dev/urandom", &r) < 0) {
 			goto fallback;

@@ -125,7 +125,8 @@ void thread_destroy(Thread *thread) {
 
 void thread_join(Thread *thread) {
 	if (pthread_equal(thread->handle, pthread_self())) {
-		log_error("Thread at address %p is joining itself", thread);
+		log_error("Thread (function: %p, opaque: %p) is joining itself",
+		          thread->function, thread->opaque);
 	}
 
 	pthread_join(thread->handle, NULL);
