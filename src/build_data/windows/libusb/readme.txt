@@ -1,6 +1,6 @@
 This is a special version of libusb for brickd build with WDK 7 for x86.
 
-Based on libusb's github.org commit 8facad00ea66e0609d93ad8aa4e174a6e7be8b3c
+Based on libusb's github.com commit 8facad00ea66e0609d93ad8aa4e174a6e7be8b3c
 (libusb version 1.0.18 plus some fixes) with the libusb-brickd.patch
 applied to it.
 
