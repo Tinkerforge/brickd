@@ -179,7 +179,7 @@ else
 endif
 
 ifeq ($(PLATFORM),Windows)
-	LIBUSB_STATUS := 1.0.17 (fork)
+	LIBUSB_STATUS := 1.0.18 (fork)
 	LIBUSB_CFLAGS := -I../build_data/windows/libusb
 	LIBUSB_LDFLAGS := -L../build_data/windows/libusb
 	LIBUSB_LIBS := -lusb-1.0
@@ -200,7 +200,7 @@ endif
 endif
 
 ifeq ($(PLATFORM),Darwin)
-	LIBUSB_STATUS := 1.0.17 (fork)
+	LIBUSB_STATUS := 1.0.18 (fork)
 	LIBUSB_CFLAGS := -I../build_data/macosx/libusb
 	LIBUSB_LDFLAGS := -L../build_data/macosx/libusb
 	LIBUSB_LIBS := -lusb-1.0
