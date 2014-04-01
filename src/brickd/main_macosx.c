@@ -211,7 +211,7 @@ int main(int argc, char **argv) {
 
 	if (config_has_error()) {
 		log_error("Error(s) in config file '%s', run with --check-config option for details",
-		          _config_filename);
+		          CONFIG_FILENAME);
 
 		goto error_config;
 	}
@@ -224,7 +224,7 @@ int main(int argc, char **argv) {
 
 	if (config_has_warning()) {
 		log_error("Warning(s) in config file '%s', run with --check-config option for details",
-		          _config_filename);
+		          CONFIG_FILENAME);
 	}
 
 	if (event_init() < 0) {
