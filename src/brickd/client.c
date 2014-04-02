@@ -90,6 +90,7 @@ static void client_handle_get_authentication_nonce_request(Client *client, GetAu
 static void client_handle_authenticate_request(Client *client, AuthenticateRequest *request) {
 	uint32_t nonces[2];
 	uint8_t digest[SHA1_DIGEST_LENGTH];
+	char packet_signature[PACKET_MAX_SIGNATURE_LENGTH];
 	AuthenticateResponse response;
 
 	if (client->authentication_state == CLIENT_AUTHENTICATION_STATE_DISABLED) {
@@ -120,7 +121,8 @@ static void client_handle_authenticate_request(Client *client, AuthenticateReque
 	          (uint8_t *)nonces, sizeof(nonces), digest);
 
 	if (memcmp(request->digest, digest, SHA1_DIGEST_LENGTH) != 0) {
-		log_error("Authentication request of client ("CLIENT_INFO_FORMAT") did not contain the expected data, disconnecting client",
+		log_error("Authentication request (%s) of client ("CLIENT_INFO_FORMAT") did not contain the expected data, disconnecting client",
+		          packet_get_request_signature(packet_signature, (Packet *)request),
 		          client_expand_info(client));
 
 		client->disconnected = 1;
