@@ -284,6 +284,8 @@ int usb_rescan(void) {
 	int i;
 	USBStack *usb_stack;
 
+	log_debug("Looking for added/removed USB devices");
+
 	// mark all known USB stacks as potentially removed
 	for (i = 0; i < _usb_stacks.count; ++i) {
 		usb_stack = array_get(&_usb_stacks, i);
@@ -321,6 +323,8 @@ int usb_rescan(void) {
 int usb_reopen(void) {
 	int i;
 	USBStack *usb_stack;
+
+	log_debug("Reopening all USB devices");
 
 	// iterate backwards to avoid memmove in array_remove call
 	while (_usb_stacks.count > 0) {
