@@ -20,7 +20,7 @@ WITH_LIBUDEV ?= check
 WITH_LIBUDEV_DLOPEN ?= no
 WITH_LOGGING ?= yes
 WITH_PROFILING ?= no
-WITH_USB_REOPEN_ON_SIGUSR1 ?= no
+WITH_USB_REOPEN_ON_SIGUSR1 ?= yes
 WITH_PM_UTILS ?= check
 
 ## RULES ######################################################################

@@ -140,9 +140,9 @@ def build_linux_pkg():
     os.system('make clean')
 
     if architecture == 'i386':
-        os.system('CC=gcc WITH_LIBUDEV=yes WITH_LIBUDEV_DLOPEN=yes WITH_USB_REOPEN_ON_SIGUSR1=yes WITH_PM_UTILS=yes CFLAGS=-march=i386 make')
+        os.system('CC=gcc WITH_LIBUDEV=yes WITH_LIBUDEV_DLOPEN=yes WITH_PM_UTILS=yes CFLAGS=-march=i386 make')
     else:
-        os.system('CC=gcc WITH_LIBUDEV=yes WITH_LIBUDEV_DLOPEN=yes WITH_USB_REOPEN_ON_SIGUSR1=yes WITH_PM_UTILS=yes make')
+        os.system('CC=gcc WITH_LIBUDEV=yes WITH_LIBUDEV_DLOPEN=yes WITH_PM_UTILS=yes make')
 
     version = check_output(['./brickd', '--version']).replace('\n', '').replace(' ', '-')
 

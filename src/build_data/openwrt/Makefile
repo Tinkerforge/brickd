@@ -24,7 +24,7 @@ define Build/Compile
 	$(TARGET_CONFIGURE_OPTS) \
 		CFLAGS="$(TARGET_CFLAGS) -I$(STAGING_DIR)/usr/include -I$(PKG_BUILD_DIR)" \
 		LDFLAGS="$(TARGET_LDFLAGS)" \
-		WITH_LIBUDEV=no WITH_LOGGING=yes \
+		WITH_LIBUDEV=no WITH_LOGGING=yes WITH_USB_REOPEN_ON_SIGUSR1=no \
 		$(MAKE) -C $(PKG_BUILD_DIR)/src/brickd all
 endef
 
