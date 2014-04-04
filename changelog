@@ -67,3 +67,14 @@
 2.0.10: Reduce log level of messages about USB write queue usage, packet burst are expected for the LED Strip Bricklet
         Handle USB transfers correctly that complete during usb_stack_destroy()
         Add Queue type and use if for the USB stack's write queue instead of Array type
+2.1.0: Add authentication support (disabled by default)
+       Add WebSocket support (port 4280, disabled by default)
+       Make USB device lookup more robust in case of some USB driver bugs on Windows
+       Update bundled libusb to 1.0.18 on Mac OS X, fixes a SIGFPE bug
+       Update bundled libusb to 1.0.18 on Windows, adds support for Intel and AMD USB 3.0 root hubs
+       Improve handling of request packets with invalid length in the header
+       Handle rare case of socket_receive failing with EWOULDBLOCK
+       Don't lose connection to USB devices on host-resume-from-suspend on Linux and Mac OS X (requires pm-utils on Linux)
+       Increase upper limits for pending requests and USB write queues
+       Add socket_send queue for clients, enqueue packet instead of disconnecting client if socket_send would block
+       Only dispatch response to the first client with a matching pending request, fixes response duplication
