@@ -32,13 +32,34 @@
 #include "utils.h"
 
 typedef void (WINAPI *GETSYSTEMTIMEPRECISEASFILETIME)(LPFILETIME);
+typedef int (*PUTENV)(const char *);
+typedef errno_t (*PUTENV_S)(const char *, const char *);
 
-static GETSYSTEMTIMEPRECISEASFILETIME get_system_time_precise_as_file_time = NULL;
+static GETSYSTEMTIMEPRECISEASFILETIME ptr_GetSystemTimePreciseAsFileTime = NULL;
+static PUTENV_S ptr_putenv_s = NULL;
+static PUTENV ptr_putenv = NULL;
 
 void fixes_init(void) {
-	get_system_time_precise_as_file_time =
+	HMODULE hmodule = NULL;
+
+	ptr_GetSystemTimePreciseAsFileTime =
 	  (GETSYSTEMTIMEPRECISEASFILETIME)GetProcAddress(GetModuleHandle("kernel32"),
 	                                                 "GetSystemTimePreciseAsFileTime");
+
+	// _putenv_s is not avialable on Windows XP by default, so find _putenv_s
+	// and _putenv at runtime. as brickd might not be linked to msvcrt.dll
+	// (could be msvcrtXY.dll) GetModuleHandle cannot be used with "msvcrt"
+	// as module name. use GetModuleHandleEx with the address of the getenv
+	// function instead. disable warning C4054 for this call, otherwise MSVC
+	// will complain about a function to data pointer cast here.
+#pragma warning(disable: 4054)
+	GetModuleHandleEx(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS |
+	                  GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+	                  (LPCSTR)getenv, &hmodule);
+#pragma warning(default: 4054)
+
+	ptr_putenv_s = (PUTENV_S)GetProcAddress(hmodule, "_putenv_s");
+	ptr_putenv = (PUTENV)GetProcAddress(hmodule, "_putenv");
 }
 
 #ifdef BRICKD_WDK_BUILD
@@ -86,8 +107,8 @@ int gettimeofday(struct timeval *tv, struct timezone *tz) {
 	(void)tz;
 
 	if (tv != NULL) {
-		if (get_system_time_precise_as_file_time != NULL) {
-			get_system_time_precise_as_file_time(&ft);
+		if (ptr_GetSystemTimePreciseAsFileTime != NULL) {
+			ptr_GetSystemTimePreciseAsFileTime(&ft);
 		} else {
 			GetSystemTimeAsFileTime(&ft);
 		}
@@ -102,15 +123,14 @@ int gettimeofday(struct timeval *tv, struct timezone *tz) {
 	return 0;
 }
 
-// implement putenv based on _putenv_s. WDK is missing putenv and MSVC's putenv
-// requires to call putenv("NAME=") to remove NAME instead of putenv("NAME")
-int fixed_putenv(char *string) {
+// implement putenv based on _putenv_s
+static int fixed_putenv_a(char *string) {
 	char *value = strchr(string, '=');
 	char *buffer;
 	errno_t rc;
 
 	if (value == NULL) {
-		rc = _putenv_s(string, "");
+		rc = ptr_putenv_s(string, "");
 
 		if (rc != 0) {
 			errno = rc;
@@ -129,7 +149,7 @@ int fixed_putenv(char *string) {
 		value = strchr(buffer, '=');
 		*value++ = '\0';
 
-		rc = _putenv_s(buffer, value);
+		rc = ptr_putenv_s(buffer, value);
 
 		if (rc != 0) {
 			errno = rc;
@@ -143,6 +163,52 @@ int fixed_putenv(char *string) {
 	}
 
 	return 0;
+}
+
+// implement putenv based on _putenv which requires to call
+// _putenv("NAME=") to remove NAME from the environment
+static int fixed_putenv_b(char *string) {
+	char *buffer;
+	int length;
+	int rc;
+
+	if (strchr(string, '=') != NULL) {
+		return ptr_putenv(string);
+	}
+
+	length = strlen(string);
+	buffer = malloc(length + 2);
+
+	if (buffer == NULL) {
+		errno = ENOMEM;
+
+		return -1;
+	}
+
+	strcpy(buffer, string);
+
+	buffer[length + 0] = '=';
+	buffer[length + 1] = '\0';
+
+	rc = ptr_putenv(buffer);
+
+	free(buffer);
+
+	return rc;
+}
+
+// implement putenv with "NAME" semantic (instead of "NAME=")
+// to remove NAME from the environment
+int fixed_putenv(char *string) {
+	if (ptr_putenv_s != NULL) {
+		return fixed_putenv_a(string);
+	} else if (ptr_putenv != NULL) {
+		return fixed_putenv_b(string);
+	} else {
+		errno = ENOSYS;
+
+		return -1;
+	}
 }
 
 #endif // _MSC_VER
