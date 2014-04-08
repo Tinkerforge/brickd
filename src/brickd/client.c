@@ -530,7 +530,7 @@ int client_dispatch_response(Client *client, Packet *response, int force,
 	if (!ignore_authentication &&
 	    client->authentication_state != CLIENT_AUTHENTICATION_STATE_DISABLED &&
 	    client->authentication_state != CLIENT_AUTHENTICATION_STATE_DONE) {
-		log_debug("Ignoring unauthenticated client ("CLIENT_INFO_FORMAT")",
+		log_debug("Ignoring non-authenticated client ("CLIENT_INFO_FORMAT")",
 		          client_expand_info(client));
 
 		return 0;
