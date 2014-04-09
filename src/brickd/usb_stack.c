@@ -280,6 +280,8 @@ int usb_stack_create(USBStack *usb_stack, uint8_t bus_number, uint8_t device_add
 	phase = 3;
 
 	// reset device
+	log_debug("Resetting %s", usb_stack->base.name);
+
 	rc = libusb_reset_device(usb_stack->device_handle);
 
 	if (rc < 0) {
@@ -290,16 +292,20 @@ int usb_stack_create(USBStack *usb_stack, uint8_t bus_number, uint8_t device_add
 	}
 
 	// set device configuration
+	log_debug("Configuring %s", usb_stack->base.name);
+
 	rc = libusb_set_configuration(usb_stack->device_handle, USB_BRICK_CONFIGURATION);
 
 	if (rc < 0) {
-		log_error("Could set configuration for %s: %s (%d)",
+		log_error("Could not set configuration for %s: %s (%d)",
 		          usb_stack->base.name, usb_get_error_name(rc), rc);
 
 		goto cleanup;
 	}
 
 	// claim device interface
+	log_debug("Claiming interface %d of %s", USB_BRICK_INTERFACE, usb_stack->base.name);
+
 	rc = libusb_claim_interface(usb_stack->device_handle, USB_BRICK_INTERFACE);
 
 	if (rc < 0) {
@@ -317,6 +323,8 @@ int usb_stack_create(USBStack *usb_stack, uint8_t bus_number, uint8_t device_add
 		goto cleanup;
 	}
 
+	log_debug("Got display name for %s: %s", preliminary_name, usb_stack->base.name);
+
 	// allocate and submit read transfers
 	if (array_create(&usb_stack->read_transfers, MAX_READ_TRANSFERS,
 	                 sizeof(USBTransfer), 1) < 0) {
@@ -327,6 +335,8 @@ int usb_stack_create(USBStack *usb_stack, uint8_t bus_number, uint8_t device_add
 	}
 
 	phase = 5;
+
+	log_debug("Submitting read transfers to %s", usb_stack->base.name);
 
 	for (i = 0; i < MAX_READ_TRANSFERS; ++i) {
 		usb_transfer = array_append(&usb_stack->read_transfers);
