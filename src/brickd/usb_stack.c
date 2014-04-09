@@ -195,9 +195,8 @@ int usb_stack_create(USBStack *usb_stack, uint8_t bus_number, uint8_t device_add
 	usb_stack->active = 0;
 
 	// create stack base
-	snprintf(preliminary_name, sizeof(preliminary_name) - 1,
+	snprintf(preliminary_name, sizeof(preliminary_name),
 	         "USB device (bus: %u, device: %u)", bus_number, device_address);
-	preliminary_name[sizeof(preliminary_name) - 1] = '\0';
 
 	if (stack_create(&usb_stack->base, preliminary_name,
 	                 (StackDispatchRequestFunction)usb_stack_dispatch_request) < 0) {
