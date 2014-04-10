@@ -64,7 +64,7 @@ Debugging
 ---------
 
 By default Brick Daemon writes error and warning messages to the Windows Event
-Log. You can use eventlog.exe to browse them. It shows only the Brick Daemon
+Log. You can use logviewer.exe to browse them. It shows only the Brick Daemon
 log entires from the Windows Event Log.
 
 You can also use the --log-to-file option, then Brick Daemon will write a log

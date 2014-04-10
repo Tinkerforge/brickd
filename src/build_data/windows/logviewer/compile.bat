@@ -28,10 +28,10 @@
 
 @del *.obj *.res *.bin *.exp *.exe
 
-%CC% eventlog.c
+%CC% logviewer.c
 
-%LD% /out:eventlog.exe *.obj *.res advapi32.lib comctl32.lib comdlg32.lib user32.lib
-%MT% /manifest eventlog.manifest -outputresource:eventlog.exe
+%LD% /out:logviewer.exe *.obj *.res advapi32.lib comctl32.lib comdlg32.lib user32.lib
+%MT% /manifest logviewer.manifest -outputresource:logviewer.exe
 
 @del *.obj *.res *.bin *.exp
 

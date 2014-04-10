@@ -1,8 +1,8 @@
 /*
- * event log viewer for brickd
- * Copyright (C) 2013 Matthias Bolte <matthias@tinkerforge.com>
+ * log viewer for brickd
+ * Copyright (C) 2013-2014 Matthias Bolte <matthias@tinkerforge.com>
  *
- * eventlog.c: Shows event log for brickd
+ * logviewer.c: Shows event log for brickd
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -26,7 +26,7 @@
 #include <commctrl.h>
 #include <commdlg.h>
 
-static const char *_title = "Brick Daemon - Event Log Viewer 1.0";
+static const char *_title = "Brick Daemon - Log Viewer 1.0";
 static HINSTANCE _hinstance = NULL;
 static HANDLE _event_log = NULL;
 static HWND _hwnd = NULL;
@@ -412,7 +412,7 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
 	int rc;
 	WNDCLASSEX wc;
 	MSG msg;
-	const char *class_name = "brickd_eventlog";
+	const char *class_name = "brickd_logviewer";
 
 	(void)hPrevInstance;
 	(void)lpCmdLine;
