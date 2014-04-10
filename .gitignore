@@ -1,6 +1,7 @@
 *.p
 *.o
 src/brickd/dist
+src/brickd/objfre_wxp_x86
 src/brickd/brickd
 src/brickd/brickd.exe
 src/brickd/log_messages.h
