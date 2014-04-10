@@ -56,7 +56,7 @@ typedef void (*LogHandler)(LogLevel level, const char *file, int line,
 	#ifdef _MSC_VER
 		#define log_message_checked(level, ...) \
 			do { \
-				if ((level) <= log_get_level(LOG_CATEGORY)) { \
+				if ((level) <= log_get_effective_level(LOG_CATEGORY)) { \
 					log_message(LOG_CATEGORY, level, __FILE__, \
 					            __LINE__, __FUNCTION__, __VA_ARGS__); \
 				} \
@@ -67,7 +67,7 @@ typedef void (*LogHandler)(LogLevel level, const char *file, int line,
 	#else
 		#define log_message_checked(level, ...) \
 			do { \
-				if ((level) <= log_get_level(LOG_CATEGORY)) { \
+				if ((level) <= log_get_effective_level(LOG_CATEGORY)) { \
 					log_message(LOG_CATEGORY, level, __FILE__, \
 					            __LINE__, __FUNCTION__, __VA_ARGS__); \
 				} \
@@ -88,8 +88,10 @@ typedef void (*LogHandler)(LogLevel level, const char *file, int line,
 void log_init(void);
 void log_exit(void);
 
+void log_set_debug_override(int override);
+
 void log_set_level(LogCategory category, LogLevel level);
-LogLevel log_get_level(LogCategory category);
+LogLevel log_get_effective_level(LogCategory category);
 
 void log_set_file(FILE *file);
 FILE *log_get_file(void);

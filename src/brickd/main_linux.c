@@ -378,14 +378,10 @@ int main(int argc, char **argv) {
 		goto error_log;
 	}
 
-	if (debug) {
-		for (i = 0; i < MAX_LOG_CATEGORIES; ++i) {
-			log_set_level(i, LOG_LEVEL_DEBUG);
-		}
-	} else {
-		for (i = 0; i < MAX_LOG_CATEGORIES; ++i) {
-			log_set_level(i, config_get_log_level(i));
-		}
+	log_set_debug_override(debug);
+
+	for (i = 0; i < MAX_LOG_CATEGORIES; ++i) {
+		log_set_level(i, config_get_log_level(i));
 	}
 
 	if (config_has_error()) {

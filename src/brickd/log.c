@@ -29,6 +29,7 @@
 #include "threads.h"
 
 static Mutex _mutex; // protects writing to _file
+static int _debug_override = 0;
 static LogLevel _levels[MAX_LOG_CATEGORIES]; // log_init initializes this
 static FILE *_file = NULL;
 
@@ -125,12 +126,20 @@ void log_exit(void) {
 	mutex_destroy(&_mutex);
 }
 
+void log_set_debug_override(int override) {
+	_debug_override = override;
+}
+
 void log_set_level(LogCategory category, LogLevel level) {
 	_levels[category] = level;
 }
 
-LogLevel log_get_level(LogCategory category) {
-	return _levels[category];
+LogLevel log_get_effective_level(LogCategory category) {
+	if (_debug_override) {
+		return LOG_LEVEL_DEBUG;
+	} else {
+		return _levels[category];
+	}
 }
 
 void log_set_file(FILE *file) {
