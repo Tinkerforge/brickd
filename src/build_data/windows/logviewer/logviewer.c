@@ -26,7 +26,10 @@
 #include <commctrl.h>
 #include <commdlg.h>
 
-static const char *_title = "Brick Daemon - Log Viewer 1.0";
+#include "version.h"
+#include "resources.h"
+
+static const char *_title = "Brick Daemon - Log Viewer " VERSION_STRING;
 static HINSTANCE _hinstance = NULL;
 static HANDLE _event_log = NULL;
 static HWND _hwnd = NULL;
@@ -192,7 +195,7 @@ static void read_events(void) {
 		_record_buffer = (PBYTE)malloc(bytes_to_read);
 
 		if (_record_buffer == NULL) {
-			report_error("Could not to allocate record buffer");
+			report_error("Could not allocate record buffer");
 			return;
 		}
 	}
@@ -212,7 +215,7 @@ static void read_events(void) {
 				temp = (PBYTE)realloc(_record_buffer, minimum_bytes_to_read);
 
 				if (temp == NULL) {
-					report_error("Could not to reallocate record buffer to %u bytes",
+					report_error("Could not reallocate record buffer to %u bytes",
 					             minimum_bytes_to_read);
 
 					return;
@@ -436,12 +439,12 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
 	wc.cbClsExtra = 0;
 	wc.cbWndExtra = 0;
 	wc.hInstance = hInstance;
-	wc.hIcon = LoadIcon(NULL, IDI_APPLICATION);
+	wc.hIcon = LoadIcon(hInstance, MAKEINTRESOURCE(IDI_ICON_32));
 	wc.hCursor = LoadCursor(NULL, IDC_ARROW);
 	wc.hbrBackground = (HBRUSH)(COLOR_WINDOW + 1);
 	wc.lpszMenuName = NULL;
 	wc.lpszClassName = class_name;
-	wc.hIconSm = LoadIcon(NULL, IDI_APPLICATION);
+	wc.hIconSm = LoadIcon(hInstance, MAKEINTRESOURCE(IDI_ICON_16));
 
     if (!RegisterClassEx(&wc)) {
 		rc = GetLastError();

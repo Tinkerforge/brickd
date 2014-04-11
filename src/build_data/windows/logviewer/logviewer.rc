@@ -1,0 +1,62 @@
+/*
+ * log viewer for brickd
+ * Copyright (C) 2014 Matthias Bolte <matthias@tinkerforge.com>
+ *
+ * logviewer.rc: Version information for Windows
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along
+ * with this program; if not, write to the Free Software Foundation, Inc.,
+ * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+ */
+
+#include <winver.h>
+
+#include "version.h"
+#include "resources.h"
+
+IDI_ICON_EXE ICON DISCARDABLE "logviewer_exe.ico"
+IDI_ICON_32 ICON DISCARDABLE "logviewer_32.ico"
+IDI_ICON_16 ICON DISCARDABLE "logviewer_16.ico"
+
+VS_VERSION_INFO VERSIONINFO
+ FILEVERSION VERSION_MAJOR,VERSION_MINOR,VERSION_RELEASE,0
+ PRODUCTVERSION VERSION_MAJOR,VERSION_MINOR,VERSION_RELEASE,0
+ FILEFLAGSMASK 0
+#ifdef _DEBUG
+ FILEFLAGS 0x1L
+#else
+ FILEFLAGS 0x0L
+#endif
+ FILEOS VOS__WINDOWS32
+ FILETYPE VFT_APP
+ FILESUBTYPE VFT2_UNKNOWN
+BEGIN
+	BLOCK "StringFileInfo"
+	BEGIN
+		BLOCK "040904B0"
+		BEGIN
+			VALUE "CompanyName", "Tinkerforge GmbH"
+			VALUE "FileDescription", "Log Viewer for Brick Daemon"
+			VALUE "FileVersion", VERSION_STRING ".0"
+			VALUE "InternalName", "logviewer"
+			VALUE "LegalCopyright", "See individual source files, GNU GPL v2.0 or later"
+			VALUE "OriginalFilename", "logviewer.exe"
+			VALUE "ProductName", "Log Viewer for Brick Daemon"
+			VALUE "ProductVersion", VERSION_STRING ".0"
+		END
+	END
+	BLOCK "VarFileInfo"
+	BEGIN
+		VALUE "Translation", 0x409, 1200
+	END
+END

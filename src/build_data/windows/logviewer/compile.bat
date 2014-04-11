@@ -26,9 +26,10 @@
  echo non-WDK build
 )
 
-@del *.obj *.res *.bin *.exp *.exe
+@del *.obj *.res *.bin *.exp *.pdb *.exe
 
 %CC% logviewer.c
+%RC% /fologviewer.res logviewer.rc
 
 %LD% /out:logviewer.exe *.obj *.res advapi32.lib comctl32.lib comdlg32.lib user32.lib
 %MT% /manifest logviewer.manifest -outputresource:logviewer.exe
