@@ -151,7 +151,7 @@ void append_item(const char *timestamp, const char *type, const char *message) {
 
 	lvi.mask = LVIF_TEXT;
 
-	lvi.iItem = 0;
+	lvi.iItem = ListView_GetItemCount(_list_view);
 	lvi.iSubItem = 0;
 	lvi.pszText = (char *)timestamp;
 	ListView_InsertItem(_list_view, &lvi);
@@ -332,7 +332,7 @@ static void save_events(void) {
 	lvi_message.pszText = message;
 	lvi_message.cchTextMax = sizeof(message) - 1;
 
-	for (i = count - 1; i >= 0; --i) {
+	for (i = 0; i < count; ++i) {
 		lvi_timestamp.iItem = i;
 		lvi_type.iItem = i;
 		lvi_message.iItem = i;
