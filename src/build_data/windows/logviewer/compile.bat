@@ -26,6 +26,8 @@
  echo non-WDK build
 )
 
+@set CC=%CC% /I..
+
 @del *.obj *.res *.bin *.exp *.pdb *.exe
 
 %CC% logviewer.c

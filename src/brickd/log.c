@@ -33,6 +33,8 @@ static int _debug_override = 0;
 static LogLevel _levels[MAX_LOG_CATEGORIES]; // log_init initializes this
 static FILE *_file = NULL;
 
+extern int _log_debug_override_platform;
+
 extern void log_init_platform(void);
 extern void log_exit_platform(void);
 extern void log_handler_platform(struct timeval *timestamp,
@@ -130,7 +132,7 @@ void log_set_level(LogCategory category, LogLevel level) {
 }
 
 LogLevel log_get_effective_level(LogCategory category) {
-	if (_debug_override) {
+	if (_debug_override || _log_debug_override_platform) {
 		return LOG_LEVEL_DEBUG;
 	} else {
 		return _levels[category];
@@ -165,8 +167,13 @@ void log_message(LogCategory category, LogLevel level,
 	va_start(arguments, format);
 	mutex_lock(&_mutex);
 
-	log_handler(&timestamp, category, level, file, line, function, format, arguments);
-	log_handler_platform(&timestamp, category, level, file, line, function, format, arguments);
+	if (_debug_override || level <= _levels[category]) {
+		log_handler(&timestamp, category, level, file, line, function, format, arguments);
+	}
+
+	if (_debug_override || _log_debug_override_platform || level <= _levels[category]) {
+		log_handler_platform(&timestamp, category, level, file, line, function, format, arguments);
+	}
 
 	mutex_unlock(&_mutex);
 	va_end(arguments);

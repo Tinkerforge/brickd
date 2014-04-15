@@ -23,6 +23,8 @@
 
 #include "log.h"
 
+int _log_debug_override_platform = 0;
+
 void log_init_platform(void) {
 }
 
