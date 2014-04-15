@@ -35,17 +35,17 @@ static FILE *_file = NULL;
 
 extern void log_init_platform(void);
 extern void log_exit_platform(void);
-extern void log_handler_platform(LogCategory category, LogLevel level,
+extern void log_handler_platform(struct timeval *timestamp,
+                                 LogCategory category, LogLevel level,
                                  const char *file, int line,
                                  const char *function, const char *format,
                                  va_list arguments);
 
 // NOTE: assumes that _mutex is locked
-static void log_handler(LogCategory category, LogLevel level, const char *file,
-                        int line, const char *function, const char *format,
-                        va_list arguments)
-{
-	struct timeval tv;
+static void log_handler(struct timeval *timestamp, LogCategory category,
+                        LogLevel level, const char *file, int line,
+                        const char *function, const char *format,
+                        va_list arguments) {
 	time_t t;
 	struct tm lt;
 	char lt_str[64] = "<unknown>";
@@ -59,21 +59,16 @@ static void log_handler(LogCategory category, LogLevel level, const char *file,
 		return;
 	}
 
+	// copy value to time_t variable because timeval.tv_sec and time_t
+	// can have different sizes between different compilers and compiler
+	// version and platforms. for example with WDK 7 both are 4 byte in
+	// size, but with MSVC 2010 time_t is 8 byte in size but timeval.tv_sec
+	// is still 4 byte in size.
+	t = timestamp->tv_sec;
+
 	// format time
-	tv.tv_sec = 0;
-	tv.tv_usec = 0;
-
-	if (gettimeofday(&tv, NULL) == 0) {
-		// copy value to time_t variable because timeval.tv_sec and time_t
-		// can have different sizes between different compilers and compiler
-		// version and platforms. for example with WDK 7 both are 4 byte in
-		// size, but with MSVC 2010 time_t is 8 byte in size but timeval.tv_sec
-		// is still 4 byte in size.
-		t = tv.tv_sec;
-
-		if (localtime_r(&t, &lt) != NULL) {
-			strftime(lt_str, sizeof(lt_str), "%Y-%m-%d %H:%M:%S", &lt);
-		}
+	if (localtime_r(&t, &lt) != NULL) {
+		strftime(lt_str, sizeof(lt_str), "%Y-%m-%d %H:%M:%S", &lt);
 	}
 
 	// format level
@@ -98,7 +93,7 @@ static void log_handler(LogCategory category, LogLevel level, const char *file,
 
 	// print prefix
 	fprintf(_file, "%s.%06d <%c> <%s|%s:%d> ",
-	        lt_str, (int)tv.tv_usec, level_c, category_name, file, line);
+	        lt_str, (int)timestamp->tv_usec, level_c, category_name, file, line);
 
 	// print message
 	vfprintf(_file, format, arguments);
@@ -156,15 +151,22 @@ FILE *log_get_file(void) {
 
 void log_message(LogCategory category, LogLevel level,
                  const char *file, int line,
-                 const char *function, const char *format, ...)
-{
+                 const char *function, const char *format, ...) {
+	struct timeval timestamp;
 	va_list arguments;
+
+	// record timestamp befor locking the mutex. this results in more accurate
+	// timing of log message if the mutex is contended
+	if (gettimeofday(&timestamp, NULL) < 0) {
+		timestamp.tv_sec = time(NULL);
+		timestamp.tv_usec = 0;
+	}
 
 	va_start(arguments, format);
 	mutex_lock(&_mutex);
 
-	log_handler(category, level, file, line, function, format, arguments);
-	log_handler_platform(category, level, file, line, function, format, arguments);
+	log_handler(&timestamp, category, level, file, line, function, format, arguments);
+	log_handler_platform(&timestamp, category, level, file, line, function, format, arguments);
 
 	mutex_unlock(&_mutex);
 	va_end(arguments);

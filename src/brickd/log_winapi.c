@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2012 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2012, 2014 Matthias Bolte <matthias@tinkerforge.com>
  *
  * log_winapi.c: Windows Event Log handling
  *
@@ -50,7 +50,9 @@ void log_exit_platform(void) {
 	}
 }
 
-void log_handler_platform(LogCategory category, LogLevel level,
+// NOTE: assumes that _mutex (in log.c) is locked
+void log_handler_platform(struct timeval *timestamp,
+                          LogCategory category, LogLevel level,
                           const char *file, int line,
                           const char *function, const char *format,
                           va_list arguments) {
@@ -59,6 +61,7 @@ void log_handler_platform(LogCategory category, LogLevel level,
 	char message[512 + 1] = "<unknown>";
 	LPCSTR insert_strings[1];
 
+	(void)timestamp;
 	(void)category;
 	(void)file;
 	(void)line;
