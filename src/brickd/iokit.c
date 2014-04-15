@@ -39,7 +39,7 @@
 #define LOG_CATEGORY LOG_CATEGORY_OTHER
 
 static Pipe _notification_pipe;
-static Thread _poller_thread;
+static Thread _poll_thread;
 static int _running = 0;
 static CFRunLoopRef _run_loop = NULL;
 
@@ -203,7 +203,7 @@ int iokit_init(void) {
 		goto cleanup;
 	}
 
-	thread_create(&_poller_thread, iokit_poll_notifications, &handshake);
+	thread_create(&_poll_thread, iokit_poll_notifications, &handshake);
 
 	semaphore_acquire(&handshake);
 	semaphore_destroy(&handshake);
@@ -221,7 +221,7 @@ int iokit_init(void) {
 cleanup:
 	switch (phase) { // no breaks, all cases fall through intentionally
 	case 3:
-		thread_destroy(&_poller_thread);
+		thread_destroy(&_poll_thread);
 
 	case 2:
 		event_remove_source(_notification_pipe.read_end, EVENT_SOURCE_TYPE_GENERIC, EVENT_READ);
@@ -245,10 +245,10 @@ void iokit_exit(void) {
 		CFRunLoopStop(_run_loop);
 		CFRelease(_run_loop);
 
-		thread_join(&_poller_thread);
+		thread_join(&_poll_thread);
 	}
 
-	thread_destroy(&_poller_thread);
+	thread_destroy(&_poll_thread);
 
 	event_remove_source(_notification_pipe.read_end, EVENT_SOURCE_TYPE_GENERIC, EVENT_READ);
 
