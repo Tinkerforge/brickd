@@ -30,7 +30,7 @@ Just select this serial port in Brick Viewer when updating a firmware.
 
 The Brick driver if needed on Windows 7 and older Windows versions. Without
 this driver Brick Daemon cannot find a Brick and it won't show up in Brick
-Viewer. Windows 8 and newer versions doesn't need this driver. They are able
+Viewer. Windows 8 and newer versions does not need this driver. They are able
 to automatically handle a Brick correctly on their own.
 
 Commandline Options
@@ -64,13 +64,20 @@ Debugging
 ---------
 
 By default Brick Daemon writes error and warning messages to the Windows Event
-Log. You can use logviewer.exe to browse them. It shows only the Brick Daemon
-log entires from the Windows Event Log.
+Log. You can use the logviewer.exe tool to browse and save them. It shows the
+Windows Event Log filtered for Brick Daemon log entires.
+
+The Windows Event Log stores messages permanently, you can view past error and
+warning messages. In addition the logviewer.exe tool also has a Live Debug Log
+view that connects to the currently running Brick Daemon and shows a full debug
+log that can be used for detailed debugging.
 
 You can also use the --log-to-file option, then Brick Daemon will write a log
 file named brickd.log in the folder where brickd.exe is located. In this mode
-error, warning and information messages are written to the log by default. You
-can use the --debug option to include debug messages as well.
+error, warning and information messages are written to the log by default. The
+Brick Daemon config file allows to fine-tune which log messages are included.
+You can use the --debug option to override the config file settings and to
+output a full debug log.
 
 For debugging problems in libusb itself the --libusb-debug option can be used.
 Then brickd will enable libusb logging and include libusb log messages into its
