@@ -374,12 +374,7 @@ void log_handler_platform(struct timeval *timestamp,
 		break;
 	}
 
-#ifdef _MSC_VER
-	_vsnprintf_s(pipe_message.message, sizeof(pipe_message.message),
-	             sizeof(pipe_message.message) - 1, format, arguments);
-#else
 	vsnprintf(pipe_message.message, sizeof(pipe_message.message), format, arguments);
-#endif
 
 	if (_event_log != NULL && insert_strings[0] != NULL) {
 		ReportEvent(_event_log, type, 0, event_id, NULL, 1, 0, insert_strings, NULL);

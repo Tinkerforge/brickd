@@ -24,7 +24,8 @@
 
 #ifdef _MSC_VER
 
-#include <stdlib.h> // ensure putenv() is declared before msvc_putenv()
+#include <stdio.h> // ensure vsnprintf() is declared before redefining it
+#include <stdlib.h> // ensure putenv() is declared before fixed_putenv()
 #include <process.h> // for GetCurrentProcessId()
 #include <time.h>
 #include <winsock2.h> // for struct timeval
@@ -55,6 +56,8 @@ int fixed_putenv(char *string);
 // ensure that functions are avialable under their POSIX names
 #define snprintf(buffer, count, format, ...) \
 	_snprintf_s(buffer, count, _TRUNCATE, format, __VA_ARGS__)
+#define vsnprintf(buffer, count, format, arguments) \
+	_vsnprintf_s(buffer, count, _TRUNCATE, format, arguments)
 #define strcasecmp _stricmp
 
 #endif // _MSC_VER
