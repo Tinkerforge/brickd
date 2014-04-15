@@ -58,22 +58,18 @@ typedef struct {
 	SOCKET sockets[0];
 } SocketSet;
 
-typedef struct {
-	int running;
-	int stuck;
-	int suspend_pipe[2];
-	Pipe ready_pipe;
-	Semaphore resume;
-	Semaphore suspend;
-	Array pollfds;
-	int pollfds_ready;
-	Thread thread;
-} USBPoller;
-
 static SocketSet *_socket_read_set = NULL;
 static SocketSet *_socket_write_set = NULL;
 static Pipe _stop_pipe;
-static USBPoller _usb_poller;
+static int _usb_poll_running;
+static int _usb_poll_stuck;
+static int _usb_poll_suspend_pipe[2]; // libusb pipe
+static Pipe _usb_poll_ready_pipe;
+static Semaphore _usb_poll_resume;
+static Semaphore _usb_poll_suspend;
+static Array _usb_poll_pollfds;
+static int _usb_poll_pollfds_ready;
+static Thread _usb_poll_thread;
 
 static int event_reserve_socket_set(SocketSet **socket_set, int size) {
 	SocketSet *bytes;
@@ -119,15 +115,15 @@ static void event_poll_usb_events(void *opaque) {
 	log_debug("Started USB poll thread");
 
 	for (;;) {
-		semaphore_acquire(&_usb_poller.resume);
+		semaphore_acquire(&_usb_poll_resume);
 
 		log_debug("Resumed USB poll thread");
 
-		if (!_usb_poller.running) {
+		if (!_usb_poll_running) {
 			goto cleanup;
 		}
 
-		_usb_poller.pollfds_ready = 0;
+		_usb_poll_pollfds_ready = 0;
 
 		// update pollfd array
 		count = 0;
@@ -146,16 +142,16 @@ static void event_poll_usb_events(void *opaque) {
 
 		++count; // add the suspend pipe
 
-		if (array_resize(&_usb_poller.pollfds, count, NULL) < 0) {
+		if (array_resize(&_usb_poll_pollfds, count, NULL) < 0) {
 			log_error("Could not resize USB pollfd array: %s (%d)",
 			          get_errno_name(errno), errno);
 
 			goto cleanup;
 		}
 
-		pollfd = array_get(&_usb_poller.pollfds, 0);
+		pollfd = array_get(&_usb_poll_pollfds, 0);
 
-		pollfd->fd = _usb_poller.suspend_pipe[0];
+		pollfd->fd = _usb_poll_suspend_pipe[0];
 		pollfd->events = USBI_POLLIN;
 		pollfd->revents = 0;
 
@@ -166,7 +162,7 @@ static void event_poll_usb_events(void *opaque) {
 				continue;
 			}
 
-			pollfd = array_get(&_usb_poller.pollfds, k);
+			pollfd = array_get(&_usb_poll_pollfds, k);
 
 			pollfd->fd = event_source->handle;
 			pollfd->events = (short)event_source->events;
@@ -177,12 +173,12 @@ static void event_poll_usb_events(void *opaque) {
 
 		// start to poll
 		log_debug("Starting to poll on %d %s event source(s)",
-		          _usb_poller.pollfds.count - 1,
+		          _usb_poll_pollfds.count - 1,
 		          event_get_source_type_name(EVENT_SOURCE_TYPE_USB, 0));
 
 	retry:
-		ready = usbi_poll((struct usbi_pollfd *)_usb_poller.pollfds.bytes,
-		                  _usb_poller.pollfds.count, -1);
+		ready = usbi_poll((struct usbi_pollfd *)_usb_poll_pollfds.bytes,
+		                  _usb_poll_pollfds.count, -1);
 
 		if (ready < 0) {
 			if (errno_interrupted()) {
@@ -203,7 +199,7 @@ static void event_poll_usb_events(void *opaque) {
 		}
 
 		// handle poll result
-		pollfd = array_get(&_usb_poller.pollfds, 0);
+		pollfd = array_get(&_usb_poll_pollfds, 0);
 
 		if (pollfd->revents != 0) {
 			log_debug("Received suspend signal");
@@ -218,9 +214,9 @@ static void event_poll_usb_events(void *opaque) {
 		log_debug("Poll returned %d %s event source(s) as ready", ready,
 		          event_get_source_type_name(EVENT_SOURCE_TYPE_USB, 0));
 
-		_usb_poller.pollfds_ready = ready;
+		_usb_poll_pollfds_ready = ready;
 
-		if (pipe_write(&_usb_poller.ready_pipe, &byte, sizeof(byte)) < 0) {
+		if (pipe_write(&_usb_poll_ready_pipe, &byte, sizeof(byte)) < 0) {
 			log_error("Could not write to USB ready pipe: %s (%d)",
 			          get_errno_name(errno), errno);
 
@@ -230,15 +226,15 @@ static void event_poll_usb_events(void *opaque) {
 	suspend:
 		log_debug("Suspending USB poll thread");
 
-		semaphore_release(&_usb_poller.suspend);
+		semaphore_release(&_usb_poll_suspend);
 	}
 
 cleanup:
 	log_debug("Stopped USB poll thread");
 
-	semaphore_release(&_usb_poller.suspend);
+	semaphore_release(&_usb_poll_suspend);
 
-	_usb_poller.running = 0;
+	_usb_poll_running = 0;
 }
 
 static void event_forward_usb_events(void *opaque) {
@@ -253,14 +249,14 @@ static void event_forward_usb_events(void *opaque) {
 
 	(void)opaque;
 
-	if (pipe_read(&_usb_poller.ready_pipe, &byte, sizeof(byte)) < 0) {
+	if (pipe_read(&_usb_poll_ready_pipe, &byte, sizeof(byte)) < 0) {
 		log_error("Could not read from USB ready pipe: %s (%d)",
 		          get_errno_name(errno), errno);
 
 		return;
 	}
 
-	if (_usb_poller.pollfds.count == 0) {
+	if (_usb_poll_pollfds.count == 0) {
 		return;
 	}
 
@@ -274,14 +270,14 @@ static void event_forward_usb_events(void *opaque) {
 	// not removed or replaced during the iteration over the pollfd array.
 	// because of this event_remove_source only marks event sources as removed,
 	// the actual removal is done later by event_cleanup_sources
-	for (i = 0, k = 1; i < event_source_count && k < _usb_poller.pollfds.count && _usb_poller.pollfds_ready > handled; ++i) {
+	for (i = 0, k = 1; i < event_source_count && k < _usb_poll_pollfds.count && _usb_poll_pollfds_ready > handled; ++i) {
 		event_source = array_get(event_sources, i);
 
 		if (event_source->type != EVENT_SOURCE_TYPE_USB) {
 			continue;
 		}
 
-		pollfd = array_get(&_usb_poller.pollfds, k);
+		pollfd = array_get(&_usb_poll_pollfds, k);
 
 		if ((int)event_source->handle != pollfd->fd) {
 			continue;
@@ -308,12 +304,12 @@ static void event_forward_usb_events(void *opaque) {
 		++handled;
 	}
 
-	if (_usb_poller.pollfds_ready == handled) {
+	if (_usb_poll_pollfds_ready == handled) {
 		log_debug("Handled all ready %s event sources",
 		          event_get_source_type_name(EVENT_SOURCE_TYPE_USB, 0));
 	} else {
 		log_warn("Handled only %d of %d ready %s event source(s)",
-		         handled, _usb_poller.pollfds_ready,
+		         handled, _usb_poll_pollfds_ready,
 		         event_get_source_type_name(EVENT_SOURCE_TYPE_USB, 0));
 	}
 }
@@ -358,11 +354,11 @@ int event_init_platform(void) {
 
 	phase = 4;
 
-	// create USB poller
-	_usb_poller.running = 0;
-	_usb_poller.stuck = 0;
+	// create USB poll thread
+	_usb_poll_running = 0;
+	_usb_poll_stuck = 0;
 
-	if (usbi_pipe(_usb_poller.suspend_pipe) < 0) {
+	if (usbi_pipe(_usb_poll_suspend_pipe) < 0) {
 		log_error("Could not create USB suspend pipe");
 
 		goto cleanup;
@@ -370,7 +366,7 @@ int event_init_platform(void) {
 
 	phase = 5;
 
-	if (pipe_create(&_usb_poller.ready_pipe) < 0) {
+	if (pipe_create(&_usb_poll_ready_pipe) < 0) {
 		log_error("Could not create USB ready pipe: %s (%d)",
 		          get_errno_name(errno), errno);
 
@@ -379,7 +375,7 @@ int event_init_platform(void) {
 
 	phase = 6;
 
-	if (array_create(&_usb_poller.pollfds, 32, sizeof(struct usbi_pollfd), 1) < 0) {
+	if (array_create(&_usb_poll_pollfds, 32, sizeof(struct usbi_pollfd), 1) < 0) {
 		log_error("Could not create USB pollfd array: %s (%d)",
 		          get_errno_name(errno), errno);
 
@@ -388,7 +384,7 @@ int event_init_platform(void) {
 
 	phase = 7;
 
-	if (semaphore_create(&_usb_poller.resume) < 0) {
+	if (semaphore_create(&_usb_poll_resume) < 0) {
 		log_error("Could not create USB resume semaphore: %s (%d)",
 		          get_errno_name(errno), errno);
 
@@ -397,7 +393,7 @@ int event_init_platform(void) {
 
 	phase = 8;
 
-	if (semaphore_create(&_usb_poller.suspend) < 0) {
+	if (semaphore_create(&_usb_poll_suspend) < 0) {
 		log_error("Could not create USB suspend semaphore: %s (%d)",
 		          get_errno_name(errno), errno);
 
@@ -409,17 +405,17 @@ int event_init_platform(void) {
 cleanup:
 	switch (phase) { // no breaks, all cases fall through intentionally
 	case 8:
-		semaphore_destroy(&_usb_poller.suspend);
+		semaphore_destroy(&_usb_poll_suspend);
 
 	case 7:
-		semaphore_destroy(&_usb_poller.resume);
+		semaphore_destroy(&_usb_poll_resume);
 
 	case 6:
-		pipe_destroy(&_usb_poller.ready_pipe);
+		pipe_destroy(&_usb_poll_ready_pipe);
 
 	case 5:
-		usbi_close(_usb_poller.suspend_pipe[0]);
-		usbi_close(_usb_poller.suspend_pipe[1]);
+		usbi_close(_usb_poll_suspend_pipe[0]);
+		usbi_close(_usb_poll_suspend_pipe[1]);
 
 	case 4:
 		event_remove_source(_stop_pipe.read_end, EVENT_SOURCE_TYPE_GENERIC, EVENT_READ);
@@ -441,15 +437,15 @@ cleanup:
 }
 
 void event_exit_platform(void) {
-	semaphore_destroy(&_usb_poller.resume);
-	semaphore_destroy(&_usb_poller.suspend);
+	semaphore_destroy(&_usb_poll_resume);
+	semaphore_destroy(&_usb_poll_suspend);
 
-	array_destroy(&_usb_poller.pollfds, NULL);
+	array_destroy(&_usb_poll_pollfds, NULL);
 
-	pipe_destroy(&_usb_poller.ready_pipe);
+	pipe_destroy(&_usb_poll_ready_pipe);
 
-	usbi_close(_usb_poller.suspend_pipe[0]);
-	usbi_close(_usb_poller.suspend_pipe[1]);
+	usbi_close(_usb_poll_suspend_pipe[0]);
+	usbi_close(_usb_poll_suspend_pipe[1]);
 
 	event_remove_source(_stop_pipe.read_end, EVENT_SOURCE_TYPE_GENERIC, EVENT_READ);
 	pipe_destroy(&_stop_pipe);
@@ -471,7 +467,7 @@ int event_run_platform(Array *event_sources, int *running) {
 	int event_source_count;
 	int received_events;
 
-	if (event_add_source(_usb_poller.ready_pipe.read_end,
+	if (event_add_source(_usb_poll_ready_pipe.read_end,
 	                     EVENT_SOURCE_TYPE_GENERIC, EVENT_READ,
 	                     event_forward_usb_events, event_sources) < 0) {
 		return -1;
@@ -479,9 +475,9 @@ int event_run_platform(Array *event_sources, int *running) {
 
 	*running = 1;
 
-	_usb_poller.running = 1;
+	_usb_poll_running = 1;
 
-	thread_create(&_usb_poller.thread, event_poll_usb_events, event_sources);
+	thread_create(&_usb_poll_thread, event_poll_usb_events, event_sources);
 
 	network_cleanup_clients();
 	event_cleanup_sources();
@@ -528,31 +524,31 @@ int event_run_platform(Array *event_sources, int *running) {
 		          _socket_read_set->count, _socket_write_set->count,
 		          event_get_source_type_name(EVENT_SOURCE_TYPE_GENERIC, 0));
 
-		semaphore_release(&_usb_poller.resume);
+		semaphore_release(&_usb_poll_resume);
 
 		fd_read_set = event_get_socket_set_as_fd_set(_socket_read_set);
 		fd_write_set = event_get_socket_set_as_fd_set(_socket_write_set);
 
 		ready = select(0, fd_read_set, fd_write_set, NULL, NULL);
 
-		if (_usb_poller.running) {
+		if (_usb_poll_running) {
 			log_debug("Sending suspend signal to USB poll thread");
 
-			if (usbi_write(_usb_poller.suspend_pipe[1], &byte, 1) < 0) {
+			if (usbi_write(_usb_poll_suspend_pipe[1], &byte, 1) < 0) {
 				log_error("Could not write to USB suspend pipe");
 
-				_usb_poller.stuck = 1;
+				_usb_poll_stuck = 1;
 				*running = 0;
 
 				goto cleanup;
 			}
 
-			semaphore_acquire(&_usb_poller.suspend);
+			semaphore_acquire(&_usb_poll_suspend);
 
-			if (usbi_read(_usb_poller.suspend_pipe[0], &byte, 1) < 0) {
+			if (usbi_read(_usb_poll_suspend_pipe[0], &byte, 1) < 0) {
 				log_error("Could not read from USB suspend pipe");
 
-				_usb_poller.stuck = 1;
+				_usb_poll_stuck = 1;
 				*running = 0;
 
 				goto cleanup;
@@ -644,22 +640,22 @@ int event_run_platform(Array *event_sources, int *running) {
 	result = 0;
 
 cleanup:
-	if (_usb_poller.running && !_usb_poller.stuck) {
-		_usb_poller.running = 0;
+	if (_usb_poll_running && !_usb_poll_stuck) {
+		_usb_poll_running = 0;
 
 		log_debug("Stopping USB poll thread");
 
-		if (usbi_write(_usb_poller.suspend_pipe[1], &byte, 1) < 0) {
+		if (usbi_write(_usb_poll_suspend_pipe[1], &byte, 1) < 0) {
 			log_error("Could not write to USB suspend pipe");
 		} else {
-			semaphore_release(&_usb_poller.resume);
-			thread_join(&_usb_poller.thread);
+			semaphore_release(&_usb_poll_resume);
+			thread_join(&_usb_poll_thread);
 		}
 	}
 
-	thread_destroy(&_usb_poller.thread);
+	thread_destroy(&_usb_poll_thread);
 
-	event_remove_source(_usb_poller.ready_pipe.read_end, EVENT_SOURCE_TYPE_GENERIC, EVENT_READ);
+	event_remove_source(_usb_poll_ready_pipe.read_end, EVENT_SOURCE_TYPE_GENERIC, EVENT_READ);
 
 	return result;
 }
