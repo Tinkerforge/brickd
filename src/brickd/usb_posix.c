@@ -29,8 +29,9 @@
  * the result to the result of the previous call. the difference between the
  * two results allows to detect added and removed USB devices.
  *
- * the following text explains the problem in terms of uevents on Linux, but
- * the problem was exactly the same with notifications on Mac OS X.
+ * the following text explains the problem with this approach in terms of
+ * uevents on Linux, but the problem was exactly the same with notifications
+ * on Mac OS X.
  *
  * the hotplug handling in brickd only works well until libusb 1.0.16, because
  * this release changed the way libusb_get_device_list works internally on Linux
@@ -62,7 +63,7 @@
  * possible.
  *
  * because the new hotplug functions are not available in all libusb versions
- * that brickd supports (1.0.6 and newer) they have to resolved at runtime.
+ * that brickd supports (1.0.6 and newer) they have to be resolved at runtime.
  * this allows to compile one binary that supports multiple libusb versions.
  */
 
