@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2013 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2013-2014 Matthias Bolte <matthias@tinkerforge.com>
  *
  * usb_posix.c: POSIX based USB specific functions
  *
@@ -185,8 +185,8 @@ static void usb_dlclose(void) {
 
 static libusbz_hotplug_callback_handle _hotplug_handle;
 
-static int usb_handle_hotplug(libusb_context *context, libusb_device *device,
-                              libusbz_hotplug_event event, void *user_data) {
+static int LIBUSB_CALL usb_handle_hotplug(libusb_context *context, libusb_device *device,
+                                          libusbz_hotplug_event event, void *user_data) {
 	uint8_t bus_number = libusb_get_bus_number(device);
 	uint8_t device_address = libusb_get_device_address(device);
 
