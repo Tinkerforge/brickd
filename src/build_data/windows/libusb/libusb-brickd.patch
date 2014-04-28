@@ -1,8 +1,8 @@
 diff --git a/libusb/core.c b/libusb/core.c
-index af92854..0237cda 100644
+index af92854..c3ca63b 100644
 --- a/libusb/core.c
 +++ b/libusb/core.c
-@@ -2045,40 +2045,21 @@ int usbi_gettimeofday(struct timeval *tp, void *tzp)
+@@ -2045,40 +2045,27 @@ int usbi_gettimeofday(struct timeval *tp, void *tzp)
  }
  #endif
  
@@ -10,6 +10,12 @@ index af92854..0237cda 100644
 +
 +void API_EXPORTED libusb_set_log_file(FILE *file) {
 +	usbi_log_file = file;
++}
++
++static libusb_log_function usbi_log_function = NULL;
++
++void API_EXPORTED libusb_set_log_function(libusb_log_function function) {
++	usbi_log_function = function;
 +}
 +
  static void usbi_log_str(struct libusb_context *ctx,
@@ -28,7 +34,9 @@ index af92854..0237cda 100644
 -	case LIBUSB_LOG_LEVEL_WARNING: priority = ANDROID_LOG_WARN; break;
 -	case LIBUSB_LOG_LEVEL_ERROR: priority = ANDROID_LOG_ERROR; break;
 -	case LIBUSB_LOG_LEVEL_DEBUG: priority = ANDROID_LOG_DEBUG; break;
--	}
++	if (usbi_log_file == NULL) {
++		usbi_log_file = stderr;
+ 	}
 -	__android_log_write(priority, "libusb", str);
 -#elif defined(HAVE_SYSLOG_FUNC)
 -	int syslog_level = LOG_INFO;
@@ -37,9 +45,7 @@ index af92854..0237cda 100644
 -	case LIBUSB_LOG_LEVEL_WARNING: syslog_level = LOG_WARNING; break;
 -	case LIBUSB_LOG_LEVEL_ERROR: syslog_level = LOG_ERR; break;
 -	case LIBUSB_LOG_LEVEL_DEBUG: syslog_level = LOG_DEBUG; break;
-+	if (usbi_log_file == NULL) {
-+		usbi_log_file = stderr;
- 	}
+-	}
 -	syslog(syslog_level, "%s", str);
 -#else /* All of gcc, Clang, XCode seem to use #warning */
 -#warning System logging is not supported on this platform. Logging to stderr will be used instead.
@@ -54,7 +60,32 @@ index af92854..0237cda 100644
  	UNUSED(ctx);
  	UNUSED(level);
  }
-@@ -2261,3 +2242,7 @@ const struct libusb_version * LIBUSB_CALL libusb_get_version(void)
+@@ -2086,18 +2073,22 @@ static void usbi_log_str(struct libusb_context *ctx,
+ void usbi_log_v(struct libusb_context *ctx, enum libusb_log_level level,
+ 	const char *function, const char *format, va_list args)
+ {
++	int ctx_level = 0;
+ 	const char *prefix = "";
+ 	char buf[USBI_MAX_LOG_LEN];
+ 	struct timeval now;
+ 	int global_debug, header_len, text_len;
+ 	static int has_debug_header_been_displayed = 0;
+ 
++	if (usbi_log_function != NULL) {
++		usbi_log_function(level, function, format, args);
++	}
++
+ #ifdef ENABLE_DEBUG_LOGGING
+ 	global_debug = 1;
+ 	UNUSED(ctx);
++	UNUSED(ctx_level);
+ #else
+-	int ctx_level = 0;
+-
+ 	USBI_GET_CONTEXT(ctx);
+ 	if (ctx) {
+ 		ctx_level = ctx->debug;
+@@ -2261,3 +2252,7 @@ const struct libusb_version * LIBUSB_CALL libusb_get_version(void)
  {
  	return &libusb_version_internal;
  }
@@ -87,10 +118,10 @@ index a9c611d..fadcd45 100644
  
  /* Backends may call this from handle_events to report disconnection of a
 diff --git a/libusb/libusb-1.0.def b/libusb/libusb-1.0.def
-index cb0e32a..53cda36 100644
+index cb0e32a..b4f00f7 100644
 --- a/libusb/libusb-1.0.def
 +++ b/libusb/libusb-1.0.def
-@@ -156,3 +156,17 @@ EXPORTS
+@@ -156,3 +156,19 @@ EXPORTS
    libusb_unref_device@4 = libusb_unref_device
    libusb_wait_for_event
    libusb_wait_for_event@8 = libusb_wait_for_event
@@ -108,8 +139,10 @@ index cb0e32a..53cda36 100644
 +  libusb_set_log_file@4 = libusb_set_log_file
 +  libusb_free
 +  libusb_free@4 = libusb_free
++  libusb_set_log_function
++  libusb_set_log_function@4 = libusb_set_log_function
 diff --git a/libusb/libusb-1.0.rc b/libusb/libusb-1.0.rc
-index 3dce6d5..b1ec488 100644
+index 3dce6d5..4491327 100644
 --- a/libusb/libusb-1.0.rc
 +++ b/libusb/libusb-1.0.rc
 @@ -49,7 +49,7 @@ BEGIN
@@ -117,12 +150,12 @@ index 3dce6d5..b1ec488 100644
  			VALUE "OriginalFilename", "libusb-1.0.dll\0"
  			VALUE "PrivateBuild", "\0"
 -			VALUE "ProductName", "libusb-1.0\0"
-+			VALUE "ProductName", "libusb-1.0-8facad00ea66e0609d93ad8aa4e174a6e7be8b3c-tf-9\0"
++			VALUE "ProductName", "libusb-1.0-8facad00ea66e0609d93ad8aa4e174a6e7be8b3c-tf-10\0"
  			VALUE "ProductVersion", LIBUSB_VERSIONSTRING
  			VALUE "SpecialBuild", "\0"
  		END
 diff --git a/libusb/libusb.h b/libusb/libusb.h
-index 409b510..ef320c5 100644
+index 409b510..d2f23da 100644
 --- a/libusb/libusb.h
 +++ b/libusb/libusb.h
 @@ -60,6 +60,7 @@ typedef unsigned __int32  uint32_t;
@@ -141,11 +174,17 @@ index 409b510..ef320c5 100644
  #include <windows.h>
  #if defined(interface)
  #undef interface
-@@ -1951,6 +1953,10 @@ int LIBUSB_CALL libusb_hotplug_register_callback(libusb_context *ctx,
+@@ -1951,6 +1953,16 @@ int LIBUSB_CALL libusb_hotplug_register_callback(libusb_context *ctx,
  void LIBUSB_CALL libusb_hotplug_deregister_callback(libusb_context *ctx,
  						libusb_hotplug_callback_handle handle);
  
 +void LIBUSB_CALL libusb_set_log_file(FILE *file);
++
++typedef void (LIBUSB_CALL *libusb_log_function)(enum libusb_log_level level,
++                                                const char *function,
++                                                const char *format,
++                                                va_list args);
++void LIBUSB_CALL libusb_set_log_function(libusb_log_function function);
 +
 +void LIBUSB_CALL libusb_free(void *ptr);
 +

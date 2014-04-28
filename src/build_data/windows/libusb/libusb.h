@@ -1955,6 +1955,12 @@ void LIBUSB_CALL libusb_hotplug_deregister_callback(libusb_context *ctx,
 
 void LIBUSB_CALL libusb_set_log_file(FILE *file);
 
+typedef void (LIBUSB_CALL *libusb_log_function)(enum libusb_log_level level,
+                                                const char *function,
+                                                const char *format,
+                                                va_list args);
+void LIBUSB_CALL libusb_set_log_function(libusb_log_function function);
+
 void LIBUSB_CALL libusb_free(void *ptr);
 
 #ifdef __cplusplus
