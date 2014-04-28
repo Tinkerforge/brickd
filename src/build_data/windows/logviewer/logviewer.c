@@ -373,7 +373,8 @@ static void append_debug_item(const char *timestamp, const char *level,
 	update_status_bar_message_count();
 }
 
-static void format_timestamp(uint64_t seconds, int microseconds, char *buffer, int length) {
+static void format_timestamp(uint64_t seconds, int microseconds, char *buffer, int length,
+                             char *date_separator, char *date_time_separator, char *time_separator) {
 	ULONGLONG timestamp = 0;
 	ULONGLONG offset_to_1970 = 116444736000000000;
 	SYSTEMTIME st;
@@ -387,11 +388,13 @@ static void format_timestamp(uint64_t seconds, int microseconds, char *buffer, i
 	FileTimeToSystemTime(&ft_local, &st);
 
 	if (microseconds < 0) {
-		_snprintf(buffer, length, "%d-%02d-%02d %02d:%02d:%02d",
-		          st.wYear, st.wMonth, st.wDay, st.wHour, st.wMinute, st.wSecond);
+		_snprintf(buffer, length, "%d%s%02d%s%02d%s%02d%s%02d%s%02d",
+		          st.wYear, date_separator, st.wMonth, date_separator, st.wDay, date_time_separator,
+		          st.wHour, time_separator, st.wMinute, time_separator, st.wSecond);
 	} else {
-		_snprintf(buffer, length, "%d-%02d-%02d %02d:%02d:%02d:%06d",
-		          st.wYear, st.wMonth, st.wDay, st.wHour, st.wMinute, st.wSecond, microseconds);
+		_snprintf(buffer, length, "%d%s%02d%s%02d%s%02d%s%02d%s%02d.%06d",
+		          st.wYear, date_separator, st.wMonth, date_separator, st.wDay, date_time_separator,
+		          st.wHour, time_separator, st.wMinute, time_separator, st.wSecond, microseconds);
 	}
 }
 
@@ -433,7 +436,7 @@ typedef struct {
 static void append_debug_meta_message(const char *message) {
 	char timestamp[MAX_TIMESTAMP_LEN];
 
-	format_timestamp(time(NULL), 0, timestamp, sizeof(timestamp));
+	format_timestamp(time(NULL), 0, timestamp, sizeof(timestamp), "-", " ", ":");
 
 	append_debug_item(timestamp, "Meta", "Meta", "", "", "", message);
 }
@@ -446,7 +449,7 @@ static void append_debug_pipe_message(LogPipeMessage *pipe_message) {
 	const char *category = "<unknown>";
 	char line[64];
 
-	format_timestamp(seconds, microseconds, timestamp, sizeof(timestamp));
+	format_timestamp(seconds, microseconds, timestamp, sizeof(timestamp), "-", " ", ":");
 
 	switch (pipe_message->level) {
 	case LOG_LEVEL_NONE:  level = "None";  break;
@@ -590,7 +593,7 @@ static void read_event_log(void) {
 			while (record < end_of_records) {
 				if (strcmp((const char *)(record + sizeof(EVENTLOGRECORD)), "Brick Daemon") == 0) {
 					format_timestamp(((PEVENTLOGRECORD)record)->TimeGenerated, -1,
-					                 timestamp, sizeof(timestamp));
+					                 timestamp, sizeof(timestamp), "-", " ", ":");
 
 					switch (((PEVENTLOGRECORD)record)->EventType) {
 					case EVENTLOG_ERROR_TYPE:
@@ -634,8 +637,9 @@ static void read_event_log(void) {
 }
 
 static void save_event_log(void) {
+	char filename_timestamp[MAX_TIMESTAMP_LEN];
+	char filename[_MAX_PATH];
 	char *filters = "Log Files (*.log, *.txt)\0*.log;*.txt\0\0";
-	char filename[_MAX_PATH] = "brickd_event.log";
 	OPENFILENAME ofn = {0};
 	FILE *fp;
 	int count;
@@ -646,6 +650,9 @@ static void save_event_log(void) {
 	LVITEM lvi_message;
 	char message[1024];
 	int i;
+
+	format_timestamp(time(NULL), -1, filename_timestamp, sizeof(filename_timestamp), "", "_", "");
+	_snprintf(filename, sizeof(filename), "brickd_event_%s.log", filename_timestamp);
 
 	ofn.lStructSize = sizeof(OPENFILENAME);
 	ofn.hwndOwner = _hwnd;
@@ -708,8 +715,9 @@ static void save_event_log(void) {
 }
 
 static void save_debug_log(void) {
+	char filename_timestamp[MAX_TIMESTAMP_LEN];
+	char filename[_MAX_PATH];
 	char *filters = "Log Files (*.log, *.txt)\0*.log;*.txt\0\0";
-	char filename[_MAX_PATH] = "brickd_debug.log";
 	OPENFILENAME ofn = {0};
 	FILE *fp;
 	int count;
@@ -726,6 +734,9 @@ static void save_debug_log(void) {
 	LVITEM lvi_message;
 	char message[1024];
 	int i;
+
+	format_timestamp(time(NULL), -1, filename_timestamp, sizeof(filename_timestamp), "", "_", "");
+	_snprintf(filename, sizeof(filename), "brickd_debug_%s.log", filename_timestamp);
 
 	ofn.lStructSize = sizeof(OPENFILENAME);
 	ofn.hwndOwner = _hwnd;
