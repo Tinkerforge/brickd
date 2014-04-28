@@ -245,8 +245,8 @@ static int create_event_list_view(void) {
 	                                    LVS_EX_FULLROWSELECT, LVS_EX_FULLROWSELECT);
 
 	if (insert_list_view_column(_event_list_view, 0, 120, "Timestamp") < 0 ||
-	    insert_list_view_column(_event_list_view, 1,  60, "Level") < 0 ||
-	    insert_list_view_column(_event_list_view, 2, 780, "Message") < 0) {
+	    insert_list_view_column(_event_list_view, 1,  50, "Level") < 0 ||
+	    insert_list_view_column(_event_list_view, 2, 790, "Message") < 0) {
 		return -1;
 	}
 
@@ -284,11 +284,11 @@ static int create_debug_list_view(void) {
 	                                    LVS_EX_FULLROWSELECT, LVS_EX_FULLROWSELECT);
 
 	if (insert_list_view_column(_debug_list_view, 0, 160, "Timestamp") < 0 ||
-	    insert_list_view_column(_debug_list_view, 1,  60, "Level") < 0 ||
+	    insert_list_view_column(_debug_list_view, 1,  50, "Level") < 0 ||
 	    insert_list_view_column(_debug_list_view, 2,  60, "Category") < 0 ||
-	    insert_list_view_column(_debug_list_view, 3, 100, "File") < 0 ||
+	    insert_list_view_column(_debug_list_view, 3, 130, "File/Function") < 0 ||
 	    insert_list_view_column(_debug_list_view, 4,  35, "#") < 0 ||
-	    insert_list_view_column(_debug_list_view, 5, 545, "Message") < 0) {
+	    insert_list_view_column(_debug_list_view, 5, 525, "Message") < 0) {
 		return -1;
 	}
 
@@ -329,7 +329,8 @@ static void append_event_item(const char *timestamp, const char *level,
 
 static void append_debug_item(const char *timestamp, const char *level,
                               const char *category, const char *file,
-                              const char *line, const char *message) {
+                              const char *line, const char *function,
+                              const char *message) {
 	SCROLLINFO si;
 	LVITEM lvi;
 
@@ -354,7 +355,7 @@ static void append_debug_item(const char *timestamp, const char *level,
 	ListView_SetItem(_debug_list_view, &lvi);
 
 	lvi.iSubItem = 3;
-	lvi.pszText = (char *)file;
+	lvi.pszText = (char *)(*file != '\0' ? file : function);
 	ListView_SetItem(_debug_list_view, &lvi);
 
 	lvi.iSubItem = 4;
@@ -434,7 +435,7 @@ static void append_debug_meta_message(const char *message) {
 
 	format_timestamp(time(NULL), 0, timestamp, sizeof(timestamp));
 
-	append_debug_item(timestamp, "Meta", "Meta", "", "", message);
+	append_debug_item(timestamp, "Meta", "Meta", "", "", "", message);
 }
 
 static void append_debug_pipe_message(LogPipeMessage *pipe_message) {
@@ -468,7 +469,8 @@ static void append_debug_pipe_message(LogPipeMessage *pipe_message) {
 
 	_snprintf(line, sizeof(line), "%d", pipe_message->line);
 
-	append_debug_item(timestamp, level, category, pipe_message->file, line, pipe_message->message);
+	append_debug_item(timestamp, level, category, pipe_message->file, line,
+	                  pipe_message->function, pipe_message->message);
 }
 
 // this thread works in a fire-and-forget fashion, it's started and then just runs
