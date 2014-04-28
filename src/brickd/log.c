@@ -157,7 +157,7 @@ void log_message(LogCategory category, LogLevel level,
 	struct timeval timestamp;
 	va_list arguments;
 
-	// record timestamp befor locking the mutex. this results in more accurate
+	// record timestamp before locking the mutex. this results in more accurate
 	// timing of log message if the mutex is contended
 	if (gettimeofday(&timestamp, NULL) < 0) {
 		timestamp.tv_sec = time(NULL);
