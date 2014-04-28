@@ -91,6 +91,7 @@ static void log_handler(struct timeval *timestamp, LogCategory category,
 	case LOG_CATEGORY_HARDWARE:  category_name = "hardware";  break;
 	case LOG_CATEGORY_WEBSOCKET: category_name = "websocket"; break;
 	case LOG_CATEGORY_OTHER:     category_name = "other";     break;
+	case LOG_CATEGORY_LIBUSB:    category_name = "libusb";    break;
 	}
 
 	// print prefix
@@ -128,11 +129,13 @@ void log_set_debug_override(int override) {
 }
 
 void log_set_level(LogCategory category, LogLevel level) {
-	_levels[category] = level;
+	if (category != LOG_CATEGORY_LIBUSB) {
+		_levels[category] = level;
+	}
 }
 
 LogLevel log_get_effective_level(LogCategory category) {
-	if (_debug_override || _log_debug_override_platform) {
+	if (_debug_override || _log_debug_override_platform || category == LOG_CATEGORY_LIBUSB) {
 		return LOG_LEVEL_DEBUG;
 	} else {
 		return _levels[category];
@@ -151,8 +154,7 @@ FILE *log_get_file(void) {
 	return _file;
 }
 
-void log_message(LogCategory category, LogLevel level,
-                 const char *file, int line,
+void log_message(LogCategory category, LogLevel level, const char *file, int line,
                  const char *function, const char *format, ...) {
 	struct timeval timestamp;
 	va_list arguments;

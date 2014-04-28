@@ -409,7 +409,8 @@ typedef enum {
 	LOG_CATEGORY_HOTPLUG,
 	LOG_CATEGORY_HARDWARE,
 	LOG_CATEGORY_WEBSOCKET,
-	LOG_CATEGORY_OTHER
+	LOG_CATEGORY_OTHER,
+	LOG_CATEGORY_LIBUSB = 255
 } LogCategory;
 
 #pragma pack(push)
@@ -462,6 +463,7 @@ static void append_debug_pipe_message(LogPipeMessage *pipe_message) {
 	case LOG_CATEGORY_HARDWARE:  category = "Hardware";  break;
 	case LOG_CATEGORY_WEBSOCKET: category = "WebSocket"; break;
 	case LOG_CATEGORY_OTHER:     category = "Other";     break;
+	case LOG_CATEGORY_LIBUSB:    category = "libusb";    break;
 	}
 
 	_snprintf(line, sizeof(line), "%d", pipe_message->line);

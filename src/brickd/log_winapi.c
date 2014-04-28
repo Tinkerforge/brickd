@@ -22,6 +22,7 @@
 #ifndef _MSC_VER
 	#include <sys/time.h>
 #endif
+#include <libusb.h>
 #include <windows.h>
 
 #include "log.h"
@@ -57,7 +58,78 @@ static int _named_pipe_running = 0;
 static HANDLE _named_pipe = INVALID_HANDLE_VALUE;
 static Thread _named_pipe_thread;
 static HANDLE _named_pipe_write_event = NULL;
+static Mutex _named_pipe_write_event_mutex; // protects _named_pipe_write_event
 static HANDLE _named_pipe_stop_event = NULL;
+
+static void log_send_pipe_message(LogPipeMessage *pipe_message) {
+	OVERLAPPED overlapped;
+	DWORD bytes_written;
+
+	if (!_named_pipe_connected) {
+		return;
+	}
+
+	mutex_lock(&_named_pipe_write_event_mutex);
+
+	memset(&overlapped, 0, sizeof(overlapped));
+	overlapped.hEvent = _named_pipe_write_event;
+
+	if (!WriteFile(_named_pipe, pipe_message, sizeof(*pipe_message), NULL, &overlapped) &&
+	    GetLastError() == ERROR_IO_PENDING) {
+		// wait for result of overlapped I/O to avoid a race condition with
+		// the next WriteFile call that will reuse the same event handle
+		GetOverlappedResult(_named_pipe, &overlapped, &bytes_written, TRUE);
+	}
+
+	mutex_unlock(&_named_pipe_write_event_mutex);
+}
+
+static void LIBUSB_CALL log_forward_libusb_message(enum libusb_log_level level,
+                                                   const char *function,
+                                                   const char *format,
+                                                   va_list arguments) {
+	struct timeval timestamp;
+	LogPipeMessage pipe_message;
+
+	if (!_named_pipe_connected) {
+		return;
+	}
+
+	if (gettimeofday(&timestamp, NULL) < 0) {
+		timestamp.tv_sec = time(NULL);
+		timestamp.tv_usec = 0;
+	}
+
+	pipe_message.length = sizeof(pipe_message);
+	pipe_message.timestamp = (uint64_t)timestamp.tv_sec * 1000000 + timestamp.tv_usec;
+
+	switch (level) {
+	default:
+	case LIBUSB_LOG_LEVEL_NONE:    pipe_message.level = LOG_LEVEL_NONE;  break;
+	case LIBUSB_LOG_LEVEL_ERROR:   pipe_message.level = LOG_LEVEL_ERROR; break;
+	case LIBUSB_LOG_LEVEL_WARNING: pipe_message.level = LOG_LEVEL_WARN;  break;
+	case LIBUSB_LOG_LEVEL_INFO:    pipe_message.level = LOG_LEVEL_INFO;  break;
+	case LIBUSB_LOG_LEVEL_DEBUG:   pipe_message.level = LOG_LEVEL_DEBUG; break;
+	}
+
+	pipe_message.category = LOG_CATEGORY_LIBUSB;
+
+	pipe_message.file[0] = '\0';
+	pipe_message.line = 0;
+
+	string_copy(pipe_message.function, function, sizeof(pipe_message.function));
+
+	vsnprintf(pipe_message.message, sizeof(pipe_message.message), format, arguments);
+
+	log_send_pipe_message(&pipe_message);
+}
+
+static void log_set_named_pipe_connected(int connected) {
+	_named_pipe_connected = connected;
+	_log_debug_override_platform = connected;
+
+	libusb_set_log_function(connected ? log_forward_libusb_message : NULL);
+}
 
 static void log_connect_named_pipe(void *opaque) {
 	int phase = 0;
@@ -130,12 +202,10 @@ static void log_connect_named_pipe(void *opaque) {
 			rc = WaitForMultipleObjects(2, events, FALSE, INFINITE);
 
 			if (rc == WAIT_OBJECT_0) {
-				log_debug("Stopped named pipe connect thread");
-
+				// named pipe connect thread stopped
 				goto cleanup;
 			} else if (rc == WAIT_OBJECT_0 + 1) {
-				_named_pipe_connected = 1;
-				_log_debug_override_platform = 1;
+				log_set_named_pipe_connected(1);
 
 				log_info("Log Viewer connected");
 			} else {
@@ -184,8 +254,7 @@ static void log_connect_named_pipe(void *opaque) {
 
 				log_info("Log Viewer disconnected");
 
-				_named_pipe_connected = 0;
-				_log_debug_override_platform = 0;
+				log_set_named_pipe_connected(0);
 
 				break;
 			}
@@ -196,16 +265,14 @@ static void log_connect_named_pipe(void *opaque) {
 			rc = WaitForMultipleObjects(2, events, FALSE, INFINITE);
 
 			if (rc == WAIT_OBJECT_0) {
-				log_debug("Stopped named pipe connect thread");
-
+				// named pipe connect thread stopped
 				goto cleanup;
 			} else if (rc == WAIT_OBJECT_0 + 1) {
 				DisconnectNamedPipe(_named_pipe);
 
 				log_info("Log Viewer disconnected");
 
-				_named_pipe_connected = 0;
-				_log_debug_override_platform = 0;
+				log_set_named_pipe_connected(0);
 
 				break;
 			} else {
@@ -244,6 +311,8 @@ cleanup:
 void log_init_platform(void) {
 	int rc;
 	Semaphore handshake;
+
+	mutex_create(&_named_pipe_write_event_mutex);
 
 	// open event log
 	_event_log = RegisterEventSource(NULL, "Brick Daemon");
@@ -318,8 +387,7 @@ void log_exit_platform(void) {
 		thread_destroy(&_named_pipe_thread);
 	}
 
-	_named_pipe_connected = 0;
-	_log_debug_override_platform = 0;
+	log_set_named_pipe_connected(0);
 
 	if (_named_pipe != INVALID_HANDLE_VALUE) {
 		CloseHandle(_named_pipe);
@@ -336,6 +404,8 @@ void log_exit_platform(void) {
 	if (_event_log != NULL) {
 		DeregisterEventSource(_event_log);
 	}
+
+	mutex_destroy(&_named_pipe_write_event_mutex);
 }
 
 // NOTE: assumes that _mutex (in log.c) is locked
@@ -348,8 +418,6 @@ void log_handler_platform(struct timeval *timestamp,
 	DWORD event_id = 0;
 	LPCSTR insert_strings[1] = {NULL};
 	LogPipeMessage pipe_message;
-	OVERLAPPED overlapped;
-	DWORD bytes_written;
 
 	if (_event_log == NULL && !_named_pipe_connected) {
 		return;
@@ -385,23 +453,10 @@ void log_handler_platform(struct timeval *timestamp,
 		pipe_message.timestamp = (uint64_t)timestamp->tv_sec * 1000000 + timestamp->tv_usec;
 		pipe_message.level = level;
 		pipe_message.category = category;
-
-		strncpy(pipe_message.file, file, sizeof(pipe_message.file));
-		pipe_message.file[sizeof(pipe_message.file) - 1] = '\0';
-
+		string_copy(pipe_message.file, file, sizeof(pipe_message.file));
 		pipe_message.line = line;
+		string_copy(pipe_message.function, function, sizeof(pipe_message.function));
 
-		strncpy(pipe_message.function, function, sizeof(pipe_message.function));
-		pipe_message.function[sizeof(pipe_message.function) - 1] = '\0';
-
-		memset(&overlapped, 0, sizeof(overlapped));
-		overlapped.hEvent = _named_pipe_write_event;
-
-		if (!WriteFile(_named_pipe, &pipe_message, sizeof(pipe_message), NULL, &overlapped) &&
-		    GetLastError() == ERROR_IO_PENDING) {
-			// wait for result of overlapped I/O to avoid a race condition with
-			// the next WriteFile call that will reuse the same event handle
-			GetOverlappedResult(_named_pipe, &overlapped, &bytes_written, TRUE);
-		}
+		log_send_pipe_message(&pipe_message);
 	}
 }
