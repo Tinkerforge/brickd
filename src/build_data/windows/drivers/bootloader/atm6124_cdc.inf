@@ -16,7 +16,7 @@ Class=Ports
 ClassGuid={4D36E978-E325-11CE-BFC1-08002BE10318}
 Provider=%ATMEL%
 LayoutFile=layout.inf
-
+CatalogFile=atm6124_cdc.cat
 DriverVer= 03/09/2011,2.0.0.0
 
 [Manufacturer]
