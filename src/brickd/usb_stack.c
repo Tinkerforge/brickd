@@ -279,30 +279,6 @@ int usb_stack_create(USBStack *usb_stack, uint8_t bus_number, uint8_t device_add
 
 	phase = 3;
 
-	// reset device
-	log_debug("Resetting %s", usb_stack->base.name);
-
-	rc = libusb_reset_device(usb_stack->device_handle);
-
-	if (rc < 0) {
-		log_error("Could not reset %s: %s (%d)",
-		          usb_stack->base.name, usb_get_error_name(rc), rc);
-
-		goto cleanup;
-	}
-
-	// set device configuration
-	log_debug("Configuring %s", usb_stack->base.name);
-
-	rc = libusb_set_configuration(usb_stack->device_handle, USB_BRICK_CONFIGURATION);
-
-	if (rc < 0) {
-		log_error("Could not set configuration for %s: %s (%d)",
-		          usb_stack->base.name, usb_get_error_name(rc), rc);
-
-		goto cleanup;
-	}
-
 	// claim device interface
 	log_debug("Claiming interface %d of %s", USB_BRICK_INTERFACE, usb_stack->base.name);
 
