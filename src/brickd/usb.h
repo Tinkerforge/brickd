@@ -34,9 +34,6 @@
 #define USB_BRICK_DEVICE_RELEASE ((1 << 8) | (1 << 4) | (0 << 0)) /* 1.10 */
 #define USB_BRICK_INTERFACE 0
 
-#define USB_BRICK_ENDPOINT_IN 4
-#define USB_BRICK_ENDPOINT_OUT 5
-
 int usb_init(int libusb_debug);
 void usb_exit(void);
 
@@ -47,6 +44,9 @@ int usb_reopen(void);
 
 int usb_create_context(libusb_context **context);
 void usb_destroy_context(libusb_context *context);
+
+int usb_get_interface_endpoints(libusb_device_handle *device_handle,
+                                uint8_t *endpoint_in, uint8_t *endpoint_out);
 
 int usb_get_device_name(libusb_device_handle *device_handle, char *name, int length);
 

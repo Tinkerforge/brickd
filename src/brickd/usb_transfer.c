@@ -207,7 +207,7 @@ void usb_transfer_destroy(USBTransfer *usb_transfer) {
 }
 
 int usb_transfer_submit(USBTransfer *usb_transfer) {
-	uint8_t end_point;
+	uint8_t endpoint;
 	int length;
 	int rc;
 
@@ -221,13 +221,13 @@ int usb_transfer_submit(USBTransfer *usb_transfer) {
 
 	switch (usb_transfer->type) {
 	case USB_TRANSFER_TYPE_READ:
-		end_point = LIBUSB_ENDPOINT_IN + USB_BRICK_ENDPOINT_IN;
+		endpoint = usb_transfer->usb_stack->endpoint_in;
 		length = sizeof(Packet);
 
 		break;
 
 	case USB_TRANSFER_TYPE_WRITE:
-		end_point = LIBUSB_ENDPOINT_OUT + USB_BRICK_ENDPOINT_OUT;
+		endpoint = usb_transfer->usb_stack->endpoint_out;
 		length = usb_transfer->packet.header.length;
 
 		break;
@@ -243,7 +243,7 @@ int usb_transfer_submit(USBTransfer *usb_transfer) {
 
 	libusb_fill_bulk_transfer(usb_transfer->handle,
 	                          usb_transfer->usb_stack->device_handle,
-	                          end_point,
+	                          endpoint,
 	                          (unsigned char *)&usb_transfer->packet,
 	                          length,
 	                          usb_transfer_wrapper,

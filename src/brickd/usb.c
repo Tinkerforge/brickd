@@ -439,6 +439,69 @@ void usb_destroy_context(libusb_context *context) {
 	libusb_exit(context);
 }
 
+int usb_get_interface_endpoints(libusb_device_handle *device_handle,
+                                uint8_t *endpoint_in, uint8_t *endpoint_out) {
+	int rc;
+	libusb_device *device = libusb_get_device(device_handle);
+	uint8_t bus_number = libusb_get_bus_number(device);
+	uint8_t device_address = libusb_get_device_address(device);
+	int i;
+	struct libusb_config_descriptor *config_descriptor;
+	const struct libusb_interface_descriptor *interface_descriptor;
+	int k;
+	const struct libusb_endpoint_descriptor *endpoint_descriptor;
+
+	rc = libusb_get_config_descriptor(device, 0, &config_descriptor);
+
+	if (rc < 0) {
+		log_error("Could not get config descriptor for USB device (bus: %u, device: %u): %s (%d)",
+		          bus_number, device_address, usb_get_error_name(rc), rc);
+
+		return -1;
+	}
+
+	for (i = 0; i < config_descriptor->bNumInterfaces; ++i) {
+		if (config_descriptor->interface[i].num_altsetting < 1) {
+			log_debug("Interface at index %d of USB device (bus: %u, device: %u) has no alt setting, ignoring it",
+			          i, bus_number, device_address);
+
+			continue;
+		}
+
+		interface_descriptor = &config_descriptor->interface[i].altsetting[0];
+
+		if (interface_descriptor->bInterfaceNumber != USB_BRICK_INTERFACE) {
+			continue;
+		}
+
+		if (interface_descriptor->bNumEndpoints != 2) {
+			log_debug("Interface %d of USB device (bus: %u, device: %u) has %d endpoints, expecting 2, ignoring it",
+			          interface_descriptor->bInterfaceNumber, bus_number, device_address,
+			          interface_descriptor->bNumEndpoints);
+
+			continue;
+		}
+
+		for (k = 0; k < interface_descriptor->bNumEndpoints; ++k) {
+			endpoint_descriptor = &interface_descriptor->endpoint[k];
+
+			if (endpoint_descriptor->bEndpointAddress & LIBUSB_ENDPOINT_IN) {
+				*endpoint_in = endpoint_descriptor->bEndpointAddress;
+			} else {
+				*endpoint_out = endpoint_descriptor->bEndpointAddress;
+			}
+		}
+
+		libusb_free_config_descriptor(config_descriptor);
+
+		return 0;
+	}
+
+	libusb_free_config_descriptor(config_descriptor);
+
+	return -1;
+}
+
 int usb_get_device_name(libusb_device_handle *device_handle, char *name, int length) {
 	int rc;
 	libusb_device *device = libusb_get_device(device_handle);

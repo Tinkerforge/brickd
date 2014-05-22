@@ -279,6 +279,20 @@ int usb_stack_create(USBStack *usb_stack, uint8_t bus_number, uint8_t device_add
 
 	phase = 3;
 
+	// get interface endpoints
+	rc = usb_get_interface_endpoints(usb_stack->device_handle,
+	                                 &usb_stack->endpoint_in, &usb_stack->endpoint_out);
+
+	if (rc < 0) {
+		log_error("Could not get interface endpoints of %s: %s (%d)",
+		          usb_stack->base.name, usb_get_error_name(rc), rc);
+
+		goto cleanup;
+	}
+
+	log_debug("Got interface endpoints (in: 0x%02x, out: 0x%02x) for %s",
+	          usb_stack->endpoint_in, usb_stack->endpoint_out, usb_stack->base.name);
+
 	// claim device interface
 	log_debug("Claiming interface %d of %s", USB_BRICK_INTERFACE, usb_stack->base.name);
 
