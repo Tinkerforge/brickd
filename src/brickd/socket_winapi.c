@@ -43,7 +43,8 @@ int socket_create_platform(Socket *socket_, int family, int type, int protocol) 
 		return -1;
 	}
 
-	if (setsockopt(socket_->handle, IPPROTO_TCP, TCP_NODELAY, (const char *)&on,
+	if ((family == AF_INET || family == AF_INET6) &&
+	    setsockopt(socket_->handle, IPPROTO_TCP, TCP_NODELAY, (const char *)&on,
 	               sizeof(on)) == SOCKET_ERROR) {
 		errno = ERRNO_WINAPI_OFFSET + WSAGetLastError();
 

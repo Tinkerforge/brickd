@@ -45,7 +45,8 @@ int socket_create_platform(Socket *socket_, int family, int type, int protocol) 
 		return -1;
 	}
 
-	if (setsockopt(socket_->handle, IPPROTO_TCP, TCP_NODELAY, &on, sizeof(on)) < 0) {
+	if ((family == AF_INET || family == AF_INET6) &&
+	    setsockopt(socket_->handle, IPPROTO_TCP, TCP_NODELAY, &on, sizeof(on)) < 0) {
 		saved_errno = errno;
 
 		close(socket_->handle);
