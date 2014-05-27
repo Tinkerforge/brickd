@@ -114,9 +114,9 @@ ifeq ($(PLATFORM),Darwin)
 endif
 
 ifeq ($(PLATFORM),Linux)
-	PM_UTILS := $(shell pkg-config --exists pm-utils && echo yes || echo no)
+	PM_UTILS_EXISTS := $(shell pkg-config --exists pm-utils && echo yes || echo no)
 ifeq ($(WITH_PM_UTILS),check)
-ifeq ($(PM_UTILS),yes)
+ifeq ($(PM_UTILS_EXISTS),yes)
 	WITH_PM_UTILS := yes
 else
 	WITH_PM_UTILS := no
@@ -216,7 +216,7 @@ ifeq ($(WITH_LIBUDEV_DLOPEN),yes)
 	LIBUDEV_STATUS := dlopen
 	CFLAGS += -DBRICKD_WITH_LIBUDEV_DLOPEN
 else
-	LIBUDEV_EXISTS := $(shell pkg-config --exists libudev && echo yes)
+	LIBUDEV_EXISTS := $(shell pkg-config --exists libudev && echo yes || echo no)
 ifeq ($(LIBUDEV_EXISTS),yes)
 	LIBUDEV_STATUS := $(shell pkg-config --modversion libudev)
 	LIBUDEV_CFLAGS := $(shell pkg-config --cflags libudev)
@@ -237,9 +237,9 @@ endif
 endif
 
 ifeq ($(WITH_PM_UTILS),yes)
-	PM_UTILS_EXISTS := $(shell pkg-config --exists pm-utils && echo yes)
+	PM_UTILS_EXISTS := $(shell pkg-config --exists pm-utils && echo yes || echo no)
 ifeq ($(PM_UTILS_EXISTS),yes)
-	PM_UTILS_STATUS := yes
+	PM_UTILS_STATUS := $(shell pkg-config --modversion pm-utils)
 else
 ifneq ($(MAKECMDGOALS),clean)
 $(error Could not find pm-utils)
