@@ -583,12 +583,12 @@ int client_dispatch_response(Client *client, Packet *response, int force,
 			elapsed = microseconds() - pending_request->arrival_time;
 
 			log_debug("%s response to client ("CLIENT_INFO_FORMAT"), was requested %u.%03u msec ago, %d request(s) still pending",
-			          enqueued ? "Enqueue" : "Sent", client_expand_info(client),
+			          enqueued ? "Enqueued" : "Sent", client_expand_info(client),
 			          (unsigned int)(elapsed / 1000), (unsigned int)(elapsed % 1000),
 			          client->pending_requests.count - 1);
 #else
 			log_debug("%s response to client ("CLIENT_INFO_FORMAT"), %d request(s) still pending",
-			          enqueued ? "Enqueue" : "Sent", client_expand_info(client),
+			          enqueued ? "Enqueued" : "Sent", client_expand_info(client),
 			          client->pending_requests.count - 1);
 #endif
 		}
