@@ -38,8 +38,6 @@
 #define MAX_PENDING_REQUESTS 512
 #define MAX_QUEUED_SENDS 512
 
-static const char *_unknown_peer_name = "<unknown>";
-
 typedef struct {
 	PacketHeader header;
 #ifdef BRICKD_WITH_PROFILING
@@ -404,8 +402,7 @@ static int client_push_response_to_send_queue(Client *client, Packet *response) 
 	return 0;
 }
 
-int client_create(Client *client, Socket *socket,
-                  struct sockaddr *address, socklen_t length,
+int client_create(Client *client, Socket *socket, const char *peer,
                   uint32_t authentication_nonce) {
 	int phase = 0;
 
@@ -442,19 +439,8 @@ int client_create(Client *client, Socket *socket,
 
 	phase = 2;
 
-	// get peer name
-	client->peer = socket_address_to_hostname(address, length);
-
-	if (client->peer == NULL) {
-		log_warn("Could not get peer name of client (socket: %d): %s (%d)",
-		         socket->handle, get_errno_name(errno), errno);
-
-		client->peer = (char *)_unknown_peer_name;
-
-		goto cleanup;
-	}
-
-	phase = 3;
+	// store peer name
+	string_copy(client->peer, peer != NULL ? peer : "<unknown>", sizeof(client->peer));
 
 	// add socket as event source
 	if (event_add_source(client->socket->handle, EVENT_SOURCE_TYPE_GENERIC,
@@ -462,15 +448,10 @@ int client_create(Client *client, Socket *socket,
 		goto cleanup;
 	}
 
-	phase = 4;
+	phase = 3;
 
 cleanup:
 	switch (phase) { // no breaks, all cases fall through intentionally
-	case 3:
-		if (client->peer != _unknown_peer_name) {
-			free(client->peer);
-		}
-
 	case 2:
 		queue_destroy(&client->send_queue, NULL);
 
@@ -481,7 +462,7 @@ cleanup:
 		break;
 	}
 
-	return phase == 4 ? 0 : -1;
+	return phase == 3 ? 0 : -1;
 }
 
 void client_destroy(Client *client) {
@@ -498,10 +479,6 @@ void client_destroy(Client *client) {
 	event_remove_source(client->socket->handle, EVENT_SOURCE_TYPE_GENERIC, -1);
 	socket_destroy(client->socket);
 	free(client->socket);
-
-	if (client->peer != _unknown_peer_name) {
-		free(client->peer);
-	}
 
 	array_destroy(&client->pending_requests, NULL);
 	queue_destroy(&client->send_queue, NULL);

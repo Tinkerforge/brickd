@@ -49,12 +49,46 @@ static int _server_socket_plain_open = 0;
 static int _server_socket_websocket_open = 0;
 static uint32_t _next_authentication_nonce = 0;
 
+static Client *network_create_client(Socket *socket, const char *peer) {
+	Client *client;
+
+	// enable non-blocking
+	if (socket_set_non_blocking(socket, 1) < 0) {
+		log_error("Could not enable non-blocking mode for socket (handle: %d): %s (%d)",
+		          socket->handle, get_errno_name(errno), errno);
+
+		return NULL;
+	}
+
+	// append to client array
+	client = array_append(&_clients);
+
+	if (client == NULL) {
+		log_error("Could not append to client array: %s (%d)",
+		          get_errno_name(errno), errno);
+
+		return NULL;
+	}
+
+	// create new Client that takes ownership of the socket
+	if (client_create(client, socket, peer, _next_authentication_nonce++) < 0) {
+		array_remove(&_clients, _clients.count - 1, NULL);
+
+		return NULL;
+	}
+
+	log_info("Added new client ("CLIENT_INFO_FORMAT")", client_expand_info(client));
+
+	return client;
+}
+
 static void network_handle_accept(void *opaque) {
 	Socket *server_socket = opaque;
 	Socket *client_socket;
 	struct sockaddr_storage address;
 	socklen_t length = sizeof(address);
-	Client *client;
+	char buffer[NI_MAXHOST];
+	char *peer = buffer;
 
 	// accept new client socket
 	client_socket = socket_accept(server_socket, (struct sockaddr *)&address, &length);
@@ -68,41 +102,19 @@ static void network_handle_accept(void *opaque) {
 		return;
 	}
 
-	// enable non-blocking
-	if (socket_set_non_blocking(client_socket, 1) < 0) {
-		log_error("Could not enable non-blocking mode for socket (handle: %d): %s (%d)",
-		          client_socket->handle, get_errno_name(errno), errno);
+	if (socket_address_to_hostname((struct sockaddr *)&address, length,
+	                               buffer, sizeof(buffer)) < 0) {
+		log_warn("Could not get peer name of client (socket: %d): %s (%d)",
+		         client_socket->handle, get_errno_name(errno), errno);
 
-		socket_destroy(client_socket);
-		free(client_socket);
-
-		return;
+		peer = NULL;
 	}
 
-	// append to client array
-	client = array_append(&_clients);
-
-	if (client == NULL) {
-		log_error("Could not append to client array: %s (%d)",
-		          get_errno_name(errno), errno);
-
+	// create new client
+	if (network_create_client(client_socket, peer) == NULL) {
 		socket_destroy(client_socket);
 		free(client_socket);
-
-		return;
 	}
-
-	// create new Client that takes ownership of the client_socket
-	if (client_create(client, client_socket, (struct sockaddr *)&address, length,
-	                  _next_authentication_nonce++) < 0) {
-		array_remove(&_clients, _clients.count - 1, NULL);
-		socket_destroy(client_socket);
-		free(client_socket);
-
-		return;
-	}
-
-	log_info("Added new client ("CLIENT_INFO_FORMAT")", client_expand_info(client));
 }
 
 static const char *network_get_address_family_name(int family, int report_dual_stack) {

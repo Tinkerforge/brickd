@@ -44,9 +44,11 @@ typedef enum {
 	CLIENT_AUTHENTICATION_STATE_DONE
 } ClientAuthenticationState;
 
+#define CLIENT_MAX_PEER_LENGTH 64
+
 struct _Client {
 	Socket *socket;
-	char *peer;
+	char peer[CLIENT_MAX_PEER_LENGTH];
 	int disconnected;
 	Packet request;
 	int request_used;
@@ -63,8 +65,7 @@ struct _Client {
 
 const char *client_get_authentication_state_name(ClientAuthenticationState state);
 
-int client_create(Client *client, Socket *socket,
-                  struct sockaddr *address, socklen_t length,
+int client_create(Client *client, Socket *socket, const char *peer,
                   uint32_t authentication_nonce);
 void client_destroy(Client *client);
 

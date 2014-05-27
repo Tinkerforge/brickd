@@ -162,12 +162,12 @@ struct addrinfo *socket_hostname_to_address(const char *hostname, uint16_t port)
 }
 
 // sets errno on error
-char *socket_address_to_hostname(struct sockaddr *address, socklen_t length) {
-	char buffer[NI_MAXHOST];
-	char *name;
+int socket_address_to_hostname(struct sockaddr *address, socklen_t address_length,
+                               char *hostname, int hostname_length) {
 	int rc;
 
-	rc = getnameinfo(address, length, buffer, NI_MAXHOST, NULL, 0, NI_NUMERICHOST);
+	rc = getnameinfo(address, address_length, hostname, hostname_length,
+	                 NULL, 0, NI_NUMERICHOST);
 
 	if (rc != 0) {
 #if EAI_AGAIN < 0
@@ -178,16 +178,8 @@ char *socket_address_to_hostname(struct sockaddr *address, socklen_t length) {
 		errno = ERRNO_ADDRINFO_OFFSET + rc;
 #endif
 
-		return NULL;
+		return -1;
 	}
 
-	name = strdup(buffer);
-
-	if (name == NULL) {
-		errno = ENOMEM;
-
-		return NULL;
-	}
-
-	return name;
+	return 0;
 }

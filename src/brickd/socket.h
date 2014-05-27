@@ -65,6 +65,7 @@ int socket_set_address_reuse(Socket *socket, int address_reuse);
 int socket_set_dual_stack(Socket *socket, int dual_stack);
 
 struct addrinfo *socket_hostname_to_address(const char *hostname, uint16_t port);
-char *socket_address_to_hostname(struct sockaddr *address, socklen_t length);
+int socket_address_to_hostname(struct sockaddr *address, socklen_t address_length,
+                               char *hostname, int hostname_length);
 
 #endif // BRICKD_SOCKET_H
