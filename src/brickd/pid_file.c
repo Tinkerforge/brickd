@@ -1,8 +1,8 @@
 /*
  * brickd
- * Copyright (C) 2012-2013 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2012-2014 Matthias Bolte <matthias@tinkerforge.com>
  *
- * pidfile.c: PID file specific functions
+ * pid_file.c: PID file specific functions
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -31,11 +31,11 @@
 #include <unistd.h>
 #include <fcntl.h>
 
-#include "pidfile.h"
+#include "pid_file.h"
 
 #include "utils.h"
 
-int pidfile_acquire(const char *filename, pid_t pid) {
+int pid_file_acquire(const char *filename, pid_t pid) {
 	int fd = -1;
 	struct stat stat1;
 	struct stat stat2;
@@ -106,7 +106,7 @@ int pidfile_acquire(const char *filename, pid_t pid) {
 	return fd;
 }
 
-void pidfile_release(const char *filename, int fd) {
+void pid_file_release(const char *filename, int fd) {
 	unlink(filename);
 	close(fd);
 }

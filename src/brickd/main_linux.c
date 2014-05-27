@@ -34,7 +34,7 @@
 #include "hardware.h"
 #include "log.h"
 #include "network.h"
-#include "pidfile.h"
+#include "pid_file.h"
 #ifdef BRICKD_WITH_LIBUDEV
 	#include "udev.h"
 #endif
@@ -237,7 +237,7 @@ static int daemon_start(void) {
 	}
 
 	// second child, write pid
-	pid_fd = pidfile_acquire(_pid_filename, getpid());
+	pid_fd = pid_file_acquire(_pid_filename, getpid());
 
 	if (pid_fd < 0) {
 		if (pid_fd < -1) {
@@ -367,7 +367,7 @@ int main(int argc, char **argv) {
 	if (daemon) {
 		pid_fd = daemon_start();
 	} else {
-		pid_fd = pidfile_acquire(_pid_filename, getpid());
+		pid_fd = pid_file_acquire(_pid_filename, getpid());
 	}
 
 	if (pid_fd < 0) {
@@ -461,7 +461,7 @@ error_log:
 	log_exit();
 
 	if (pid_fd >= 0) {
-		pidfile_release(_pid_filename, pid_fd);
+		pid_file_release(_pid_filename, pid_fd);
 	}
 
 	config_exit();

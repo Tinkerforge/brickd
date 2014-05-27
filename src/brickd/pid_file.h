@@ -1,8 +1,8 @@
 /*
  * brickd
- * Copyright (C) 2012-2013 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2012-2014 Matthias Bolte <matthias@tinkerforge.com>
  *
- * pidfile.h: PID file specific functions
+ * pid_file.h: PID file specific functions
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,10 +19,10 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-#ifndef BRICKD_PIDFILE_H
-#define BRICKD_PIDFILE_H
+#ifndef BRICKD_PID_FILE_H
+#define BRICKD_PID_FILE_H
 
-int pidfile_acquire(const char *filename, pid_t pid);
-void pidfile_release(const char *filename, int fd);
+int pid_file_acquire(const char *filename, pid_t pid);
+void pid_file_release(const char *filename, int fd);
 
-#endif // BRICKD_PIDFILE_H
+#endif // BRICKD_PID_FILE_H

@@ -66,7 +66,7 @@ static int daemon_start(void) {
 	int stdout_fd = -1;
 
 	// write pid
-	pid_fd = pidfile_acquire(PID_FILENAME, getpid());
+	pid_fd = pid_file_acquire(PID_FILENAME, getpid());
 
 	if (pid_fd < 0) {
 		if (pid_fd < -1) {
@@ -188,7 +188,7 @@ int main(int argc, char **argv) {
 	if (daemon) {
 		pid_fd = daemon_start();
 	} else {
-		pid_fd = pidfile_acquire(PID_FILENAME, getpid());
+		pid_fd = pid_file_acquire(PID_FILENAME, getpid());
 	}
 
 	if (pid_fd < 0) {
@@ -272,7 +272,7 @@ error_log:
 	log_exit();
 
 	if (pid_fd >= 0) {
-		pidfile_release(PID_FILENAME, pid_fd);
+		pid_file_release(PID_FILENAME, pid_fd);
 	}
 
 	config_exit();

@@ -134,7 +134,7 @@ ifeq ($(PLATFORM),Windows)
 	SOURCES += event_winapi.c fixes_mingw.c log_winapi.c pipe_winapi.c \
 	           service.c socket_winapi.c threads_winapi.c usb_winapi.c
 else
-	SOURCES += event_posix.c log_posix.c pidfile.c pipe_posix.c socket_posix.c \
+	SOURCES += event_posix.c log_posix.c pid_file.c pipe_posix.c socket_posix.c \
 	           threads_posix.c usb_posix.c
 endif
 
