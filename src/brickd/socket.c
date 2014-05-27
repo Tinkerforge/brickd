@@ -32,8 +32,8 @@ extern int socket_send_platform(Socket *socket, void *buffer, int length);
 
 static void socket_prepare(Socket *socket) {
 	socket->type = "plain";
-	socket->receive_epilog = NULL;
-	socket->send_override = NULL;
+	socket->receive = socket_receive_platform;
+	socket->send = socket_send_platform;
 }
 
 Socket *socket_allocate(void) {
@@ -79,20 +79,22 @@ Socket *socket_accept(Socket *socket, struct sockaddr *address, socklen_t *lengt
 
 // sets errno on error
 int socket_receive(Socket *socket, void *buffer, int length) {
-	length = socket_receive_platform(socket, buffer, length);
+	if (socket->receive == NULL) {
+		errno = ENOSYS;
 
-	if (length <= 0 || socket->receive_epilog == NULL) {
-		return length;
+		return -1;
 	}
 
-	return socket->receive_epilog(socket, buffer, length);
+	return socket->receive(socket, buffer, length);
 }
 
 // sets errno on error
 int socket_send(Socket *socket, void *buffer, int length) {
-	if (socket->send_override == NULL) {
-		return socket_send_platform(socket, buffer, length);
+	if (socket->send == NULL) {
+		errno = ENOSYS;
+
+		return -1;
 	}
 
-	return socket->send_override(socket, buffer, length);
+	return socket->send(socket, buffer, length);
 }

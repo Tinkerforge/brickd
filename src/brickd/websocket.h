@@ -123,9 +123,10 @@ int websocket_parse_handshake_line(Websocket *websocket, char *line, int length)
 int websocket_parse_handshake(Websocket *websocket, char *handshake_part, int length);
 int websocket_parse_header(Websocket *websocket, uint8_t *buffer, int length);
 int websocket_parse_data(Websocket *websocket, uint8_t *buffer, int length);
+int websocket_parse(Websocket *websocket, void *buffer, int length);
 
 Socket *websocket_allocate(void);
-int websocket_receive_epilog(Socket *socket, void *buffer, int length);
-int websocket_send_override(Socket *socket, void *buffer, int length);
+int websocket_receive(Socket *socket, void *buffer, int length);
+int websocket_send(Socket *socket, void *buffer, int length);
 
 #endif // BRICKD_WEBSOCKET_H

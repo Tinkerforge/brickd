@@ -37,15 +37,15 @@
 typedef struct Socket_ Socket;
 
 typedef Socket *(*SocketAllocateFunction)(void);
-typedef int (*SocketReceiveEpilogFunction)(Socket *socket, void *buffer, int length);
-typedef int (*SocketSendOverrideFunction)(Socket *socket, void *buffer, int length);
+typedef int (*SocketReceiveFunction)(Socket *socket, void *buffer, int length);
+typedef int (*SocketSendFunction)(Socket *socket, void *buffer, int length);
 
 struct Socket_ {
 	EventHandle handle;
 	const char *type;
 	SocketAllocateFunction allocate;
-	SocketReceiveEpilogFunction receive_epilog;
-	SocketSendOverrideFunction send_override;
+	SocketReceiveFunction receive;
+	SocketSendFunction send;
 };
 
 Socket *socket_allocate(void);

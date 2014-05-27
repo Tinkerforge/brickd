@@ -34,6 +34,7 @@
 
 #define LOG_CATEGORY LOG_CATEGORY_WEBSOCKET
 
+extern int socket_receive_platform(Socket *socket, void *buffer, int length);
 extern int socket_send_platform(Socket *socket, void *buffer, int length);
 
 int websocket_frame_get_opcode(WebsocketFrameHeader *header) {
@@ -280,7 +281,7 @@ int websocket_parse_data(Websocket *websocket, uint8_t *buffer, int length) {
 	}
 
 	if(length > to_read) {
-		length_recursive_add = websocket_receive_epilog(&websocket->base, buffer + to_read, length - to_read);
+		length_recursive_add = websocket_parse(websocket, buffer + to_read, length - to_read);
 		if(length_recursive_add < 0) {
 			if(length_recursive_add == SOCKET_CONTINUE) {
 				length_recursive_add = 0;
@@ -293,31 +294,7 @@ int websocket_parse_data(Websocket *websocket, uint8_t *buffer, int length) {
 	return to_read + length_recursive_add;
 }
 
-Socket *websocket_allocate(void) {
-	Websocket *websocket = calloc(1, sizeof(Websocket));
-
-	if (websocket == NULL) {
-		return NULL;
-	}
-
-	websocket->base.type = "WebSocket";
-	websocket->base.receive_epilog = websocket_receive_epilog;
-	websocket->base.send_override = websocket_send_override;
-
-	websocket->frame_index = 0;
-	websocket->line_index = 0;
-	websocket->state = WEBSOCKET_STATE_WAIT_FOR_HANDSHAKE;
-
-	memset(&websocket->frame, 0, sizeof(WebsocketFrame));
-	memset(websocket->line, 0, WEBSOCKET_MAX_LINE_LENGTH);
-	memset(websocket->client_key, 0, WEBSOCKET_CLIENT_KEY_LENGTH);
-
-	return &websocket->base;
-}
-
-int websocket_receive_epilog(Socket *socket, void *buffer, int length) {
-	Websocket *websocket = (Websocket *)socket;
-
+int websocket_parse(Websocket *websocket, void *buffer, int length) {
 	switch(websocket->state) {
 	case WEBSOCKET_STATE_WAIT_FOR_HANDSHAKE:
 	case WEBSOCKET_STATE_HANDSHAKE_FOUND_KEY:
@@ -335,13 +312,47 @@ int websocket_receive_epilog(Socket *socket, void *buffer, int length) {
 	return -1;
 }
 
-int websocket_send_override(Socket *socket, void *buffer, int length) {
+Socket *websocket_allocate(void) {
+	Websocket *websocket = calloc(1, sizeof(Websocket));
+
+	if (websocket == NULL) {
+		return NULL;
+	}
+
+	websocket->base.type = "WebSocket";
+	websocket->base.receive = websocket_receive;
+	websocket->base.send = websocket_send;
+
+	websocket->frame_index = 0;
+	websocket->line_index = 0;
+	websocket->state = WEBSOCKET_STATE_WAIT_FOR_HANDSHAKE;
+
+	memset(&websocket->frame, 0, sizeof(WebsocketFrame));
+	memset(websocket->line, 0, WEBSOCKET_MAX_LINE_LENGTH);
+	memset(websocket->client_key, 0, WEBSOCKET_CLIENT_KEY_LENGTH);
+
+	return &websocket->base;
+}
+
+int websocket_receive(Socket *socket, void *buffer, int length) {
+	Websocket *websocket = (Websocket *)socket;
+
+	length = socket_receive_platform(socket, buffer, length);
+
+	if (length <= 0) {
+		return length;
+	}
+
+	return websocket_parse(websocket, buffer, length);
+}
+
+int websocket_send(Socket *socket, void *buffer, int length) {
 	WebsocketFrameWithPayload frame;
 
 	if (length > WEBSOCKET_MAX_UNEXTENDED_PAYLOAD_DATA_LENGTH) {
 		// currently length should never exceed 80 (the current maximum packet
 		// size). so this is just a safeguard for possible later changes to the
-		// maximum packet size that might require agjustments here.
+		// maximum packet size that might require adjustments here.
 
 		log_error("Payload to large for unextended websocket frame (%d)", length);
 
