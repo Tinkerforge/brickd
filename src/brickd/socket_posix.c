@@ -32,55 +32,90 @@
 #include "socket.h"
 
 #include "utils.h"
-#include "websocket.h"
 
 // sets errno on error
-int socket_create_platform(Socket *socket_, int family, int type, int protocol) {
-	EventHandle handle;
+static int socket_prepare(Socket *socket) {
 	int no_delay = 1;
-	int saved_errno;
 	int flags;
 
-	// create socket
-	handle = socket(family, type, protocol);
-
-	if (handle < 0) {
-		return -1;
-	}
-
 	// enable no-delay option
-	if ((family == AF_INET || family == AF_INET6) &&
-	    setsockopt(handle, IPPROTO_TCP, TCP_NODELAY, &no_delay, sizeof(no_delay)) < 0) {
-		saved_errno = errno;
-
-		close(handle);
-
-		errno = saved_errno;
-
+	if (setsockopt(socket->base.handle, IPPROTO_TCP, TCP_NODELAY,
+	               &no_delay, sizeof(no_delay)) < 0) {
 		return -1;
 	}
 
 	// enable non-blocking operation
-	flags = fcntl(handle, F_GETFL, 0);
+	flags = fcntl(socket->base.handle, F_GETFL, 0);
 
-	if (flags < 0 || fcntl(handle, F_SETFL, flags | O_NONBLOCK) < 0) {
+	if (flags < 0) {
+		return -1;
+	}
+
+	if (fcntl(socket->base.handle, F_SETFL, flags | O_NONBLOCK) < 0) {
+		return -1;
+	}
+
+	return 0;
+}
+
+// sets errno on error
+int socket_open(Socket *socket_, int family, int type, int protocol) {
+	int saved_errno;
+
+	// create socket
+	socket_->base.handle = socket(family, type, protocol);
+
+	if (socket_->base.handle < 0) {
+		return -1;
+	}
+
+	// prepare socket
+	if (socket_prepare(socket_)) {
 		saved_errno = errno;
 
-		close(handle);
+		close(socket_->base.handle);
 
 		errno = saved_errno;
 
 		return -1;
 	}
 
-	socket_->base.handle = handle;
+	return 0;
+}
+
+// sets errno on error
+int socket_accept_platform(Socket *socket, Socket *accepted_socket,
+                           struct sockaddr *address, socklen_t *length) {
+	int saved_errno;
+
+	// accept socket
+	accepted_socket->base.handle = accept(socket->base.handle, address, length);
+
+	if (accepted_socket->base.handle < 0) {
+		return -1;
+	}
+
+	// prepare socket
+	if (socket_prepare(accepted_socket)) {
+		saved_errno = errno;
+
+		close(accepted_socket->base.handle);
+
+		errno = saved_errno;
+
+		return -1;
+	}
 
 	return 0;
 }
 
 void socket_destroy(Socket *socket) {
-	shutdown(socket->base.handle, SHUT_RDWR);
-	close(socket->base.handle);
+	// check if socket is actually open, as socket_create deviates from
+	// the common pattern of allocation the wrapped resource
+	if (socket->base.handle != INVALID_EVENT_HANDLE) {
+		shutdown(socket->base.handle, SHUT_RDWR);
+		close(socket->base.handle);
+	}
 }
 
 // sets errno on error
@@ -89,16 +124,8 @@ int socket_bind(Socket *socket, const struct sockaddr *address, socklen_t length
 }
 
 // sets errno on error
-int socket_listen(Socket *socket, int backlog) {
+int socket_listen_platform(Socket *socket, int backlog) {
 	return listen(socket->base.handle, backlog);
-}
-
-// sets errno on error
-int socket_accept_platform(Socket *socket, Socket *accepted_socket,
-                           struct sockaddr *address, socklen_t *length) {
-	accepted_socket->base.handle = accept(socket->base.handle, address, length);
-
-	return accepted_socket->base.handle < 0 ? -1 : 0;
 }
 
 // sets errno on error

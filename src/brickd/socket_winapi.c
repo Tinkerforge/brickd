@@ -29,51 +29,92 @@
 #include "socket.h"
 
 #include "utils.h"
-#include "websocket.h"
 
 // sets errno on error
-int socket_create_platform(Socket *socket_, int family, int type, int protocol) {
-	EventHandle handle;
+static int socket_prepare(Socket *socket) {
 	BOOL no_delay = TRUE;
 	unsigned long non_blocking = 1;
 
-	// create socket
-	handle = socket(family, type, protocol);
-
-	if (handle == INVALID_SOCKET) {
-		errno = ERRNO_WINAPI_OFFSET + WSAGetLastError();
-
-		return -1;
-	}
-
 	// enable no-delay option
-	if ((family == AF_INET || family == AF_INET6) &&
-	    setsockopt(handle, IPPROTO_TCP, TCP_NODELAY, (const char *)&no_delay,
-	               sizeof(no_delay)) == SOCKET_ERROR) {
+	if (setsockopt(socket->base.handle, IPPROTO_TCP, TCP_NODELAY,
+	               (const char *)&no_delay, sizeof(no_delay)) == SOCKET_ERROR) {
 		errno = ERRNO_WINAPI_OFFSET + WSAGetLastError();
-
-		closesocket(handle);
 
 		return -1;
 	}
 
 	// enable non-blocking operation
-	if (ioctlsocket(handle, FIONBIO, &non_blocking) == SOCKET_ERROR) {
+	if (ioctlsocket(socket->base.handle, FIONBIO, &non_blocking) == SOCKET_ERROR) {
 		errno = ERRNO_WINAPI_OFFSET + WSAGetLastError();
-
-		closesocket(handle);
 
 		return -1;
 	}
-
-	socket_->base.handle = handle;
 
 	return 0;
 }
 
 void socket_destroy(Socket *socket) {
-	shutdown(socket->base.handle, SD_BOTH);
-	closesocket(socket->base.handle);
+	// check if socket is actually open, as socket_create deviates from
+	// the common pattern of allocation the wrapped resource
+	if (socket->base.handle != INVALID_EVENT_HANDLE) {
+		shutdown(socket->base.handle, SD_BOTH);
+		closesocket(socket->base.handle);
+	}
+}
+
+// sets errno on error
+int socket_open(Socket *socket_, int family, int type, int protocol) {
+	int saved_errno;
+
+	// create socket
+	socket_->base.handle = socket(family, type, protocol);
+
+	if (socket_->base.handle == INVALID_SOCKET) {
+		errno = ERRNO_WINAPI_OFFSET + WSAGetLastError();
+
+		return -1;
+	}
+
+	// prepare socket
+	if (socket_prepare(socket_)) {
+		saved_errno = errno;
+
+		closesocket(socket_->base.handle);
+
+		errno = saved_errno;
+
+		return -1;
+	}
+
+	return 0;
+}
+
+// sets errno on error
+int socket_accept_platform(Socket *socket, Socket *accepted_socket,
+                           struct sockaddr *address, socklen_t *length) {
+	int saved_errno;
+
+	// accept socket
+	accepted_socket->base.handle = accept(socket->base.handle, address, length);
+
+	if (accepted_socket->base.handle == INVALID_SOCKET) {
+		errno = ERRNO_WINAPI_OFFSET + WSAGetLastError();
+
+		return -1;
+	}
+
+	// prepare socket
+	if (socket_prepare(accepted_socket)) {
+		saved_errno = errno;
+
+		closesocket(accepted_socket->base.handle);
+
+		errno = saved_errno;
+
+		return -1;
+	}
+
+	return 0;
 }
 
 // sets errno on error
@@ -89,7 +130,7 @@ int socket_bind(Socket *socket, const struct sockaddr *address, socklen_t length
 }
 
 // sets errno on error
-int socket_listen(Socket *socket, int backlog) {
+int socket_listen_platform(Socket *socket, int backlog) {
 	int rc = listen(socket->base.handle, backlog);
 
 	if (rc == SOCKET_ERROR) {
@@ -98,20 +139,6 @@ int socket_listen(Socket *socket, int backlog) {
 	}
 
 	return rc;
-}
-
-// sets errno on error
-int socket_accept_platform(Socket *socket, Socket *accepted_socket,
-                           struct sockaddr *address, socklen_t *length) {
-	accepted_socket->base.handle = accept(socket->base.handle, address, length);
-
-	if (accepted_socket->base.handle == INVALID_SOCKET) {
-		errno = ERRNO_WINAPI_OFFSET + WSAGetLastError();
-
-		return -1;
-	}
-
-	return 0;
 }
 
 // sets errno on error

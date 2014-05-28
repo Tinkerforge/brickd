@@ -34,26 +34,29 @@
 
 typedef struct Socket_ Socket;
 
-typedef Socket *(*SocketAllocateFunction)(void);
+typedef Socket *(*SocketCreateAllocatedFunction)(void);
 typedef int (*SocketReceiveFunction)(Socket *socket, void *buffer, int length);
 typedef int (*SocketSendFunction)(Socket *socket, void *buffer, int length);
 
 struct Socket_ {
 	IO base;
 
-	SocketAllocateFunction allocate;
+	SocketCreateAllocatedFunction create_allocated;
 	SocketReceiveFunction receive;
 	SocketSendFunction send;
 };
 
-Socket *socket_allocate(void);
 
-int socket_create(Socket *socket, int family, int type, int protocol);
+int socket_create(Socket *socket);
+Socket *socket_create_allocated(void);
 void socket_destroy(Socket *socket);
 
-int socket_bind(Socket *socket, const struct sockaddr *address, socklen_t length);
-int socket_listen(Socket *socket, int backlog);
+int socket_open(Socket *socket, int family, int type, int protocol);
 Socket *socket_accept(Socket *socket, struct sockaddr *address, socklen_t *length);
+
+int socket_bind(Socket *socket, const struct sockaddr *address, socklen_t length);
+int socket_listen(Socket *socket, int backlog,
+                  SocketCreateAllocatedFunction create_allocated);
 
 int socket_receive(Socket *socket, void *buffer, int length);
 int socket_send(Socket *socket, void *buffer, int length);

@@ -20,6 +20,7 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
+#include <errno.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -312,26 +313,15 @@ int websocket_parse(Websocket *websocket, void *buffer, int length) {
 	return -1;
 }
 
-Socket *websocket_allocate(void) {
-	Websocket *websocket = calloc(1, sizeof(Websocket));
-	int rc;
-
-	if (websocket == NULL) {
-		return NULL;
-	}
-
-	rc = io_create(&websocket->base.base, "WebSocket",
-	               (IODestroyFunction)socket_destroy,
-	               (IOReadFunction)socket_receive,
-	               (IOWriteFunction)socket_send);
+// sets errno on error
+int websocket_create(Websocket *websocket) {
+	int rc = socket_create(&websocket->base);
 
 	if (rc < 0) {
-		free(websocket);
-
-		return NULL;
+		return rc;
 	}
 
-	websocket->base.allocate = NULL;
+	websocket->base.base.type = "WebSocket";
 	websocket->base.receive = websocket_receive;
 	websocket->base.send = websocket_send;
 
@@ -343,9 +333,29 @@ Socket *websocket_allocate(void) {
 	memset(websocket->line, 0, WEBSOCKET_MAX_LINE_LENGTH);
 	memset(websocket->client_key, 0, WEBSOCKET_CLIENT_KEY_LENGTH);
 
+	return 0;
+}
+
+// sets errno on error
+Socket *websocket_create_allocated(void) {
+	Websocket *websocket = calloc(1, sizeof(Websocket));
+
+	if (websocket == NULL) {
+		errno = ENOMEM;
+
+		return NULL;
+	}
+
+	if (websocket_create(websocket) < 0) {
+		free(websocket);
+
+		return NULL;
+	}
+
 	return &websocket->base;
 }
 
+// sets errno on error
 int websocket_receive(Socket *socket, void *buffer, int length) {
 	Websocket *websocket = (Websocket *)socket;
 
@@ -358,6 +368,7 @@ int websocket_receive(Socket *socket, void *buffer, int length) {
 	return websocket_parse(websocket, buffer, length);
 }
 
+// sets errno on error
 int websocket_send(Socket *socket, void *buffer, int length) {
 	WebsocketFrameWithPayload frame;
 
@@ -365,8 +376,7 @@ int websocket_send(Socket *socket, void *buffer, int length) {
 		// currently length should never exceed 80 (the current maximum packet
 		// size). so this is just a safeguard for possible later changes to the
 		// maximum packet size that might require adjustments here.
-
-		log_error("Payload to large for unextended websocket frame (%d)", length);
+		errno = E2BIG;
 
 		return -1;
 	}

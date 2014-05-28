@@ -125,7 +125,8 @@ int websocket_parse_header(Websocket *websocket, uint8_t *buffer, int length);
 int websocket_parse_data(Websocket *websocket, uint8_t *buffer, int length);
 int websocket_parse(Websocket *websocket, void *buffer, int length);
 
-Socket *websocket_allocate(void);
+int websocket_create(Websocket *websocket);
+Socket *websocket_create_allocated(void);
 int websocket_receive(Socket *socket, void *buffer, int length);
 int websocket_send(Socket *socket, void *buffer, int length);
 

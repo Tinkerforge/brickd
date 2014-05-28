@@ -24,13 +24,14 @@
 
 #include "socket.h"
 
-extern int socket_create_platform(Socket *socket, int family, int type, int protocol);
 extern int socket_accept_platform(Socket *socket, Socket *accepted_socket,
                                   struct sockaddr *address, socklen_t *length);
+extern int socket_listen_platform(Socket *socket, int backlog);
 extern int socket_receive_platform(Socket *socket, void *buffer, int length);
 extern int socket_send_platform(Socket *socket, void *buffer, int length);
 
-static int socket_prepare(Socket *socket) {
+// sets errno on error
+int socket_create(Socket *socket) {
 	int rc = io_create(&socket->base, "plain-socket",
 	                   (IODestroyFunction)socket_destroy,
 	                   (IOReadFunction)socket_receive,
@@ -40,17 +41,24 @@ static int socket_prepare(Socket *socket) {
 		return rc;
 	}
 
-	socket->allocate = NULL;
+	socket->create_allocated = NULL;
 	socket->receive = socket_receive_platform;
 	socket->send = socket_send_platform;
 
 	return 0;
 }
 
-Socket *socket_allocate(void) {
+// sets errno on error
+Socket *socket_create_allocated(void) {
 	Socket *socket = calloc(1, sizeof(Socket));
 
-	if (socket_prepare(socket) < 0) {
+	if (socket == NULL) {
+		errno = ENOMEM;
+
+		return NULL;
+	}
+
+	if (socket_create(socket) < 0) {
 		free(socket);
 
 		return NULL;
@@ -60,20 +68,9 @@ Socket *socket_allocate(void) {
 }
 
 // sets errno on error
-int socket_create(Socket *socket, int family, int type, int protocol) {
-	int rc = socket_prepare(socket);
-
-	if (rc < 0) {
-		return rc;
-	}
-
-	return socket_create_platform(socket, family, type, protocol);
-}
-
-// sets errno on error
 Socket *socket_accept(Socket *socket, struct sockaddr *address, socklen_t *length) {
 	int rc;
-	Socket *allocated_socket = socket->allocate();
+	Socket *allocated_socket = socket->create_allocated();
 
 	if (allocated_socket == NULL) {
 		// because accept() is not called now the event loop will receive
@@ -94,6 +91,13 @@ Socket *socket_accept(Socket *socket, struct sockaddr *address, socklen_t *lengt
 	}
 
 	return allocated_socket;
+}
+// sets errno on error
+int socket_listen(Socket *socket, int backlog,
+                  SocketCreateAllocatedFunction create_allocated) {
+	socket->create_allocated = create_allocated;
+
+	return socket_listen_platform(socket, backlog);
 }
 
 // sets errno on error

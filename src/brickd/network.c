@@ -135,8 +135,8 @@ static const char *network_get_address_family_name(int family, int report_dual_s
 	}
 }
 
-static int network_open_port(Socket *server_socket, uint16_t port,
-                             SocketAllocateFunction allocate) {
+static int network_open_server_socket(Socket *server_socket, uint16_t port,
+                                      SocketCreateAllocatedFunction create_allocated) {
 	int phase = 0;
 	const char *address = config_get_listen_address();
 	struct addrinfo *resolved_address = NULL;
@@ -159,18 +159,23 @@ static int network_open_port(Socket *server_socket, uint16_t port,
 	phase = 1;
 
 	// create socket
-	if (socket_create(server_socket, resolved_address->ai_family,
-	                  resolved_address->ai_socktype, resolved_address->ai_protocol) < 0) {
-		log_error("Could not create %s server socket: %s (%d)",
-		          network_get_address_family_name(resolved_address->ai_family, 0),
+	if (socket_create(server_socket) < 0) {
+		log_error("Could not create socket: %s (%d)",
 		          get_errno_name(errno), errno);
 
 		goto cleanup;
 	}
 
-	server_socket->allocate = allocate;
-
 	phase = 2;
+
+	if (socket_open(server_socket, resolved_address->ai_family,
+	                resolved_address->ai_socktype, resolved_address->ai_protocol) < 0) {
+		log_error("Could not open %s server socket: %s (%d)",
+		          network_get_address_family_name(resolved_address->ai_family, 0),
+		          get_errno_name(errno), errno);
+
+		goto cleanup;
+	}
 
 	if (resolved_address->ai_family == AF_INET6) {
 		if (socket_set_dual_stack(server_socket, config_get_listen_dual_stack()) < 0) {
@@ -206,7 +211,7 @@ static int network_open_port(Socket *server_socket, uint16_t port,
 		goto cleanup;
 	}
 
-	if (socket_listen(server_socket, 10) < 0) {
+	if (socket_listen(server_socket, 10, create_allocated) < 0) {
 		log_error("Could not listen to %s server socket bound to '%s' on port %u: %s (%d)",
 		          network_get_address_family_name(resolved_address->ai_family, 1),
 		          address, port, get_errno_name(errno), errno);
@@ -264,7 +269,8 @@ int network_init(void) {
 		return -1;
 	}
 
-	if (network_open_port(&_server_socket_plain, plain_port, socket_allocate) >= 0) {
+	if (network_open_server_socket(&_server_socket_plain, plain_port,
+	                               socket_create_allocated) >= 0) {
 		_server_socket_plain_open = 1;
 	}
 
@@ -273,8 +279,8 @@ int network_init(void) {
 			log_warn("WebSocket support is enabled without authentication");
 		}
 
-		if (network_open_port(&_server_socket_websocket, websocket_port,
-		                      websocket_allocate) >= 0) {
+		if (network_open_server_socket(&_server_socket_websocket, websocket_port,
+		                               websocket_create_allocated) >= 0) {
 			_server_socket_websocket_open = 1;
 		}
 	}
