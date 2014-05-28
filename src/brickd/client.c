@@ -30,13 +30,12 @@
 #include "config.h"
 #include "hardware.h"
 #include "log.h"
-#include "socket.h"
 #include "utils.h"
 
 #define LOG_CATEGORY LOG_CATEGORY_NETWORK
 
 #define MAX_PENDING_REQUESTS 512
-#define MAX_QUEUED_SENDS 512
+#define MAX_QUEUED_WRITES 512
 
 typedef struct {
 	PacketHeader header;
@@ -191,18 +190,18 @@ static void client_handle_request(Client *client, Packet *request) {
 	}
 }
 
-static void client_handle_send(void *opaque) {
+static void client_handle_write(void *opaque) {
 	Client *client = opaque;
 	Packet *response;
 	char packet_signature[PACKET_MAX_SIGNATURE_LENGTH];
 
-	if (client->send_queue.count == 0) {
+	if (client->write_queue.count == 0) {
 		return;
 	}
 
-	response = queue_peek(&client->send_queue);
+	response = queue_peek(&client->write_queue);
 
-	if (socket_send(client->socket, response, response->header.length) < 0) {
+	if (io_write(client->io, response, response->header.length) < 0) {
 		log_error("Could not send queued response (%s) to client ("CLIENT_INFO_FORMAT"), disconnecting client: %s (%d)",
 		          packet_get_request_signature(packet_signature, response),
 		          client_expand_info(client), get_errno_name(errno), errno);
@@ -212,28 +211,27 @@ static void client_handle_send(void *opaque) {
 		return;
 	}
 
-	queue_pop(&client->send_queue, NULL);
+	queue_pop(&client->write_queue, NULL);
 
-	log_debug("Sent queued response (%s) to client ("CLIENT_INFO_FORMAT"), %d response(s) left in send queue",
+	log_debug("Sent queued response (%s) to client ("CLIENT_INFO_FORMAT"), %d response(s) left in write queue",
 	          packet_get_request_signature(packet_signature, response),
-	          client_expand_info(client), client->send_queue.count);
+	          client_expand_info(client), client->write_queue.count);
 
-	if (client->send_queue.count == 0) {
+	if (client->write_queue.count == 0) {
 		// last queued response handled, deregister for write events
-		event_remove_source(client->socket->handle, EVENT_SOURCE_TYPE_GENERIC, EVENT_WRITE);
+		event_remove_source(client->io->handle, EVENT_SOURCE_TYPE_GENERIC, EVENT_WRITE);
 	}
 }
 
-static void client_handle_receive(void *opaque) {
+static void client_handle_read(void *opaque) {
 	Client *client = opaque;
 	int length;
 	const char *message = NULL;
 	char packet_signature[PACKET_MAX_SIGNATURE_LENGTH];
 	PendingRequest *pending_request;
 
-	length = socket_receive(client->socket,
-	                        (uint8_t *)&client->request + client->request_used,
-	                        sizeof(Packet) - client->request_used);
+	length = io_read(client->io, (uint8_t *)&client->request + client->request_used,
+	                 sizeof(Packet) - client->request_used);
 
 	if (length == 0) {
 		log_info("Client ("CLIENT_INFO_FORMAT") disconnected by peer",
@@ -245,7 +243,7 @@ static void client_handle_receive(void *opaque) {
 	}
 
 	if (length < 0) {
-		if (length == SOCKET_CONTINUE) {
+		if (length == IO_CONTINUE) {
 			// no actual data received
 		} else if (errno_interrupted()) {
 			log_debug("Receiving from client ("CLIENT_INFO_FORMAT") was interrupted, retrying",
@@ -360,27 +358,27 @@ const char *client_get_authentication_state_name(ClientAuthenticationState state
 	}
 }
 
-static int client_push_response_to_send_queue(Client *client, Packet *response) {
+static int client_push_response_to_write_queue(Client *client, Packet *response) {
 	Packet *queued_response;
 	char packet_signature[PACKET_MAX_SIGNATURE_LENGTH];
 
-	log_debug("Client ("CLIENT_INFO_FORMAT") is not ready to send, pushing response to send queue (count: %d +1)",
-	          client_expand_info(client), client->send_queue.count);
+	log_debug("Client ("CLIENT_INFO_FORMAT") is not ready to send, pushing response to write queue (count: %d +1)",
+	          client_expand_info(client), client->write_queue.count);
 
-	if (client->send_queue.count >= MAX_QUEUED_SENDS) {
-		log_warn("Send queue of client ("CLIENT_INFO_FORMAT") is full, dropping %d queued response(s)",
+	if (client->write_queue.count >= MAX_QUEUED_WRITES) {
+		log_warn("Write queue of client ("CLIENT_INFO_FORMAT") is full, dropping %d queued response(s)",
 		         client_expand_info(client),
-		         client->send_queue.count - MAX_QUEUED_SENDS + 1);
+		         client->write_queue.count - MAX_QUEUED_WRITES + 1);
 
-		while (client->send_queue.count >= MAX_QUEUED_SENDS) {
-			queue_pop(&client->send_queue, NULL);
+		while (client->write_queue.count >= MAX_QUEUED_WRITES) {
+			queue_pop(&client->write_queue, NULL);
 		}
 	}
 
-	queued_response = queue_push(&client->send_queue);
+	queued_response = queue_push(&client->write_queue);
 
 	if (queued_response == NULL) {
-		log_error("Could not push response (%s) to send queue of client ("CLIENT_INFO_FORMAT"), discarding response: %s (%d)",
+		log_error("Could not push response (%s) to write queue of client ("CLIENT_INFO_FORMAT"), discarding response: %s (%d)",
 		          packet_get_request_signature(packet_signature, response),
 		          client_expand_info(client),
 		          get_errno_name(errno), errno);
@@ -390,10 +388,10 @@ static int client_push_response_to_send_queue(Client *client, Packet *response) 
 
 	memcpy(queued_response, response, response->header.length);
 
-	if (client->send_queue.count == 1) {
+	if (client->write_queue.count == 1) {
 		// first queued response, register for write events
-		if (event_add_source(client->socket->handle, EVENT_SOURCE_TYPE_GENERIC,
-		                     EVENT_WRITE, client_handle_send, client) < 0) {
+		if (event_add_source(client->io->handle, EVENT_SOURCE_TYPE_GENERIC,
+		                     EVENT_WRITE, client_handle_write, client) < 0) {
 			// FIXME: how to handle this error?
 			return -1;
 		}
@@ -402,13 +400,14 @@ static int client_push_response_to_send_queue(Client *client, Packet *response) 
 	return 0;
 }
 
-int client_create(Client *client, Socket *socket, const char *peer,
-                  uint32_t authentication_nonce) {
+int client_create(Client *client, const char *name, IO *io, uint32_t authentication_nonce) {
 	int phase = 0;
 
-	log_debug("Creating client from socket (handle: %d)", socket->handle);
+	log_debug("Creating client from %s (handle: %d)", io->type, io->handle);
 
-	client->socket = socket;
+	string_copy(client->name, name, sizeof(client->name));
+
+	client->io = io;
 	client->disconnected = 0;
 	client->request_used = 0;
 	client->request_header_checked = 0;
@@ -429,9 +428,9 @@ int client_create(Client *client, Socket *socket, const char *peer,
 
 	phase = 1;
 
-	// create send queue
-	if (queue_create(&client->send_queue, sizeof(Packet)) < 0) {
-		log_error("Could not create send queue: %s (%d)",
+	// create write queue
+	if (queue_create(&client->write_queue, sizeof(Packet)) < 0) {
+		log_error("Could not create write queue: %s (%d)",
 		          get_errno_name(errno), errno);
 
 		goto cleanup;
@@ -439,12 +438,9 @@ int client_create(Client *client, Socket *socket, const char *peer,
 
 	phase = 2;
 
-	// store peer name
-	string_copy(client->peer, peer != NULL ? peer : "<unknown>", sizeof(client->peer));
-
-	// add socket as event source
-	if (event_add_source(client->socket->handle, EVENT_SOURCE_TYPE_GENERIC,
-	                     EVENT_READ, client_handle_receive, client) < 0) {
+	// add I/O object as event source
+	if (event_add_source(client->io->handle, EVENT_SOURCE_TYPE_GENERIC,
+	                     EVENT_READ, client_handle_read, client) < 0) {
 		goto cleanup;
 	}
 
@@ -453,7 +449,7 @@ int client_create(Client *client, Socket *socket, const char *peer,
 cleanup:
 	switch (phase) { // no breaks, all cases fall through intentionally
 	case 2:
-		queue_destroy(&client->send_queue, NULL);
+		queue_destroy(&client->write_queue, NULL);
 
 	case 1:
 		array_destroy(&client->pending_requests, NULL);
@@ -471,17 +467,17 @@ void client_destroy(Client *client) {
 		         client_expand_info(client), client->pending_requests.count);
 	}
 
-	if (client->send_queue.count > 0) {
+	if (client->write_queue.count > 0) {
 		log_warn("Destroying client ("CLIENT_INFO_FORMAT") while %d response(s) have not beed send",
-		         client_expand_info(client), client->send_queue.count);
+		         client_expand_info(client), client->write_queue.count);
 	}
 
-	event_remove_source(client->socket->handle, EVENT_SOURCE_TYPE_GENERIC, -1);
-	socket_destroy(client->socket);
-	free(client->socket);
+	event_remove_source(client->io->handle, EVENT_SOURCE_TYPE_GENERIC, -1);
+	io_destroy(client->io);
+	free(client->io);
 
 	array_destroy(&client->pending_requests, NULL);
-	queue_destroy(&client->send_queue, NULL);
+	queue_destroy(&client->write_queue, NULL);
 }
 
 // returns -1 on error, 0 if the response was not dispatched and 1 if it was dispatch
@@ -526,14 +522,14 @@ int client_dispatch_response(Client *client, Packet *response, int force,
 	}
 
 	if (force || found >= 0) {
-		if (client->send_queue.count > 0) {
-			if (client_push_response_to_send_queue(client, response) < 0) {
+		if (client->write_queue.count > 0) {
+			if (client_push_response_to_write_queue(client, response) < 0) {
 				goto cleanup;
 			}
 
 			enqueued = 1;
 		} else {
-			if (socket_send(client->socket, response, response->header.length) < 0) {
+			if (io_write(client->io, response, response->header.length) < 0) {
 				if (!errno_would_block()) {
 					log_error("Could not send response (%s) to client ("CLIENT_INFO_FORMAT"), disconnecting client: %s (%d)",
 					          packet_get_request_signature(packet_signature, response),
@@ -544,7 +540,7 @@ int client_dispatch_response(Client *client, Packet *response, int force,
 					goto cleanup;
 				}
 
-				if (client_push_response_to_send_queue(client, response) < 0) {
+				if (client_push_response_to_write_queue(client, response) < 0) {
 					goto cleanup;
 				}
 

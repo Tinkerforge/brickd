@@ -44,6 +44,7 @@
  event_winapi.c^
  fixes_msvc.c^
  hardware.c^
+ io.c^
  log.c^
  log_winapi.c^
  main_windows.c^

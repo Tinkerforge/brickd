@@ -33,37 +33,52 @@
 
 // sets errno on error
 int socket_create_platform(Socket *socket_, int family, int type, int protocol) {
-	BOOL on = TRUE;
+	EventHandle handle;
+	BOOL no_delay = TRUE;
+	unsigned long non_blocking = 1;
 
-	socket_->handle = socket(family, type, protocol);
+	// create socket
+	handle = socket(family, type, protocol);
 
-	if (socket_->handle == INVALID_SOCKET) {
+	if (handle == INVALID_SOCKET) {
 		errno = ERRNO_WINAPI_OFFSET + WSAGetLastError();
 
 		return -1;
 	}
 
+	// enable no-delay option
 	if ((family == AF_INET || family == AF_INET6) &&
-	    setsockopt(socket_->handle, IPPROTO_TCP, TCP_NODELAY, (const char *)&on,
-	               sizeof(on)) == SOCKET_ERROR) {
+	    setsockopt(handle, IPPROTO_TCP, TCP_NODELAY, (const char *)&no_delay,
+	               sizeof(no_delay)) == SOCKET_ERROR) {
 		errno = ERRNO_WINAPI_OFFSET + WSAGetLastError();
 
-		closesocket(socket_->handle);
+		closesocket(handle);
 
 		return -1;
 	}
+
+	// enable non-blocking operation
+	if (ioctlsocket(handle, FIONBIO, &non_blocking) == SOCKET_ERROR) {
+		errno = ERRNO_WINAPI_OFFSET + WSAGetLastError();
+
+		closesocket(handle);
+
+		return -1;
+	}
+
+	socket_->base.handle = handle;
 
 	return 0;
 }
 
 void socket_destroy(Socket *socket) {
-	shutdown(socket->handle, SD_BOTH);
-	closesocket(socket->handle);
+	shutdown(socket->base.handle, SD_BOTH);
+	closesocket(socket->base.handle);
 }
 
 // sets errno on error
 int socket_bind(Socket *socket, const struct sockaddr *address, socklen_t length) {
-	int rc = bind(socket->handle, address, length);
+	int rc = bind(socket->base.handle, address, length);
 
 	if (rc == SOCKET_ERROR) {
 		rc = -1;
@@ -75,7 +90,7 @@ int socket_bind(Socket *socket, const struct sockaddr *address, socklen_t length
 
 // sets errno on error
 int socket_listen(Socket *socket, int backlog) {
-	int rc = listen(socket->handle, backlog);
+	int rc = listen(socket->base.handle, backlog);
 
 	if (rc == SOCKET_ERROR) {
 		rc = -1;
@@ -88,9 +103,9 @@ int socket_listen(Socket *socket, int backlog) {
 // sets errno on error
 int socket_accept_platform(Socket *socket, Socket *accepted_socket,
                            struct sockaddr *address, socklen_t *length) {
-	accepted_socket->handle = accept(socket->handle, address, length);
+	accepted_socket->base.handle = accept(socket->base.handle, address, length);
 
-	if (accepted_socket->handle == INVALID_SOCKET) {
+	if (accepted_socket->base.handle == INVALID_SOCKET) {
 		errno = ERRNO_WINAPI_OFFSET + WSAGetLastError();
 
 		return -1;
@@ -101,7 +116,7 @@ int socket_accept_platform(Socket *socket, Socket *accepted_socket,
 
 // sets errno on error
 int socket_receive_platform(Socket *socket, void *buffer, int length) {
-	length = recv(socket->handle, (char *)buffer, length, 0);
+	length = recv(socket->base.handle, (char *)buffer, length, 0);
 
 	if (length == SOCKET_ERROR) {
 		length = -1;
@@ -113,7 +128,7 @@ int socket_receive_platform(Socket *socket, void *buffer, int length) {
 
 // sets errno on error
 int socket_send_platform(Socket *socket, void *buffer, int length) {
-	length = send(socket->handle, (const char *)buffer, length, 0);
+	length = send(socket->base.handle, (const char *)buffer, length, 0);
 
 	if (length == SOCKET_ERROR) {
 		length = -1;
@@ -124,22 +139,9 @@ int socket_send_platform(Socket *socket, void *buffer, int length) {
 }
 
 // sets errno on error
-int socket_set_non_blocking(Socket *socket, int non_blocking) {
-	unsigned long on = non_blocking ? 1 : 0;
-	int rc = ioctlsocket(socket->handle, FIONBIO, &on);
-
-	if (rc == SOCKET_ERROR) {
-		rc = -1;
-		errno = ERRNO_WINAPI_OFFSET + WSAGetLastError();
-	}
-
-	return rc;
-}
-
-// sets errno on error
 int socket_set_address_reuse(Socket *socket, int address_reuse) {
 	DWORD on = address_reuse ? TRUE : FALSE;
-	int rc = setsockopt(socket->handle, SOL_SOCKET, SO_REUSEADDR,
+	int rc = setsockopt(socket->base.handle, SOL_SOCKET, SO_REUSEADDR,
 	                    (const char *)&on, sizeof(on));
 
 	if (rc == SOCKET_ERROR) {
@@ -170,7 +172,7 @@ int socket_set_dual_stack(Socket *socket, int dual_stack) {
 		return 0;
 	}
 
-	rc = setsockopt(socket->handle, IPPROTO_IPV6, IPV6_V6ONLY,
+	rc = setsockopt(socket->base.handle, IPPROTO_IPV6, IPV6_V6ONLY,
 	                (const char *)&on, sizeof(on));
 
 	if (rc == SOCKET_ERROR) {
@@ -206,9 +208,12 @@ struct addrinfo *socket_hostname_to_address(const char *hostname, uint16_t port)
 
 // sets errno on error
 int socket_address_to_hostname(struct sockaddr *address, socklen_t address_length,
-                               char *hostname, int hostname_length) {
-	if (getnameinfo(address, address_length, hostname, hostname_length,
-	                NULL, 0, NI_NUMERICHOST) != 0) {
+                               char *hostname, int hostname_length,
+                               char *port, int port_length) {
+	if (getnameinfo(address, address_length,
+	                hostname, hostname_length,
+	                port, port_length,
+	                NI_NUMERICHOST | NI_NUMERICSERV) != 0) {
 		errno = ERRNO_WINAPI_OFFSET + WSAGetLastError();
 
 		return -1;

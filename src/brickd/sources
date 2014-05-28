@@ -19,9 +19,10 @@ SOURCES=array.c \
 	event.c \
 	event_winapi.c \
 	fixes_msvc.c \
+	hardware.c \
+	io.c \
 	log.c \
 	log_winapi.c \
-	hardware.c \
 	main_windows.c \
 	network.c \
 	packet.c \

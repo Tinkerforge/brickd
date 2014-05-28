@@ -31,9 +31,9 @@
 
 #include "array.h"
 #include "event.h"
+#include "io.h"
 #include "packet.h"
 #include "queue.h"
-#include "socket.h"
 
 typedef struct _Client Client;
 
@@ -44,11 +44,11 @@ typedef enum {
 	CLIENT_AUTHENTICATION_STATE_DONE
 } ClientAuthenticationState;
 
-#define CLIENT_MAX_PEER_LENGTH 64
+#define CLIENT_MAX_NAME_LENGTH 128
 
 struct _Client {
-	Socket *socket;
-	char peer[CLIENT_MAX_PEER_LENGTH];
+	char name[CLIENT_MAX_NAME_LENGTH]; // for display purpose
+	IO *io;
 	int disconnected;
 	Packet request;
 	int request_used;
@@ -56,16 +56,16 @@ struct _Client {
 	Array pending_requests;
 	ClientAuthenticationState authentication_state;
 	uint32_t authentication_nonce; // server
-	Queue send_queue;
+	Queue write_queue;
 };
 
-#define CLIENT_INFO_FORMAT "S: %d, T: %s, P: %s, A: %s"
-#define client_expand_info(client) (client)->socket->handle, (client)->socket->type, \
-	(client)->peer, client_get_authentication_state_name((client)->authentication_state)
+#define CLIENT_INFO_FORMAT "N: %s, T: %s, H: %d, A: %s"
+#define client_expand_info(client) (client)->name, (client)->io->type, \
+	(client)->io->handle, client_get_authentication_state_name((client)->authentication_state)
 
 const char *client_get_authentication_state_name(ClientAuthenticationState state);
 
-int client_create(Client *client, Socket *socket, const char *peer,
+int client_create(Client *client, const char *name, IO *io,
                   uint32_t authentication_nonce);
 void client_destroy(Client *client);
 

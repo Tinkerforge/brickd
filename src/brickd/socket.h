@@ -30,9 +30,7 @@
 #endif
 #include <stdint.h>
 
-#include "event.h"
-
-#define SOCKET_CONTINUE -2
+#include "io.h"
 
 typedef struct Socket_ Socket;
 
@@ -41,8 +39,8 @@ typedef int (*SocketReceiveFunction)(Socket *socket, void *buffer, int length);
 typedef int (*SocketSendFunction)(Socket *socket, void *buffer, int length);
 
 struct Socket_ {
-	EventHandle handle;
-	const char *type;
+	IO base;
+
 	SocketAllocateFunction allocate;
 	SocketReceiveFunction receive;
 	SocketSendFunction send;
@@ -60,12 +58,12 @@ Socket *socket_accept(Socket *socket, struct sockaddr *address, socklen_t *lengt
 int socket_receive(Socket *socket, void *buffer, int length);
 int socket_send(Socket *socket, void *buffer, int length);
 
-int socket_set_non_blocking(Socket *socket, int non_blocking);
 int socket_set_address_reuse(Socket *socket, int address_reuse);
 int socket_set_dual_stack(Socket *socket, int dual_stack);
 
 struct addrinfo *socket_hostname_to_address(const char *hostname, uint16_t port);
 int socket_address_to_hostname(struct sockaddr *address, socklen_t address_length,
-                               char *hostname, int hostname_length);
+                               char *hostname, int hostname_length,
+                               char *port, int port_length);
 
 #endif // BRICKD_SOCKET_H

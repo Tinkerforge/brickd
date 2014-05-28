@@ -36,55 +36,74 @@
 
 // sets errno on error
 int socket_create_platform(Socket *socket_, int family, int type, int protocol) {
-	int on = 1;
+	EventHandle handle;
+	int no_delay = 1;
 	int saved_errno;
+	int flags;
 
-	socket_->handle = socket(family, type, protocol);
+	// create socket
+	handle = socket(family, type, protocol);
 
-	if (socket_->handle < 0) {
+	if (handle < 0) {
 		return -1;
 	}
 
+	// enable no-delay option
 	if ((family == AF_INET || family == AF_INET6) &&
-	    setsockopt(socket_->handle, IPPROTO_TCP, TCP_NODELAY, &on, sizeof(on)) < 0) {
+	    setsockopt(handle, IPPROTO_TCP, TCP_NODELAY, &no_delay, sizeof(no_delay)) < 0) {
 		saved_errno = errno;
 
-		close(socket_->handle);
+		close(handle);
 
 		errno = saved_errno;
 
 		return -1;
 	}
 
+	// enable non-blocking operation
+	flags = fcntl(handle, F_GETFL, 0);
+
+	if (flags < 0 || fcntl(handle, F_SETFL, flags | O_NONBLOCK) < 0) {
+		saved_errno = errno;
+
+		close(handle);
+
+		errno = saved_errno;
+
+		return -1;
+	}
+
+	socket_->base.handle = handle;
+
 	return 0;
 }
 
 void socket_destroy(Socket *socket) {
-	shutdown(socket->handle, SHUT_RDWR);
-	close(socket->handle);
+	shutdown(socket->base.handle, SHUT_RDWR);
+	close(socket->base.handle);
 }
 
 // sets errno on error
 int socket_bind(Socket *socket, const struct sockaddr *address, socklen_t length) {
-	return bind(socket->handle, address, length);
+	return bind(socket->base.handle, address, length);
 }
 
 // sets errno on error
 int socket_listen(Socket *socket, int backlog) {
-	return listen(socket->handle, backlog);
+	return listen(socket->base.handle, backlog);
 }
 
 // sets errno on error
 int socket_accept_platform(Socket *socket, Socket *accepted_socket,
                            struct sockaddr *address, socklen_t *length) {
-	accepted_socket->handle = accept(socket->handle, address, length);
+	accepted_socket->base.handle = accept(socket->base.handle, address, length);
 
-	return accepted_socket->handle < 0 ? -1 : 0;
+	return accepted_socket->base.handle < 0 ? -1 : 0;
 }
 
 // sets errno on error
 int socket_receive_platform(Socket *socket, void *buffer, int length) {
-	return recv(socket->handle, buffer, length, 0);
+	return recv(socket->base.handle, buffer, length, 0);
 }
 
 // sets errno on error
@@ -95,38 +114,21 @@ int socket_send_platform(Socket *socket, void *buffer, int length) {
 	int flags = 0;
 #endif
 
-	return send(socket->handle, buffer, length, flags);
-}
-
-// sets errno on error
-int socket_set_non_blocking(Socket *socket, int non_blocking) {
-	int flags = fcntl(socket->handle, F_GETFL, 0);
-
-	if (flags < 0) {
-		return -1;
-	}
-
-	if (non_blocking) {
-		flags |= O_NONBLOCK;
-	} else {
-		flags &= ~O_NONBLOCK;
-	}
-
-	return fcntl(socket->handle, F_SETFL, flags);
+	return send(socket->base.handle, buffer, length, flags);
 }
 
 // sets errno on error
 int socket_set_address_reuse(Socket *socket, int address_reuse) {
 	int on = address_reuse ? 1 : 0;
 
-	return setsockopt(socket->handle, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on));
+	return setsockopt(socket->base.handle, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on));
 }
 
 // sets errno on error
 int socket_set_dual_stack(Socket *socket, int dual_stack) {
 	int on = dual_stack ? 0 : 1;
 
-	return setsockopt(socket->handle, IPPROTO_IPV6, IPV6_V6ONLY, &on, sizeof(on));
+	return setsockopt(socket->base.handle, IPPROTO_IPV6, IPV6_V6ONLY, &on, sizeof(on));
 }
 
 // sets errno on error
@@ -163,11 +165,14 @@ struct addrinfo *socket_hostname_to_address(const char *hostname, uint16_t port)
 
 // sets errno on error
 int socket_address_to_hostname(struct sockaddr *address, socklen_t address_length,
-                               char *hostname, int hostname_length) {
+                               char *hostname, int hostname_length,
+                               char *port, int port_length) {
 	int rc;
 
-	rc = getnameinfo(address, address_length, hostname, hostname_length,
-	                 NULL, 0, NI_NUMERICHOST);
+	rc = getnameinfo(address, address_length,
+	                 hostname, hostname_length,
+	                 port, port_length,
+	                 NI_NUMERICHOST | NI_NUMERICSERV);
 
 	if (rc != 0) {
 #if EAI_AGAIN < 0

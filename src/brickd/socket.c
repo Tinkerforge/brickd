@@ -30,23 +30,42 @@ extern int socket_accept_platform(Socket *socket, Socket *accepted_socket,
 extern int socket_receive_platform(Socket *socket, void *buffer, int length);
 extern int socket_send_platform(Socket *socket, void *buffer, int length);
 
-static void socket_prepare(Socket *socket) {
-	socket->type = "plain";
+static int socket_prepare(Socket *socket) {
+	int rc = io_create(&socket->base, "plain-socket",
+	                   (IODestroyFunction)socket_destroy,
+	                   (IOReadFunction)socket_receive,
+	                   (IOWriteFunction)socket_send);
+
+	if (rc < 0) {
+		return rc;
+	}
+
+	socket->allocate = NULL;
 	socket->receive = socket_receive_platform;
 	socket->send = socket_send_platform;
+
+	return 0;
 }
 
 Socket *socket_allocate(void) {
 	Socket *socket = calloc(1, sizeof(Socket));
 
-	socket_prepare(socket);
+	if (socket_prepare(socket) < 0) {
+		free(socket);
+
+		return NULL;
+	}
 
 	return socket;
 }
 
 // sets errno on error
 int socket_create(Socket *socket, int family, int type, int protocol) {
-	socket_prepare(socket);
+	int rc = socket_prepare(socket);
+
+	if (rc < 0) {
+		return rc;
+	}
 
 	return socket_create_platform(socket, family, type, protocol);
 }

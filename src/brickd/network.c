@@ -49,16 +49,8 @@ static int _server_socket_plain_open = 0;
 static int _server_socket_websocket_open = 0;
 static uint32_t _next_authentication_nonce = 0;
 
-static Client *network_create_client(Socket *socket, const char *peer) {
+static Client *network_create_client(const char *name, IO *io) {
 	Client *client;
-
-	// enable non-blocking
-	if (socket_set_non_blocking(socket, 1) < 0) {
-		log_error("Could not enable non-blocking mode for socket (handle: %d): %s (%d)",
-		          socket->handle, get_errno_name(errno), errno);
-
-		return NULL;
-	}
 
 	// append to client array
 	client = array_append(&_clients);
@@ -70,8 +62,8 @@ static Client *network_create_client(Socket *socket, const char *peer) {
 		return NULL;
 	}
 
-	// create new Client that takes ownership of the socket
-	if (client_create(client, socket, peer, _next_authentication_nonce++) < 0) {
+	// create new client that takes ownership of the I/O object
+	if (client_create(client, name, io, _next_authentication_nonce++) < 0) {
 		array_remove(&_clients, _clients.count - 1, NULL);
 
 		return NULL;
@@ -87,8 +79,10 @@ static void network_handle_accept(void *opaque) {
 	Socket *client_socket;
 	struct sockaddr_storage address;
 	socklen_t length = sizeof(address);
-	char buffer[NI_MAXHOST];
-	char *peer = buffer;
+	char hostname[NI_MAXHOST];
+	char port[NI_MAXSERV];
+	char buffer[NI_MAXHOST + NI_MAXSERV];
+	char *name = "<unknown>";
 
 	// accept new client socket
 	client_socket = socket_accept(server_socket, (struct sockaddr *)&address, &length);
@@ -103,15 +97,22 @@ static void network_handle_accept(void *opaque) {
 	}
 
 	if (socket_address_to_hostname((struct sockaddr *)&address, length,
-	                               buffer, sizeof(buffer)) < 0) {
-		log_warn("Could not get peer name of client (socket: %d): %s (%d)",
-		         client_socket->handle, get_errno_name(errno), errno);
+	                               hostname, sizeof(hostname),
+	                               port, sizeof(port)) < 0) {
+		log_warn("Could not get hostname and port of client (socket: %d): %s (%d)",
+		         client_socket->base.handle, get_errno_name(errno), errno);
+	} else {
+		if (address.ss_family == AF_INET6) {
+			snprintf(buffer, sizeof(buffer), "[%s]:%s", hostname, port);
+		} else {
+			snprintf(buffer, sizeof(buffer), "%s:%s", hostname, port);
+		}
 
-		peer = NULL;
+		name = buffer;
 	}
 
 	// create new client
-	if (network_create_client(client_socket, peer) == NULL) {
+	if (network_create_client(name, &client_socket->base) == NULL) {
 		socket_destroy(client_socket);
 		free(client_socket);
 	}
@@ -218,14 +219,7 @@ static int network_open_port(Socket *server_socket, uint16_t port,
 	          network_get_address_family_name(resolved_address->ai_family, 1),
 	          port);
 
-	if (socket_set_non_blocking(server_socket, 1) < 0) {
-		log_error("Could not enable non-blocking mode for server socket: %s (%d)",
-		          get_errno_name(errno), errno);
-
-		goto cleanup;
-	}
-
-	if (event_add_source(server_socket->handle, EVENT_SOURCE_TYPE_GENERIC,
+	if (event_add_source(server_socket->base.handle, EVENT_SOURCE_TYPE_GENERIC,
 	                     EVENT_READ, network_handle_accept, server_socket) < 0) {
 		goto cleanup;
 	}
@@ -304,12 +298,12 @@ void network_exit(void) {
 	array_destroy(&_clients, (FreeFunction)client_destroy);
 
 	if (_server_socket_plain_open) {
-		event_remove_source(_server_socket_plain.handle, EVENT_SOURCE_TYPE_GENERIC, EVENT_READ);
+		event_remove_source(_server_socket_plain.base.handle, EVENT_SOURCE_TYPE_GENERIC, EVENT_READ);
 		socket_destroy(&_server_socket_plain);
 	}
 
 	if (_server_socket_websocket_open) {
-		event_remove_source(_server_socket_websocket.handle, EVENT_SOURCE_TYPE_GENERIC, EVENT_READ);
+		event_remove_source(_server_socket_websocket.base.handle, EVENT_SOURCE_TYPE_GENERIC, EVENT_READ);
 		socket_destroy(&_server_socket_websocket);
 	}
 }

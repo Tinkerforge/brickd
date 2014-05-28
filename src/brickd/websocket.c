@@ -97,7 +97,7 @@ int websocket_answer_handshake_ok(Websocket *websocket, char *key, int length) {
 		return ret;
 	}
 
-	return SOCKET_CONTINUE;
+	return IO_CONTINUE;
 }
 
 int websocket_parse_handshake_line(Websocket *websocket, char *line, int length) {
@@ -149,10 +149,10 @@ int websocket_parse_handshake_line(Websocket *websocket, char *line, int length)
 
 		websocket->state = WEBSOCKET_STATE_HANDSHAKE_FOUND_KEY;
 
-		return SOCKET_CONTINUE;
+		return IO_CONTINUE;
 	}
 
-	return SOCKET_CONTINUE;
+	return IO_CONTINUE;
 }
 
 int websocket_parse_handshake(Websocket *websocket, char *handshake_part, int length) {
@@ -181,7 +181,7 @@ int websocket_parse_handshake(Websocket *websocket, char *handshake_part, int le
 		}
 	}
 
-	return SOCKET_CONTINUE;
+	return IO_CONTINUE;
 }
 
 int websocket_parse_header(Websocket *websocket, uint8_t *buffer, int length) {
@@ -196,7 +196,7 @@ int websocket_parse_header(Websocket *websocket, uint8_t *buffer, int length) {
 	memcpy(((char*)&websocket->frame) + websocket->frame_index, buffer, to_copy);
 	if (to_copy + websocket->frame_index < websocket_frame_length) {
 		websocket->frame_index += to_copy;
-		return SOCKET_CONTINUE;
+		return IO_CONTINUE;
 	} else {
 		int fin = websocket_frame_get_fin(&websocket->frame.header);
 		int opcode = websocket_frame_get_opcode(&websocket->frame.header);
@@ -236,7 +236,7 @@ int websocket_parse_header(Websocket *websocket, uint8_t *buffer, int length) {
 				return websocket_parse_data(websocket, buffer, length - to_copy);
 			}
 
-			return SOCKET_CONTINUE;
+			return IO_CONTINUE;
 		}
 
 		case WEBSOCKET_OPCODE_CLOSE_FRAME:
@@ -283,7 +283,7 @@ int websocket_parse_data(Websocket *websocket, uint8_t *buffer, int length) {
 	if(length > to_read) {
 		length_recursive_add = websocket_parse(websocket, buffer + to_read, length - to_read);
 		if(length_recursive_add < 0) {
-			if(length_recursive_add == SOCKET_CONTINUE) {
+			if(length_recursive_add == IO_CONTINUE) {
 				length_recursive_add = 0;
 			} else {
 				return length_recursive_add;
@@ -314,12 +314,24 @@ int websocket_parse(Websocket *websocket, void *buffer, int length) {
 
 Socket *websocket_allocate(void) {
 	Websocket *websocket = calloc(1, sizeof(Websocket));
+	int rc;
 
 	if (websocket == NULL) {
 		return NULL;
 	}
 
-	websocket->base.type = "WebSocket";
+	rc = io_create(&websocket->base.base, "WebSocket",
+	               (IODestroyFunction)socket_destroy,
+	               (IOReadFunction)socket_receive,
+	               (IOWriteFunction)socket_send);
+
+	if (rc < 0) {
+		free(websocket);
+
+		return NULL;
+	}
+
+	websocket->base.allocate = NULL;
 	websocket->base.receive = websocket_receive;
 	websocket->base.send = websocket_send;
 
