@@ -181,6 +181,7 @@ int usb_stack_create(USBStack *usb_stack, uint8_t bus_number, uint8_t device_add
 	struct libusb_device_descriptor descriptor;
 	int i = 0;
 	char preliminary_name[STACK_MAX_NAME_LENGTH];
+	int retries = 0;
 	USBTransfer *usb_transfer;
 
 	log_debug("Acquiring USB device (bus: %u, device: %u)",
@@ -299,10 +300,31 @@ int usb_stack_create(USBStack *usb_stack, uint8_t bus_number, uint8_t device_add
 	rc = libusb_claim_interface(usb_stack->device_handle, USB_BRICK_INTERFACE);
 
 	if (rc < 0) {
-		log_error("Could not claim interface of %s: %s (%d)",
-		          usb_stack->base.name, usb_get_error_name(rc), rc);
+		// claiming the interface might fail on Linux because the uevent for
+		// a USB device arrival was received before the USB subsystem had time
+		// to create the USBFS entry for the new device. retry to claim the
+		// interface but sleep in between tries so the USB subsystem has time
+		// to do something
+		while (rc < 0 && retries < 10) {
+			millisleep(10);
 
-		goto cleanup;
+			++retries;
+
+			rc = libusb_claim_interface(usb_stack->device_handle, USB_BRICK_INTERFACE);
+		}
+
+		if (rc < 0) {
+			log_error("Could not claim interface of %s after %d retry(s): %s (%d)",
+			          usb_stack->base.name, retries, usb_get_error_name(rc), rc);
+
+			goto cleanup;
+		}
+
+		log_debug("Claimed interface %d of %s after %d retry(s)",
+		          USB_BRICK_INTERFACE, usb_stack->base.name, retries);
+	} else {
+		log_debug("Claimed interface %d of %s at first try",
+		          USB_BRICK_INTERFACE, usb_stack->base.name);
 	}
 
 	phase = 4;

@@ -58,6 +58,8 @@ char *base58_encode(char *base58, uint32_t value);
 
 uint32_t uint32_from_le(uint32_t value);
 
+void millisleep(uint32_t milliseconds);
+
 uint64_t microseconds(void);
 
 uint32_t get_random_uint32(void);

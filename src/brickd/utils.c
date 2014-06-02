@@ -391,6 +391,21 @@ uint32_t uint32_from_le(uint32_t value) {
 	       ((uint32_t)bytes[1] << 8)  |  (uint32_t)bytes[0];
 }
 
+void millisleep(uint32_t milliseconds) {
+#ifdef _WIN32
+	Sleep(milliseconds);
+#else
+	// FIXME: (u)sleep can be interrupted, might have to deal with that
+	if (milliseconds >= 1000) {
+		sleep(milliseconds / 1000);
+
+		milliseconds %= 1000;
+	}
+
+	usleep(milliseconds * 1000);
+#endif
+}
+
 uint64_t microseconds(void) {
 	struct timeval tv;
 
