@@ -22,6 +22,7 @@ WITH_LOGGING ?= yes
 WITH_PROFILING ?= no
 WITH_USB_REOPEN_ON_SIGUSR1 ?= yes
 WITH_PM_UTILS ?= check
+WITH_RED_BRICK ?= no
 
 ## RULES ######################################################################
 
@@ -154,6 +155,10 @@ ifeq ($(WITH_LIBUDEV),yes)
 	SOURCES += udev.c
 endif
 
+ifeq ($(WITH_RED_BRICK),yes)
+	SOURCES += file.c
+endif
+
 OBJECTS := ${SOURCES:.c=.o}
 DEPENDS := ${SOURCES:.c=.p}
 
@@ -267,6 +272,10 @@ endif
 
 ifeq ($(WITH_USB_REOPEN_ON_SIGUSR1),yes)
 	CFLAGS += -DBRICKD_WITH_USB_REOPEN_ON_SIGUSR1
+endif
+
+ifeq ($(WITH_RED_BRICK),yes)
+	CFLAGS += -DBRICKD_WITH_RED_BRICK
 endif
 
 ifeq ($(PLATFORM),Windows)

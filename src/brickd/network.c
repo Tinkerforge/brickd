@@ -27,6 +27,8 @@
 #ifndef _WIN32
 	#include <netdb.h>
 	#include <unistd.h>
+	#include <sys/stat.h>
+	#include <fcntl.h>
 #endif
 
 #include "network.h"
@@ -34,6 +36,7 @@
 #include "array.h"
 #include "config.h"
 #include "event.h"
+#include "file.h"
 #include "log.h"
 #include "packet.h"
 #include "socket.h"
@@ -251,6 +254,10 @@ cleanup:
 int network_init(void) {
 	uint16_t plain_port = config_get_listen_plain_port();
 	uint16_t websocket_port = config_get_listen_websocket_port();
+#ifdef BRICKD_WITH_RED_BRICK
+	File *file;
+	Client *client;
+#endif
 
 	log_debug("Initializing network subsystem");
 
@@ -292,6 +299,42 @@ int network_init(void) {
 
 		return -1;
 	}
+
+#ifdef BRICKD_WITH_RED_BRICK
+	file = calloc(1, sizeof(File));
+
+	if (file == NULL) {
+		log_error("Could not allocate file object: %s (%d)",
+		          get_errno_name(ENOMEM), ENOMEM);
+
+		array_destroy(&_clients, (FreeFunction)client_destroy);
+
+		return -1;
+	}
+
+	if (file_create(file, "/dev/g_red_brick", O_RDWR) < 0) {
+		log_error("Could not allocate file object: %s (%d)",
+		          get_errno_name(errno), errno);
+
+		array_destroy(&_clients, (FreeFunction)client_destroy);
+		free(file);
+
+		return -1;
+	}
+
+	client = network_create_client("g_red_brick", &file->base);
+
+	if (client == NULL) {
+		array_destroy(&_clients, (FreeFunction)client_destroy);
+		free(file);
+
+		return -1;
+	}
+
+	client->authentication_state = CLIENT_AUTHENTICATION_STATE_DISABLED;
+
+	// FIXME: need logic to reopen /dev/g_red_brick on error, or not to close it on error
+#endif
 
 	return 0;
 }
