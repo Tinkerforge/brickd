@@ -76,7 +76,7 @@ int socket_open(Socket *socket_, int family, int type, int protocol) {
 	}
 
 	// prepare socket
-	if (socket_prepare(socket_)) {
+	if (socket_prepare(socket_) < 0) {
 		saved_errno = errno;
 
 		closesocket(socket_->base.handle);
@@ -104,7 +104,7 @@ int socket_accept_platform(Socket *socket, Socket *accepted_socket,
 	}
 
 	// prepare socket
-	if (socket_prepare(accepted_socket)) {
+	if (socket_prepare(accepted_socket) < 0) {
 		saved_errno = errno;
 
 		closesocket(accepted_socket->base.handle);

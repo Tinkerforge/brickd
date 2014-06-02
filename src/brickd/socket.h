@@ -46,7 +46,6 @@ struct Socket_ {
 	SocketSendFunction send;
 };
 
-
 int socket_create(Socket *socket);
 Socket *socket_create_allocated(void);
 void socket_destroy(Socket *socket);

@@ -47,11 +47,7 @@ static int socket_prepare(Socket *socket) {
 	// enable non-blocking operation
 	flags = fcntl(socket->base.handle, F_GETFL, 0);
 
-	if (flags < 0) {
-		return -1;
-	}
-
-	if (fcntl(socket->base.handle, F_SETFL, flags | O_NONBLOCK) < 0) {
+	if (flags < 0 || fcntl(socket->base.handle, F_SETFL, flags | O_NONBLOCK) < 0) {
 		return -1;
 	}
 
@@ -70,7 +66,7 @@ int socket_open(Socket *socket_, int family, int type, int protocol) {
 	}
 
 	// prepare socket
-	if (socket_prepare(socket_)) {
+	if (socket_prepare(socket_) < 0) {
 		saved_errno = errno;
 
 		close(socket_->base.handle);
@@ -96,7 +92,7 @@ int socket_accept_platform(Socket *socket, Socket *accepted_socket,
 	}
 
 	// prepare socket
-	if (socket_prepare(accepted_socket)) {
+	if (socket_prepare(accepted_socket) < 0) {
 		saved_errno = errno;
 
 		close(accepted_socket->base.handle);
