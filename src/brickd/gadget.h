@@ -2,7 +2,7 @@
  * brickd
  * Copyright (C) 2014 Matthias Bolte <matthias@tinkerforge.com>
  *
- * file.h: File based I/O device
+ * gadget.h: Handling for the RED Brick USB gadget interface
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,20 +19,10 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-#ifndef BRICKD_FILE_H
-#define BRICKD_FILE_H
+#ifndef BRICKD_GADGET_H
+#define BRICKD_GADGET_H
 
-#include "io.h"
+int gadget_init(void);
+void gadget_exit(void);
 
-typedef struct {
-	IO base;
-} File;
-
-int file_create(File *file, const char *name, int flags);
-void file_destroy(File *file);
-
-int file_read(File *file, void *buffer, int length);
-int file_write(File *file, void *buffer, int length);
-int file_seek(File *file, off_t offset, int origin);
-
-#endif // BRICKD_FILE_H
+#endif // BRICKD_GADGET_H

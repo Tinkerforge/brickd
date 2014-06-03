@@ -27,8 +27,6 @@
 #ifndef _WIN32
 	#include <netdb.h>
 	#include <unistd.h>
-	#include <sys/stat.h>
-	#include <fcntl.h>
 #endif
 
 #include "network.h"
@@ -51,31 +49,6 @@ static Socket _server_socket_websocket;
 static int _server_socket_plain_open = 0;
 static int _server_socket_websocket_open = 0;
 static uint32_t _next_authentication_nonce = 0;
-
-static Client *network_create_client(const char *name, IO *io) {
-	Client *client;
-
-	// append to client array
-	client = array_append(&_clients);
-
-	if (client == NULL) {
-		log_error("Could not append to client array: %s (%d)",
-		          get_errno_name(errno), errno);
-
-		return NULL;
-	}
-
-	// create new client that takes ownership of the I/O object
-	if (client_create(client, name, io, _next_authentication_nonce++) < 0) {
-		array_remove(&_clients, _clients.count - 1, NULL);
-
-		return NULL;
-	}
-
-	log_info("Added new client ("CLIENT_INFO_FORMAT")", client_expand_info(client));
-
-	return client;
-}
 
 static void network_handle_accept(void *opaque) {
 	Socket *server_socket = opaque;
@@ -254,10 +227,6 @@ cleanup:
 int network_init(void) {
 	uint16_t plain_port = config_get_listen_plain_port();
 	uint16_t websocket_port = config_get_listen_websocket_port();
-#ifdef BRICKD_WITH_RED_BRICK
-	File *file;
-	Client *client;
-#endif
 
 	log_debug("Initializing network subsystem");
 
@@ -300,42 +269,6 @@ int network_init(void) {
 		return -1;
 	}
 
-#ifdef BRICKD_WITH_RED_BRICK
-	file = calloc(1, sizeof(File));
-
-	if (file == NULL) {
-		log_error("Could not allocate file object: %s (%d)",
-		          get_errno_name(ENOMEM), ENOMEM);
-
-		array_destroy(&_clients, (FreeFunction)client_destroy);
-
-		return -1;
-	}
-
-	if (file_create(file, "/dev/g_red_brick", O_RDWR) < 0) {
-		log_error("Could not allocate file object: %s (%d)",
-		          get_errno_name(errno), errno);
-
-		array_destroy(&_clients, (FreeFunction)client_destroy);
-		free(file);
-
-		return -1;
-	}
-
-	client = network_create_client("g_red_brick", &file->base);
-
-	if (client == NULL) {
-		array_destroy(&_clients, (FreeFunction)client_destroy);
-		free(file);
-
-		return -1;
-	}
-
-	client->authentication_state = CLIENT_AUTHENTICATION_STATE_DISABLED;
-
-	// FIXME: need logic to reopen /dev/g_red_brick on error, or not to close it on error
-#endif
-
 	return 0;
 }
 
@@ -355,6 +288,31 @@ void network_exit(void) {
 		event_remove_source(_server_socket_websocket.base.handle, EVENT_SOURCE_TYPE_GENERIC, EVENT_READ);
 		socket_destroy(&_server_socket_websocket);
 	}
+}
+
+Client *network_create_client(const char *name, IO *io) {
+	Client *client;
+
+	// append to client array
+	client = array_append(&_clients);
+
+	if (client == NULL) {
+		log_error("Could not append to client array: %s (%d)",
+		          get_errno_name(errno), errno);
+
+		return NULL;
+	}
+
+	// create new client that takes ownership of the I/O object
+	if (client_create(client, name, io, _next_authentication_nonce++) < 0) {
+		array_remove(&_clients, _clients.count - 1, NULL);
+
+		return NULL;
+	}
+
+	log_info("Added new client ("CLIENT_INFO_FORMAT")", client_expand_info(client));
+
+	return client;
 }
 
 // remove clients that got marked as disconnected

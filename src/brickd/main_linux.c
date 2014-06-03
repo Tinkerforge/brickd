@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2012-2013 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2012-2014 Matthias Bolte <matthias@tinkerforge.com>
  *
  * main_linux.c: Brick Daemon starting point for Linux
  *
@@ -31,6 +31,9 @@
 
 #include "config.h"
 #include "event.h"
+#ifdef BRICKD_WITH_RED_BRICK
+	#include "gadget.h"
+#endif
 #include "hardware.h"
 #include "log.h"
 #include "network.h"
@@ -428,6 +431,12 @@ int main(int argc, char **argv) {
 		goto error_network;
 	}
 
+#ifdef BRICKD_WITH_RED_BRICK
+	if (gadget_init() < 0) {
+		goto error_gadget;
+	}
+#endif
+
 	if (event_run() < 0) {
 		goto error_run;
 	}
@@ -435,6 +444,11 @@ int main(int argc, char **argv) {
 	exit_code = EXIT_SUCCESS;
 
 error_run:
+#ifdef BRICKD_WITH_RED_BRICK
+	gadget_exit();
+
+error_gadget:
+#endif
 	network_exit();
 
 error_network:

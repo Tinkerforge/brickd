@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2012 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2012-2014 Matthias Bolte <matthias@tinkerforge.com>
  * Copyright (C) 2014 Olaf Lüke <olaf@tinkerforge.com>
  *
  * network.h: Network specific functions
@@ -28,6 +28,8 @@
 
 int network_init(void);
 void network_exit(void);
+
+Client *network_create_client(const char *name, IO *io);
 
 void network_cleanup_clients(void);
 

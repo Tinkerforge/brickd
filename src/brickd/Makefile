@@ -156,7 +156,7 @@ ifeq ($(WITH_LIBUDEV),yes)
 endif
 
 ifeq ($(WITH_RED_BRICK),yes)
-	SOURCES += file.c
+	SOURCES += file.c gadget.c
 endif
 
 OBJECTS := ${SOURCES:.c=.o}

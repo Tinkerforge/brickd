@@ -77,3 +77,8 @@ int file_read(File *file, void *buffer, int length) {
 int file_write(File *file, void *buffer, int length) {
 	return write(file->base.handle, buffer, length);
 }
+
+// sets errno on error
+int file_seek(File *file, off_t offset, int origin) {
+	return lseek(file->base.handle, offset, origin);
+}
