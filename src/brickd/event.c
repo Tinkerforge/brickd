@@ -85,6 +85,12 @@ void event_exit(void) {
 	array_destroy(&_event_sources, NULL);
 }
 
+// the event sources array contains tuples (handle, type, events). each tuple
+// can be in the array only once. trying to add (5, USB, EVENT_READ) to the
+// array while such a tuple is already in the array is an error. there is one
+// exception from this rule: if a tuple got marked as removed, it is allowed
+// to re-add it even before event_cleanup_sources was called to really remove
+// the tuples that got marked as removed before
 int event_add_source(EventHandle handle, EventSourceType type, int events,
                      EventFunction function, void *opaque) {
 	int i;
@@ -98,21 +104,18 @@ int event_add_source(EventHandle handle, EventSourceType type, int events,
 		    event_source->type == type &&
 		    event_source->events == events) {
 			if (event_source->state == EVENT_SOURCE_STATE_REMOVED) {
-				event_source->events = events;
 				event_source->state = EVENT_SOURCE_STATE_READDED;
 				event_source->function = function;
 				event_source->opaque = opaque;
 
 				log_debug("Readded %s event source (handle: %d, events: %d) at index %d",
-				          event_get_source_type_name(type, 0),
-				          handle, events, i);
+				          event_get_source_type_name(type, 0), handle, events, i);
 
 				return 0;
 			}
 
 			log_error("%s event source (handle: %d, events: %d) already added at index %d",
-			          event_get_source_type_name(type, 1),
-			          event_source->handle, event_source->events, i);
+			          event_get_source_type_name(type, 1), handle, events, i);
 
 			return -1;
 		}
@@ -142,12 +145,17 @@ int event_add_source(EventHandle handle, EventSourceType type, int events,
 	return 0;
 }
 
-// only mark event sources as removed here, because the event loop might be in
-// the middle of iterating the event sources array when this function is called.
-// events can be negative to match all events
+// only mark event sources as removed here, because the event loop might
+// be in the middle of iterating the event sources array when this function
+// is called. if EVENTS is positive then exactly one event source will be
+// marked as removed, because each event source tuple can be in the array
+// only once. if there is no matching tuple the array is unchanged. if EVENTS
+// is negative then tuples are matched by HANDLE and TYPE only. this allows
+// to mark all tuples for the same HANDLE and TYPE as removed at once
 void event_remove_source(EventHandle handle, EventSourceType type, int events) {
 	int i;
 	EventSource *event_source;
+	int found = 0;
 
 	// iterate backwards to remove the last added instance of an event source
 	for (i = _event_sources.count - 1; i >= 0; --i) {
@@ -168,15 +176,25 @@ void event_remove_source(EventHandle handle, EventSourceType type, int events) {
 				          event_source->handle, event_source->events, i);
 			}
 
+			found = 1;
+
+			if (events < 0) {
+				// continue, as there might be more matching event sources to remove
+				continue;
+			}
+
 			return;
 		}
 	}
 
-	log_warn("Could not mark unknown %s event source (handle: %d, events: %d) as removed",
-	         event_get_source_type_name(type, 0), handle, events);
+	if (!found) {
+		log_warn("Could not mark unknown %s event source (handle: %d, events: %d) as removed",
+		         event_get_source_type_name(type, 0), handle, events);
+	}
 }
 
-// remove event sources that got marked as removed
+// remove event sources that got marked as removed and mark (re-)added event
+// sources as normal
 void event_cleanup_sources(void) {
 	int i;
 	EventSource *event_source;
