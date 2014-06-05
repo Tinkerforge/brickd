@@ -34,7 +34,6 @@
 #include "array.h"
 #include "config.h"
 #include "event.h"
-#include "file.h"
 #include "log.h"
 #include "packet.h"
 #include "socket.h"
