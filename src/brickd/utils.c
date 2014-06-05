@@ -424,11 +424,42 @@ int base58_decode(uint32_t *value, const char *base58) {
 	return 0;
 }
 
+// convert from host endian to little endian
+uint16_t uint16_to_le(uint16_t native) {
+	union {
+		uint8_t bytes[2];
+		uint16_t little;
+	} c;
+
+	c.bytes[0] = (native >> 0) & 0xFF;
+	c.bytes[1] = (native >> 8) & 0xFF;
+
+	return c.little;
+}
+
+// convert from host endian to little endian
+uint32_t uint32_to_le(uint32_t native) {
+	union {
+		uint8_t bytes[4];
+		uint32_t little;
+	} c;
+
+	c.bytes[0] = (native >>  0) & 0xFF;
+	c.bytes[1] = (native >>  8) & 0xFF;
+	c.bytes[2] = (native >> 16) & 0xFF;
+	c.bytes[3] = (native >> 24) & 0xFF;
+
+	return c.little;
+}
+
+// convert from little endian to host endian
 uint32_t uint32_from_le(uint32_t value) {
 	uint8_t *bytes = (uint8_t *)&value;
 
-	return ((uint32_t)bytes[3] << 24) | ((uint32_t)bytes[2] << 16) |
-	       ((uint32_t)bytes[1] << 8)  |  (uint32_t)bytes[0];
+	return ((uint32_t)bytes[3] << 24) |
+	       ((uint32_t)bytes[2] << 16) |
+	       ((uint32_t)bytes[1] <<  8) |
+	       ((uint32_t)bytes[0] <<  0);
 }
 
 void millisleep(uint32_t milliseconds) {

@@ -107,8 +107,12 @@ void packet_header_set_sequence_number(PacketHeader *header, uint8_t sequence_nu
 	header->sequence_number_and_options |= (sequence_number << 4) & 0xF0;
 }
 
-uint8_t packet_header_get_response_expected(PacketHeader *header) {
-	return (header->sequence_number_and_options >> 3) & 0x01;
+int packet_header_get_response_expected(PacketHeader *header) {
+	return ((header->sequence_number_and_options >> 3) & 0x01) ? 1 : 0;
+}
+
+void packet_header_set_response_expected(PacketHeader *header, int response_expected) {
+	header->sequence_number_and_options |= response_expected ? 0x08 : 0x00;
 }
 
 ErrorCode packet_header_get_error_code(PacketHeader *header) {

@@ -57,6 +57,9 @@ void string_append(char *destination, const char *source, int size);
 char *base58_encode(char *base58, uint32_t value);
 int base58_decode(uint32_t *value, const char *base58);
 
+uint16_t uint16_to_le(uint16_t native);
+uint32_t uint32_to_le(uint32_t native);
+
 uint32_t uint32_from_le(uint32_t value);
 
 void millisleep(uint32_t milliseconds);

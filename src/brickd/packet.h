@@ -111,7 +111,8 @@ int packet_header_is_valid_response(PacketHeader *header, const char **message);
 uint8_t packet_header_get_sequence_number(PacketHeader *header);
 void packet_header_set_sequence_number(PacketHeader *header, uint8_t sequence_number);
 
-uint8_t packet_header_get_response_expected(PacketHeader *header);
+int packet_header_get_response_expected(PacketHeader *header);
+void packet_header_set_response_expected(PacketHeader *header, int response_expected);
 
 ErrorCode packet_header_get_error_code(PacketHeader *header);
 void packet_header_set_error_code(PacketHeader *header, ErrorCode error_code);

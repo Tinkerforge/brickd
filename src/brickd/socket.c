@@ -92,6 +92,7 @@ Socket *socket_accept(Socket *socket, struct sockaddr *address, socklen_t *lengt
 
 	return allocated_socket;
 }
+
 // sets errno on error
 int socket_listen(Socket *socket, int backlog,
                   SocketCreateAllocatedFunction create_allocated) {
