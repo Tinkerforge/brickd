@@ -127,7 +127,7 @@ else
 	WITH_PM_UTILS := no
 endif
 
-SOURCES := array.c base64_encode.c client.c config.c event.c hardware.c io.c \
+SOURCES := array.c base64.c client.c config.c event.c hardware.c io.c \
            log.c network.c packet.c queue.c sha1.c socket.c stack.c usb.c \
            usb_stack.c usb_transfer.c utils.c websocket.c
 

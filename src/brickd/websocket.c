@@ -26,7 +26,7 @@
 
 #include "websocket.h"
 
-#include "base64_encode.h"
+#include "base64.h"
 #include "event.h"
 #include "log.h"
 #include "sha1.h"
@@ -127,8 +127,8 @@ int websocket_parse_handshake_line(Websocket *websocket, char *line, int length)
 			sha1_final(&sha1, digest);
 
 			// BASE64 encode SHA1 digest
-			base64_length = base64_encode_string((char *)digest, SHA1_DIGEST_LENGTH,
-			                                     base64, WEBSOCKET_BASE64_DIGEST_LENGTH);
+			base64_length = base64_encode((char *)digest, SHA1_DIGEST_LENGTH,
+			                              base64, WEBSOCKET_BASE64_DIGEST_LENGTH);
 
 			websocket->state = WEBSOCKET_STATE_HANDSHAKE_DONE;
 

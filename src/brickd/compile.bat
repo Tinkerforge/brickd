@@ -37,7 +37,7 @@
 
 %CC%^
  array.c^
- base64_encode.c^
+ base64.c^
  client.c^
  config.c^
  event.c^
