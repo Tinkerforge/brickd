@@ -492,6 +492,7 @@ void usb_stack_announce_disconnect(USBStack *usb_stack) {
 		enumerate_callback.header.length = sizeof(enumerate_callback);
 		enumerate_callback.header.function_id = CALLBACK_ENUMERATE;
 		packet_header_set_sequence_number(&enumerate_callback.header, 0);
+		packet_header_set_response_expected(&enumerate_callback.header, 1);
 
 		base58_encode(enumerate_callback.uid, uint32_from_le(uid));
 		enumerate_callback.enumeration_type = ENUMERATION_TYPE_DISCONNECTED;
