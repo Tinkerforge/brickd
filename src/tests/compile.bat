@@ -97,5 +97,18 @@ rem @set LD=link /nologo /opt:ref /opt:icf /release
 @del *.obj *.res *.bin *.exp *.manifest
 
 
+%CC% base58_test.c^
+ ..\brickd\fixes_msvc.c^
+ ..\brickd\sha1.c^
+ ..\brickd\utils.c
+
+%LD% /out:base58_test.exe *.obj advapi32.lib ws2_32.lib
+
+@if exist base58_test.exe.manifest^
+ %MT% /manifest base58_test.exe.manifest -outputresource:base58_test.exe
+
+@del *.obj *.res *.bin *.exp *.manifest
+
+
 :done
 @endlocal

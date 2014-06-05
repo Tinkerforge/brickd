@@ -6,13 +6,5 @@ src/brickd/brickd
 src/brickd/brickd.exe
 src/brickd/log_messages.h
 src/brickd/log_messages.rc
-src/tests/array_test
-src/tests/array_test.exe
-src/tests/queue_test
-src/tests/queue_test.exe
-src/tests/throughput_test
-src/tests/throughput_test.exe
-src/tests/sha1_test
-src/tests/sha1_test.exe
-src/tests/putenv_test
-src/tests/putenv_test.exe
+src/tests/*_test
+src/tests/*_test.exe

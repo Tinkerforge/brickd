@@ -384,6 +384,46 @@ char *base58_encode(char *base58, uint32_t value) {
 	return base58;
 }
 
+// sets errno on error
+int base58_decode(uint32_t *value, const char *base58) {
+	int i;
+	const char *p;
+	int k;
+	uint32_t base = 1;
+
+	*value = 0;
+	i = strlen(base58) - 1;
+
+	if (i < 0) {
+		errno = EINVAL;
+
+		return -1;
+	}
+
+	for (; i >= 0; --i) {
+		p = strchr(base58_alphabet, base58[i]);
+
+		if (p == NULL) {
+			errno = EINVAL;
+
+			return -1;
+		}
+
+		k = p - base58_alphabet;
+
+		if (*value > UINT32_MAX - k * base) {
+			errno = ERANGE;
+
+			return -1;
+		}
+
+		*value += k * base;
+		base *= 58;
+	}
+
+	return 0;
+}
+
 uint32_t uint32_from_le(uint32_t value) {
 	uint8_t *bytes = (uint8_t *)&value;
 

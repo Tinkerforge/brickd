@@ -55,6 +55,7 @@ void string_append(char *destination, const char *source, int size);
 #define BASE58_MAX_LENGTH 8
 
 char *base58_encode(char *base58, uint32_t value);
+int base58_decode(uint32_t *value, const char *base58);
 
 uint32_t uint32_from_le(uint32_t value);
 
