@@ -291,11 +291,12 @@ int usb_stack_create(USBStack *usb_stack, uint8_t bus_number, uint8_t device_add
 		goto cleanup;
 	}
 
-	log_debug("Got interface endpoints (in: 0x%02x, out: 0x%02x) for %s",
+	log_debug("Got interface endpoints (in: 0x%02X, out: 0x%02X) for %s",
 	          usb_stack->endpoint_in, usb_stack->endpoint_out, usb_stack->base.name);
 
 	// claim device interface
-	log_debug("Claiming interface %d of %s", USB_BRICK_INTERFACE, usb_stack->base.name);
+	log_debug("Trying to claim interface %d of %s",
+	          USB_BRICK_INTERFACE, usb_stack->base.name);
 
 	rc = libusb_claim_interface(usb_stack->device_handle, USB_BRICK_INTERFACE);
 
@@ -335,7 +336,8 @@ int usb_stack_create(USBStack *usb_stack, uint8_t bus_number, uint8_t device_add
 		goto cleanup;
 	}
 
-	log_debug("Got display name for %s: %s", preliminary_name, usb_stack->base.name);
+	log_debug("Got display name for %s: %s",
+	          preliminary_name, usb_stack->base.name);
 
 	// allocate and submit read transfers
 	if (array_create(&usb_stack->read_transfers, MAX_READ_TRANSFERS,
