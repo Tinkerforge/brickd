@@ -30,14 +30,14 @@ rem @set LD=link /nologo /debug
  echo non-WDK build
 )
 
-@set CC=%CC% /I. /I..\build_data\windows
+@set CC=%CC% /I. /I..\build_data\windows /I..
 
 @del *.obj *.res *.bin *.exp *.manifest *.pdb *.exe
 
 
 %CC% array_test.c^
  ..\brickd\fixes_msvc.c^
- ..\brickd\array.c
+ ..\daemonlib\array.c
 
 %LD% /out:array_test.exe *.obj
 
@@ -49,7 +49,7 @@ rem @set LD=link /nologo /debug
 
 %CC% queue_test.c^
  ..\brickd\fixes_msvc.c^
- ..\brickd\queue.c
+ ..\daemonlib\queue.c
 
 %LD% /out:queue_test.exe *.obj
 
@@ -63,10 +63,9 @@ rem @set LD=link /nologo /debug
  ip_connection.c^
  brick_master.c^
  ..\brickd\fixes_msvc.c^
- ..\brickd\sha1.c^
- ..\brickd\utils.c
+ ..\daemonlib\utils.c
 
-%LD% /out:throughput_test.exe *.obj *.res advapi32.lib ws2_32.lib
+%LD% /out:throughput_test.exe *.obj *.res ws2_32.lib
 
 @if exist throughput_test.exe.manifest^
  %MT% /manifest throughput_test.exe.manifest -outputresource:throughput_test.exe
@@ -99,10 +98,9 @@ rem @set LD=link /nologo /debug
 
 %CC% base58_test.c^
  ..\brickd\fixes_msvc.c^
- ..\brickd\sha1.c^
- ..\brickd\utils.c
+ ..\daemonlib\utils.c
 
-%LD% /out:base58_test.exe *.obj advapi32.lib ws2_32.lib
+%LD% /out:base58_test.exe *.obj ws2_32.lib
 
 @if exist base58_test.exe.manifest^
  %MT% /manifest base58_test.exe.manifest -outputresource:base58_test.exe

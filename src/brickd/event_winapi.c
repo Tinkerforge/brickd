@@ -24,14 +24,12 @@
 #include <stddef.h>
 #include <stdlib.h>
 
-#include "event.h"
-
-#include "array.h"
-#include "log.h"
-#include "network.h"
-#include "pipe.h"
-#include "threads.h"
-#include "utils.h"
+#include <daemonlib/array.h>
+#include <daemonlib/event.h>
+#include <daemonlib/log.h>
+#include <daemonlib/pipe.h>
+#include <daemonlib/threads.h>
+#include <daemonlib/utils.h>
 
 #define LOG_CATEGORY LOG_CATEGORY_EVENT
 
@@ -314,8 +312,10 @@ static void event_forward_usb_events(void *opaque) {
 	}
 }
 
-int event_init_platform(void) {
+int event_init_platform(EventSIGUSR1Function function) {
 	int phase = 0;
+
+	(void)function;
 
 	// create read set
 	if (event_reserve_socket_set(&_socket_read_set, 32) < 0) {
@@ -454,7 +454,7 @@ void event_exit_platform(void) {
 	free(_socket_read_set);
 }
 
-int event_run_platform(Array *event_sources, int *running) {
+int event_run_platform(Array *event_sources, int *running, EventCleanupFunction function) {
 	int result = -1;
 	int i;
 	EventSource *event_source;
@@ -479,7 +479,7 @@ int event_run_platform(Array *event_sources, int *running) {
 
 	thread_create(&_usb_poll_thread, event_poll_usb_events, event_sources);
 
-	network_cleanup_clients();
+	function();
 	event_cleanup_sources();
 
 	while (*running) {
@@ -631,9 +631,9 @@ int event_run_platform(Array *event_sources, int *running) {
 			         event_get_source_type_name(EVENT_SOURCE_TYPE_GENERIC, 0));
 		}
 
-		// now remove clients and event sources that got marked as
-		// disconnected/removed during the event handling
-		network_cleanup_clients();
+		// now cleanup event sources that got marked as disconnected/removed
+		// during the event handling
+		function();
 		event_cleanup_sources();
 	}
 

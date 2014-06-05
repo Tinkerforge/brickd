@@ -28,15 +28,16 @@
 #include <unistd.h>
 #include <fcntl.h>
 
+#include <daemonlib/event.h>
+#include <daemonlib/log.h>
+#include <daemonlib/pid_file.h>
+#include <daemonlib/utils.h>
+
 #include "config.h"
-#include "event.h"
 #include "hardware.h"
 #include "iokit.h"
-#include "log.h"
 #include "network.h"
-#include "pidfile.h"
 #include "usb.h"
-#include "utils.h"
 #include "version.h"
 
 #define LOG_CATEGORY LOG_CATEGORY_OTHER
@@ -133,6 +134,14 @@ cleanup:
 	return status == 1 ? pid_fd : -1;
 }
 
+static void handle_sigusr1(void) {
+#ifdef BRICKD_WITH_USB_REOPEN_ON_SIGUSR1
+	usb_reopen();
+#else
+	usb_rescan();
+#endif
+}
+
 int main(int argc, char **argv) {
 	int exit_code = EXIT_FAILURE;
 	int i;
@@ -223,7 +232,7 @@ int main(int argc, char **argv) {
 		          CONFIG_FILENAME);
 	}
 
-	if (event_init() < 0) {
+	if (event_init(handle_sigusr1) < 0) {
 		goto error_event;
 	}
 
@@ -243,7 +252,7 @@ int main(int argc, char **argv) {
 		goto error_network;
 	}
 
-	if (event_run() < 0) {
+	if (event_run(network_cleanup_clients) < 0) {
 		goto error_run;
 	}
 

@@ -127,37 +127,71 @@ else
 	WITH_PM_UTILS := no
 endif
 
-SOURCES := array.c base64.c client.c config.c event.c hardware.c io.c \
-           log.c network.c packet.c queue.c sha1.c socket.c stack.c usb.c \
-           usb_stack.c usb_transfer.c utils.c websocket.c
+SOURCES_DAEMONLIB := ../daemonlib/array.c \
+                     ../daemonlib/event.c \
+                     ../daemonlib/io.c \
+                     ../daemonlib/log.c \
+                     ../daemonlib/packet.c \
+                     ../daemonlib/queue.c \
+                     ../daemonlib/socket.c \
+                     ../daemonlib/utils.c
+
+SOURCES_BRICKD := base64.c \
+                  client.c \
+                  config.c \
+                  hardware.c \
+                  hmac.c \
+                  network.c \
+                  sha1.c \
+                  stack.c \
+                  usb.c \
+                  usb_stack.c \
+                  usb_transfer.c \
+                  websocket.c
 
 ifeq ($(PLATFORM),Windows)
-	SOURCES += event_winapi.c fixes_mingw.c log_winapi.c pipe_winapi.c \
-	           service.c socket_winapi.c threads_winapi.c usb_winapi.c
+	SOURCES_DAEMONLIB += ../daemonlib/pipe_winapi.c \
+	                     ../daemonlib/threads_winapi.c \
+	                     ../daemonlib/socket_winapi.c
+
+	SOURCES_BRICKD += event_winapi.c \
+	                  fixes_mingw.c \
+	                  log_winapi.c \
+	                  service.c \
+	                  usb_winapi.c
 else
-	SOURCES += event_posix.c log_posix.c pid_file.c pipe_posix.c socket_posix.c \
-	           threads_posix.c usb_posix.c
+	SOURCES_DAEMONLIB += ../daemonlib/daemon.c \
+	                     ../daemonlib/event_posix.c \
+	                     ../daemonlib/log_posix.c \
+	                     ../daemonlib/pid_file.c \
+	                     ../daemonlib/pipe_posix.c \
+	                     ../daemonlib/socket_posix.c \
+	                     ../daemonlib/threads_posix.c
+
+	SOURCES_BRICKD += usb_posix.c
 endif
 
 ifeq ($(PLATFORM),Windows)
-	SOURCES += main_windows.c
+	SOURCES_BRICKD += main_windows.c
 endif
 
 ifeq ($(PLATFORM),Linux)
-	SOURCES += main_linux.c
+	SOURCES_BRICKD += main_linux.c
 endif
 
 ifeq ($(PLATFORM),Darwin)
-	SOURCES += main_macosx.c iokit.c
+	SOURCES_BRICKD += main_macosx.c iokit.c
 endif
 
 ifeq ($(WITH_LIBUDEV),yes)
-	SOURCES += udev.c
+	SOURCES_BRICKD += udev.c
 endif
 
 ifeq ($(WITH_RED_BRICK),yes)
-	SOURCES += file.c gadget.c
+	SOURCES_BRICKD += file.c gadget.c
 endif
+
+SOURCES := $(SOURCES_DAEMONLIB) $(SOURCES_BRICKD)
 
 OBJECTS := ${SOURCES:.c=.o}
 DEPENDS := ${SOURCES:.c=.p}
@@ -171,7 +205,7 @@ else
 	DIST :=
 endif
 
-CFLAGS += -O2 -Wall -Wextra
+CFLAGS += -O2 -Wall -Wextra -I..
 #CFLAGS += -O0 -g -ggdb
 
 ifeq ($(PLATFORM),Windows)
@@ -263,7 +297,7 @@ ifeq ($(PLATFORM),Darwin)
 endif
 
 ifeq ($(WITH_LOGGING),yes)
-	CFLAGS += -DBRICKD_WITH_LOGGING
+	CFLAGS += -DDAEMONLIB_WITH_LOGGING
 endif
 
 ifeq ($(WITH_PROFILING),yes)

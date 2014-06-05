@@ -22,9 +22,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include <daemonlib/utils.h>
+
 #include "ip_connection.h"
 #include "brick_master.h"
-#include "../brickd/utils.h"
 
 /*
 

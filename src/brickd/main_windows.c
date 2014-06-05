@@ -50,16 +50,17 @@ BOOL WINAPI Process32First(HANDLE hSnapshot, PROCESSENTRY32 *lppe);
 BOOL WINAPI Process32Next(HANDLE hSnapshot, PROCESSENTRY32 *lppe);
 #endif
 
+#include <daemonlib/event.h>
+#include <daemonlib/log.h>
+#include <daemonlib/pipe.h>
+#include <daemonlib/threads.h>
+#include <daemonlib/utils.h>
+
 #include "config.h"
-#include "event.h"
 #include "hardware.h"
-#include "log.h"
 #include "network.h"
-#include "pipe.h"
 #include "service.h"
-#include "threads.h"
 #include "usb.h"
-#include "utils.h"
 #include "version.h"
 
 #define LOG_CATEGORY LOG_CATEGORY_OTHER
@@ -618,7 +619,7 @@ error_mutex:
 		goto error_event;
 	}
 
-	if (event_init() < 0) {
+	if (event_init(NULL) < 0) {
 		// FIXME: set service_exit_code
 		goto error_event;
 	}
@@ -691,7 +692,7 @@ error_mutex:
 		service_set_status(SERVICE_RUNNING, NO_ERROR);
 	}
 
-	if (event_run() < 0) {
+	if (event_run(network_cleanup_clients) < 0) {
 		// FIXME: set service_exit_code
 		goto error_run;
 	}

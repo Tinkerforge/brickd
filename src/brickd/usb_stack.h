@@ -24,8 +24,9 @@
 
 #include <libusb.h>
 
-#include "array.h"
-#include "queue.h"
+#include <daemonlib/array.h>
+#include <daemonlib/queue.h>
+
 #include "stack.h"
 
 typedef struct {

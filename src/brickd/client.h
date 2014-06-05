@@ -29,11 +29,10 @@
 	#include <netdb.h>
 #endif
 
-#include "array.h"
-#include "event.h"
-#include "io.h"
-#include "packet.h"
-#include "queue.h"
+#include <daemonlib/array.h>
+#include <daemonlib/io.h>
+#include <daemonlib/packet.h>
+#include <daemonlib/queue.h>
 
 typedef struct _Client Client;
 

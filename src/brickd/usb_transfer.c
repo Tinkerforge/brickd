@@ -21,9 +21,10 @@
 
 #include <libusb.h>
 
+#include <daemonlib/log.h>
+
 #include "usb_transfer.h"
 
-#include "log.h"
 #include "stack.h"
 #include "usb.h"
 

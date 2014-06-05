@@ -25,15 +25,15 @@
 #include <libusb.h>
 #include <windows.h>
 
-#include "log.h"
+#include <daemonlib/log.h>
+#include <daemonlib/threads.h>
+#include <daemonlib/utils.h>
 
 #include "log_messages.h"
-#include "threads.h"
-#include "utils.h"
 
 #define LOG_CATEGORY LOG_CATEGORY_OTHER
 
-#include "packed_begin.h"
+#include <daemonlib/packed_begin.h>
 
 typedef struct {
 	uint16_t length;
@@ -46,7 +46,7 @@ typedef struct {
 	char message[1024];
 } LogPipeMessage;
 
-#include "packed_end.h"
+#include <daemonlib/packed_end.h>
 
 #define NAMED_PIPE_BUFFER_LENGTH (sizeof(LogPipeMessage) * 4)
 

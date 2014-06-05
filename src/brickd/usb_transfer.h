@@ -24,7 +24,8 @@
 
 #include <libusb.h>
 
-#include "packet.h"
+#include <daemonlib/packet.h>
+
 #include "usb_stack.h"
 
 typedef enum {

@@ -35,11 +35,11 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "stack.h"
+#include <daemonlib/array.h>
+#include <daemonlib/log.h>
+#include <daemonlib/utils.h>
 
-#include "array.h"
-#include "log.h"
-#include "utils.h"
+#include "stack.h"
 
 #define LOG_CATEGORY LOG_CATEGORY_HARDWARE
 

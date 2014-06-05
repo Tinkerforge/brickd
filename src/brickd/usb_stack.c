@@ -28,15 +28,16 @@
 #include <errno.h>
 #include <string.h>
 
+#include <daemonlib/array.h>
+#include <daemonlib/log.h>
+#include <daemonlib/utils.h>
+
 #include "usb_stack.h"
 
-#include "array.h"
 #include "hardware.h"
-#include "log.h"
 #include "network.h"
 #include "usb.h"
 #include "usb_transfer.h"
-#include "utils.h"
 
 #define LOG_CATEGORY LOG_CATEGORY_USB
 

@@ -26,9 +26,9 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "config.h"
+#include <daemonlib/utils.h>
 
-#include "utils.h"
+#include "config.h"
 
 #define DEFAULT_LISTEN_ADDRESS "0.0.0.0"
 #define DEFAULT_LISTEN_PLAIN_PORT 4223

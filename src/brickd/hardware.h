@@ -22,8 +22,9 @@
 #ifndef BRICKD_HARDWARE_H
 #define BRICKD_HARDWARE_H
 
+#include <daemonlib/packet.h>
+
 #include "stack.h"
-#include "packet.h"
 
 int hardware_init(void);
 void hardware_exit(void);

@@ -3,10 +3,17 @@ Brick Daemon
 
 This repository contains the source code of the Brick Daemon.
 
-Compiling the Source
---------------------
+Compiling the Source Code
+-------------------------
 
-The following libraries are required:
+Brick Daemon uses the common Tinkerforge daemonlib::
+
+ http://github.com/Tinkerforge/daemonlib
+
+It has to be cloned or symlinked to the ``src/daemonlib`` directory before
+the source code can be compiled.
+
+Also the following libraries are required:
 
 * libusb-1.0
 * libudev (optional for USB hotplug, Linux only)

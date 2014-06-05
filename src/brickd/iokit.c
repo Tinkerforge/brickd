@@ -27,14 +27,15 @@
 	#include <objc/objc-auto.h>
 #endif
 
+#include <daemonlib/event.h>
+#include <daemonlib/log.h>
+#include <daemonlib/pipe.h>
+#include <daemonlib/threads.h>
+#include <daemonlib/utils.h>
+
 #include "iokit.h"
 
-#include "event.h"
-#include "log.h"
-#include "pipe.h"
-#include "threads.h"
 #include "usb.h"
-#include "utils.h"
 
 #define LOG_CATEGORY LOG_CATEGORY_OTHER
 

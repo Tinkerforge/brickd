@@ -8,9 +8,9 @@
  goto done
 )
 
-@set CC=cl /nologo /c /MD /O2 /W4 /wd4200 /wd4214 /FIfixes_msvc.h^
+@set CC=cl /nologo /c /MD /O2 /W4 /wd4200 /wd4214^
  /DWINVER=0x0501 /D_WIN32_WINNT=0x0501 /DWIN32_LEAN_AND_MEAN /DNDEBUG^
- /DBRICKD_WITH_LOGGING
+ /DDAEMONLIB_WITH_LOGGING
 @set MC=mc
 @set RC=rc /dWIN32 /r
 @set LD=link /nologo /opt:ref /opt:icf /release
@@ -28,41 +28,44 @@
  echo non-WDK build
 )
 
-@set CC=%CC% /I..\build_data\windows /I..\build_data\windows\libusb
+@set CC=%CC% /I..\build_data\windows /I..\build_data\windows\libusb /I..
 @set LD=%LD% /libpath:..\build_data\windows\libusb
 
 @del *.obj *.res *.bin *.exp *.manifest *.pdb *.exe
 
 %MC% -A -b log_messages.mc
 
-%CC%^
- array.c^
+%CC% /FI..\brickd\fixes_msvc.h^
+ ..\daemonlib\array.c^
+ ..\daemonlib\event.c^
+ ..\daemonlib\io.c^
+ ..\daemonlib\log.c^
+ ..\daemonlib\packet.c^
+ ..\daemonlib\pipe_winapi.c^
+ ..\daemonlib\queue.c^
+ ..\daemonlib\socket.c^
+ ..\daemonlib\socket_winapi.c^
+ ..\daemonlib\threads_winapi.c^
+ ..\daemonlib\utils.c
+
+%CC% /FIfixes_msvc.h^
  base64.c^
  client.c^
  config.c^
- event.c^
  event_winapi.c^
  fixes_msvc.c^
  hardware.c^
- io.c^
- log.c^
+ hmac.c^
  log_winapi.c^
  main_windows.c^
  network.c^
- packet.c^
- pipe_winapi.c^
- queue.c^
  service.c^
  sha1.c^
- socket.c^
- socket_winapi.c^
  stack.c^
- threads_winapi.c^
  usb.c^
  usb_stack.c^
  usb_transfer.c^
  usb_winapi.c^
- utils.c^
  websocket.c
 
 %RC% /folog_messages.res log_messages.rc

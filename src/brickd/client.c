@@ -24,18 +24,25 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <daemonlib/event.h>
+#include <daemonlib/log.h>
+#include <daemonlib/utils.h>
+
 #include "client.h"
 
-#include "array.h"
 #include "config.h"
 #include "hardware.h"
-#include "log.h"
-#include "utils.h"
+#include "hmac.h"
 
 #define LOG_CATEGORY LOG_CATEGORY_NETWORK
 
 #define MAX_PENDING_REQUESTS 512
 #define MAX_QUEUED_WRITES 512
+
+#define UID_BRICK_DAEMON 1
+
+#define FUNCTION_GET_AUTHENTICATION_NONCE 1
+#define FUNCTION_AUTHENTICATE 2
 
 typedef struct {
 	PacketHeader header;

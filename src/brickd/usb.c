@@ -23,15 +23,16 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <daemonlib/array.h>
+#include <daemonlib/event.h>
+#include <daemonlib/log.h>
+#include <daemonlib/utils.h>
+
 #include "usb.h"
 
-#include "array.h"
 #include "stack.h"
-#include "event.h"
-#include "log.h"
 #include "network.h"
 #include "usb_transfer.h"
-#include "utils.h"
 
 #define LOG_CATEGORY LOG_CATEGORY_USB
 

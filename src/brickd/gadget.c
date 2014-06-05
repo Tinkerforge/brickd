@@ -25,13 +25,14 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 
+#include <daemonlib/event.h>
+#include <daemonlib/log.h>
+#include <daemonlib/utils.h>
+
 #include "gadget.h"
 
-#include "event.h"
 #include "file.h"
-#include "log.h"
 #include "network.h"
-#include "utils.h"
 
 #define LOG_CATEGORY LOG_CATEGORY_NETWORK // FIXME: add a RED_BRICK category?
 

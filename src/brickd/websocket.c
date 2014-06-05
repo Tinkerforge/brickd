@@ -24,14 +24,14 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <daemonlib/log.h>
+#include <daemonlib/socket.h>
+#include <daemonlib/utils.h>
+
 #include "websocket.h"
 
 #include "base64.h"
-#include "event.h"
-#include "log.h"
 #include "sha1.h"
-#include "socket.h"
-#include "utils.h"
 
 #define LOG_CATEGORY LOG_CATEGORY_WEBSOCKET
 

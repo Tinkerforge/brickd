@@ -23,8 +23,9 @@
 #ifndef BRICKD_NETWORK_H
 #define BRICKD_NETWORK_H
 
+#include <daemonlib/packet.h>
+
 #include "client.h"
-#include "packet.h"
 
 int network_init(void);
 void network_exit(void);

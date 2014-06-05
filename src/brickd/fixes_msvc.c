@@ -27,9 +27,9 @@
 #include <time.h>
 #include <windows.h>
 
-#include "fixes_msvc.h"
+#include <daemonlib/utils.h>
 
-#include "utils.h"
+#include "fixes_msvc.h"
 
 typedef void (WINAPI *GETSYSTEMTIMEPRECISEASFILETIME)(LPFILETIME);
 typedef int (*PUTENV)(const char *);

@@ -22,7 +22,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "../brickd/queue.h"
+#include <daemonlib/queue.h>
 
 int test1(void) {
 	Queue queue;

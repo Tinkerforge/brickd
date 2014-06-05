@@ -29,15 +29,17 @@
 	#include <unistd.h>
 #endif
 
+#include <daemonlib/array.h>
+#include <daemonlib/event.h>
+#include <daemonlib/log.h>
+#include <daemonlib/packet.h>
+#include <daemonlib/socket.h>
+#include <daemonlib/utils.h>
+
 #include "network.h"
 
-#include "array.h"
 #include "config.h"
-#include "event.h"
-#include "log.h"
-#include "packet.h"
-#include "socket.h"
-#include "utils.h"
+#include "hmac.h"
 #include "websocket.h"
 
 #define LOG_CATEGORY LOG_CATEGORY_NETWORK

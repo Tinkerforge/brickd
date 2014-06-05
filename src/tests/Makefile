@@ -30,12 +30,12 @@ ifndef V
 endif
 endif
 
-ARRAY_TEST_SOURCES := array_test.c $(call FIX_PATH,../brickd/array.c)
-QUEUE_TEST_SOURCES := queue_test.c $(call FIX_PATH,../brickd/queue.c)
-THROUGHPUT_TEST_SOURCES := throughput_test.c ip_connection.c brick_master.c $(call FIX_PATH,../brickd/sha1.c) $(call FIX_PATH,../brickd/utils.c)
+ARRAY_TEST_SOURCES := array_test.c $(call FIX_PATH,../daemonlib/array.c)
+QUEUE_TEST_SOURCES := queue_test.c $(call FIX_PATH,../daemonlib/queue.c)
+THROUGHPUT_TEST_SOURCES := throughput_test.c ip_connection.c brick_master.c $(call FIX_PATH,../daemonlib/utils.c)
 SHA1_TEST_SOURCES := sha1_test.c $(call FIX_PATH,../brickd/sha1.c)
 PUTENV_TEST_SOURCES := putenv_test.c
-BASE58_TEST_SOURCES := base58_test.c $(call FIX_PATH,../brickd/sha1.c) $(call FIX_PATH,../brickd/utils.c)
+BASE58_TEST_SOURCES := base58_test.c $(call FIX_PATH,../daemonlib/utils.c)
 
 SOURCES := $(ARRAY_TEST_SOURCES) \
            $(QUEUE_TEST_SOURCES) \
@@ -97,7 +97,7 @@ TARGETS := $(ARRAY_TEST_TARGET) \
            $(PUTENV_TEST_TARGET) \
            $(BASE58_TEST_TARGET)
 
-CFLAGS += -O2 -Wall -Wextra
+CFLAGS += -O2 -Wall -Wextra -I..
 #CFLAGS += -O0 -g -ggdb
 
 ifeq ($(PLATFORM),Windows)

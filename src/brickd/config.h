@@ -25,7 +25,7 @@
 
 #include <stdint.h>
 
-#include "log.h"
+#include <daemonlib/log.h>
 
 int config_check(const char *filename);
 

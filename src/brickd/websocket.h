@@ -25,8 +25,7 @@
 
 #include <stdint.h>
 
-#include "event.h"
-#include "socket.h"
+#include <daemonlib/socket.h>
 
 #define WEBSOCKET_MAX_LINE_LENGTH 100 // Line length > 100 are not interesting for us
 #define WEBSOCKET_CLIENT_KEY_LENGTH 37 // Can be max 36
@@ -51,7 +50,7 @@
 
 #define WEBSOCKET_MAX_UNEXTENDED_PAYLOAD_DATA_LENGTH 125
 
-#include "packed_begin.h"
+#include <daemonlib/packed_begin.h>
 
 typedef struct {
 	uint8_t opcode_rsv_fin; // opcode: 4, rsv1: 1, rsv2: 1, rsv3: 1, fin: 1
@@ -82,7 +81,7 @@ typedef struct {
 	uint8_t masking_key[WEBSOCKET_MASK_LENGTH]; // only used if mask = 1
 } ATTRIBUTE_PACKED WebsocketFrameExtended2;
 
-#include "packed_end.h"
+#include <daemonlib/packed_end.h>
 
 typedef enum {
 	WEBSOCKET_STATE_WAIT_FOR_HANDSHAKE = 0,

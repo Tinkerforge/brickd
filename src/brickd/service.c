@@ -22,10 +22,10 @@
 #include <stdio.h>
 #include <windows.h>
 
-#include "service.h"
+#include <daemonlib/log.h>
+#include <daemonlib/utils.h>
 
-#include "log.h"
-#include "utils.h"
+#include "service.h"
 
 #define LOG_CATEGORY LOG_CATEGORY_OTHER
 

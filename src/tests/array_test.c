@@ -22,7 +22,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "../brickd/array.h"
+#include <daemonlib/array.h>
 
 int test1(int relocatable) {
 	Array array;

@@ -72,10 +72,10 @@
 #include <libusb.h>
 #include <stdlib.h>
 
-#include "usb.h"
+#include <daemonlib/log.h>
+#include <daemonlib/macros.h>
 
-#include "log.h"
-#include "macros.h"
+#include "usb.h"
 
 #define LOG_CATEGORY LOG_CATEGORY_USB
 

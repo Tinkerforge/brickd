@@ -29,20 +29,22 @@
 #include <unistd.h>
 #include <fcntl.h>
 
+#include <daemonlib/daemon.h>
+#include <daemonlib/event.h>
+#include <daemonlib/log.h>
+#include <daemonlib/pid_file.h>
+#include <daemonlib/utils.h>
+
 #include "config.h"
-#include "event.h"
 #ifdef BRICKD_WITH_RED_BRICK
 	#include "gadget.h"
 #endif
 #include "hardware.h"
-#include "log.h"
 #include "network.h"
-#include "pid_file.h"
 #ifdef BRICKD_WITH_LIBUDEV
 	#include "udev.h"
 #endif
 #include "usb.h"
-#include "utils.h"
 #include "version.h"
 
 #define LOG_CATEGORY LOG_CATEGORY_OTHER
@@ -123,191 +125,12 @@ static void print_usage(void) {
 	       "  --libusb-debug  Set libusb log level to debug\n");
 }
 
-static int daemon_parent(pid_t child, int status_read) {
-	int8_t status = -1;
-	ssize_t rc;
-
-	// wait for first child to exit
-	while (waitpid(child, NULL, 0) < 0 && errno == EINTR) {
-	}
-
-	/*if (waitpid(pid, NULL, 0) < 0) {
-		fprintf(stderr, "Could not wait for first child process to exit: %s (%d)\n",
-		        get_errno_name(errno), errno);
-
-		close(status_pipe[0]);
-
-		return -1;
-	}*/
-
-	// wait for second child to start successfully
-	while ((rc = read(status_read, &status, 1)) < 0 && errno == EINTR) {
-	}
-
-	if (status < 0) {
-		if (rc < 0) {
-			fprintf(stderr, "Could not read from status pipe: %s (%d)\n",
-			        get_errno_name(errno), errno);
-		}
-
-		close(status_read);
-
-		exit(EXIT_FAILURE);
-	}
-
-	close(status_read);
-
-	if (status != 1) {
-		if (status == 2) {
-			fprintf(stderr, "Already running according to '%s'\n", _pid_filename);
-		} else {
-			fprintf(stderr, "Second child process exited with an error (status: %d)\n",
-			        status);
-		}
-
-		exit(EXIT_FAILURE);
-	}
-
-	// exit first parent
-	exit(EXIT_SUCCESS);
-}
-
-static int daemon_start(void) {
-	int status_pipe[2];
-	pid_t pid;
-	int pid_fd = -1;
-	int8_t status = 0;
-	FILE *log_file;
-	int stdin_fd = -1;
-	int stdout_fd = -1;
-
-	// create status pipe
-	if (pipe(status_pipe) < 0) {
-		fprintf(stderr, "Could not create status pipe: %s (%d)\n",
-		        get_errno_name(errno), errno);
-
-		return -1;
-	}
-
-	pid = fork();
-
-	if (pid < 0) {
-		fprintf(stderr, "Could not fork first child process: %s (%d)\n",
-		        get_errno_name(errno), errno);
-
-		close(status_pipe[0]);
-		close(status_pipe[1]);
-
-		return -1;
-	}
-
-	if (pid > 0) { // first parent
-		close(status_pipe[1]);
-
-		daemon_parent(pid, status_pipe[0]);
-	}
-
-	// first child, decouple from parent environment
-	close(status_pipe[0]);
-
-	if (chdir("/") < 0) {
-		fprintf(stderr, "Could not change directory to '/': %s (%d)\n",
-		        get_errno_name(errno), errno);
-
-		close(status_pipe[1]);
-
-		exit(EXIT_FAILURE);
-	}
-
-	// FIXME: check error
-	setsid();
-	umask(0);
-
-	pid = fork();
-
-	if (pid < 0) {
-		fprintf(stderr, "Could not fork second child process: %s (%d)\n",
-		        get_errno_name(errno), errno);
-
-		close(status_pipe[1]);
-
-		exit(EXIT_FAILURE);
-	}
-
-	if (pid > 0) {
-		// exit second parent
-		exit(EXIT_SUCCESS);
-	}
-
-	// second child, write pid
-	pid_fd = pid_file_acquire(_pid_filename, getpid());
-
-	if (pid_fd < 0) {
-		if (pid_fd < -1) {
-			status = 2;
-		}
-
-		goto cleanup;
-	}
-
-	// open log file
-	log_file = fopen(_log_filename, "a+");
-
-	if (log_file == NULL) {
-		fprintf(stderr, "Could not open log file '%s': %s (%d)\n",
-		        _log_filename, get_errno_name(errno), errno);
-
-		goto cleanup;
-	}
-
-	log_set_file(log_file);
-
-	// redirect standard file descriptors
-	stdin_fd = open("/dev/null", O_RDONLY);
-
-	if (stdin_fd < 0) {
-		fprintf(stderr, "Could not open /dev/null to redirect stdin to: %s (%d)\n",
-		        get_errno_name(errno), errno);
-
-		goto cleanup;
-	}
-
-	stdout_fd = fileno(log_file);
-
-	if (dup2(stdin_fd, STDIN_FILENO) != STDIN_FILENO) {
-		fprintf(stderr, "Could not redirect stdin: %s (%d)\n",
-		        get_errno_name(errno), errno);
-
-		goto cleanup;
-	}
-
-	if (dup2(stdout_fd, STDOUT_FILENO) != STDOUT_FILENO) {
-		fprintf(stderr, "Could not redirect stdout: %s (%d)\n",
-		        get_errno_name(errno), errno);
-
-		goto cleanup;
-	}
-
-	if (dup2(stdout_fd, STDERR_FILENO) != STDERR_FILENO) {
-		fprintf(stderr, "Could not redirect stderr: %s (%d)\n",
-		        get_errno_name(errno), errno);
-
-		goto cleanup;
-	}
-
-	status = 1;
-
-cleanup:
-	if (stdin_fd > STDERR_FILENO) {
-		close(stdin_fd);
-	}
-
-	while (write(status_pipe[1], &status, 1) < 0 && errno == EINTR) {
-	}
-
-	close(status_pipe[1]);
-
-	return status == 1 ? pid_fd : -1;
+static void handle_sigusr1(void) {
+#ifdef BRICKD_WITH_USB_REOPEN_ON_SIGUSR1
+	usb_reopen();
+#else
+	usb_rescan();
+#endif
 }
 
 int main(int argc, char **argv) {
@@ -368,7 +191,7 @@ int main(int argc, char **argv) {
 	log_init();
 
 	if (daemon) {
-		pid_fd = daemon_start();
+		pid_fd = daemon_start_double_fork(_log_filename, _pid_filename);
 	} else {
 		pid_fd = pid_file_acquire(_pid_filename, getpid());
 	}
@@ -405,7 +228,7 @@ int main(int argc, char **argv) {
 		          _config_filename);
 	}
 
-	if (event_init() < 0) {
+	if (event_init(handle_sigusr1) < 0) {
 		goto error_event;
 	}
 
@@ -437,7 +260,7 @@ int main(int argc, char **argv) {
 	}
 #endif
 
-	if (event_run() < 0) {
+	if (event_run(network_cleanup_clients) < 0) {
 		goto error_run;
 	}
 

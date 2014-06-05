@@ -1,8 +1,9 @@
 /*
  * brickd
  * Copyright (C) 2012-2014 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2014 Olaf Lüke <olaf@tinkerforge.com>
  *
- * pid_file.h: PID file specific functions
+ * hmac.h: HMAC functions
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,10 +20,17 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-#ifndef BRICKD_PID_FILE_H
-#define BRICKD_PID_FILE_H
+#ifndef BRICKD_HMAC_H
+#define BRICKD_HMAC_H
 
-int pid_file_acquire(const char *filename, pid_t pid);
-void pid_file_release(const char *filename, int fd);
+#include <stdint.h>
 
-#endif // BRICKD_PID_FILE_H
+#include "sha1.h"
+
+uint32_t get_random_uint32(void);
+
+void hmac_sha1(uint8_t *secret, int secret_length,
+               uint8_t *data, int data_length,
+               uint8_t digest[SHA1_DIGEST_LENGTH]);
+
+#endif // BRICKD_HMAC_H

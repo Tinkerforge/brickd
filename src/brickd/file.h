@@ -22,7 +22,7 @@
 #ifndef BRICKD_FILE_H
 #define BRICKD_FILE_H
 
-#include "io.h"
+#include <daemonlib/io.h>
 
 typedef struct {
 	IO base;

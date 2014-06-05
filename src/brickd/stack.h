@@ -22,8 +22,8 @@
 #ifndef BRICKD_STACK_H
 #define BRICKD_STACK_H
 
-#include "array.h"
-#include "packet.h"
+#include <daemonlib/array.h>
+#include <daemonlib/packet.h>
 
 typedef struct _Stack Stack;
 

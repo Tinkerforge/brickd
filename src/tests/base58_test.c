@@ -24,7 +24,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "../brickd/utils.h"
+#include <daemonlib/utils.h>
 
 int test1(void) {
 	char base58[BASE58_MAX_LENGTH];
