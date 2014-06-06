@@ -279,8 +279,6 @@ int network_init(void) {
 void network_exit(void) {
 	log_debug("Shutting down network subsystem");
 
-	network_cleanup_clients();
-
 	array_destroy(&_clients, (FreeFunction)client_destroy);
 
 	if (_server_socket_plain_open) {
