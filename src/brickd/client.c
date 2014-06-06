@@ -127,7 +127,7 @@ static void client_handle_authenticate_request(Client *client, AuthenticateReque
 	          (uint8_t *)nonces, sizeof(nonces), digest);
 
 	if (memcmp(request->digest, digest, SHA1_DIGEST_LENGTH) != 0) {
-		log_error("Authentication request (%s) of client ("CLIENT_INFO_FORMAT") did not contain the expected data, disconnecting client",
+		log_error("Authentication request (%s) from client ("CLIENT_INFO_FORMAT") did not contain the expected data, disconnecting client",
 		          packet_get_request_signature(packet_signature, (Packet *)request),
 		          client_expand_info(client));
 
@@ -214,7 +214,7 @@ static void client_handle_write(void *opaque) {
 		log_error("Could not send queued response (%s) to client ("CLIENT_INFO_FORMAT"), %s: %s (%d)",
 		          packet_get_request_signature(packet_signature, response),
 		          client_expand_info(client),
-		          client->disconnect_on_error ? "disconnecting client" : "dropping response",
+		          client->disconnect_on_error ? "disconnecting client" : "discarding response",
 		          get_errno_name(errno), errno);
 
 		if (client->disconnect_on_error) {
@@ -320,7 +320,7 @@ static void client_handle_read(void *opaque) {
 		}
 
 		if (client->request.header.function_id == FUNCTION_DISCONNECT_PROBE) {
-			log_debug("Got disconnect probe from client ("CLIENT_INFO_FORMAT"), dropping request",
+			log_debug("Got disconnect probe from client ("CLIENT_INFO_FORMAT"), discarding request",
 			          client_expand_info(client));
 		} else {
 			log_debug("Got request (%s) from client ("CLIENT_INFO_FORMAT")",
@@ -329,7 +329,7 @@ static void client_handle_read(void *opaque) {
 
 			if (packet_header_get_response_expected(&client->request.header)) {
 				if (client->pending_requests.count >= MAX_PENDING_REQUESTS) {
-					log_warn("Pending requests array of client ("CLIENT_INFO_FORMAT") is full, dropping %d pending request(s)",
+					log_warn("Pending requests array for client ("CLIENT_INFO_FORMAT") is full, dropping %d pending request(s)",
 					         client_expand_info(client),
 					         client->pending_requests.count - MAX_PENDING_REQUESTS + 1);
 
@@ -341,7 +341,7 @@ static void client_handle_read(void *opaque) {
 				pending_request = array_append(&client->pending_requests);
 
 				if (pending_request == NULL) {
-					log_error("Could not append to pending requests array of client ("CLIENT_INFO_FORMAT"): %s (%d)",
+					log_error("Could not append to pending requests array for client ("CLIENT_INFO_FORMAT"): %s (%d)",
 					          client_expand_info(client), get_errno_name(errno), errno);
 				} else {
 					memcpy(&pending_request->header, &client->request.header,
@@ -391,11 +391,11 @@ static int client_push_response_to_write_queue(Client *client, Packet *response)
 	Packet *queued_response;
 	char packet_signature[PACKET_MAX_SIGNATURE_LENGTH];
 
-	log_debug("Client ("CLIENT_INFO_FORMAT") is not ready to send, pushing response to write queue (count: %d +1)",
+	log_debug("Client ("CLIENT_INFO_FORMAT") is not ready to receive, pushing response to write queue (count: %d +1)",
 	          client_expand_info(client), client->write_queue.count);
 
 	if (client->write_queue.count >= MAX_QUEUED_WRITES) {
-		log_warn("Write queue of client ("CLIENT_INFO_FORMAT") is full, dropping %d queued response(s)",
+		log_warn("Write queue for client ("CLIENT_INFO_FORMAT") is full, dropping %d queued response(s)",
 		         client_expand_info(client),
 		         client->write_queue.count - MAX_QUEUED_WRITES + 1);
 
@@ -407,7 +407,7 @@ static int client_push_response_to_write_queue(Client *client, Packet *response)
 	queued_response = queue_push(&client->write_queue);
 
 	if (queued_response == NULL) {
-		log_error("Could not push response (%s) to write queue of client ("CLIENT_INFO_FORMAT"), discarding response: %s (%d)",
+		log_error("Could not push response (%s) to write queue for client ("CLIENT_INFO_FORMAT"), discarding response: %s (%d)",
 		          packet_get_request_signature(packet_signature, response),
 		          client_expand_info(client),
 		          get_errno_name(errno), errno);
@@ -498,7 +498,7 @@ void client_destroy(Client *client) {
 	}
 
 	if (client->write_queue.count > 0) {
-		log_warn("Destroying client ("CLIENT_INFO_FORMAT") while %d response(s) have not beed send",
+		log_warn("Destroying client ("CLIENT_INFO_FORMAT") while %d response(s) have not been send",
 		         client_expand_info(client), client->write_queue.count);
 	}
 
@@ -564,7 +564,7 @@ int client_dispatch_response(Client *client, Packet *response, int force,
 					log_error("Could not send response (%s) to client ("CLIENT_INFO_FORMAT"), %s: %s (%d)",
 					          packet_get_request_signature(packet_signature, response),
 					          client_expand_info(client),
-					          client->disconnect_on_error ? "disconnecting client" : "dropping response",
+					          client->disconnect_on_error ? "disconnecting client" : "discarding response",
 					          get_errno_name(errno), errno);
 
 					if (client->disconnect_on_error) {

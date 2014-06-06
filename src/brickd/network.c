@@ -66,7 +66,7 @@ static void network_handle_accept(void *opaque) {
 
 	if (client_socket == NULL) {
 		if (!errno_interrupted()) {
-			log_error("Could not accept new client: %s (%d)",
+			log_error("Could not accept new client socket: %s (%d)",
 			          get_errno_name(errno), errno);
 		}
 

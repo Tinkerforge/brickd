@@ -149,7 +149,7 @@ static int usb_stack_dispatch_request(USBStack *usb_stack, Packet *request) {
 	          usb_stack->base.name, usb_stack->write_queue.count);
 
 	if (usb_stack->write_queue.count >= MAX_QUEUED_WRITES) {
-		log_warn("Write queue of %s is full, dropping %d queued request(s)",
+		log_warn("Write queue for %s is full, dropping %d queued request(s)",
 		         usb_stack->base.name,
 		         usb_stack->write_queue.count - MAX_QUEUED_WRITES + 1);
 
@@ -161,7 +161,7 @@ static int usb_stack_dispatch_request(USBStack *usb_stack, Packet *request) {
 	queued_request = queue_push(&usb_stack->write_queue);
 
 	if (queued_request == NULL) {
-		log_error("Could not push request (%s) to write queue of %s, discarding request: %s (%d)",
+		log_error("Could not push request (%s) to write queue for %s, discarding request: %s (%d)",
 		          packet_get_request_signature(packet_signature, request),
 		          usb_stack->base.name,
 		          get_errno_name(errno), errno);
@@ -357,7 +357,7 @@ int usb_stack_create(USBStack *usb_stack, uint8_t bus_number, uint8_t device_add
 		usb_transfer = array_append(&usb_stack->read_transfers);
 
 		if (usb_transfer == NULL) {
-			log_error("Could not append to read transfer array of %s: %s (%d)",
+			log_error("Could not append to read transfer array for %s: %s (%d)",
 			          usb_stack->base.name, get_errno_name(errno), errno);
 
 			goto cleanup;
@@ -401,7 +401,7 @@ int usb_stack_create(USBStack *usb_stack, uint8_t bus_number, uint8_t device_add
 		usb_transfer = array_append(&usb_stack->write_transfers);
 
 		if (usb_transfer == NULL) {
-			log_error("Could not append to write transfer array of %s: %s (%d)",
+			log_error("Could not append to write transfer array for %s: %s (%d)",
 			          usb_stack->base.name, get_errno_name(errno), errno);
 
 			goto cleanup;
