@@ -569,8 +569,6 @@ int client_dispatch_response(Client *client, Packet *response, int force,
 
 					if (client->disconnect_on_error) {
 						client->disconnected = 1;
-					} else {
-						rc = 0;
 					}
 
 					goto cleanup;
