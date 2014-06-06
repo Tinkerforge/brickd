@@ -19,7 +19,7 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-#include "config.h"
+#include <daemonlib/config.h>
 
 ConfigOption config_options[] = {
 	CONFIG_OPTION_STRING_INITIALIZER("listen.address", NULL, 1, -1, "0.0.0.0"),

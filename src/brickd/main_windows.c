@@ -50,13 +50,13 @@ BOOL WINAPI Process32First(HANDLE hSnapshot, PROCESSENTRY32 *lppe);
 BOOL WINAPI Process32Next(HANDLE hSnapshot, PROCESSENTRY32 *lppe);
 #endif
 
+#include <daemonlib/config.h>
 #include <daemonlib/event.h>
 #include <daemonlib/log.h>
 #include <daemonlib/pipe.h>
 #include <daemonlib/threads.h>
 #include <daemonlib/utils.h>
 
-#include "config.h"
 #include "hardware.h"
 #include "network.h"
 #include "service.h"

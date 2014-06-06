@@ -30,6 +30,7 @@
 #endif
 
 #include <daemonlib/array.h>
+#include <daemonlib/config.h>
 #include <daemonlib/event.h>
 #include <daemonlib/log.h>
 #include <daemonlib/packet.h>
@@ -38,7 +39,6 @@
 
 #include "network.h"
 
-#include "config.h"
 #include "hmac.h"
 #include "websocket.h"
 

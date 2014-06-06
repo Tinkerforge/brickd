@@ -24,13 +24,13 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <daemonlib/config.h>
 #include <daemonlib/event.h>
 #include <daemonlib/log.h>
 #include <daemonlib/utils.h>
 
 #include "client.h"
 
-#include "config.h"
 #include "hardware.h"
 #include "hmac.h"
 

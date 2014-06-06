@@ -128,6 +128,7 @@ else
 endif
 
 SOURCES_DAEMONLIB := ../daemonlib/array.c \
+                     ../daemonlib/config.c \
                      ../daemonlib/event.c \
                      ../daemonlib/io.c \
                      ../daemonlib/log.c \
@@ -138,7 +139,6 @@ SOURCES_DAEMONLIB := ../daemonlib/array.c \
 
 SOURCES_BRICKD := base64.c \
                   client.c \
-                  config.c \
                   config_options.c \
                   hardware.c \
                   hmac.c \

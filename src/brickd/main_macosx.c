@@ -28,12 +28,12 @@
 #include <unistd.h>
 #include <fcntl.h>
 
+#include <daemonlib/config.h>
 #include <daemonlib/event.h>
 #include <daemonlib/log.h>
 #include <daemonlib/pid_file.h>
 #include <daemonlib/utils.h>
 
-#include "config.h"
 #include "hardware.h"
 #include "iokit.h"
 #include "network.h"

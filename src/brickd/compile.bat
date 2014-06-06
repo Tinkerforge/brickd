@@ -37,6 +37,7 @@
 
 %CC% /FI..\brickd\fixes_msvc.h^
  ..\daemonlib\array.c^
+ ..\daemonlib\config.c^
  ..\daemonlib\event.c^
  ..\daemonlib\io.c^
  ..\daemonlib\log.c^
@@ -51,7 +52,6 @@
 %CC% /FIfixes_msvc.h^
  base64.c^
  client.c^
- config.c^
  config_options.c^
  event_winapi.c^
  fixes_msvc.c^
