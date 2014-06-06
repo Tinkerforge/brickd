@@ -52,6 +52,7 @@
  base64.c^
  client.c^
  config.c^
+ config_options.c^
  event_winapi.c^
  fixes_msvc.c^
  hardware.c^

@@ -101,7 +101,7 @@ static const char *network_get_address_family_name(int family, int report_dual_s
 		return "IPv4";
 
 	case AF_INET6:
-		if (report_dual_stack && config_get_listen_dual_stack()) {
+		if (report_dual_stack && config_get_option("listen.dual_stack")->value.boolean) {
 			return "IPv6 dual-stack";
 		} else {
 			return "IPv6";
@@ -115,8 +115,9 @@ static const char *network_get_address_family_name(int family, int report_dual_s
 static int network_open_server_socket(Socket *server_socket, uint16_t port,
                                       SocketCreateAllocatedFunction create_allocated) {
 	int phase = 0;
-	const char *address = config_get_listen_address();
+	const char *address = config_get_option("listen.address")->value.string;
 	struct addrinfo *resolved_address = NULL;
+	int dual_stack;
 
 	log_debug("Opening server socket on port %u", port);
 
@@ -155,9 +156,11 @@ static int network_open_server_socket(Socket *server_socket, uint16_t port,
 	}
 
 	if (resolved_address->ai_family == AF_INET6) {
-		if (socket_set_dual_stack(server_socket, config_get_listen_dual_stack()) < 0) {
+		dual_stack = config_get_option("listen.dual_stack")->value.boolean;
+
+		if (socket_set_dual_stack(server_socket, dual_stack) < 0) {
 			log_error("Could not %s dual-stack mode for IPv6 server socket: %s (%d)",
-			          config_get_listen_dual_stack() ? "enable" : "disable",
+			          dual_stack ? "enable" : "disable",
 			          get_errno_name(errno), errno);
 
 			goto cleanup;
@@ -226,12 +229,12 @@ cleanup:
 }
 
 int network_init(void) {
-	uint16_t plain_port = config_get_listen_plain_port();
-	uint16_t websocket_port = config_get_listen_websocket_port();
+	uint16_t plain_port = (uint16_t)config_get_option("listen.plain_port")->value.integer;
+	uint16_t websocket_port = (uint16_t)config_get_option("listen.websocket_port")->value.integer;
 
 	log_debug("Initializing network subsystem");
 
-	if (config_get_authentication_secret() != NULL) {
+	if (config_get_option("authentication.secret")->value.string != NULL) {
 		log_info("Authentication is enabled");
 
 		_next_authentication_nonce = get_random_uint32();
@@ -252,7 +255,7 @@ int network_init(void) {
 	}
 
 	if (websocket_port != 0) {
-		if (config_get_authentication_secret() == NULL) {
+		if (config_get_option("authentication.secret")->value.string == NULL) {
 			log_warn("WebSocket support is enabled without authentication");
 		}
 

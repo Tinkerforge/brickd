@@ -30,23 +30,13 @@
 
 #include "config.h"
 
-#define DEFAULT_LISTEN_ADDRESS "0.0.0.0"
-#define DEFAULT_LISTEN_PLAIN_PORT 4223
-#define DEFAULT_LISTEN_WEBSOCKET_PORT 0 // default to enable: 4280
-#define DEFAULT_LISTEN_DUAL_STACK 0
-#define DEFAULT_LOG_LEVEL LOG_LEVEL_INFO
-
 static int _check_only = 0;
 static int _has_error = 0;
 static int _has_warning = 0;
 static int _using_default_values = 1;
-static const char *_default_listen_address = DEFAULT_LISTEN_ADDRESS;
-static char *_listen_address = NULL;
-static uint16_t _listen_plain_port = DEFAULT_LISTEN_PLAIN_PORT;
-static uint16_t _listen_websocket_port = DEFAULT_LISTEN_WEBSOCKET_PORT;
-static int _listen_dual_stack = DEFAULT_LISTEN_DUAL_STACK;
-static char *_authentication_secret = NULL;
-static LogLevel _log_levels[MAX_LOG_CATEGORIES]; // config_init calls config_reset to initialize this
+static ConfigOption _invalid = CONFIG_OPTION_STRING_INITIALIZER("<invalid>", NULL, 0, -1, "<invalid>");
+
+extern ConfigOption config_options[];
 
 #define config_error(...) config_message(&_has_error, __VA_ARGS__)
 #define config_warn(...) config_message(&_has_warning, __VA_ARGS__)
@@ -72,22 +62,19 @@ static void config_message(int *has_message, const char *format, ...) {
 }
 
 static void config_reset(void) {
-	int i;
+	int i = 0;
 
-	if (_listen_address != _default_listen_address) {
-		free(_listen_address);
-		_listen_address = (char *)_default_listen_address;
-	}
+	_using_default_values = 1;
 
-	_listen_plain_port = DEFAULT_LISTEN_PLAIN_PORT;
-	_listen_websocket_port = DEFAULT_LISTEN_WEBSOCKET_PORT;
-	_listen_dual_stack = DEFAULT_LISTEN_DUAL_STACK;
+	for (i = 0; config_options[i].name != NULL; ++i) {
+		if (config_options[i].type == CONFIG_OPTION_TYPE_STRING) {
+			if (config_options[i].value.string != config_options[i].default_value.string) {
+				free((char *)config_options[i].value.string);
+			}
+		}
 
-	free(_authentication_secret);
-	_authentication_secret = NULL;
-
-	for (i = 0; i < MAX_LOG_CATEGORIES; ++i) {
-		_log_levels[i] = DEFAULT_LOG_LEVEL;
+		memcpy(&config_options[i].value, &config_options[i].default_value,
+		       sizeof(config_options[i].value));
 	}
 }
 
@@ -175,10 +162,11 @@ static const char *config_format_log_level(LogLevel level) {
 
 static void config_parse_line(char *string) {
 	char *p;
-	char *option;
+	char *name;
 	char *value;
-	int port;
+	int i;
 	int length;
+	int integer;
 
 	string = config_trim_string(string);
 
@@ -196,142 +184,98 @@ static void config_parse_line(char *string) {
 
 	*p = '\0';
 
-	option = config_trim_string(string);
+	name = config_trim_string(string);
 	value = config_trim_string(p + 1);
 
-	config_lower_string(option);
+	config_lower_string(name);
 
 	// check option
-	if (strcmp(option, "listen.address") == 0) {
-		if (strlen(value) < 1) {
-			config_warn("Empty value is not allowed for %s option", option);
+	for (i = 0; config_options[i].name != NULL; ++i) {
+		if (strcmp(name, config_options[i].name) == 0 ||
+		    (config_options[i].legacy_name != NULL &&
+		     strcmp(name, config_options[i].legacy_name) == 0)) {
+			switch (config_options[i].type) {
+			case CONFIG_OPTION_TYPE_STRING:
+				if (config_options[i].value.string != config_options[i].default_value.string) {
+					free((char *)config_options[i].value.string);
+					config_options[i].value.string = NULL;
+				}
 
-			return;
-		}
+				length = strlen(value);
 
-		if (_listen_address != _default_listen_address) {
-			free(_listen_address);
-		}
+				if (length < config_options[i].string_min_length) {
+					config_error("Value '%s' for %s option is too short (minimum: %d chars)",
+					             value, name, config_options[i].string_min_length);
 
-		_listen_address = strdup(value);
+					return;
+				} else if (config_options[i].string_max_length >= 0 &&
+				           length > config_options[i].string_max_length) {
+					config_error("Value '%s' for %s option is too long (maximum: %d chars)",
+					             value, name, config_options[i].string_max_length);
 
-		if (_listen_address == NULL) {
-			_listen_address = (char *)_default_listen_address;
+					return;
+				} else if (length > 0) {
+					config_options[i].value.string = strdup(value);
 
-			config_error("Could not duplicate %s value '%s'", option, value);
+					if (config_options[i].value.string == NULL) {
+						config_error("Could not duplicate %s value '%s'", name, value);
 
-			return;
-		}
-	} else if (strcmp(option, "listen.plain_port") == 0 ||
-	           strcmp(option, "listen.port") == 0) {
-		if (config_parse_int(value, &port) < 0) {
-			config_warn("Value '%s' for %s option is not an integer", value, option);
+						return;
+					}
+				}
 
-			return;
-		}
+				break;
 
-		if (port < 1 || port > UINT16_MAX) {
-			config_warn("Value %d for %s option is out-of-range", port, option);
+			case CONFIG_OPTION_TYPE_INTEGER:
+				if (config_parse_int(value, &integer) < 0) {
+					config_warn("Value '%s' for %s option is not an integer", value, name);
 
-			return;
-		}
+					return;
+				}
 
-		_listen_plain_port = (uint16_t)port;
-	} else if (strcmp(option, "listen.websocket_port") == 0) {
-		if (config_parse_int(value, &port) < 0) {
-			config_warn("Value '%s' for %s option is not an integer", value, option);
+				if (integer < config_options[i].integer_min || integer > config_options[i].integer_max) {
+					config_warn("Value %d for %s option is out-of-range (min: %d, max: %d)",
+					            integer, name, config_options[i].integer_min, config_options[i].integer_max);
 
-			return;
-		}
+					return;
+				}
 
-		if (port < 0 || port > UINT16_MAX) {
-			config_warn("Value %d for %s option is out-of-range", port, option);
+				config_options[i].value.integer = integer;
 
-			return;
-		}
+				break;
 
-		_listen_websocket_port = (uint16_t)port;
-	} else if (strcmp(option, "listen.dual_stack") == 0) {
-		config_lower_string(value);
+			case CONFIG_OPTION_TYPE_BOOLEAN:
+				config_lower_string(value);
 
-		if (strcmp(value, "on") == 0) {
-			_listen_dual_stack = 1;
-		} else if (strcmp(value, "off") == 0) {
-			_listen_dual_stack = 0;
-		} else {
-			config_warn("Value '%s' for %s option is invalid", value, option);
+				if (strcmp(value, "on") == 0) {
+					config_options[i].value.boolean = 1;
+				} else if (strcmp(value, "off") == 0) {
+					config_options[i].value.boolean = 0;
+				} else {
+					config_warn("Value '%s' for %s option is invalid", value, name);
 
-			return;
-		}
-	} else if (strcmp(option, "authentication.secret") == 0) {
-		free(_authentication_secret);
-		_authentication_secret = NULL;
+					return;
+				}
 
-		length = strlen(value);
+				break;
 
-		if (length > 64) {
-			config_error("Value '%s' for %s option is longer than 64 characters", value, option);
+			case CONFIG_OPTION_TYPE_LOG_LEVEL:
+				if (config_parse_log_level(value, &config_options[i].value.log_level) < 0) {
+					config_warn("Value '%s' for %s option is invalid", value, name);
 
-			return;
-		} else if (length > 0) {
-			_authentication_secret = strdup(value);
+					return;
+				}
 
-			if (_authentication_secret == NULL) {
-				config_error("Could not duplicate %s value '%s'", option, value);
-
-				return;
+				break;
 			}
-		}
-	} else if (strcmp(option, "log_level.event") == 0) {
-		if (config_parse_log_level(value, &_log_levels[LOG_CATEGORY_EVENT]) < 0) {
-			config_warn("Value '%s' for %s option is invalid", value, option);
 
-			return;
 		}
-	} else if (strcmp(option, "log_level.usb") == 0) {
-		if (config_parse_log_level(value, &_log_levels[LOG_CATEGORY_USB]) < 0) {
-			config_warn("Value '%s' for %s option is invalid", value, option);
-
-			return;
-		}
-	} else if (strcmp(option, "log_level.network") == 0) {
-		if (config_parse_log_level(value, &_log_levels[LOG_CATEGORY_NETWORK]) < 0) {
-			config_warn("Value '%s' for %s option is invalid", value, option);
-
-			return;
-		}
-	} else if (strcmp(option, "log_level.hotplug") == 0) {
-		if (config_parse_log_level(value, &_log_levels[LOG_CATEGORY_HOTPLUG]) < 0) {
-			config_warn("Value '%s' for %s option is invalid", value, option);
-
-			return;
-		}
-	} else if (strcmp(option, "log_level.hardware") == 0) {
-		if (config_parse_log_level(value, &_log_levels[LOG_CATEGORY_HARDWARE]) < 0) {
-			config_warn("Value '%s' for %s option is invalid", value, option);
-
-			return;
-		}
-	} else if (strcmp(option, "log_level.websocket") == 0) {
-		if (config_parse_log_level(value, &_log_levels[LOG_CATEGORY_WEBSOCKET]) < 0) {
-			config_warn("Value '%s' for %s option is invalid", value, option);
-
-			return;
-		}
-	} else if (strcmp(option, "log_level.other") == 0) {
-		if (config_parse_log_level(value, &_log_levels[LOG_CATEGORY_OTHER]) < 0) {
-			config_warn("Value '%s' for %s option is invalid", value, option);
-
-			return;
-		}
-	} else {
-		config_warn("Unknown option '%s'", option);
-
-		return;
 	}
 }
 
 int config_check(const char *filename) {
+	int i;
+
 	_check_only = 1;
 
 	config_init(filename);
@@ -358,18 +302,41 @@ int config_check(const char *filename) {
 
 	printf("\n");
 	printf("Using the following config values:\n");
-	printf("  listen.address        = %s\n", config_get_listen_address());
-	printf("  listen.plain_port     = %u\n", config_get_listen_plain_port());
-	printf("  listen.websocket_port = %u\n", config_get_listen_websocket_port());
-	printf("  listen.dual_stack     = %s\n", config_get_listen_dual_stack() ? "on" : "off");
-	printf("  authentication.secret = %s\n", config_get_authentication_secret() != NULL ? config_get_authentication_secret() : "");
-	printf("  log_level.event       = %s\n", config_format_log_level(config_get_log_level(LOG_CATEGORY_EVENT)));
-	printf("  log_level.usb         = %s\n", config_format_log_level(config_get_log_level(LOG_CATEGORY_USB)));
-	printf("  log_level.network     = %s\n", config_format_log_level(config_get_log_level(LOG_CATEGORY_NETWORK)));
-	printf("  log_level.hotplug     = %s\n", config_format_log_level(config_get_log_level(LOG_CATEGORY_HOTPLUG)));
-	printf("  log_level.hardware    = %s\n", config_format_log_level(config_get_log_level(LOG_CATEGORY_HARDWARE)));
-	printf("  log_level.websocket   = %s\n", config_format_log_level(config_get_log_level(LOG_CATEGORY_WEBSOCKET)));
-	printf("  log_level.other       = %s\n", config_format_log_level(config_get_log_level(LOG_CATEGORY_OTHER)));
+
+	for (i = 0; config_options[i].name != NULL; ++i) {
+		printf("  %s = ", config_options[i].name);
+
+		switch(config_options[i].type) {
+		case CONFIG_OPTION_TYPE_STRING:
+			if (config_options[i].value.string != NULL) {
+				printf("%s", config_options[i].value.string);
+			}
+
+			break;
+
+		case CONFIG_OPTION_TYPE_INTEGER:
+			printf("%d", config_options[i].value.integer);
+
+			break;
+
+		case CONFIG_OPTION_TYPE_BOOLEAN:
+			printf("%s", config_options[i].value.boolean ? "on" : "off");
+
+			break;
+
+		case CONFIG_OPTION_TYPE_LOG_LEVEL:
+			printf("%s", config_format_log_level(config_options[i].value.log_level));
+
+			break;
+
+		default:
+			printf("<unknown-type>");
+
+			break;
+		}
+
+		printf("\n");
+	}
 
 	config_exit();
 
@@ -434,11 +401,15 @@ void config_init(const char *filename) {
 }
 
 void config_exit(void) {
-	if (_listen_address != _default_listen_address) {
-		free(_listen_address);
-	}
+	int i = 0;
 
-	free(_authentication_secret);
+	for (i = 0; config_options[i].name != NULL; ++i) {
+		if (config_options[i].type == CONFIG_OPTION_TYPE_STRING) {
+			if (config_options[i].value.string != config_options[i].default_value.string) {
+				free((char *)config_options[i].value.string);
+			}
+		}
+	}
 }
 
 int config_has_error(void) {
@@ -449,26 +420,14 @@ int config_has_warning(void) {
 	return _has_warning;
 }
 
-const char *config_get_listen_address(void) {
-	return _listen_address;
-}
+ConfigOption *config_get_option(const char *name) {
+	int i = 0;
 
-uint16_t config_get_listen_plain_port(void) {
-	return _listen_plain_port;
-}
+	for (i = 0; config_options[i].name != NULL; ++i) {
+		if (strcmp(config_options[i].name, name) == 0) {
+			return &config_options[i];
+		}
+	}
 
-uint16_t config_get_listen_websocket_port(void) {
-	return _listen_websocket_port;
-}
-
-int config_get_listen_dual_stack(void) {
-	return _listen_dual_stack;
-}
-
-const char *config_get_authentication_secret(void) {
-	return _authentication_secret;
-}
-
-LogLevel config_get_log_level(LogCategory category) {
-	return _log_levels[category];
+	return &_invalid;
 }

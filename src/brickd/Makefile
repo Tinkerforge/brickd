@@ -139,6 +139,7 @@ SOURCES_DAEMONLIB := ../daemonlib/array.c \
 SOURCES_BRICKD := base64.c \
                   client.c \
                   config.c \
+                  config_options.c \
                   hardware.c \
                   hmac.c \
                   network.c \

@@ -94,6 +94,7 @@ static void client_handle_get_authentication_nonce_request(Client *client, GetAu
 static void client_handle_authenticate_request(Client *client, AuthenticateRequest *request) {
 	uint32_t nonces[2];
 	uint8_t digest[SHA1_DIGEST_LENGTH];
+	const char *secret;
 	char packet_signature[PACKET_MAX_SIGNATURE_LENGTH];
 	AuthenticateResponse response;
 
@@ -120,8 +121,9 @@ static void client_handle_authenticate_request(Client *client, AuthenticateReque
 	memcpy(&nonces[0], &client->authentication_nonce, sizeof(client->authentication_nonce));
 	memcpy(&nonces[1], request->client_nonce, sizeof(request->client_nonce));
 
-	hmac_sha1((uint8_t *)config_get_authentication_secret(),
-	          strlen(config_get_authentication_secret()),
+	secret = config_get_option("authentication.secret")->value.string;
+
+	hmac_sha1((uint8_t *)secret, strlen(secret),
 	          (uint8_t *)nonces, sizeof(nonces), digest);
 
 	if (memcmp(request->digest, digest, SHA1_DIGEST_LENGTH) != 0) {
@@ -442,7 +444,7 @@ int client_create(Client *client, const char *name, IO *io, uint32_t authenticat
 	client->authentication_state = CLIENT_AUTHENTICATION_STATE_DISABLED;
 	client->authentication_nonce = authentication_nonce;
 
-	if (config_get_authentication_secret() != NULL) {
+	if (config_get_option("authentication.secret")->value.string != NULL) {
 		client->authentication_state = CLIENT_AUTHENTICATION_STATE_ENABLED;
 	}
 
