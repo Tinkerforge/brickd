@@ -173,54 +173,22 @@ static void gadget_handle_state_change(void *opaque) {
 
 int gadget_init(void) {
 	int phase = 0;
-	FILE *fp;
-	char base58[BASE58_MAX_LENGTH + 1]; // +1 for the \n
-	int rc;
+	char base58[BASE58_MAX_LENGTH];
 	uint8_t state;
 
 	log_debug("Initializing gadget subsystem");
 
 	// read UID from /proc/red_brick_uid
-	fp = fopen(RED_BRICK_UID_FILENAME, "rb");
-
-	if (fp == NULL) {
-		log_error("Could not open '%s': %s (%d)",
-		          RED_BRICK_UID_FILENAME, get_errno_name(errno), errno);
+	if (red_brick_uid(&_uid) < 0) {
+		log_error("Could not get RED Brick UID: %s (%d)",
+		          get_errno_name(errno), errno);
 
 		goto cleanup;
 	}
 
-	phase = 1;
-
-	rc = fread(base58, 1, sizeof(base58), fp);
-
-	if (rc < 1) {
-		log_error("Could not read enough data from '%s'",
-		          RED_BRICK_UID_FILENAME);
-
-		goto cleanup;
-	}
-
-	if (base58[rc - 1] != '\n') {
-		log_error("'%s' contains invalid data",
-		          RED_BRICK_UID_FILENAME);
-
-		goto cleanup;
-	}
-
-	base58[rc - 1] = '\0';
-
-	if (base58_decode(&_uid, base58) < 0) {
-		log_error("'%s' is not valid Base58: %s (%d)",
-		          base58, get_errno_name(errno), errno);
-
-		goto cleanup;
-	}
-
-	_uid = uint32_to_le(_uid);
-
-	log_debug("Using %s (%u) as UID for the RED Brick",
-	          base58, uint32_from_le(_uid));
+	log_debug("Using %s (%u) as RED Brick UID",
+	          base58_encode(base58, uint32_from_le(_uid)),
+	          uint32_from_le(_uid));
 
 	// read current USB gadget state from /proc/g_red_brick_state
 	if (file_create(&_state_file, G_RED_BRICK_STATE_FILENAME, O_RDONLY) < 0) {
@@ -230,14 +198,14 @@ int gadget_init(void) {
 		goto cleanup;
 	}
 
-	phase = 2;
+	phase = 1;
 
 	if (event_add_source(_state_file.base.handle, EVENT_SOURCE_TYPE_GENERIC,
 	                     EVENT_READ, gadget_handle_state_change, NULL) < 0) {
 		goto cleanup;
 	}
 
-	phase = 3;
+	phase = 2;
 
 	if (file_read(&_state_file, &state, sizeof(state)) != sizeof(state)) {
 		log_error("Could not read from '%s': %s (%d)",
@@ -250,26 +218,21 @@ int gadget_init(void) {
 		goto cleanup;
 	}
 
-	phase = 4;
-
-	fclose(fp);
+	phase = 3;
 
 cleanup:
 	switch (phase) { // no breaks, all cases fall through intentionally
-	case 3:
+	case 2:
 		event_remove_source(_state_file.base.handle, EVENT_SOURCE_TYPE_GENERIC, EVENT_READ);
 
-	case 2:
-		file_destroy(&_state_file);
-
 	case 1:
-		fclose(fp);
+		file_destroy(&_state_file);
 
 	default:
 		break;
 	}
 
-	return phase == 4 ? 0 : -1;
+	return phase == 3 ? 0 : -1;
 }
 
 void gadget_exit(void) {
