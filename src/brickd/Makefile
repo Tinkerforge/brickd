@@ -181,7 +181,8 @@ ifeq ($(PLATFORM),Linux)
 endif
 
 ifeq ($(PLATFORM),Darwin)
-	SOURCES_BRICKD += main_macosx.c iokit.c
+	SOURCES_BRICKD += main_macosx.c \
+	                  iokit.c
 endif
 
 ifeq ($(WITH_LIBUDEV),yes)
@@ -189,7 +190,9 @@ ifeq ($(WITH_LIBUDEV),yes)
 endif
 
 ifeq ($(WITH_RED_BRICK),yes)
-	SOURCES_BRICKD += file.c gadget.c
+	SOURCES_BRICKD += file.c \
+	                  gadget.c \
+	                  redapid.c
 endif
 
 SOURCES := $(SOURCES_DAEMONLIB) $(SOURCES_BRICKD)
