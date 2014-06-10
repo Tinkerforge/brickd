@@ -409,7 +409,9 @@ static int client_push_response_to_write_queue(Client *client, Packet *response)
 	return 0;
 }
 
-int client_create(Client *client, const char *name, IO *io, uint32_t authentication_nonce) {
+int client_create(Client *client, const char *name, IO *io,
+                  uint32_t authentication_nonce,
+                  ClientDestroyDoneFunction destroy_done) {
 	int phase = 0;
 
 	log_debug("Creating client from %s (handle: %d)", io->type, io->handle);
@@ -422,6 +424,7 @@ int client_create(Client *client, const char *name, IO *io, uint32_t authenticat
 	client->request_header_checked = 0;
 	client->authentication_state = CLIENT_AUTHENTICATION_STATE_DISABLED;
 	client->authentication_nonce = authentication_nonce;
+	client->destroy_done = destroy_done;
 
 	if (config_get_option("authentication.secret")->value.string != NULL) {
 		client->authentication_state = CLIENT_AUTHENTICATION_STATE_ENABLED;
@@ -487,6 +490,10 @@ void client_destroy(Client *client) {
 
 	array_destroy(&client->pending_requests, NULL);
 	queue_destroy(&client->write_queue, NULL);
+
+	if (client->destroy_done != NULL) {
+		client->destroy_done();
+	}
 }
 
 // returns -1 on error, 0 if the response was not dispatched and 1 if it was dispatch

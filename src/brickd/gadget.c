@@ -19,6 +19,24 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
+/*
+ * this connects to the RED Brick g_red_brick USB gadget driver via the
+ * /dev/g_red_brick_data and /proc/g_red_brick_state files. all TFP packets
+ * received by the Brick API interface on the USB OTG connector are passed
+ * through /dev/g_red_brick_data to brickd. all this data is then passed into
+ * the brickd routing system as if it had been received from a normal TCP/IP
+ * client.
+ *
+ * the RED Brick enumeration process is splitted into multiple locations.
+ * the enumerate-connected packet is send from hereto the USB gadget driver,
+ * because only the brickd on the host side connected to the RED Brick should
+ * receive the enumerate-connected for the RED Brick.
+ *
+ * the enumerate-available packet for the RED Brick is send by redapid.c that
+ * connects to the RED Brick API Daemon and acts as a stack. this way all
+ * clients connected to brickd can receive it.
+ */
+
 #include <errno.h>
 #include <stdlib.h>
 #include <string.h>
@@ -36,8 +54,6 @@
 
 #define LOG_CATEGORY LOG_CATEGORY_NETWORK // FIXME: add a RED_BRICK category?
 
-#define RED_BRICK_DEVICE_IDENTIFIER 17
-#define RED_BRICK_UID_FILENAME "/proc/red_brick_uid"
 #define G_RED_BRICK_STATE_FILENAME "/proc/g_red_brick_state"
 #define G_RED_BRICK_DATA_FILENAME "/dev/g_red_brick_data"
 
@@ -50,17 +66,21 @@ static uint32_t _uid = 0; // always little endian
 static File _state_file;
 static Client *_client = NULL;
 
-static int gadget_connect(void) {
+static int gadget_create_client(void);
+
+static void gadget_client_destroy_done(void) {
+	log_debug("Trying to reconnect to RED Brick USB gadget");
+
+	_client = NULL;
+
+	gadget_create_client();
+}
+
+static int gadget_create_client(void) {
 	File *file;
-	EnumerateCallback enumerate_callback;
 
-	if (_client != NULL) {
-		log_warn("RED Brick gadget is already connected");
+	log_debug("Connecting to RED Brick USB gadget");
 
-		return 0;
-	}
-
-	// connect to /dev/g_red_brick_data
 	file = calloc(1, sizeof(File));
 
 	if (file == NULL) {
@@ -82,15 +102,27 @@ static int gadget_connect(void) {
 	_client = network_create_client("g_red_brick", &file->base);
 
 	if (_client == NULL) {
+		file_destroy(file);
 		free(file);
 
 		return -1;
 	}
 
-	_client->disconnect_on_error = 0;
+	_client->destroy_done = gadget_client_destroy_done; // FIXME: this will only do one reconnect try
 	_client->authentication_state = CLIENT_AUTHENTICATION_STATE_DISABLED;
 
-	log_debug("Connected RED Brick gadget");
+	log_info("Connected to RED Brick USB gadget");
+
+	return 0;
+}
+
+static int gadget_connect(void) {
+	EnumerateCallback enumerate_callback;
+
+	// connect to /dev/g_red_brick_data
+	if (gadget_create_client() < 0) {
+		return -1;
+	}
 
 	// send enumerate-connected callback
 	memset(&enumerate_callback, 0, sizeof(enumerate_callback));
@@ -122,22 +154,19 @@ static int gadget_connect(void) {
 }
 
 static void gadget_disconnect() {
-	if (_client == NULL) {
-		log_warn("RED Brick gadget is already disconnected");
-
-		return;
-	}
-
+	_client->destroy_done = NULL;
 	_client->disconnected = 1;
 	_client = NULL;
 
-	log_debug("Disconnected RED Brick gadget");
+	log_info("Disconnected from RED Brick USB gadget");
 }
 
 static void gadget_handle_state_change(void *opaque) {
 	uint8_t state;
 
 	(void)opaque;
+
+	log_debug("RED Brick USB gadget state changed");
 
 	if (file_seek(&_state_file, SEEK_SET, 0) == (off_t)-1) {
 		log_error("Could not seek '%s': %s (%d)",
@@ -155,17 +184,29 @@ static void gadget_handle_state_change(void *opaque) {
 
 	switch (state) {
 	case GADGET_STATE_CONNECTED:
+		if (_client != NULL) {
+			log_warn("Already connected to RED Brick USB gadget");
+
+			return;
+		}
+
 		gadget_connect();
 
 		break;
 
 	case GADGET_STATE_DISCONNECTED:
+		if (_client == NULL) {
+			log_warn("Already disconnected from RED Brick USB gadget");
+
+			return;
+		}
+
 		gadget_disconnect();
 
 		break;
 
 	default:
-		log_warn("Unknown RED Brick gadget state %u", state);
+		log_warn("Unknown RED Brick USB gadget state %u", state);
 
 		break;
 	}
@@ -176,7 +217,7 @@ int gadget_init(void) {
 	char base58[BASE58_MAX_LENGTH];
 	uint8_t state;
 
-	log_debug("Initializing gadget subsystem");
+	log_debug("Initializing RED Brick USB gadget subsystem");
 
 	// read UID from /proc/red_brick_uid
 	if (red_brick_uid(&_uid) < 0) {
@@ -236,7 +277,11 @@ cleanup:
 }
 
 void gadget_exit(void) {
-	log_debug("Shutting down gadget subsystem");
+	log_debug("Shutting down RED Brick USB gadget subsystem");
+
+	if (_client != NULL) {
+		gadget_disconnect();
+	}
 
 	event_remove_source(_state_file.base.handle, EVENT_SOURCE_TYPE_GENERIC, EVENT_READ);
 

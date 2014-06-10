@@ -43,6 +43,8 @@ typedef enum {
 	CLIENT_AUTHENTICATION_STATE_DONE
 } ClientAuthenticationState;
 
+typedef void (*ClientDestroyDoneFunction)(void);
+
 #define CLIENT_MAX_NAME_LENGTH 128
 
 struct _Client {
@@ -56,6 +58,7 @@ struct _Client {
 	ClientAuthenticationState authentication_state;
 	uint32_t authentication_nonce; // server
 	Queue write_queue;
+	ClientDestroyDoneFunction destroy_done;
 };
 
 #define CLIENT_INFO_FORMAT "N: %s, T: %s, H: %d, A: %s"
@@ -65,7 +68,8 @@ struct _Client {
 const char *client_get_authentication_state_name(ClientAuthenticationState state);
 
 int client_create(Client *client, const char *name, IO *io,
-                  uint32_t authentication_nonce);
+                  uint32_t authentication_nonce,
+                  ClientDestroyDoneFunction destroy_done);
 void client_destroy(Client *client);
 
 int client_dispatch_response(Client *client, Packet *response, int force,

@@ -306,7 +306,7 @@ Client *network_create_client(const char *name, IO *io) {
 	}
 
 	// create new client that takes ownership of the I/O object
-	if (client_create(client, name, io, _next_authentication_nonce++) < 0) {
+	if (client_create(client, name, io, _next_authentication_nonce++, NULL) < 0) {
 		array_remove(&_clients, _clients.count - 1, NULL);
 
 		return NULL;

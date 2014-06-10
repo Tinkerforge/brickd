@@ -22,6 +22,8 @@
 #ifndef BRICKD_GADGET_H
 #define BRICKD_GADGET_H
 
+#define RED_BRICK_DEVICE_IDENTIFIER 17
+
 int gadget_init(void);
 void gadget_exit(void);
 
