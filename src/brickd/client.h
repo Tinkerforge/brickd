@@ -49,7 +49,6 @@ struct _Client {
 	char name[CLIENT_MAX_NAME_LENGTH]; // for display purpose
 	IO *io;
 	int disconnected;
-	int disconnect_on_error;
 	Packet request;
 	int request_used;
 	int request_header_checked;

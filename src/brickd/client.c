@@ -211,24 +211,20 @@ static void client_handle_write(void *opaque) {
 	response = queue_peek(&client->write_queue);
 
 	if (io_write(client->io, response, response->header.length) < 0) {
-		log_error("Could not send queued response (%s) to client ("CLIENT_INFO_FORMAT"), %s: %s (%d)",
+		log_error("Could not send queued response (%s) to client ("CLIENT_INFO_FORMAT"), disconnecting client: %s (%d)",
 		          packet_get_request_signature(packet_signature, response),
-		          client_expand_info(client),
-		          client->disconnect_on_error ? "disconnecting client" : "discarding response",
-		          get_errno_name(errno), errno);
+		          client_expand_info(client), get_errno_name(errno), errno);
 
-		if (client->disconnect_on_error) {
-			client->disconnected = 1;
+		client->disconnected = 1;
 
-			return;
-		}
-	} else {
-		queue_pop(&client->write_queue, NULL);
-
-		log_debug("Sent queued response (%s) to client ("CLIENT_INFO_FORMAT"), %d response(s) left in write queue",
-		          packet_get_request_signature(packet_signature, response),
-		          client_expand_info(client), client->write_queue.count);
+		return;
 	}
+
+	queue_pop(&client->write_queue, NULL);
+
+	log_debug("Sent queued response (%s) to client ("CLIENT_INFO_FORMAT"), %d response(s) left in write queue",
+	          packet_get_request_signature(packet_signature, response),
+	          client_expand_info(client), client->write_queue.count);
 
 	if (client->write_queue.count == 0) {
 		// last queued response handled, deregister for write events
@@ -265,14 +261,10 @@ static void client_handle_read(void *opaque) {
 			log_debug("Receiving from client ("CLIENT_INFO_FORMAT") would block, retrying",
 			          client_expand_info(client));
 		} else {
-			log_error("Could not receive from client ("CLIENT_INFO_FORMAT"), %s: %s (%d)",
-			          client_expand_info(client),
-			          client->disconnect_on_error ? "disconnecting client" : "retrying",
-			          get_errno_name(errno), errno);
+			log_error("Could not receive from client ("CLIENT_INFO_FORMAT"), disconnecting client: %s (%d)",
+			          client_expand_info(client), get_errno_name(errno), errno);
 
-			if (client->disconnect_on_error) {
-				client->disconnected = 1;
-			}
+			client->disconnected = 1;
 		}
 
 		return;
@@ -288,25 +280,13 @@ static void client_handle_read(void *opaque) {
 
 		if (!client->request_header_checked) {
 			if (!packet_header_is_valid_request(&client->request.header, &message)) {
-				log_error("Got invalid request (%s) from client ("CLIENT_INFO_FORMAT"), %s: %s",
+				log_error("Got invalid request (%s) from client ("CLIENT_INFO_FORMAT"), disconnecting client: %s",
 				          packet_get_request_signature(packet_signature, &client->request),
-				          client_expand_info(client),
-				          client->disconnect_on_error ? "disconnecting client" : "trying to resync",
-				          message);
+				          client_expand_info(client), message);
 
-				if (client->disconnect_on_error) {
-					client->disconnected = 1;
+				client->disconnected = 1;
 
-					return;
-				} else {
-					// out of sync? skip the first byte and retry
-					memmove(&client->request, (uint8_t *)&client->request + 1,
-					        client->request_used - 1);
-
-					--client->request_used;
-
-					continue;
-				}
+				return;
 			}
 
 			client->request_header_checked = 1;
@@ -438,7 +418,6 @@ int client_create(Client *client, const char *name, IO *io, uint32_t authenticat
 
 	client->io = io;
 	client->disconnected = 0;
-	client->disconnect_on_error = 1;
 	client->request_used = 0;
 	client->request_header_checked = 0;
 	client->authentication_state = CLIENT_AUTHENTICATION_STATE_DISABLED;
@@ -561,15 +540,11 @@ int client_dispatch_response(Client *client, Packet *response, int force,
 		} else {
 			if (io_write(client->io, response, response->header.length) < 0) {
 				if (!errno_would_block()) {
-					log_error("Could not send response (%s) to client ("CLIENT_INFO_FORMAT"), %s: %s (%d)",
+					log_error("Could not send response (%s) to client ("CLIENT_INFO_FORMAT"), disconnecting client: %s (%d)",
 					          packet_get_request_signature(packet_signature, response),
-					          client_expand_info(client),
-					          client->disconnect_on_error ? "disconnecting client" : "discarding response",
-					          get_errno_name(errno), errno);
+					          client_expand_info(client), get_errno_name(errno), errno);
 
-					if (client->disconnect_on_error) {
-						client->disconnected = 1;
-					}
+					client->disconnected = 1;
 
 					goto cleanup;
 				}
