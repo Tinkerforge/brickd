@@ -321,10 +321,15 @@ ifeq ($(PLATFORM),Windows)
 endif
 
 ifneq ($(MAKECMDGOALS),clean)
-$(info libusb: $(LIBUSB_STATUS))
-$(info libudev: $(LIBUDEV_STATUS))
-$(info pm-utils: $(PM_UTILS_STATUS))
-$(info hotplug: $(HOTPLUG))
+$(info libraries/tools:)
+$(info - libusb:    $(LIBUSB_STATUS))
+$(info - libudev:   $(LIBUDEV_STATUS))
+$(info - pm-utils:  $(PM_UTILS_STATUS))
+$(info features:)
+$(info - logging:   $(WITH_LOGGING))
+$(info - profiling: $(WITH_PROFILING))
+$(info - red-brick: $(WITH_RED_BRICK))
+$(info - hotplug:   $(HOTPLUG))
 endif
 
 .PHONY: all clean
