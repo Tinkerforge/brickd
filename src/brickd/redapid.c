@@ -132,6 +132,8 @@ static void redapid_handle_read(void *opaque) {
 			          packet_get_response_signature(packet_signature, &_redapid.response));
 		}
 
+		stack_add_uid(&_redapid.base, _redapid.response.header.uid);
+
 		network_dispatch_response(&_redapid.response);
 
 		memmove(&_redapid.response, (uint8_t *)&_redapid.response + length,
@@ -290,11 +292,6 @@ int redapid_init(void) {
 	}
 
 	phase = 2;
-
-	// preseed known-UID array
-	if (stack_add_uid(&_redapid.base, /*gadget_get_uid()*/123456789) < 0) {
-		goto cleanup;
-	}
 
 	// add to stacks array
 	if (hardware_add_stack(&_redapid.base) < 0) {
