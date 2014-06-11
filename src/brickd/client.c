@@ -199,39 +199,6 @@ static void client_handle_request(Client *client, Packet *request) {
 	}
 }
 
-static void client_handle_write(void *opaque) {
-	Client *client = opaque;
-	Packet *response;
-	char packet_signature[PACKET_MAX_SIGNATURE_LENGTH];
-
-	if (client->write_queue.count == 0) {
-		return;
-	}
-
-	response = queue_peek(&client->write_queue);
-
-	if (io_write(client->io, response, response->header.length) < 0) {
-		log_error("Could not send queued response (%s) to client ("CLIENT_INFO_FORMAT"), disconnecting client: %s (%d)",
-		          packet_get_request_signature(packet_signature, response),
-		          client_expand_info(client), get_errno_name(errno), errno);
-
-		client->disconnected = 1;
-
-		return;
-	}
-
-	queue_pop(&client->write_queue, NULL);
-
-	log_debug("Sent queued response (%s) to client ("CLIENT_INFO_FORMAT"), %d response(s) left in write queue",
-	          packet_get_request_signature(packet_signature, response),
-	          client_expand_info(client), client->write_queue.count);
-
-	if (client->write_queue.count == 0) {
-		// last queued response handled, deregister for write events
-		event_remove_source(client->io->handle, EVENT_SOURCE_TYPE_GENERIC, EVENT_WRITE);
-	}
-}
-
 static void client_handle_read(void *opaque) {
 	Client *client = opaque;
 	int length;
@@ -367,46 +334,20 @@ const char *client_get_authentication_state_name(ClientAuthenticationState state
 	}
 }
 
-static int client_push_response_to_write_queue(Client *client, Packet *response) {
-	Packet *queued_response;
-	char packet_signature[PACKET_MAX_SIGNATURE_LENGTH];
+static char *client_get_recipient_signature(char *signature, int upper, void *opaque) {
+	Client *client = opaque;
 
-	log_debug("Client ("CLIENT_INFO_FORMAT") is not ready to receive, pushing response to write queue (count: %d +1)",
-	          client_expand_info(client), client->write_queue.count);
+	snprintf(signature, WRITER_MAX_RECIPIENT_SIGNATURE_LENGTH,
+	         "%client ("CLIENT_INFO_FORMAT")",
+	         upper ? 'C' : 'c', client_expand_info(client));
 
-	if (client->write_queue.count >= MAX_QUEUED_WRITES) {
-		log_warn("Write queue for client ("CLIENT_INFO_FORMAT") is full, dropping %d queued response(s)",
-		         client_expand_info(client),
-		         client->write_queue.count - MAX_QUEUED_WRITES + 1);
+	return signature;
+}
 
-		while (client->write_queue.count >= MAX_QUEUED_WRITES) {
-			queue_pop(&client->write_queue, NULL);
-		}
-	}
+static void client_recipient_disconnect(void *opaque) {
+	Client *client = opaque;
 
-	queued_response = queue_push(&client->write_queue);
-
-	if (queued_response == NULL) {
-		log_error("Could not push response (%s) to write queue for client ("CLIENT_INFO_FORMAT"), discarding response: %s (%d)",
-		          packet_get_request_signature(packet_signature, response),
-		          client_expand_info(client),
-		          get_errno_name(errno), errno);
-
-		return -1;
-	}
-
-	memcpy(queued_response, response, response->header.length);
-
-	if (client->write_queue.count == 1) {
-		// first queued response, register for write events
-		if (event_add_source(client->io->handle, EVENT_SOURCE_TYPE_GENERIC,
-		                     EVENT_WRITE, client_handle_write, client) < 0) {
-			// FIXME: how to handle this error?
-			return -1;
-		}
-	}
-
-	return 0;
+	client->disconnected = 1;
 }
 
 int client_create(Client *client, const char *name, IO *io,
@@ -440,9 +381,12 @@ int client_create(Client *client, const char *name, IO *io,
 
 	phase = 1;
 
-	// create write queue
-	if (queue_create(&client->write_queue, sizeof(Packet)) < 0) {
-		log_error("Could not create write queue: %s (%d)",
+	// create response writer
+	if (writer_create(&client->response_writer, client->io,
+	                  "response", packet_get_response_signature,
+	                  "client", client_get_recipient_signature,
+	                  client_recipient_disconnect, client) < 0) {
+		log_error("Could not create response writer: %s (%d)",
 		          get_errno_name(errno), errno);
 
 		goto cleanup;
@@ -461,7 +405,7 @@ int client_create(Client *client, const char *name, IO *io,
 cleanup:
 	switch (phase) { // no breaks, all cases fall through intentionally
 	case 2:
-		queue_destroy(&client->write_queue, NULL);
+		writer_destroy(&client->response_writer);
 
 	case 1:
 		array_destroy(&client->pending_requests, NULL);
@@ -479,17 +423,13 @@ void client_destroy(Client *client) {
 		         client_expand_info(client), client->pending_requests.count);
 	}
 
-	if (client->write_queue.count > 0) {
-		log_warn("Destroying client ("CLIENT_INFO_FORMAT") while %d response(s) have not been send",
-		         client_expand_info(client), client->write_queue.count);
-	}
+	writer_destroy(&client->response_writer);
 
-	event_remove_source(client->io->handle, EVENT_SOURCE_TYPE_GENERIC, -1);
+	event_remove_source(client->io->handle, EVENT_SOURCE_TYPE_GENERIC, EVENT_READ);
 	io_destroy(client->io);
 	free(client->io);
 
 	array_destroy(&client->pending_requests, NULL);
-	queue_destroy(&client->write_queue, NULL);
 
 	if (client->destroy_done != NULL) {
 		client->destroy_done();
@@ -503,7 +443,6 @@ int client_dispatch_response(Client *client, Packet *response, int force,
 	PendingRequest *pending_request = NULL;
 	int found = -1;
 	int enqueued = 0;
-	char packet_signature[PACKET_MAX_SIGNATURE_LENGTH];
 	int rc = -1;
 #ifdef BRICKD_WITH_PROFILING
 	uint64_t elapsed;
@@ -538,30 +477,10 @@ int client_dispatch_response(Client *client, Packet *response, int force,
 	}
 
 	if (force || found >= 0) {
-		if (client->write_queue.count > 0) {
-			if (client_push_response_to_write_queue(client, response) < 0) {
-				goto cleanup;
-			}
+		enqueued = writer_write(&client->response_writer, response);
 
-			enqueued = 1;
-		} else {
-			if (io_write(client->io, response, response->header.length) < 0) {
-				if (!errno_would_block()) {
-					log_error("Could not send response (%s) to client ("CLIENT_INFO_FORMAT"), disconnecting client: %s (%d)",
-					          packet_get_request_signature(packet_signature, response),
-					          client_expand_info(client), get_errno_name(errno), errno);
-
-					client->disconnected = 1;
-
-					goto cleanup;
-				}
-
-				if (client_push_response_to_write_queue(client, response) < 0) {
-					goto cleanup;
-				}
-
-				enqueued = 1;
-			}
+		if (enqueued < 0) {
+			goto cleanup;
 		}
 
 		if (force) {

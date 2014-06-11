@@ -135,7 +135,8 @@ SOURCES_DAEMONLIB := ../daemonlib/array.c \
                      ../daemonlib/packet.c \
                      ../daemonlib/queue.c \
                      ../daemonlib/socket.c \
-                     ../daemonlib/utils.c
+                     ../daemonlib/utils.c \
+                     ../daemonlib/writer.c
 
 SOURCES_BRICKD := base64.c \
                   client.c \

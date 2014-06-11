@@ -34,9 +34,9 @@
 #include "network.h"
 #include "stack.h"
 
-#define LOG_CATEGORY LOG_CATEGORY_OTHER
+#define LOG_CATEGORY LOG_CATEGORY_OTHER // FIXME: add a RED_BRICK category?
 
-#define MAX_QUEUED_WRITES 512
+#define UDS_FILENAME "/var/run/redapid.uds"
 
 typedef struct {
 	Stack base;
@@ -46,7 +46,7 @@ typedef struct {
 	Packet response;
 	int response_used;
 	int response_header_checked;
-	Queue write_queue;
+	Writer request_writer;
 } REDBrickAPIDaemon;
 
 static REDBrickAPIDaemon _redapid;
@@ -54,41 +54,6 @@ static int _redapid_connected = 0;
 
 static int redapid_connect(void);
 static void redapid_disconnect(void);
-
-static void redapid_handle_write(void *opaque) {
-	Packet *response;
-	char packet_signature[PACKET_MAX_SIGNATURE_LENGTH];
-
-	(void)opaque;
-
-	if (_redapid.write_queue.count == 0) {
-		return;
-	}
-
-	response = queue_peek(&_redapid.write_queue);
-
-	if (socket_send(&_redapid.socket, response, response->header.length) < 0) {
-		log_error("Could not send queued response (%s) to RED Brick API Daemon, disconnecting redapid: %s (%d)",
-		          packet_get_request_signature(packet_signature, response),
-		          get_errno_name(errno), errno);
-
-		redapid_disconnect();
-		redapid_connect();
-
-		return;
-	}
-
-	queue_pop(&_redapid.write_queue, NULL);
-
-	log_debug("Sent queued response (%s) to RED Brick API Daemon, %d response(s) left in write queue",
-	          packet_get_request_signature(packet_signature, response),
-	          _redapid.write_queue.count);
-
-	if (_redapid.write_queue.count == 0) {
-		// last queued response handled, deregister for write events
-		event_remove_source(_redapid.socket.base.handle, EVENT_SOURCE_TYPE_GENERIC, EVENT_WRITE);
-	}
-}
 
 static void redapid_handle_read(void *opaque) {
 	int length;
@@ -118,7 +83,7 @@ static void redapid_handle_read(void *opaque) {
 		} else if (errno_would_block()) {
 			log_debug("Receiving from RED Brick API Daemon would block, retrying");
 		} else {
-			log_error("Could not receive from RED Brick API Daemon, disconnecting from redapid: %s (%d)",
+			log_error("Could not receive from RED Brick API Daemon, disconnecting redapid: %s (%d)",
 			          get_errno_name(errno), errno);
 
 			redapid_disconnect();
@@ -138,7 +103,7 @@ static void redapid_handle_read(void *opaque) {
 
 		if (!_redapid.response_header_checked) {
 			if (!packet_header_is_valid_response(&_redapid.response.header, &message)) {
-				log_error("Got invalid response (%s) from RED Brick API Daemon, disconnecting from redapid: %s",
+				log_error("Got invalid response (%s) from RED Brick API Daemon, disconnecting redapid: %s",
 				          packet_get_response_signature(packet_signature, &_redapid.response),
 				          message);
 
@@ -177,49 +142,8 @@ static void redapid_handle_read(void *opaque) {
 	}
 }
 
-static int redapid_push_request_to_write_queue(Packet *request) {
-	Packet *queued_request;
-	char packet_signature[PACKET_MAX_SIGNATURE_LENGTH];
-
-	log_debug("RED Brick API Daemon is not ready to receive, pushing request to write queue (count: %d +1)",
-	          _redapid.write_queue.count);
-
-	if (_redapid.write_queue.count >= MAX_QUEUED_WRITES) {
-		log_warn("Write queue for RED Brick API Daemon is full, dropping %d queued request(s)",
-		         _redapid.write_queue.count - MAX_QUEUED_WRITES + 1);
-
-		while (_redapid.write_queue.count >= MAX_QUEUED_WRITES) {
-			queue_pop(&_redapid.write_queue, NULL);
-		}
-	}
-
-	queued_request = queue_push(&_redapid.write_queue);
-
-	if (queued_request == NULL) {
-		log_error("Could not push request (%s) to write queue for RED Brick API Daemon, discarding request: %s (%d)",
-		          packet_get_request_signature(packet_signature, request),
-		          get_errno_name(errno), errno);
-
-		return -1;
-	}
-
-	memcpy(queued_request, request, request->header.length);
-
-	if (_redapid.write_queue.count == 1) {
-		// first queued request, register for write events
-		if (event_add_source(_redapid.socket.base.handle, EVENT_SOURCE_TYPE_GENERIC,
-		                     EVENT_WRITE, redapid_handle_write, NULL) < 0) {
-			// FIXME: how to handle this error?
-			return -1;
-		}
-	}
-
-	return 0;
-}
-
 static int redapid_dispatch_request(REDBrickAPIDaemon *redapid, Packet *request) {
 	int enqueued = 0;
-	char packet_signature[PACKET_MAX_SIGNATURE_LENGTH];
 
 	(void)redapid;
 
@@ -229,37 +153,33 @@ static int redapid_dispatch_request(REDBrickAPIDaemon *redapid, Packet *request)
 		return 0;
 	}
 
-	if (_redapid.write_queue.count > 0) {
-		if (redapid_push_request_to_write_queue(request) < 0) {
-			return -1;
-		}
+	enqueued = writer_write(&_redapid.request_writer, request);
 
-		enqueued = 1;
-	} else {
-		if (socket_send(&_redapid.socket, request, request->header.length) < 0) {
-			if (!errno_would_block()) {
-				log_error("Could not send request (%s) to RED Brick API Daemon, disconnecting from redapid: %s (%d)",
-				          packet_get_request_signature(packet_signature, request),
-				          get_errno_name(errno), errno);
-
-				redapid_disconnect();
-				redapid_connect();
-
-				return -1;
-			}
-
-			if (redapid_push_request_to_write_queue(request) < 0) {
-				return -1;
-			}
-
-			enqueued = 1;
-		}
+	if (enqueued < 0) {
+		return -1;
 	}
 
-	log_debug("%s response to RED Brick API Daemon",
+	log_debug("%s request to RED Brick API Daemon",
 	          enqueued ? "Enqueued" : "Sent");
 
 	return 0;
+}
+
+static char *redapid_get_recipient_signature(char *signature, int upper, void *opaque) {
+	(void)upper;
+	(void)opaque;
+
+	snprintf(signature, WRITER_MAX_RECIPIENT_SIGNATURE_LENGTH,
+	         "RED Brick API Daemon");
+
+	return signature;
+}
+
+static void redapid_recipient_disconnect(void *opaque) {
+	(void)opaque;
+
+	redapid_disconnect();
+	redapid_connect();
 }
 
 static int redapid_connect(void) {
@@ -272,16 +192,6 @@ static int redapid_connect(void) {
 
 	log_debug("Connecting to RED Brick API Daemon");
 
-	// create write queue
-	if (queue_create(&_redapid.write_queue, sizeof(Packet)) < 0) {
-		log_error("Could not create write queue: %s (%d)",
-		          get_errno_name(errno), errno);
-
-		goto cleanup;
-	}
-
-	phase = 1;
-
 	// create socket
 	if (socket_create(&_redapid.socket) < 0) {
 		log_error("Could not create socket: %s (%d)",
@@ -290,7 +200,7 @@ static int redapid_connect(void) {
 		goto cleanup;
 	}
 
-	phase = 2;
+	phase = 1;
 
 	if (socket_open(&_redapid.socket, AF_UNIX, SOCK_STREAM, 0) < 0) {
 		log_error("Could not open UNIX domain socket: %s (%d)",
@@ -301,11 +211,11 @@ static int redapid_connect(void) {
 
 	// connect socket
 	address.sun_family = AF_UNIX;
-	strcpy(address.sun_path, "/var/run/redapid.uds");
+	strcpy(address.sun_path, UDS_FILENAME);
 
 	if (socket_connect(&_redapid.socket, (struct sockaddr *)&address, sizeof(address)) < 0) {
-		log_error("Could not connect UNIX domain socket to '/var/run/redapid.uds': %s (%d)",
-		          get_errno_name(errno), errno);
+		log_error("Could not connect UNIX domain socket to '%s': %s (%d)",
+		          UDS_FILENAME, get_errno_name(errno), errno);
 
 		goto cleanup;
 	}
@@ -313,6 +223,19 @@ static int redapid_connect(void) {
 	// add socket as event source
 	if (event_add_source(_redapid.socket.base.handle, EVENT_SOURCE_TYPE_GENERIC,
 	                     EVENT_READ, redapid_handle_read, NULL) < 0) {
+		goto cleanup;
+	}
+
+	phase = 2;
+
+	// create request writer
+	if (writer_create(&_redapid.request_writer, &_redapid.socket.base,
+	                  "request", packet_get_request_signature,
+	                  "redapid", redapid_get_recipient_signature,
+	                  redapid_recipient_disconnect, NULL) < 0) {
+		log_error("Could not create request writer: %s (%d)",
+		          get_errno_name(errno), errno);
+
 		goto cleanup;
 	}
 
@@ -325,10 +248,10 @@ static int redapid_connect(void) {
 cleanup:
 	switch (phase) { // no breaks, all cases fall through intentionally
 	case 2:
-		socket_destroy(&_redapid.socket);
+		event_remove_source(_redapid.socket.base.handle, EVENT_SOURCE_TYPE_GENERIC, EVENT_READ);
 
 	case 1:
-		queue_destroy(&_redapid.write_queue, NULL);
+		socket_destroy(&_redapid.socket);
 
 	default:
 		break;
@@ -338,15 +261,10 @@ cleanup:
 }
 
 static void redapid_disconnect(void) {
-	if (_redapid.write_queue.count > 0) {
-		log_warn("Disconnecting from RED Brick API Daemon while %d response(s) have not been send",
-		         _redapid.write_queue.count);
-	}
+	writer_destroy(&_redapid.request_writer);
 
-	event_remove_source(_redapid.socket.base.handle, EVENT_SOURCE_TYPE_GENERIC, -1);
+	event_remove_source(_redapid.socket.base.handle, EVENT_SOURCE_TYPE_GENERIC, EVENT_READ);
 	socket_destroy(&_redapid.socket);
-
-	queue_destroy(&_redapid.write_queue, NULL);
 
 	_redapid_connected = 0;
 }

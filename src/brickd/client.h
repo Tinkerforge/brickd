@@ -32,7 +32,9 @@
 #include <daemonlib/array.h>
 #include <daemonlib/io.h>
 #include <daemonlib/packet.h>
-#include <daemonlib/queue.h>
+#include <daemonlib/writer.h>
+
+#define CLIENT_MAX_NAME_LENGTH 128
 
 typedef struct _Client Client;
 
@@ -45,8 +47,6 @@ typedef enum {
 
 typedef void (*ClientDestroyDoneFunction)(void);
 
-#define CLIENT_MAX_NAME_LENGTH 128
-
 struct _Client {
 	char name[CLIENT_MAX_NAME_LENGTH]; // for display purpose
 	IO *io;
@@ -55,9 +55,9 @@ struct _Client {
 	int request_used;
 	int request_header_checked;
 	Array pending_requests;
+	Writer response_writer;
 	ClientAuthenticationState authentication_state;
 	uint32_t authentication_nonce; // server
-	Queue write_queue;
 	ClientDestroyDoneFunction destroy_done;
 };
 
