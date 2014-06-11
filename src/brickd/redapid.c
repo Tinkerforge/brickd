@@ -34,7 +34,7 @@
 #include "network.h"
 #include "stack.h"
 
-#define LOG_CATEGORY LOG_CATEGORY_OTHER // FIXME: add a RED_BRICK category?
+#define LOG_CATEGORY LOG_CATEGORY_RED_BRICK
 
 #define UDS_FILENAME "/var/run/redapid.uds"
 

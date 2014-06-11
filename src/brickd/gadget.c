@@ -28,7 +28,7 @@
  * client.
  *
  * the RED Brick enumeration process is splitted into multiple locations.
- * the enumerate-connected packet is send from hereto the USB gadget driver,
+ * the enumerate-connected packet is send from here to the USB gadget driver,
  * because only the brickd on the host side connected to the RED Brick should
  * receive the enumerate-connected for the RED Brick.
  *
@@ -52,7 +52,7 @@
 #include "file.h"
 #include "network.h"
 
-#define LOG_CATEGORY LOG_CATEGORY_NETWORK // FIXME: add a RED_BRICK category?
+#define LOG_CATEGORY LOG_CATEGORY_RED_BRICK
 
 #define G_RED_BRICK_STATE_FILENAME "/proc/g_red_brick_state"
 #define G_RED_BRICK_DATA_FILENAME "/dev/g_red_brick_data"
