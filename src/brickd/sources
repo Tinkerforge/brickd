@@ -25,6 +25,7 @@ SOURCES=..\daemonlib\array.c \
 	..\daemonlib\socket_winapi.c \
 	..\daemonlib\threads_winapi.c \
 	..\daemonlib\utils.c \
+	..\daemonlib\writer.c \
 	base64.c \
 	client.c \
 	config_options.c \

@@ -47,7 +47,8 @@
  ..\daemonlib\socket.c^
  ..\daemonlib\socket_winapi.c^
  ..\daemonlib\threads_winapi.c^
- ..\daemonlib\utils.c
+ ..\daemonlib\utils.c^
+ ..\daemonlib\writer.c
 
 %CC% /FIfixes_msvc.h^
  base64.c^
