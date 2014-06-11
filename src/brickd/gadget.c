@@ -145,7 +145,7 @@ static int gadget_connect(void) {
 	enumerate_callback.device_identifier = uint16_to_le(RED_BRICK_DEVICE_IDENTIFIER);
 	enumerate_callback.enumeration_type = ENUMERATION_TYPE_CONNECTED;
 
-	log_debug("Sending enumerate-connected callback to '%s'",
+	log_debug("Sending enumerate-connected callback for RED Brick to '%s'",
 	          G_RED_BRICK_DATA_FILENAME);
 
 	client_dispatch_response(_client, (Packet *)&enumerate_callback, 1, 0);
@@ -286,4 +286,8 @@ void gadget_exit(void) {
 	event_remove_source(_state_file.base.handle, EVENT_SOURCE_TYPE_GENERIC, EVENT_READ);
 
 	file_destroy(&_state_file);
+}
+
+uint32_t gadget_get_uid(void) {
+	return _uid;
 }

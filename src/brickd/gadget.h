@@ -22,9 +22,13 @@
 #ifndef BRICKD_GADGET_H
 #define BRICKD_GADGET_H
 
+#include <stdint.h>
+
 #define RED_BRICK_DEVICE_IDENTIFIER 17
 
 int gadget_init(void);
 void gadget_exit(void);
+
+uint32_t gadget_get_uid(void);
 
 #endif // BRICKD_GADGET_H

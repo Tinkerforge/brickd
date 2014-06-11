@@ -145,6 +145,9 @@ static void redapid_handle_read(void *opaque) {
 }
 
 static int redapid_dispatch_request(REDBrickAPIDaemon *redapid, Packet *request) {
+	char base58[BASE58_MAX_LENGTH];
+	uint32_t uid; // always little endian
+	EnumerateCallback enumerate_callback;
 	int enqueued = 0;
 
 	(void)redapid;
@@ -155,14 +158,45 @@ static int redapid_dispatch_request(REDBrickAPIDaemon *redapid, Packet *request)
 		return 0;
 	}
 
-	enqueued = writer_write(&_redapid.request_writer, request);
+	if (request->header.function_id == FUNCTION_ENUMERATE) {
+		uid = gadget_get_uid();
 
-	if (enqueued < 0) {
-		return -1;
+		log_debug("Got enumerate request, sending enumerate-avialable callback for RED Brick [%s]",
+		          base58_encode(base58, uint32_from_le(uid)));
+
+		// respond with enumerate-connected callback
+		memset(&enumerate_callback, 0, sizeof(enumerate_callback));
+
+		enumerate_callback.header.uid = uid;
+		enumerate_callback.header.length = sizeof(enumerate_callback);
+		enumerate_callback.header.function_id = CALLBACK_ENUMERATE;
+		packet_header_set_sequence_number(&enumerate_callback.header, 0);
+		packet_header_set_response_expected(&enumerate_callback.header, 1);
+
+		base58_encode(enumerate_callback.uid, uint32_from_le(uid));
+		enumerate_callback.connected_uid[0] = '0';
+		enumerate_callback.position = '0';
+		enumerate_callback.hardware_version[0] = 1;
+		enumerate_callback.hardware_version[1] = 0;
+		enumerate_callback.hardware_version[2] = 0;
+		enumerate_callback.firmware_version[0] = 2;
+		enumerate_callback.firmware_version[1] = 0;
+		enumerate_callback.firmware_version[2] = 0;
+		enumerate_callback.device_identifier = uint16_to_le(RED_BRICK_DEVICE_IDENTIFIER);
+		enumerate_callback.enumeration_type = ENUMERATION_TYPE_AVAILABLE;
+
+		network_dispatch_response((Packet *)&enumerate_callback);
+	} else {
+		// forward to redapid
+		enqueued = writer_write(&_redapid.request_writer, request);
+
+		if (enqueued < 0) {
+			return -1;
+		}
+
+		log_debug("%s request to RED Brick API Daemon",
+		          enqueued ? "Enqueued" : "Sent");
 	}
-
-	log_debug("%s request to RED Brick API Daemon",
-	          enqueued ? "Enqueued" : "Sent");
 
 	return 0;
 }
