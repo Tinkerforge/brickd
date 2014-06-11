@@ -215,7 +215,9 @@ int main(int argc, char **argv) {
 	log_set_level(LOG_CATEGORY_HOTPLUG, config_get_option("log_level.hotplug")->value.log_level);
 	log_set_level(LOG_CATEGORY_HARDWARE, config_get_option("log_level.hardware")->value.log_level);
 	log_set_level(LOG_CATEGORY_WEBSOCKET, config_get_option("log_level.websocket")->value.log_level);
+#ifdef BRICKD_WITH_RED_BRICK
 	log_set_level(LOG_CATEGORY_RED_BRICK, config_get_option("log_level.red_brick")->value.log_level);
+#endif
 	log_set_level(LOG_CATEGORY_OTHER, config_get_option("log_level.other")->value.log_level);
 
 	if (config_has_error()) {
