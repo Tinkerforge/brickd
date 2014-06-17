@@ -69,8 +69,8 @@ uint32_t get_random_uint32(void) {
 #ifdef _WIN32
 	HCRYPTPROV hprovider;
 
-	if (!CryptAcquireContext(&hprovider, NULL, NULL, PROV_RSA_FULL,
-	                         CRYPT_VERIFYCONTEXT | CRYPT_SILENT)) {
+	if (!CryptAcquireContextA(&hprovider, NULL, NULL, PROV_RSA_FULL,
+	                          CRYPT_VERIFYCONTEXT | CRYPT_SILENT)) {
 		goto fallback;
 	}
 

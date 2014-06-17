@@ -43,7 +43,7 @@ void fixes_init(void) {
 	HMODULE hmodule = NULL;
 
 	ptr_GetSystemTimePreciseAsFileTime =
-	  (GETSYSTEMTIMEPRECISEASFILETIME)GetProcAddress(GetModuleHandle("kernel32"),
+	  (GETSYSTEMTIMEPRECISEASFILETIME)GetProcAddress(GetModuleHandleA("kernel32"),
 	                                                 "GetSystemTimePreciseAsFileTime");
 
 	// _putenv_s is not avialable on Windows XP by default, so find _putenv_s
@@ -53,9 +53,9 @@ void fixes_init(void) {
 	// function instead. disable warning C4054 for this call, otherwise MSVC
 	// will complain about a function to data pointer cast here.
 #pragma warning(disable: 4054)
-	GetModuleHandleEx(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS |
-	                  GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
-	                  (LPCSTR)getenv, &hmodule);
+	GetModuleHandleExA(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS |
+	                   GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+	                   (LPCSTR)getenv, &hmodule);
 #pragma warning(default: 4054)
 
 	ptr_putenv_s = (PUTENV_S)GetProcAddress(hmodule, "_putenv_s");

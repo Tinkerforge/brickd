@@ -101,7 +101,7 @@ static int get_process_image_name(PROCESSENTRY32 entry, char *buffer, DWORD leng
 	}
 
 	query_full_process_image_name =
-	  (QUERYFULLPROCESSIMAGENAME)GetProcAddress(GetModuleHandle("kernel32"),
+	  (QUERYFULLPROCESSIMAGENAME)GetProcAddress(GetModuleHandleA("kernel32"),
 	                                            "QueryFullProcessImageNameA");
 
 	if (query_full_process_image_name != NULL) {
