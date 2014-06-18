@@ -41,6 +41,7 @@ typedef struct {
 	Array read_transfers;
 	Array write_transfers;
 	Queue write_queue;
+	uint32_t dropped_requests;
 	int connected;
 	int active;
 } USBStack;

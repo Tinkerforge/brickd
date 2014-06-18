@@ -124,6 +124,7 @@ static int usb_stack_dispatch_request(USBStack *usb_stack, Packet *request) {
 	USBTransfer *usb_transfer;
 	Packet *queued_request;
 	char packet_signature[PACKET_MAX_SIGNATURE_LENGTH];
+	uint32_t requests_to_drop;
 
 	// find free write transfer
 	for (i = 0; i < usb_stack->write_transfers.count; ++i) {
@@ -149,9 +150,13 @@ static int usb_stack_dispatch_request(USBStack *usb_stack, Packet *request) {
 	          usb_stack->base.name, usb_stack->write_queue.count);
 
 	if (usb_stack->write_queue.count >= MAX_QUEUED_WRITES) {
-		log_warn("Write queue for %s is full, dropping %d queued request(s)",
-		         usb_stack->base.name,
-		         usb_stack->write_queue.count - MAX_QUEUED_WRITES + 1);
+		requests_to_drop = usb_stack->write_queue.count - MAX_QUEUED_WRITES + 1;
+
+		log_warn("Write queue for %s is full, dropping %u queued request(s), %u + %u dropped in total",
+		         usb_stack->base.name, requests_to_drop,
+		         usb_stack->dropped_requests, requests_to_drop);
+
+		usb_stack->dropped_requests += requests_to_drop;
 
 		while (usb_stack->write_queue.count >= MAX_QUEUED_WRITES) {
 			queue_pop(&usb_stack->write_queue, NULL);
@@ -193,6 +198,7 @@ int usb_stack_create(USBStack *usb_stack, uint8_t bus_number, uint8_t device_add
 
 	usb_stack->context = NULL;
 	usb_stack->device_handle = NULL;
+	usb_stack->dropped_requests = 0;
 	usb_stack->connected = 1;
 	usb_stack->active = 0;
 
