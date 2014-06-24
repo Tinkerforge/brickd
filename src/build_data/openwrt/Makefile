@@ -21,6 +21,7 @@ define Package/brickd2
 endef
 
 define Build/Prepare
+	$(Build/Prepare/Default)
 	if [ ! -d $(PKG_BUILD_DIR)/src/daemonlib ]; then git clone https://github.com/Tinkerforge/daemonlib.git $(PKG_BUILD_DIR)/src/daemonlib; fi
 endef
 
