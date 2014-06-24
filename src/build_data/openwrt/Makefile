@@ -20,6 +20,10 @@ define Package/brickd2
 	TITLE:=Tinkerforge Brick Daemon 2.0 (C implementation)
 endef
 
+define Build/Prepare
+	if [ ! -d $(PKG_BUILD_DIR)/src/daemonlib ]; then git clone https://github.com/Tinkerforge/daemonlib.git $(PKG_BUILD_DIR)/src/daemonlib; fi
+endef
+
 define Build/Compile
 	$(TARGET_CONFIGURE_OPTS) \
 		CFLAGS="$(TARGET_CFLAGS) -I$(STAGING_DIR)/usr/include -I$(PKG_BUILD_DIR)" \
