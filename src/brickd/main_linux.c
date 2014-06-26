@@ -43,6 +43,7 @@
 #include "network.h"
 #ifdef BRICKD_WITH_RED_BRICK
 	#include "redapid.h"
+	#include "red_stack.h"
 #endif
 #ifdef BRICKD_WITH_LIBUDEV
 	#include "udev.h"
@@ -272,6 +273,10 @@ int main(int argc, char **argv) {
 	if (redapid_init() < 0) {
 		goto error_redapid;
 	}
+
+	if (red_stack_init() < 0) {
+		goto error_red_stack;
+	}
 #endif
 
 	if (event_run(network_cleanup_clients) < 0) {
@@ -282,6 +287,9 @@ int main(int argc, char **argv) {
 
 error_run:
 #ifdef BRICKD_WITH_RED_BRICK
+	red_stack_exit();
+
+error_red_stack:
 	redapid_exit();
 
 error_redapid:
