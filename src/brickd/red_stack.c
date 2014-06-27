@@ -251,7 +251,7 @@ static int red_stack_spi_transceive_message(Packet *packet_send, Packet *packet_
     	length = packet_send->header.length;
     	if(length > sizeof(Packet)) {
     		retval |= RED_STACK_TRANSCEIVE_RESULT_SEND_ERROR;
-    		log_error("Send length is greater then allowed: %d > %d", length, sizeof(Packet));
+			log_error("Send length is greater then allowed: %d > %d", length, (int)sizeof(Packet));
     		goto ret;
     	}
 
@@ -725,7 +725,7 @@ int red_stack_init(void) {
 cleanup:
 	switch (phase) { // no breaks, all cases fall through intentionally
 	case 3:
-		event_remove_source(_red_stack_notification_pipe.read_end, EVENT_SOURCE_TYPE_GENERIC, EVENT_READ);
+		event_remove_source(_red_stack_notification_pipe.read_end, EVENT_SOURCE_TYPE_GENERIC);
 
 	case 2:
 		pipe_destroy(&_red_stack_notification_pipe);

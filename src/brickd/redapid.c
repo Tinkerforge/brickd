@@ -284,7 +284,7 @@ static int redapid_connect(void) {
 cleanup:
 	switch (phase) { // no breaks, all cases fall through intentionally
 	case 2:
-		event_remove_source(_redapid.socket.base.handle, EVENT_SOURCE_TYPE_GENERIC, EVENT_READ);
+		event_remove_source(_redapid.socket.base.handle, EVENT_SOURCE_TYPE_GENERIC);
 
 	case 1:
 		socket_destroy(&_redapid.socket);
@@ -299,7 +299,7 @@ cleanup:
 static void redapid_disconnect(void) {
 	writer_destroy(&_redapid.request_writer);
 
-	event_remove_source(_redapid.socket.base.handle, EVENT_SOURCE_TYPE_GENERIC, EVENT_READ);
+	event_remove_source(_redapid.socket.base.handle, EVENT_SOURCE_TYPE_GENERIC);
 	socket_destroy(&_redapid.socket);
 
 	_redapid_connected = 0;

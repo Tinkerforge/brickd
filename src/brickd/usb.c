@@ -183,7 +183,7 @@ static void LIBUSB_CALL usb_remove_pollfd(int fd, void *opaque) {
 
 	log_debug("Got told to remove libusb pollfd (handle: %d)", fd);
 
-	event_remove_source(fd, EVENT_SOURCE_TYPE_USB, -1);
+	event_remove_source(fd, EVENT_SOURCE_TYPE_USB);
 }
 
 int usb_init(int libusb_debug) {
@@ -220,7 +220,7 @@ int usb_init(int libusb_debug) {
 		log_debug("libusb can handle timeouts on its own");
 	}
 
-	// create USB stacks array, the USBStack struct is not relocatable, because
+	// create USB stack array. the USBStack struct is not relocatable, because
 	// its USB transfers keep a pointer to it
 	if (array_create(&_usb_stacks, 32, sizeof(USBStack), 0) < 0) {
 		log_error("Could not create USB stack array: %s (%d)",
@@ -396,7 +396,7 @@ cleanup:
 	switch (phase) { // no breaks, all cases fall through intentionally
 	case 2:
 		for (pollfd = pollfds; pollfd != last_added_pollfd; ++pollfd) {
-			event_remove_source((*pollfd)->fd, EVENT_SOURCE_TYPE_USB, -1);
+			event_remove_source((*pollfd)->fd, EVENT_SOURCE_TYPE_USB);
 		}
 
 	case 1:
@@ -427,7 +427,7 @@ void usb_destroy_context(libusb_context *context) {
 		log_error("Could not get pollfds from main libusb context");
 	} else {
 		for (pollfd = pollfds; *pollfd != NULL; ++pollfd) {
-			event_remove_source((*pollfd)->fd, EVENT_SOURCE_TYPE_USB, -1);
+			event_remove_source((*pollfd)->fd, EVENT_SOURCE_TYPE_USB);
 		}
 
 #ifdef _WIN32

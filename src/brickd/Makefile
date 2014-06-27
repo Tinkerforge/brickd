@@ -163,7 +163,6 @@ ifeq ($(PLATFORM),Windows)
 	                  usb_winapi.c
 else
 	SOURCES_DAEMONLIB += ../daemonlib/daemon.c \
-	                     ../daemonlib/event_posix.c \
 	                     ../daemonlib/log_posix.c \
 	                     ../daemonlib/pid_file.c \
 	                     ../daemonlib/pipe_posix.c \
@@ -178,10 +177,14 @@ ifeq ($(PLATFORM),Windows)
 endif
 
 ifeq ($(PLATFORM),Linux)
+	SOURCES_DAEMONLIB += ../daemonlib/event_linux.c
+
 	SOURCES_BRICKD += main_linux.c
 endif
 
 ifeq ($(PLATFORM),Darwin)
+	SOURCES_DAEMONLIB += ../daemonlib/event_posix.c
+
 	SOURCES_BRICKD += main_macosx.c \
 	                  iokit.c
 endif
@@ -195,6 +198,7 @@ ifeq ($(WITH_RED_BRICK),yes)
 	                  gadget.c \
 	                  redapid.c \
 	                  red_stack.c
+
 	SOURCES_DAEMONLIB += ../daemonlib/red_gpio.c
 endif
 

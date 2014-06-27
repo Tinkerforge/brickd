@@ -240,8 +240,8 @@ int network_init(void) {
 		_next_authentication_nonce = get_random_uint32();
 	}
 
-	// the Client struct is not relocatable, because it is passed by reference
-	// as opaque parameter to the event subsystem
+	// create client array. the Client struct is not relocatable, because a
+	// pointer to it is passed as opaque parameter to the event subsystem
 	if (array_create(&_clients, 32, sizeof(Client), 0) < 0) {
 		log_error("Could not create client array: %s (%d)",
 		          get_errno_name(errno), errno);
@@ -282,12 +282,12 @@ void network_exit(void) {
 	array_destroy(&_clients, (FreeFunction)client_destroy);
 
 	if (_server_socket_plain_open) {
-		event_remove_source(_server_socket_plain.base.handle, EVENT_SOURCE_TYPE_GENERIC, EVENT_READ);
+		event_remove_source(_server_socket_plain.base.handle, EVENT_SOURCE_TYPE_GENERIC);
 		socket_destroy(&_server_socket_plain);
 	}
 
 	if (_server_socket_websocket_open) {
-		event_remove_source(_server_socket_websocket.base.handle, EVENT_SOURCE_TYPE_GENERIC, EVENT_READ);
+		event_remove_source(_server_socket_websocket.base.handle, EVENT_SOURCE_TYPE_GENERIC);
 		socket_destroy(&_server_socket_websocket);
 	}
 }

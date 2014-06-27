@@ -426,7 +426,7 @@ void client_destroy(Client *client) {
 
 	writer_destroy(&client->response_writer);
 
-	event_remove_source(client->io->handle, EVENT_SOURCE_TYPE_GENERIC, EVENT_READ);
+	event_remove_source(client->io->handle, EVENT_SOURCE_TYPE_GENERIC);
 	io_destroy(client->io);
 	free(client->io);
 

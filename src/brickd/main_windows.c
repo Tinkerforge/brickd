@@ -714,7 +714,7 @@ error_notification:
 		message_pump_stop();
 	}
 
-	event_remove_source(_notification_pipe.read_end, EVENT_SOURCE_TYPE_GENERIC, EVENT_READ);
+	event_remove_source(_notification_pipe.read_end, EVENT_SOURCE_TYPE_GENERIC);
 
 error_pipe_add:
 	pipe_destroy(&_notification_pipe);

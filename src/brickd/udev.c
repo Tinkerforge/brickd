@@ -353,7 +353,7 @@ cleanup:
 void udev_exit(void) {
 	log_debug("Shutting down udev subsystem");
 
-	event_remove_source(_udev_monitor_fd, EVENT_SOURCE_TYPE_GENERIC, EVENT_READ);
+	event_remove_source(_udev_monitor_fd, EVENT_SOURCE_TYPE_GENERIC);
 
 	udev_monitor_unref(_udev_monitor);
 	udev_unref(_udev_context);

@@ -287,17 +287,7 @@ static void event_forward_usb_events(void *opaque) {
 			continue;
 		}
 
-		if (event_source->state != EVENT_SOURCE_STATE_NORMAL) {
-			log_debug("Ignoring %s event source (handle: %d, received events: %d) marked as removed at index %d",
-			          event_get_source_type_name(event_source->type, 0),
-			          event_source->handle, pollfd->revents, i);
-		} else {
-			log_debug("Handling %s event source (handle: %d, received events: %d) at index %d",
-			          event_get_source_type_name(event_source->type, 0),
-			          event_source->handle, pollfd->revents, i);
-
-			event_source->function(event_source->opaque);
-		}
+		event_handle_source(event_source, pollfd->revents);
 
 		++handled;
 	}
@@ -312,10 +302,10 @@ static void event_forward_usb_events(void *opaque) {
 	}
 }
 
-int event_init_platform(EventSIGUSR1Function function) {
+int event_init_platform(EventSIGUSR1Function sigusr1) {
 	int phase = 0;
 
-	(void)function;
+	(void)sigusr1;
 
 	// create read set
 	if (event_reserve_socket_set(&_socket_read_set, 32) < 0) {
@@ -418,7 +408,7 @@ cleanup:
 		usbi_close(_usb_poll_suspend_pipe[1]);
 
 	case 4:
-		event_remove_source(_stop_pipe.read_end, EVENT_SOURCE_TYPE_GENERIC, EVENT_READ);
+		event_remove_source(_stop_pipe.read_end, EVENT_SOURCE_TYPE_GENERIC);
 
 	case 3:
 		pipe_destroy(&_stop_pipe);
@@ -447,14 +437,30 @@ void event_exit_platform(void) {
 	usbi_close(_usb_poll_suspend_pipe[0]);
 	usbi_close(_usb_poll_suspend_pipe[1]);
 
-	event_remove_source(_stop_pipe.read_end, EVENT_SOURCE_TYPE_GENERIC, EVENT_READ);
+	event_remove_source(_stop_pipe.read_end, EVENT_SOURCE_TYPE_GENERIC);
 	pipe_destroy(&_stop_pipe);
 
 	free(_socket_write_set);
 	free(_socket_read_set);
 }
 
-int event_run_platform(Array *event_sources, int *running, EventCleanupFunction function) {
+int event_source_added_platform(EventSource *event_source) {
+	(void)event_source;
+
+	return 0;
+}
+
+int event_source_modified_platform(EventSource *event_source) {
+	(void)event_source;
+
+	return 0;
+}
+
+void event_source_removed_platform(EventSource *event_source) {
+	(void)event_source;
+}
+
+int event_run_platform(Array *event_sources, int *running, EventCleanupFunction cleanup) {
 	int result = -1;
 	int i;
 	EventSource *event_source;
@@ -465,7 +471,7 @@ int event_run_platform(Array *event_sources, int *running, EventCleanupFunction 
 	uint8_t byte = 1;
 	int rc;
 	int event_source_count;
-	int received_events;
+	uint32_t received_events;
 
 	if (event_add_source(_usb_poll_ready_pipe.read_end,
 	                     EVENT_SOURCE_TYPE_GENERIC, EVENT_READ,
@@ -479,7 +485,7 @@ int event_run_platform(Array *event_sources, int *running, EventCleanupFunction 
 
 	thread_create(&_usb_poll_thread, event_poll_usb_events, event_sources);
 
-	function();
+	cleanup();
 	event_cleanup_sources();
 
 	while (*running) {
@@ -601,19 +607,7 @@ int event_run_platform(Array *event_sources, int *running, EventCleanupFunction 
 				continue;
 			}
 
-			if (event_source->state != EVENT_SOURCE_STATE_NORMAL) {
-				log_debug("Ignoring %s event source (handle: %d, received events: %d) marked as removed at index %d",
-				          event_get_source_type_name(event_source->type, 0),
-				          event_source->handle, received_events, i);
-			} else {
-				log_debug("Handling %s event source (handle: %d, received events: %d) at index %d",
-				          event_get_source_type_name(event_source->type, 0),
-				          event_source->handle, received_events, i);
-
-				if (event_source->function != NULL) {
-					event_source->function(event_source->opaque);
-				}
-			}
+			event_handle_source(event_source, received_events);
 
 			++handled;
 
@@ -633,7 +627,7 @@ int event_run_platform(Array *event_sources, int *running, EventCleanupFunction 
 
 		// now cleanup event sources that got marked as disconnected/removed
 		// during the event handling
-		function();
+		cleanup();
 		event_cleanup_sources();
 	}
 
@@ -655,7 +649,7 @@ cleanup:
 
 	thread_destroy(&_usb_poll_thread);
 
-	event_remove_source(_usb_poll_ready_pipe.read_end, EVENT_SOURCE_TYPE_GENERIC, EVENT_READ);
+	event_remove_source(_usb_poll_ready_pipe.read_end, EVENT_SOURCE_TYPE_GENERIC);
 
 	return result;
 }

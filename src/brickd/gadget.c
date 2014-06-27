@@ -264,7 +264,7 @@ int gadget_init(void) {
 cleanup:
 	switch (phase) { // no breaks, all cases fall through intentionally
 	case 2:
-		event_remove_source(_state_file.base.handle, EVENT_SOURCE_TYPE_GENERIC, EVENT_READ);
+		event_remove_source(_state_file.base.handle, EVENT_SOURCE_TYPE_GENERIC);
 
 	case 1:
 		file_destroy(&_state_file);
@@ -283,7 +283,7 @@ void gadget_exit(void) {
 		gadget_disconnect();
 	}
 
-	event_remove_source(_state_file.base.handle, EVENT_SOURCE_TYPE_GENERIC, EVENT_READ);
+	event_remove_source(_state_file.base.handle, EVENT_SOURCE_TYPE_GENERIC);
 
 	file_destroy(&_state_file);
 }
