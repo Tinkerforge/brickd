@@ -542,7 +542,6 @@ int event_run_platform(Array *event_sources, int *running, EventCleanupFunction 
 				log_error("Could not write to USB suspend pipe");
 
 				_usb_poll_stuck = 1;
-				*running = 0;
 
 				goto cleanup;
 			}
@@ -553,7 +552,6 @@ int event_run_platform(Array *event_sources, int *running, EventCleanupFunction 
 				log_error("Could not read from USB suspend pipe");
 
 				_usb_poll_stuck = 1;
-				*running = 0;
 
 				goto cleanup;
 			}
@@ -570,8 +568,6 @@ int event_run_platform(Array *event_sources, int *running, EventCleanupFunction 
 			          event_get_source_type_name(EVENT_SOURCE_TYPE_GENERIC, 0),
 			          get_errno_name(rc), rc);
 
-			*running = 0;
-
 			goto cleanup;
 		}
 
@@ -585,7 +581,7 @@ int event_run_platform(Array *event_sources, int *running, EventCleanupFunction 
 		// sources that got added during the event handling
 		event_source_count = event_sources->count;
 
-		for (i = 0; i < event_source_count && ready > handled; ++i) {
+		for (i = 0; *running && i < event_source_count && ready > handled; ++i) {
 			event_source = array_get(event_sources, i);
 			received_events = 0;
 
@@ -608,10 +604,6 @@ int event_run_platform(Array *event_sources, int *running, EventCleanupFunction 
 			event_handle_source(event_source, received_events);
 
 			++handled;
-
-			if (!*running) {
-				break;
-			}
 		}
 
 		if (ready == handled) {
@@ -632,6 +624,8 @@ int event_run_platform(Array *event_sources, int *running, EventCleanupFunction 
 	result = 0;
 
 cleanup:
+	*running = 0;
+
 	if (_usb_poll_running && !_usb_poll_stuck) {
 		_usb_poll_running = 0;
 
