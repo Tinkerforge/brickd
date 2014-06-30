@@ -30,6 +30,7 @@
 #include <sys/ioctl.h>
 #include <linux/types.h>
 #include <linux/spi/spidev.h>
+#include <sys/eventfd.h>
 
 #include "network.h"
 #include "stack.h"
@@ -109,7 +110,7 @@ static int _red_stack_spi_fd = 0;
 static Thread _red_stack_spi_thread;
 static Semaphore _red_stack_dispatch_packet_from_spi_semaphore;
 static Mutex _red_stack_packet_queue_mutex;
-static Pipe _red_stack_notification_pipe;
+static int _red_stack_notification_event;
 
 typedef enum {
 	RED_STACK_SLAVE_STATUS_ABSENT = 0,
@@ -174,13 +175,12 @@ static const char *_red_stack_spi_device = "/dev/spidev0.0";
 
 // Get "red_stack_dispatch_from_spi" called from main brickd event thread
 static int red_stack_spi_request_dispatch_response_event(void) {
-	uint8_t byte = 0;
-	if(pipe_write(&_red_stack_notification_pipe, &byte, sizeof(byte)) < 0) {
-		log_error("Could not write to red stack spi notification pipe: %s (%d)",
-		          get_errno_name(errno), errno);
+	eventfd_t ev = 1;
+	if(eventfd_write(_red_stack_notification_event, ev) < 0) {
+		log_error("Could not write to red stack spi notification event: %s (%d)",
+				  get_errno_name(errno), errno);
 		return -1;
 	}
-//	PRINT_TIME("pipe");
 
 	return 0;
 }
@@ -242,11 +242,16 @@ static int red_stack_spi_transceive_message(Packet *packet_send, Packet *packet_
     // Preamble is always the same
     tx[RED_STACK_SPI_PREAMBLE] = RED_STACK_SPI_PREAMBLE_VALUE;
 
-    if(packet_send == NULL || slave->status == RED_STACK_SLAVE_STATUS_AVAILABLE_BUSY) {
-    	// If packet_send is NULL or the slave is known to be busy
+    if(packet_send == NULL) {
+    	// If packet_send is NULL
     	// we send a message with empty payload (4 byte)
         tx[RED_STACK_SPI_LENGTH] = 4;
         retval |= RED_STACK_TRANSCEIVE_RESULT_SEND_NONE;
+    } else if(slave->status == RED_STACK_SLAVE_STATUS_AVAILABLE_BUSY) {
+    	// If the slave is known to be busy
+    	// we also send a message with empty payload (4 byte)
+        tx[RED_STACK_SPI_LENGTH] = 4;
+        retval |= RED_STACK_TRANSCEIVE_RESULT_SEND_BUSY;
     } else if(slave->status == RED_STACK_SLAVE_STATUS_AVAILABLE) {
     	length = packet_send->header.length;
     	if(length > sizeof(Packet)) {
@@ -293,8 +298,10 @@ static int red_stack_spi_transceive_message(Packet *packet_send, Packet *packet_
 	if(rx[RED_STACK_SPI_PREAMBLE] != RED_STACK_SPI_PREAMBLE_VALUE) {
 		if(rx[RED_STACK_SPI_PREAMBLE] == 0) {
 			retval |= RED_STACK_TRANSCEIVE_RESULT_READ_NONE;
-			// I think we may not want to log this, it will flood the log otherwise
-			//log_debug("Received empty packet over SPI (w/o header)");
+			slave->status = RED_STACK_SLAVE_STATUS_AVAILABLE_BUSY;
+
+			// Do not log by default, will produce 2000 log entries per second
+			// log_debug("Received empty packet over SPI (w/o header)");
 			goto ret;
 		} else {
 			log_error("Received packet without proper preamble: %d != %d",
@@ -307,8 +314,9 @@ static int red_stack_spi_transceive_message(Packet *packet_send, Packet *packet_
 	// Check length
 	length = rx[RED_STACK_SPI_LENGTH];
 
-	if((length < (RED_STACK_SPI_PACKET_EMPTY_SIZE + sizeof(PacketHeader))) ||
-	   (length > RED_STACK_SPI_PACKET_SIZE)) {
+	if((length != RED_STACK_SPI_PACKET_EMPTY_SIZE) &&
+	   ((length < (RED_STACK_SPI_PACKET_EMPTY_SIZE + sizeof(PacketHeader))) ||
+	    (length > RED_STACK_SPI_PACKET_SIZE))) {
 		log_error("Received packet with malformed length: %d", length);
 		retval |= RED_STACK_TRANSCEIVE_RESULT_READ_ERROR;
 		goto ret;
@@ -327,11 +335,19 @@ static int red_stack_spi_transceive_message(Packet *packet_send, Packet *packet_
 	if(rx[RED_STACK_SPI_INFO(length)] & RED_STACK_SPI_INFO_BUSY) {
 		slave->status = RED_STACK_SLAVE_STATUS_AVAILABLE_BUSY;
 	} else {
-		slave->status = RED_STACK_SLAVE_STATUS_AVAILABLE;
+		if(retval & RED_STACK_TRANSCEIVE_DATA_SEND) {
+			// If we did send data this time, we have to assume
+			// that the receiver buffer of the slave is full the next time
+			// Regardless of what the slave is telling us.
+			slave->status = RED_STACK_SLAVE_STATUS_AVAILABLE_BUSY;
+		} else {
+			slave->status = RED_STACK_SLAVE_STATUS_AVAILABLE;
+		}
 	}
 
 	if(length == RED_STACK_SPI_PACKET_EMPTY_SIZE) {
-   		log_debug("Received empty packet over SPI (w/ header)");
+		// Do not log by default, will produce 2000 log entries per second
+   		// log_debug("Received empty packet over SPI (w/ header)");
    		retval |= RED_STACK_TRANSCEIVE_RESULT_READ_NONE;
 	} else {
 		// Everything seems OK, we can copy to buffer
@@ -390,11 +406,15 @@ static void red_stack_spi_create_routing_table() {
 
     	// Receive stack enumerate response
     	for(tries = 0; tries < RED_STACK_SPI_ROUTING_TRIES; tries++) {
+    		// Here we sleep in the beginning so that there is some time
+    		// between the sending of stack enumerate and the receiving
+    		// of the answer
+    		SLEEP_NS(RED_STACK_SPI_ROUTING_WAIT); // Give slave some more time
+
     		ret = red_stack_spi_transceive_message(NULL, &packet, slave);
     		if(ret & RED_STACK_TRANSCEIVE_DATA_RECEIVED) {
     			break;
     		}
-    		SLEEP_NS(RED_STACK_SPI_ROUTING_WAIT); // Give slave some more time
     	}
 
     	if(tries == RED_STACK_SPI_ROUTING_TRIES) {
@@ -412,7 +432,7 @@ static void red_stack_spi_create_routing_table() {
     			uid_counter++;
     			slave->uids[i] = response->uids[i];
     			stack_add_uid(&_red_stack.base, slave->uids[i]);
-    			log_debug("Found uid number %d of slave %d with uid %s",
+    			log_debug("Found UID number %d of slave %d with UID %s",
     			          i, stack_address,
     			          base58_encode(base58, uint32_from_le(slave->uids[i])));
     		} else {
@@ -472,7 +492,7 @@ static void red_stack_spi_thread(void *opaque) {
 		} else {
 			// Otherwise the request gets send
 			log_debug("Packet will now be send over SPI (%s)",
-			          packet_get_response_signature(packet_signature, &packet_to_spi->packet));
+			          packet_get_request_signature(packet_signature, &packet_to_spi->packet));
 
 			request = &packet_to_spi->packet;
 			slave = packet_to_spi->slave;
@@ -614,12 +634,11 @@ static int red_stack_init_spi(void) {
 
 // New packet from SPI stack is send into brickd event loop
 static void red_stack_dispatch_from_spi(void *opaque) {
-//	PRINT_TIME("event");
-	uint8_t byte;
+	eventfd_t ev;
 	(void)opaque;
 
-	if(pipe_read(&_red_stack_notification_pipe, &byte, sizeof(byte)) < 0) {
-		log_error("Could not read from SPI notification pipe: %s (%d)",
+	if(eventfd_read(_red_stack_notification_event, &ev) < 0) {
+		log_error("Could not read from SPI notification event: %s (%d)",
 		          get_errno_name(errno), errno);
 		return;
 	}
@@ -628,6 +647,7 @@ static void red_stack_dispatch_from_spi(void *opaque) {
 	// and allow SPI thread to run again.
 	network_dispatch_response(&_red_stack.packet_from_spi);
 	semaphore_release(&_red_stack_dispatch_packet_from_spi_semaphore);
+
 }
 
 // New packet from brickd event loop is queued to be written to stack via SPI
@@ -640,16 +660,15 @@ static void red_stack_dispatch_to_spi(Stack *stack, Packet *request) {
 		uint8_t is;
 		for(is = 0; is < _red_stack.slave_num; is++) {
 			mutex_lock(&_red_stack_packet_queue_mutex);
-
 			queued_request = queue_push(&_red_stack.packet_to_spi_queue);
 			queued_request->slave = &_red_stack.slaves[is];
 			memcpy(&queued_request->packet, request, request->header.length);
+			mutex_unlock(&_red_stack_packet_queue_mutex);
 
 			log_debug("Packet is queued to be broadcast to slave %d (%s)",
 					  is,
-					  packet_get_response_signature(packet_signature, request));
+					  packet_get_request_signature(packet_signature, request));
 
-			mutex_unlock(&_red_stack_packet_queue_mutex);
 		}
 	} else {
 		// Find slave for UID of packet
@@ -663,16 +682,15 @@ static void red_stack_dispatch_to_spi(Stack *stack, Packet *request) {
 		}
 
 		mutex_lock(&_red_stack_packet_queue_mutex);
-
 		queued_request = queue_push(&_red_stack.packet_to_spi_queue);
 		queued_request->slave = slave;
 		memcpy(&queued_request->packet, request, request->header.length);
+		mutex_unlock(&_red_stack_packet_queue_mutex);
 
 		log_debug("Packet is queued to be send to slave %d over SPI (%s)",
 		          slave->stack_address,
-		          packet_get_response_signature(packet_signature, request));
+		          packet_get_request_signature(packet_signature, request));
 
-		mutex_unlock(&_red_stack_packet_queue_mutex);
 	}
 }
 
@@ -699,9 +717,8 @@ int red_stack_init(void) {
 
 	phase = 2;
 
-	// Create notification pipe
-	if(pipe_create(&_red_stack_notification_pipe) < 0) {
-		log_error("Could not create red stack notification pipe: %s (%d)",
+	if((_red_stack_notification_event = eventfd(0, 0)) < 0) {
+		log_error("Could not create red stack notification event: %s (%d)",
 		          get_errno_name(errno), errno);
 		goto cleanup;
 	}
@@ -710,8 +727,8 @@ int red_stack_init(void) {
 
 	// Add notification pipe as event source.
 	// Event is used to dispatch packets.
-	if(event_add_source(_red_stack_notification_pipe.read_end, EVENT_SOURCE_TYPE_GENERIC,
-	                     EVENT_READ, red_stack_dispatch_from_spi, NULL) < 0) {
+	if(event_add_source(_red_stack_notification_event, EVENT_SOURCE_TYPE_GENERIC,
+	                    EVENT_READ, red_stack_dispatch_from_spi, NULL) < 0) {
 		log_error("Could not add red stack notification pipe as event source");
 		goto cleanup;
 	}
@@ -725,10 +742,10 @@ int red_stack_init(void) {
 cleanup:
 	switch (phase) { // no breaks, all cases fall through intentionally
 	case 3:
-		event_remove_source(_red_stack_notification_pipe.read_end, EVENT_SOURCE_TYPE_GENERIC);
+		event_remove_source(_red_stack_notification_event, EVENT_SOURCE_TYPE_GENERIC);
 
 	case 2:
-		pipe_destroy(&_red_stack_notification_pipe);
+		close(_red_stack_notification_event);
 
 	case 1:
 		stack_destroy(&_red_stack.base);
@@ -741,14 +758,32 @@ cleanup:
 }
 
 void red_stack_exit(void) {
+	int slave;
+
+	// Remove event as possible poll source
+	event_remove_source(_red_stack_notification_event, EVENT_SOURCE_TYPE_GENERIC);
+
+	// Make sure that Thread shuts down properly
 	if(_red_stack_spi_thread_running != 0) {
 		_red_stack_spi_thread_running = 0;
+		// Write in eventfd to make sure that we are not blocking the Thread
+		eventfd_t ev = 1;
+		eventfd_write(_red_stack_notification_event, ev);
+
 		thread_join(&_red_stack_spi_thread);
 		thread_destroy(&_red_stack_spi_thread);
 	}
 
+	// Thread is not running anymore, we make sure that all slaves are deselected
+	for(slave = 0; slave < RED_STACK_SPI_MAX_SLAVES; slave++) {
+		red_stack_spi_deselect(&_red_stack.slaves[slave]);
+	}
+
+	// We can also free the queue and stack now, nobody will use them anymore
+	queue_destroy(&_red_stack.packet_to_spi_queue, NULL);
+	stack_destroy(&_red_stack.base);
+
+	// Close file descriptors
+	close(_red_stack_notification_event);
 	close(_red_stack_spi_fd);
-
-
-	// TODO: Clean up all the things!
 }
