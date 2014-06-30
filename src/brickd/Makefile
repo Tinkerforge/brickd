@@ -166,6 +166,7 @@ else
 	                     ../daemonlib/log_posix.c \
 	                     ../daemonlib/pid_file.c \
 	                     ../daemonlib/pipe_posix.c \
+	                     ../daemonlib/signal.c \
 	                     ../daemonlib/socket_posix.c \
 	                     ../daemonlib/threads_posix.c
 

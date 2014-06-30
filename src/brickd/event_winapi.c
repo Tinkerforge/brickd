@@ -302,10 +302,8 @@ static void event_forward_usb_events(void *opaque) {
 	}
 }
 
-int event_init_platform(EventSIGUSR1Function sigusr1) {
+int event_init_platform(void) {
 	int phase = 0;
-
-	(void)sigusr1;
 
 	// create read set
 	if (event_reserve_socket_set(&_socket_read_set, 32) < 0) {

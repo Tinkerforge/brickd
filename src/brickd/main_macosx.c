@@ -32,6 +32,7 @@
 #include <daemonlib/event.h>
 #include <daemonlib/log.h>
 #include <daemonlib/pid_file.h>
+#include <daemonlib/signal.h>
 #include <daemonlib/utils.h>
 
 #include "hardware.h"
@@ -236,8 +237,12 @@ int main(int argc, char **argv) {
 		          CONFIG_FILENAME);
 	}
 
-	if (event_init(handle_sigusr1) < 0) {
+	if (event_init() < 0) {
 		goto error_event;
+	}
+
+	if (signal_init(handle_sigusr1) < 0) {
+		goto error_signal;
 	}
 
 	if (hardware_init() < 0) {
@@ -275,6 +280,9 @@ error_usb:
 	hardware_exit();
 
 error_hardware:
+	signal_exit();
+
+error_signal:
 	event_exit();
 
 error_event:

@@ -623,7 +623,7 @@ error_mutex:
 		goto error_event;
 	}
 
-	if (event_init(NULL) < 0) {
+	if (event_init() < 0) {
 		// FIXME: set service_exit_code
 		goto error_event;
 	}
