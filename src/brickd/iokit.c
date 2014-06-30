@@ -62,7 +62,7 @@ static void iokit_forward_notifications(void *opaque) {
 static void iokit_handle_notifications(void *opaque, io_service_t service,
                                        uint32_t message_type, void *message_argument) {
 	io_connect_t *root_port = opaque;
-	uint8_t byte;
+	uint8_t byte = 0;
 
 	(void)service;
 
