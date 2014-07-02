@@ -665,7 +665,7 @@ static void red_stack_dispatch_to_spi(Stack *stack, Packet *request) {
 			memcpy(&queued_request->packet, request, request->header.length);
 			mutex_unlock(&_red_stack_packet_queue_mutex);
 
-			log_debug("Packet is queued to be broadcast to slave %d (%s)",
+			log_debug("Request is queued to be broadcast to slave %d (%s)",
 					  is,
 					  packet_get_request_signature(packet_signature, request));
 
@@ -675,7 +675,7 @@ static void red_stack_dispatch_to_spi(Stack *stack, Packet *request) {
 		REDStackSlave *slave = red_stack_spi_get_slave_for_uid(request->header.uid);
 		if(slave == NULL) {
 			char base58[BASE58_MAX_LENGTH];
-			log_error("Could not find UID %s in list of known SPI UIDs, discarding message",
+			log_debug("Could not find UID %s in list of known SPI UIDs, discarding request",
 			          base58_encode(base58, uint32_from_le(request->header.uid)));
 
 			return;
