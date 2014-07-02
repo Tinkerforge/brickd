@@ -257,7 +257,8 @@ static int red_stack_spi_transceive_message(Packet *packet_send, Packet *packet_
     	length = packet_send->header.length;
     	if(length > sizeof(Packet)) {
     		retval |= RED_STACK_TRANSCEIVE_RESULT_SEND_ERROR;
-			log_error("Send length is greater then allowed: %d > %d", length, (int)sizeof(Packet));
+			log_error("Send length is greater then allowed (actual: %d > maximum: %d)",
+			          length, (int)sizeof(Packet));
     		goto ret;
     	}
 
@@ -302,7 +303,8 @@ static int red_stack_spi_transceive_message(Packet *packet_send, Packet *packet_
 		// Overwrite current return status with error,
 		// it seems ioctl itself didn't work.
 		retval = RED_STACK_TRANSCEIVE_RESULT_SEND_ERROR | RED_STACK_TRANSCEIVE_RESULT_READ_ERROR;
-    	log_error("ioctl has unexpected return: %d != %d", length_send, RED_STACK_SPI_PACKET_SIZE);
+		log_error("ioctl has unexpected result (actual: %d != expected: %d)",
+		          length_send, RED_STACK_SPI_PACKET_SIZE);
 		goto ret;
 	}
 
@@ -315,7 +317,7 @@ static int red_stack_spi_transceive_message(Packet *packet_send, Packet *packet_
 			// log_debug("Received empty packet over SPI (w/o header)");
 			goto ret;
 		} else {
-			log_error("Received packet without proper preamble: %d != %d",
+			log_error("Received packet without proper preamble (actual: %d != expected: %d)",
 			          rx[RED_STACK_SPI_PREAMBLE], RED_STACK_SPI_PREAMBLE_VALUE);
 			retval |= RED_STACK_TRANSCEIVE_RESULT_READ_ERROR;
 			goto ret;
@@ -336,9 +338,8 @@ static int red_stack_spi_transceive_message(Packet *packet_send, Packet *packet_
 	// Calculate and check checksum
 	checksum = red_stack_spi_calculate_pearson_hash(rx, length-1);
 	if(checksum != rx[RED_STACK_SPI_CHECKSUM(length)]) {
-		log_error("Received packet with wrong checksum: %x != %x",
-		          checksum,
-		          rx[RED_STACK_SPI_CHECKSUM(length)]);
+		log_error("Received packet with wrong checksum (actual: %x != expected: %x)",
+		          checksum, rx[RED_STACK_SPI_CHECKSUM(length)]);
 		retval |= RED_STACK_TRANSCEIVE_RESULT_READ_ERROR;
 		goto ret;
 	}
