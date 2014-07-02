@@ -25,25 +25,24 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <getopt.h>
 #include <fcntl.h>
 #include <sys/ioctl.h>
 #include <linux/types.h>
 #include <linux/spi/spidev.h>
 #include <sys/eventfd.h>
 
+#include <daemonlib/threads.h>
+#include <daemonlib/packet.h>
+#include <daemonlib/pipe.h>
+#include <daemonlib/log.h>
+#include <daemonlib/red_gpio.h>
+#include <daemonlib/event.h>
+
+#include "red_stack.h"
+
 #include "network.h"
 #include "stack.h"
 #include "hardware.h"
-
-#include "../daemonlib/threads.h"
-#include "../daemonlib/packet.h"
-#include "../daemonlib/pipe.h"
-#include "../daemonlib/log.h"
-#include "../daemonlib/red_gpio.h"
-#include "../daemonlib/event.h"
-
-#include "red_stack.h"
 
 #define LOG_CATEGORY LOG_CATEGORY_RED_BRICK
 
@@ -457,7 +456,7 @@ static void red_stack_spi_create_routing_table() {
     }
     _red_stack.slave_num = stack_address;
 
-	log_debug("SPI stack slave discovery done. Found %d slave(s) with %d uid(s) in total",
+	log_debug("SPI stack slave discovery done. Found %d slave(s) with %d UID(s) in total",
 	          stack_address, uid_counter);
 }
 
@@ -574,13 +573,6 @@ static int red_stack_init_spi(void) {
 	const uint8_t bits_per_word = RED_STACK_SPI_CONFIG_BITS_PER_WORD;
 	const uint32_t max_speed_hz = RED_STACK_SPI_CONFIG_MAX_SPEED_HZ;
 
-	// Initialize SPI packet queue
-	if(queue_create(&_red_stack.packet_to_spi_queue, sizeof(REDStackPacket)) < 0) {
-		log_error("Could not create SPI queue: %s (%d)",
-		          get_errno_name(errno), errno);
-		return -1;
-	}
-
 	// Initialize GPIO (stack select/deselect)
 	if(gpio_init() < 0) {
 		log_error("Could not initialize RED Brick GPIO");
@@ -630,15 +622,8 @@ static int red_stack_init_spi(void) {
 		return -1;
 	}
 
-	if(semaphore_create(&_red_stack_dispatch_packet_from_spi_semaphore) < 0) {
-		log_error("Could not create SPI request semaphore: %s (%d)",
-		          get_errno_name(errno), errno);
-		return -1;
-	}
-
-	mutex_create(&_red_stack_packet_queue_mutex);
-
 	// Create SPI packet transceive thread
+	// FIXME: maybe handshake thread start?
 	thread_create(&_red_stack_spi_thread, red_stack_spi_thread, NULL);
 
 	return 0;
@@ -744,20 +729,51 @@ int red_stack_init(void) {
 		log_error("Could not add red stack notification pipe as event source");
 		goto cleanup;
 	}
+
+	phase = 4;
+
+	// Initialize SPI packet queue
+	if(queue_create(&_red_stack.packet_to_spi_queue, sizeof(REDStackPacket)) < 0) {
+		log_error("Could not create SPI queue: %s (%d)",
+		          get_errno_name(errno), errno);
+		goto cleanup;
+	}
+
+	phase = 5;
+
+	if(semaphore_create(&_red_stack_dispatch_packet_from_spi_semaphore) < 0) {
+		log_error("Could not create SPI request semaphore: %s (%d)",
+		          get_errno_name(errno), errno);
+		goto cleanup;
+	}
+
+	mutex_create(&_red_stack_packet_queue_mutex);
+
+	phase = 6;
+
 	if(red_stack_init_spi() < 0) {
 		goto cleanup;
 	}
 
-	phase = 4;
-
+	phase = 7;
 
 cleanup:
 	switch (phase) { // no breaks, all cases fall through intentionally
-	case 3:
+	case 6:
+		mutex_destroy(&_red_stack_packet_queue_mutex);
+		semaphore_destroy(&_red_stack_dispatch_packet_from_spi_semaphore);
+
+	case 5:
+		queue_destroy(&_red_stack.packet_to_spi_queue, NULL);
+
+	case 4:
 		event_remove_source(_red_stack_notification_event, EVENT_SOURCE_TYPE_GENERIC);
 
-	case 2:
+	case 3:
 		close(_red_stack_notification_event);
+
+	case 2:
+		hardware_remove_stack(&_red_stack.base);
 
 	case 1:
 		stack_destroy(&_red_stack.base);
@@ -766,7 +782,7 @@ cleanup:
 		break;
 	}
 
-	return phase == 4 ? 0 : -1;
+	return phase == 7 ? 0 : -1;
 }
 
 void red_stack_exit(void) {
@@ -793,7 +809,11 @@ void red_stack_exit(void) {
 
 	// We can also free the queue and stack now, nobody will use them anymore
 	queue_destroy(&_red_stack.packet_to_spi_queue, NULL);
+	hardware_remove_stack(&_red_stack.base);
 	stack_destroy(&_red_stack.base);
+
+	mutex_destroy(&_red_stack_packet_queue_mutex);
+	semaphore_destroy(&_red_stack_dispatch_packet_from_spi_semaphore);
 
 	// Close file descriptors
 	close(_red_stack_notification_event);
