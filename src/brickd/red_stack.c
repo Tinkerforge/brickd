@@ -231,6 +231,7 @@ static int red_stack_spi_transceive_message(Packet *packet_send, Packet *packet_
 	int retval = 0;
 	uint8_t length, length_send;
 	uint8_t checksum;
+	int rc;
 
     uint8_t tx[RED_STACK_SPI_PACKET_SIZE] = {0};
     uint8_t rx[RED_STACK_SPI_PACKET_SIZE] = {0};
@@ -284,8 +285,18 @@ static int red_stack_spi_transceive_message(Packet *packet_send, Packet *packet_
     };
 
 	red_stack_spi_select(slave);
-	length_send = ioctl(_red_stack_spi_fd, SPI_IOC_MESSAGE(1), &spi_transfer);
+	rc = ioctl(_red_stack_spi_fd, SPI_IOC_MESSAGE(1), &spi_transfer);
 	red_stack_spi_deselect(slave);
+
+	if (rc < 0) {
+		// Overwrite current return status with error,
+		// it seems ioctl itself didn't work.
+		retval = RED_STACK_TRANSCEIVE_RESULT_SEND_ERROR | RED_STACK_TRANSCEIVE_RESULT_READ_ERROR;
+		log_error("ioctl failed: %s (%d)", get_errno_name(errno), errno);
+		goto ret;
+	}
+
+	length_send = rc;
 
 	if(length_send != RED_STACK_SPI_PACKET_SIZE) {
 		// Overwrite current return status with error,
