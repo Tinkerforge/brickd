@@ -109,7 +109,7 @@ int stack_knows_uid(Stack *stack, uint32_t uid /* always little endian */) {
 
 // returns -1 on error, 0 if the request was not dispatched and 1 if it was dispatch
 int stack_dispatch_request(Stack *stack, Packet *request, int force) {
-	if (!stack_knows_uid(stack, request->header.uid) && !force) {
+	if (!force && !stack_knows_uid(stack, request->header.uid)) {
 		return 0;
 	}
 
