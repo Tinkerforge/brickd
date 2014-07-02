@@ -406,6 +406,7 @@ typedef enum {
 	LOG_LEVEL_DEBUG
 } LogLevel;
 
+// keep in sync with daemonlib/log.h
 typedef enum {
 	LOG_CATEGORY_EVENT = 0,
 	LOG_CATEGORY_USB,
@@ -415,6 +416,7 @@ typedef enum {
 	LOG_CATEGORY_WEBSOCKET,
 	LOG_CATEGORY_RED_BRICK,
 	LOG_CATEGORY_API,
+	LOG_CATEGORY_OBJECT,
 	LOG_CATEGORY_OTHER,
 	LOG_CATEGORY_LIBUSB = 255
 } LogCategory;
