@@ -101,6 +101,9 @@ static const uint8_t _red_stack_spi_pearson_permutation[RED_STACK_SPI_PEARSON_PE
 #define RED_STACK_TRANSCEIVE_RESULT_READ_NONE   (2 << 3)   // data has not been received because slave had none
 #define RED_STACK_TRANSCEIVE_RESULT_READ_OK     (3 << 3)   // data has been received
 
+#define RED_STACK_TRANSCEIVE_RESULT_MASK_SEND   0x7
+#define RED_STACK_TRANSCEIVE_RESULT_MASK_READ   0x38
+
 static char packet_signature[PACKET_MAX_SIGNATURE_LENGTH];
 
 static int _red_stack_spi_thread_running = 0;
@@ -316,8 +319,10 @@ static int red_stack_spi_transceive_message(Packet *packet_send, Packet *packet_
 			// log_debug("Received empty packet over SPI (w/o header)");
 			goto ret;
 		} else {
-			log_error("Received packet without proper preamble (actual: %d != expected: %d)",
-			          rx[RED_STACK_SPI_PREAMBLE], RED_STACK_SPI_PREAMBLE_VALUE);
+			// Do not log by default, an "unproper preamble" is part of the protocol
+			// is too busy to fill buffer fast enough
+			// log_error("Received packet without proper preamble (actual: %d != expected: %d)",
+			//          rx[RED_STACK_SPI_PREAMBLE], RED_STACK_SPI_PREAMBLE_VALUE);
 			retval |= RED_STACK_TRANSCEIVE_RESULT_READ_ERROR;
 			goto ret;
 		}
@@ -369,6 +374,12 @@ static int red_stack_spi_transceive_message(Packet *packet_send, Packet *packet_
 	}
 
 ret:
+	// IF we have any kind of error we assume that the slave is busy
+	if(((retval & RED_STACK_TRANSCEIVE_RESULT_MASK_SEND) == RED_STACK_TRANSCEIVE_RESULT_SEND_ERROR) ||
+	   ((retval & RED_STACK_TRANSCEIVE_RESULT_MASK_READ) == RED_STACK_TRANSCEIVE_RESULT_READ_ERROR)) {
+		slave->status = RED_STACK_SLAVE_STATUS_AVAILABLE_BUSY;
+	}
+
     return retval;
 }
 
@@ -514,13 +525,16 @@ static void red_stack_spi_thread(void *opaque) {
 		                                       slave);
 
 		if(ret & RED_STACK_TRANSCEIVE_DATA_SEND) {
-			// If we send a packet it must have come from the queue, so we can
-			// pop it from the queue now.
-			// If the sending didn't work (for whatever reason), we don't pop it
-			// and therefore we will automatically try to send it again in the next cycle.
-			mutex_lock(&_red_stack_packet_queue_mutex);
-			queue_pop(&_red_stack.packet_to_spi_queue, NULL);
-			mutex_unlock(&_red_stack_packet_queue_mutex);
+			if((!((ret & RED_STACK_TRANSCEIVE_RESULT_MASK_SEND) == RED_STACK_TRANSCEIVE_RESULT_SEND_ERROR)) &&
+			   (!((ret & RED_STACK_TRANSCEIVE_RESULT_MASK_READ) == RED_STACK_TRANSCEIVE_RESULT_READ_ERROR))) {
+				// If we send a packet it must have come from the queue, so we can
+				// pop it from the queue now.
+				// If the sending didn't work (for whatever reason), we don't pop it
+				// and therefore we will automatically try to send it again in the next cycle.
+				mutex_lock(&_red_stack_packet_queue_mutex);
+				queue_pop(&_red_stack.packet_to_spi_queue, NULL);
+				mutex_unlock(&_red_stack_packet_queue_mutex);
+			}
 		}
 
 		// If we received a packet, we will dispatch it immediately.
@@ -534,32 +548,10 @@ static void red_stack_spi_thread(void *opaque) {
 			semaphore_acquire(&_red_stack_dispatch_packet_from_spi_semaphore);
 		}
 
-		// Add the time to sleep between SPI communications (500us)
-		_red_stack.spi_deadline.tv_nsec += 1000*500;
-
-		// Normalize the time to account for the second boundary
-		if(_red_stack.spi_deadline.tv_nsec >= 1000000000) {
-			_red_stack.spi_deadline.tv_nsec -= 1000000000;
-			_red_stack.spi_deadline.tv_sec++;
-		}
-
-		// We sleep the absolute time difference between spi_deadline and
-		// the monotonic clock. If more then 500us have been passed since the last
-		// gettime, clock_nanosleep will return immediately.
-		clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &_red_stack.spi_deadline, NULL);
-
-		// We don't want to query the SPI slaves every 500us by all means possible.
-		// If we got out of sync we just start the query immediately and ignore it
-		// otherwise. This means that we have to get the new current time.
-		// Since the nanosleep functions only guarantee to sleep at least the amount
-		// of time specified, the real time between SPI queries will always be
-		// a bit higher then 500us (~about 550us-600us on average).
-		clock_gettime(CLOCK_MONOTONIC, &_red_stack.spi_deadline);
+		// TODO: Get sleep time between transfers through RED Brick API with a minimum of 50us
+		SLEEP_NS(1000*50);
 	}
 }
-
-
-
 
 
 // ----- RED STACK -----
