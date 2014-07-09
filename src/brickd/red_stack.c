@@ -320,7 +320,7 @@ static int red_stack_spi_transceive_message(Packet *packet_send, Packet *packet_
 			goto ret;
 		} else {
 			// Do not log by default, an "unproper preamble" is part of the protocol
-			// is too busy to fill buffer fast enough
+			// if the slave is too busy to fill the DMAbuffers fast enough
 			// log_error("Received packet without proper preamble (actual: %d != expected: %d)",
 			//          rx[RED_STACK_SPI_PREAMBLE], RED_STACK_SPI_PREAMBLE_VALUE);
 			retval |= RED_STACK_TRANSCEIVE_RESULT_READ_ERROR;
