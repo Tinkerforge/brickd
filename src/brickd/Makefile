@@ -29,9 +29,11 @@ WITH_RED_BRICK ?= no
 ifeq ($(OS),Windows_NT)
 	PLATFORM := Windows
 	RM := del /F /Q
+	FIX_PATH = $(subst /,\,$1)
 else
 	PLATFORM := $(shell uname)
 	RM := rm -f --
+	FIX_PATH = $1
 	INSTALL := install
 
 ifndef prefix
@@ -127,16 +129,16 @@ else
 	WITH_PM_UTILS := no
 endif
 
-SOURCES_DAEMONLIB := ../daemonlib/array.c \
-                     ../daemonlib/config.c \
-                     ../daemonlib/event.c \
-                     ../daemonlib/io.c \
-                     ../daemonlib/log.c \
-                     ../daemonlib/packet.c \
-                     ../daemonlib/queue.c \
-                     ../daemonlib/socket.c \
-                     ../daemonlib/utils.c \
-                     ../daemonlib/writer.c
+SOURCES_DAEMONLIB := $(call FIX_PATH,../daemonlib/array.c) \
+                     $(call FIX_PATH,../daemonlib/config.c) \
+                     $(call FIX_PATH,../daemonlib/event.c) \
+                     $(call FIX_PATH,../daemonlib/io.c) \
+                     $(call FIX_PATH,../daemonlib/log.c) \
+                     $(call FIX_PATH,../daemonlib/packet.c) \
+                     $(call FIX_PATH,../daemonlib/queue.c) \
+                     $(call FIX_PATH,../daemonlib/socket.c) \
+                     $(call FIX_PATH,../daemonlib/utils.c) \
+                     $(call FIX_PATH,../daemonlib/writer.c)
 
 SOURCES_BRICKD := base64.c \
                   client.c \
@@ -152,9 +154,9 @@ SOURCES_BRICKD := base64.c \
                   websocket.c
 
 ifeq ($(PLATFORM),Windows)
-	SOURCES_DAEMONLIB += ../daemonlib/pipe_winapi.c \
-	                     ../daemonlib/threads_winapi.c \
-	                     ../daemonlib/socket_winapi.c
+	SOURCES_DAEMONLIB += $(call FIX_PATH,../daemonlib/pipe_winapi.c) \
+	                     $(call FIX_PATH,../daemonlib/threads_winapi.c) \
+	                     $(call FIX_PATH,../daemonlib/socket_winapi.c)
 
 	SOURCES_BRICKD += event_winapi.c \
 	                  fixes_mingw.c \
