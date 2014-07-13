@@ -268,7 +268,7 @@ int network_init(void) {
 	if (!_server_socket_plain_open && !_server_socket_websocket_open) {
 		log_error("Could not open any socket to listen to");
 
-		array_destroy(&_clients, (FreeFunction)client_destroy);
+		array_destroy(&_clients, (ItemDestroyFunction)client_destroy);
 
 		return -1;
 	}
@@ -279,7 +279,7 @@ int network_init(void) {
 void network_exit(void) {
 	log_debug("Shutting down network subsystem");
 
-	array_destroy(&_clients, (FreeFunction)client_destroy);
+	array_destroy(&_clients, (ItemDestroyFunction)client_destroy);
 
 	if (_server_socket_plain_open) {
 		event_remove_source(_server_socket_plain.base.handle, EVENT_SOURCE_TYPE_GENERIC);
@@ -330,7 +330,7 @@ void network_cleanup_clients(void) {
 			log_debug("Removing disconnected client ("CLIENT_INFO_FORMAT")",
 			          client_expand_info(client));
 
-			array_remove(&_clients, i, (FreeFunction)client_destroy);
+			array_remove(&_clients, i, (ItemDestroyFunction)client_destroy);
 		}
 	}
 }

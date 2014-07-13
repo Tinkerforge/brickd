@@ -434,13 +434,13 @@ int usb_stack_create(USBStack *usb_stack, uint8_t bus_number, uint8_t device_add
 cleanup:
 	switch (phase) { // no breaks, all cases fall through intentionally
 	case 7:
-		array_destroy(&usb_stack->write_transfers, (FreeFunction)usb_transfer_destroy);
+		array_destroy(&usb_stack->write_transfers, (ItemDestroyFunction)usb_transfer_destroy);
 
 	case 6:
 		queue_destroy(&usb_stack->write_queue, NULL);
 
 	case 5:
-		array_destroy(&usb_stack->read_transfers, (FreeFunction)usb_transfer_destroy);
+		array_destroy(&usb_stack->read_transfers, (ItemDestroyFunction)usb_transfer_destroy);
 
 	case 4:
 		libusb_release_interface(usb_stack->device_handle, USB_BRICK_INTERFACE);
@@ -468,8 +468,8 @@ void usb_stack_destroy(USBStack *usb_stack) {
 
 	hardware_remove_stack(&usb_stack->base);
 
-	array_destroy(&usb_stack->read_transfers, (FreeFunction)usb_transfer_destroy);
-	array_destroy(&usb_stack->write_transfers, (FreeFunction)usb_transfer_destroy);
+	array_destroy(&usb_stack->read_transfers, (ItemDestroyFunction)usb_transfer_destroy);
+	array_destroy(&usb_stack->write_transfers, (ItemDestroyFunction)usb_transfer_destroy);
 
 	queue_destroy(&usb_stack->write_queue, NULL);
 
