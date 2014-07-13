@@ -7,25 +7,25 @@ MSC_WARNING_LEVEL=/W3
 !ENDIF
 USE_MSVCRT=1
 UMTYPE=console
-INCLUDES=..\build_data\Windows;..\build_data\Windows\libusb;$(DDK_INC_PATH)
+INCLUDES=..;..\daemonlib;..\build_data\Windows;..\build_data\Windows\libusb;$(DDK_INC_PATH)
 UMLIBS=..\build_data\Windows\libusb\libusb-1.0.lib
 C_DEFINES=$(C_DEFINES) /DWIN32_LEAN_AND_MEAN /DNDEBUG /DBRICKD_WDK_BUILD /DDAEMONLIB_WITH_LOGGING
 USER_C_FLAGS=$(USER_C_FLAGS) /O2 /wd4200 /wd4214 /FIfixes_msvc.h
 TARGETLIBS=$(SDK_LIB_PATH)\advapi32.lib $(SDK_LIB_PATH)\user32.lib $(SDK_LIB_PATH)\ws2_32.lib
-SOURCES=..\daemonlib\array.c \
-	..\daemonlib\config.c \
-	..\daemonlib\event.c \
-	..\daemonlib\event_winapi.c \
-	..\daemonlib\io.c \
-	..\daemonlib\log.c \
-	..\daemonlib\packet.c \
-	..\daemonlib\pipe_winapi.c \
-	..\daemonlib\queue.c \
-	..\daemonlib\socket.c \
-	..\daemonlib\socket_winapi.c \
-	..\daemonlib\threads_winapi.c \
-	..\daemonlib\utils.c \
-	..\daemonlib\writer.c \
+SOURCES=array.c \
+	config.c \
+	event.c \
+	event_winapi.c \
+	io.c \
+	log.c \
+	packet.c \
+	pipe_winapi.c \
+	queue.c \
+	socket.c \
+	socket_winapi.c \
+	threads_winapi.c \
+	utils.c \
+	writer.c \
 	base64.c \
 	client.c \
 	config_options.c \

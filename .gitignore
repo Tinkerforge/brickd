@@ -7,5 +7,6 @@ src/brickd/brickd
 src/brickd/brickd.exe
 src/brickd/log_messages.h
 src/brickd/log_messages.rc
+src/oacr_tmp
 src/tests/*_test
 src/tests/*_test.exe
