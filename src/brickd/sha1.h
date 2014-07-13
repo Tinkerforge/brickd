@@ -13,9 +13,9 @@
 #define SHA1_DIGEST_LENGTH 20
 
 typedef struct {
-    uint32_t state[5];
-    uint64_t count;
-    uint8_t buffer[SHA1_BLOCK_LENGTH];
+	uint32_t state[5];
+	uint64_t count;
+	uint8_t buffer[SHA1_BLOCK_LENGTH];
 } SHA1;
 
 void sha1_init(SHA1 *sha1);
