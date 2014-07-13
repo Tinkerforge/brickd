@@ -248,8 +248,6 @@ static void log_connect_named_pipe(void *opaque) {
 			}
 
 			if (GetLastError() != ERROR_IO_PENDING) {
-				rc = GetLastError();
-
 				DisconnectNamedPipe(_named_pipe);
 
 				log_info("Log Viewer disconnected");
