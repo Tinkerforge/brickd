@@ -29,9 +29,9 @@
 
 #include "redapid.h"
 
-#include "gadget.h"
 #include "hardware.h"
 #include "network.h"
+#include "red_usb_gadget.h"
 #include "stack.h"
 
 #define LOG_CATEGORY LOG_CATEGORY_RED_BRICK
@@ -159,7 +159,7 @@ static int redapid_dispatch_request(REDBrickAPIDaemon *redapid, Packet *request)
 	}
 
 	if (request->header.function_id == FUNCTION_ENUMERATE) {
-		uid = gadget_get_uid();
+		uid = red_usb_gadget_get_uid();
 
 		log_debug("Got enumerate request, sending enumerate-avialable callback for RED Brick [%s]",
 		          base58_encode(base58, uint32_from_le(uid)));

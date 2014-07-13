@@ -198,9 +198,9 @@ endif
 
 ifeq ($(WITH_RED_BRICK),yes)
 	SOURCES_BRICKD += file.c \
-	                  gadget.c \
 	                  redapid.c \
-	                  red_stack.c
+	                  red_stack.c \
+	                  red_usb_gadget.c
 
 	SOURCES_DAEMONLIB += ../daemonlib/red_gpio.c
 endif

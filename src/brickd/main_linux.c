@@ -37,14 +37,12 @@
 #include <daemonlib/signal.h>
 #include <daemonlib/utils.h>
 
-#ifdef BRICKD_WITH_RED_BRICK
-	#include "gadget.h"
-#endif
 #include "hardware.h"
 #include "network.h"
 #ifdef BRICKD_WITH_RED_BRICK
 	#include "redapid.h"
 	#include "red_stack.h"
+	#include "red_usb_gadget.h"
 #endif
 #ifdef BRICKD_WITH_LIBUDEV
 	#include "udev.h"
@@ -271,8 +269,8 @@ int main(int argc, char **argv) {
 	}
 
 #ifdef BRICKD_WITH_RED_BRICK
-	if (gadget_init() < 0) {
-		goto error_gadget;
+	if (red_usb_gadget_init() < 0) {
+		goto error_red_usb_gadget;
 	}
 
 	if (redapid_init() < 0) {
@@ -298,9 +296,9 @@ error_red_stack:
 	redapid_exit();
 
 error_redapid:
-	gadget_exit();
+	red_usb_gadget_exit();
 
-error_gadget:
+error_red_usb_gadget:
 #endif
 	network_exit();
 
