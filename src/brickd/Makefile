@@ -20,6 +20,7 @@ WITH_LIBUDEV ?= check
 WITH_LIBUDEV_DLOPEN ?= no
 WITH_LOGGING ?= yes
 WITH_PROFILING ?= no
+WITH_DEBUG ?= no
 WITH_USB_REOPEN_ON_SIGUSR1 ?= yes
 WITH_PM_UTILS ?= check
 WITH_RED_BRICK ?= no
@@ -219,8 +220,13 @@ else
 	DIST :=
 endif
 
-CFLAGS += -O2 -Wall -Wextra -I..
-#CFLAGS += -O0 -g -ggdb
+CFLAGS += -Wall -Wextra -I..
+
+ifeq ($(WITH_DEBUG),yes)
+	CFLAGS += -O0 -g -ggdb
+else
+	CFLAGS += -O2
+endif
 
 ifeq ($(PLATFORM),Windows)
 	CFLAGS += -DWIN32_LEAN_AND_MEAN -DNDEBUG -DWINVER=0x0501 -D_WIN32_WINNT=0x0501 -mconsole -include fixes_mingw.h
@@ -338,6 +344,7 @@ $(info - pm-utils:  $(PM_UTILS_STATUS))
 $(info features:)
 $(info - logging:   $(WITH_LOGGING))
 $(info - profiling: $(WITH_PROFILING))
+$(info - debug:     $(WITH_DEBUG))
 $(info - red-brick: $(WITH_RED_BRICK))
 $(info - hotplug:   $(HOTPLUG))
 endif
