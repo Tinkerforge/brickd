@@ -75,7 +75,7 @@ void websocket_frame_set_mask(WebsocketFrameHeader *header, int mask) {
 }
 
 int websocket_answer_handshake_error(Websocket *websocket) {
-	socket_send_platform(&websocket->base, WEBSOCKET_ERROR_STRING, strlen(WEBSOCKET_ERROR_STRING));
+	(void)socket_send_platform(&websocket->base, WEBSOCKET_ERROR_STRING, strlen(WEBSOCKET_ERROR_STRING));
 
 	return -1;
 }
