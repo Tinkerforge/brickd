@@ -97,9 +97,17 @@ static int prepare_paths(void) {
 			if (stat(brickd_dirname, &st) < 0) {
 				fprintf(stderr, "Could not stat '%s': %s (%d)\n",
 				        brickd_dirname, get_errno_name(errno), errno);
-			} else if (!S_ISDIR(st.st_mode)) {
-				fprintf(stderr, "'%s' is not a directory\n", brickd_dirname);
+
+				return -1;
 			}
+
+			if (!S_ISDIR(st.st_mode)) {
+				fprintf(stderr, "Expeting '%s' to be a directory\n", brickd_dirname);
+
+				return -1;
+			}
+
+			return 0;
 		} else {
 			fprintf(stderr, "Could not create '%s': %s (%d)\n",
 			        brickd_dirname, get_errno_name(errno), errno);
