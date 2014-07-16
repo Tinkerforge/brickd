@@ -71,7 +71,7 @@ static int daemon_start(void) {
 	pid_fd = pid_file_acquire(PID_FILENAME, getpid());
 
 	if (pid_fd < 0) {
-		if (pid_fd < -1) {
+		if (pid_fd == PID_FILE_ALREADY_ACQUIRED) {
 			fprintf(stderr, "Already running according to '%s'\n", PID_FILENAME);
 
 			status = 2;

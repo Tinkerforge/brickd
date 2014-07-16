@@ -198,7 +198,7 @@ int main(int argc, char **argv) {
 	}
 
 	if (pid_fd < 0) {
-		if (!daemon && pid_fd < -1) {
+		if (!daemon && pid_fd == PID_FILE_ALREADY_ACQUIRED) {
 			fprintf(stderr, "Already running according to '%s'\n", _pid_filename);
 		}
 
