@@ -82,6 +82,7 @@ int hardware_remove_stack(Stack *stack) {
 
 		if (candidate == stack) {
 			array_remove(&_stacks, i, NULL);
+
 			return 0;
 		}
 	}

@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2012-2013 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2012-2014 Matthias Bolte <matthias@tinkerforge.com>
  *
  * main_macosx.c: Brick Daemon starting point for Mac OS X
  *
@@ -58,81 +58,6 @@ static void print_usage(void) {
 	       "  --daemon        Run as daemon and write PID file\n"
 	       "  --debug         Set all log levels to debug\n"
 	       "  --libusb-debug  Set libusb log level to debug\n");
-}
-
-static int daemon_start(void) {
-	int8_t status = 0;
-	int pid_fd;
-	FILE *log_file;
-	int stdin_fd = -1;
-	int stdout_fd = -1;
-
-	// write pid
-	pid_fd = pid_file_acquire(PID_FILENAME, getpid());
-
-	if (pid_fd < 0) {
-		if (pid_fd < -1) {
-			fprintf(stderr, "Already running according to '%s'\n", PID_FILENAME);
-
-			status = 2;
-		}
-
-		goto cleanup;
-	}
-
-	// open log file
-	log_file = fopen(LOG_FILENAME, "a+");
-
-	if (log_file == NULL) {
-		fprintf(stderr, "Could not open log file '%s': %s (%d)\n",
-		        LOG_FILENAME, get_errno_name(errno), errno);
-
-		goto cleanup;
-	}
-
-	log_set_file(log_file);
-
-	// redirect standard file descriptors
-	stdin_fd = open("/dev/null", O_RDONLY);
-
-	if (stdin_fd < 0) {
-		fprintf(stderr, "Could not open /dev/null to redirect stdin to: %s (%d)\n",
-		        get_errno_name(errno), errno);
-
-		goto cleanup;
-	}
-
-	stdout_fd = fileno(log_file);
-
-	if (dup2(stdin_fd, STDIN_FILENO) != STDIN_FILENO) {
-		fprintf(stderr, "Could not redirect stdin: %s (%d)\n",
-		        get_errno_name(errno), errno);
-
-		goto cleanup;
-	}
-
-	if (dup2(stdout_fd, STDOUT_FILENO) != STDOUT_FILENO) {
-		fprintf(stderr, "Could not redirect stdout: %s (%d)\n",
-		        get_errno_name(errno), errno);
-
-		goto cleanup;
-	}
-
-	if (dup2(stdout_fd, STDERR_FILENO) != STDERR_FILENO) {
-		fprintf(stderr, "Could not redirect stderr: %s (%d)\n",
-		        get_errno_name(errno), errno);
-
-		goto cleanup;
-	}
-
-	status = 1;
-
-cleanup:
-	if (stdin_fd > STDERR_FILENO) {
-		close(stdin_fd);
-	}
-
-	return status == 1 ? pid_fd : -1;
 }
 
 static void handle_sigusr1(void) {
@@ -196,16 +121,16 @@ int main(int argc, char **argv) {
 	log_init();
 
 	if (daemon) {
-		pid_fd = daemon_start();
+		pid_fd = daemon_start(LOG_FILENAME, PID_FILENAME, 0);
 	} else {
 		pid_fd = pid_file_acquire(PID_FILENAME, getpid());
+
+		if (pid_fd == PID_FILE_ALREADY_ACQUIRED) {
+			fprintf(stderr, "Already running according to '%s'\n", PID_FILENAME);
+		}
 	}
 
 	if (pid_fd < 0) {
-		if (!daemon && pid_fd < -1) {
-			fprintf(stderr, "Already running according to '%s'\n", PID_FILENAME);
-		}
-
 		goto error_log;
 	}
 

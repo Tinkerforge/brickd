@@ -41,7 +41,7 @@ int test1(void) {
 		return -1;
 	}
 
-	if (strcmp(base58_encode(base58, 4294967295), "7xwQ9g") != 0) {
+	if (strcmp(base58_encode(base58, 4294967295U), "7xwQ9g") != 0) {
 		printf("test1: unexpected result from 4294967295\n");
 
 		return -1;
@@ -67,7 +67,7 @@ int test2(void) {
 		return -1;
 	}
 
-	if (base58_decode(&value, "7xwQ9g") < 0 || value != 4294967295) {
+	if (base58_decode(&value, "7xwQ9g") < 0 || value != 4294967295U) {
 		printf("test2: unexpected result from '7xwQ9g': %s (%d)\n",
 		       get_errno_name(errno), errno);
 

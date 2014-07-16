@@ -2,7 +2,7 @@
  * brickd
  * Copyright (C) 2014 Matthias Bolte <matthias@tinkerforge.com>
  *
- * gadget.h: Handling for the RED Brick USB gadget interface
+ * red_usb_gadget.h: RED Brick USB gadget interface
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,16 +19,16 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-#ifndef BRICKD_GADGET_H
-#define BRICKD_GADGET_H
+#ifndef BRICKD_RED_USB_GADGET_H
+#define BRICKD_RED_USB_GADGET_H
 
 #include <stdint.h>
 
 #define RED_BRICK_DEVICE_IDENTIFIER 17
 
-int gadget_init(void);
-void gadget_exit(void);
+int red_usb_gadget_init(void);
+void red_usb_gadget_exit(void);
 
-uint32_t gadget_get_uid(void);
+uint32_t red_usb_gadget_get_uid(void);
 
-#endif // BRICKD_GADGET_H
+#endif // BRICKD_RED_USB_GADGET_H

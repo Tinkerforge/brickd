@@ -37,14 +37,12 @@
 #include <daemonlib/signal.h>
 #include <daemonlib/utils.h>
 
-#ifdef BRICKD_WITH_RED_BRICK
-	#include "gadget.h"
-#endif
 #include "hardware.h"
 #include "network.h"
 #ifdef BRICKD_WITH_RED_BRICK
 	#include "redapid.h"
 	#include "red_stack.h"
+	#include "red_usb_gadget.h"
 #endif
 #ifdef BRICKD_WITH_LIBUDEV
 	#include "udev.h"
@@ -94,22 +92,26 @@ static int prepare_paths(void) {
 	snprintf(_pid_filename, sizeof(_pid_filename), "%s/.brickd/brickd.pid", home);
 	snprintf(_log_filename, sizeof(_log_filename), "%s/.brickd/brickd.log", home);
 
-	if (stat(brickd_dirname, &st) < 0) {
-		if (errno != ENOENT) {
-			fprintf(stderr, "Could not stat '%s': %s (%d)\n",
-			        brickd_dirname, get_errno_name(errno), errno);
+	if (mkdir(brickd_dirname, 0755) < 0) {
+		if (errno == EEXIST) {
+			if (stat(brickd_dirname, &st) < 0) {
+				fprintf(stderr, "Could not stat '%s': %s (%d)\n",
+				        brickd_dirname, get_errno_name(errno), errno);
 
-			return -1;
-		}
+				return -1;
+			}
 
-		if (mkdir(brickd_dirname, 0700) < 0 && errno != EEXIST) {
+			if (!S_ISDIR(st.st_mode)) {
+				fprintf(stderr, "Expeting '%s' to be a directory\n", brickd_dirname);
+
+				return -1;
+			}
+
+			return 0;
+		} else {
 			fprintf(stderr, "Could not create '%s': %s (%d)\n",
 			        brickd_dirname, get_errno_name(errno), errno);
-
-			return -1;
 		}
-	} else if (!S_ISDIR(st.st_mode)) {
-		fprintf(stderr, "'%s' is not a directory\n", brickd_dirname);
 
 		return -1;
 	}
@@ -185,7 +187,9 @@ int main(int argc, char **argv) {
 		return EXIT_SUCCESS;
 	}
 
-	prepare_paths();
+	if (prepare_paths() < 0) {
+		return EXIT_FAILURE;
+	}
 
 	if (check_config) {
 		return config_check(_config_filename) < 0 ? EXIT_FAILURE : EXIT_SUCCESS;
@@ -196,16 +200,16 @@ int main(int argc, char **argv) {
 	log_init();
 
 	if (daemon) {
-		pid_fd = daemon_start_double_fork(_log_filename, _pid_filename);
+		pid_fd = daemon_start(_log_filename, _pid_filename, 1);
 	} else {
 		pid_fd = pid_file_acquire(_pid_filename, getpid());
+
+		if (pid_fd == PID_FILE_ALREADY_ACQUIRED) {
+			fprintf(stderr, "Already running according to '%s'\n", _pid_filename);
+		}
 	}
 
 	if (pid_fd < 0) {
-		if (!daemon && pid_fd < -1) {
-			fprintf(stderr, "Already running according to '%s'\n", _pid_filename);
-		}
-
 		goto error_log;
 	}
 
@@ -271,8 +275,8 @@ int main(int argc, char **argv) {
 	}
 
 #ifdef BRICKD_WITH_RED_BRICK
-	if (gadget_init() < 0) {
-		goto error_gadget;
+	if (red_usb_gadget_init() < 0) {
+		goto error_red_usb_gadget;
 	}
 
 	if (redapid_init() < 0) {
@@ -298,9 +302,9 @@ error_red_stack:
 	redapid_exit();
 
 error_redapid:
-	gadget_exit();
+	red_usb_gadget_exit();
 
-error_gadget:
+error_red_usb_gadget:
 #endif
 	network_exit();
 

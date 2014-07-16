@@ -71,7 +71,7 @@ static const uint8_t _red_stack_spi_pearson_permutation[RED_STACK_SPI_PEARSON_PE
     140, 36, 210, 172, 41, 54, 159, 8, 185, 232, 113, 196, 231, 47, 146, 120,
     51, 65, 28, 144, 254, 221, 93, 189, 194, 139, 112, 43, 71, 109, 184, 209
 };
-#define PEARSON(cur, next) do{ cur = _red_stack_spi_pearson_permutation[cur ^ next]; }while(0)
+#define PEARSON(cur, next) do { cur = _red_stack_spi_pearson_permutation[cur ^ next]; } while(0)
 
 #define RED_STACK_SPI_PACKET_SIZE       84
 #define RED_STACK_SPI_PACKET_EMPTY_SIZE 4
@@ -180,7 +180,7 @@ static int red_stack_spi_request_dispatch_response_event(void) {
 	eventfd_t ev = 1;
 	if(eventfd_write(_red_stack_notification_event, ev) < 0) {
 		log_error("Could not write to red stack spi notification event: %s (%d)",
-				  get_errno_name(errno), errno);
+		          get_errno_name(errno), errno);
 		return -1;
 	}
 
@@ -373,7 +373,7 @@ ret:
 		slave->status = RED_STACK_SLAVE_STATUS_AVAILABLE_BUSY;
 	}
 
-    return retval;
+	return retval;
 }
 
 // Creates the "routing table", which is just the
@@ -648,8 +648,8 @@ static void red_stack_dispatch_to_spi(Stack *stack, Packet *request) {
 			mutex_unlock(&_red_stack_packet_queue_mutex);
 
 			log_debug("Request is queued to be broadcast to slave %d (%s)",
-					  is,
-					  packet_get_request_signature(packet_signature, request));
+			          is,
+			          packet_get_request_signature(packet_signature, request));
 
 		}
 	} else {
@@ -683,7 +683,7 @@ int red_stack_init(void) {
 
 	// create base stack
 	if(stack_create(&_red_stack.base, "red_stack",
-	                 (StackDispatchRequestFunction)red_stack_dispatch_to_spi) < 0) {
+	                (StackDispatchRequestFunction)red_stack_dispatch_to_spi) < 0) {
 		log_error("Could not create base stack for RED Brick SPI Stack: %s (%d)",
 		          get_errno_name(errno), errno);
 

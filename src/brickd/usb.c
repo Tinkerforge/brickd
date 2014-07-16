@@ -252,7 +252,7 @@ int usb_init(int libusb_debug) {
 cleanup:
 	switch (phase) { // no breaks, all cases fall through intentionally
 	case 3:
-		array_destroy(&_usb_stacks, (FreeFunction)usb_stack_destroy);
+		array_destroy(&_usb_stacks, (ItemDestroyFunction)usb_stack_destroy);
 
 	case 2:
 		usb_destroy_context(_context);
@@ -274,7 +274,7 @@ void usb_exit(void) {
 		usb_exit_hotplug(_context);
 	}
 
-	array_destroy(&_usb_stacks, (FreeFunction)usb_stack_destroy);
+	array_destroy(&_usb_stacks, (ItemDestroyFunction)usb_stack_destroy);
 
 	usb_destroy_context(_context);
 
@@ -315,7 +315,7 @@ int usb_rescan(void) {
 
 		usb_stack_announce_disconnect(usb_stack);
 
-		array_remove(&_usb_stacks, i, (FreeFunction)usb_stack_destroy);
+		array_remove(&_usb_stacks, i, (ItemDestroyFunction)usb_stack_destroy);
 	}
 
 	return 0;
@@ -338,7 +338,7 @@ int usb_reopen(void) {
 
 		usb_stack_announce_disconnect(usb_stack);
 
-		array_remove(&_usb_stacks, i, (FreeFunction)usb_stack_destroy);
+		array_remove(&_usb_stacks, i, (ItemDestroyFunction)usb_stack_destroy);
 	}
 
 	return usb_rescan();

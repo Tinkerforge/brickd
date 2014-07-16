@@ -69,19 +69,19 @@ static Array _usb_poll_pollfds;
 static int _usb_poll_pollfds_ready;
 static Thread _usb_poll_thread;
 
-static int event_reserve_socket_set(SocketSet **socket_set, int size) {
+static int event_reserve_socket_set(SocketSet **socket_set, int reserve) {
 	SocketSet *bytes;
 
-	if (*socket_set != NULL && (*socket_set)->allocated >= size) {
+	if (*socket_set != NULL && (*socket_set)->allocated >= reserve) {
 		return 0;
 	}
 
-	size = GROW_ALLOCATION(size);
+	reserve = GROW_ALLOCATION(reserve);
 
 	if (*socket_set != NULL) {
-		bytes = realloc(*socket_set, sizeof(SocketSet) + sizeof(SOCKET) * size);
+		bytes = realloc(*socket_set, sizeof(SocketSet) + sizeof(SOCKET) * reserve);
 	} else {
-		bytes = calloc(1, sizeof(SocketSet) + sizeof(SOCKET) * size);
+		bytes = calloc(1, sizeof(SocketSet) + sizeof(SOCKET) * reserve);
 	}
 
 	if (bytes == NULL) {
@@ -91,7 +91,7 @@ static int event_reserve_socket_set(SocketSet **socket_set, int size) {
 	}
 
 	*socket_set = bytes;
-	(*socket_set)->allocated = size;
+	(*socket_set)->allocated = reserve;
 
 	return 0;
 }
