@@ -200,16 +200,16 @@ int main(int argc, char **argv) {
 	log_init();
 
 	if (daemon) {
-		pid_fd = daemon_start_double_fork(_log_filename, _pid_filename);
+		pid_fd = daemon_start(_log_filename, _pid_filename, 1);
 	} else {
 		pid_fd = pid_file_acquire(_pid_filename, getpid());
+
+		if (pid_fd == PID_FILE_ALREADY_ACQUIRED) {
+			fprintf(stderr, "Already running according to '%s'\n", _pid_filename);
+		}
 	}
 
 	if (pid_fd < 0) {
-		if (!daemon && pid_fd == PID_FILE_ALREADY_ACQUIRED) {
-			fprintf(stderr, "Already running according to '%s'\n", _pid_filename);
-		}
-
 		goto error_log;
 	}
 
