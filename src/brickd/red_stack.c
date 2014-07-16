@@ -248,12 +248,12 @@ static int red_stack_spi_transceive_message(Packet *packet_send, Packet *packet_
     if(packet_send == NULL) {
     	// If packet_send is NULL
     	// we send a message with empty payload (4 byte)
-        tx[RED_STACK_SPI_LENGTH] = 4;
+        tx[RED_STACK_SPI_LENGTH] = RED_STACK_SPI_PACKET_EMPTY_SIZE;
         retval |= RED_STACK_TRANSCEIVE_RESULT_SEND_NONE;
     } else if(slave->status == RED_STACK_SLAVE_STATUS_AVAILABLE_BUSY) {
     	// If the slave is known to be busy
     	// we also send a message with empty payload (4 byte)
-        tx[RED_STACK_SPI_LENGTH] = 4;
+        tx[RED_STACK_SPI_LENGTH] = RED_STACK_SPI_PACKET_EMPTY_SIZE;
         retval |= RED_STACK_TRANSCEIVE_RESULT_SEND_BUSY;
     } else if(slave->status == RED_STACK_SLAVE_STATUS_AVAILABLE) {
     	length = packet_send->header.length;
@@ -311,21 +311,14 @@ static int red_stack_spi_transceive_message(Packet *packet_send, Packet *packet_
 	}
 
 	if(rx[RED_STACK_SPI_PREAMBLE] != RED_STACK_SPI_PREAMBLE_VALUE) {
-		if(rx[RED_STACK_SPI_PREAMBLE] == 0) {
-			retval |= RED_STACK_TRANSCEIVE_RESULT_READ_NONE;
-			slave->status = RED_STACK_SLAVE_STATUS_AVAILABLE_BUSY;
-
-			// Do not log by default, will produce 2000 log entries per second
-			// log_debug("Received empty packet over SPI (w/o header)");
-			goto ret;
-		} else {
-			// Do not log by default, an "unproper preamble" is part of the protocol
-			// if the slave is too busy to fill the DMAbuffers fast enough
-			// log_error("Received packet without proper preamble (actual: %d != expected: %d)",
-			//          rx[RED_STACK_SPI_PREAMBLE], RED_STACK_SPI_PREAMBLE_VALUE);
-			retval |= RED_STACK_TRANSCEIVE_RESULT_READ_ERROR;
-			goto ret;
-		}
+		// Do not log by default, an "unproper preamble" is part of the protocol
+		// if the slave is too busy to fill the DMA buffers fast enough
+		// log_error("Received packet without proper preamble (actual: %d != expected: %d)",
+		//          rx[RED_STACK_SPI_PREAMBLE], RED_STACK_SPI_PREAMBLE_VALUE);
+		retval |= RED_STACK_TRANSCEIVE_RESULT_READ_ERROR;
+		retval |= RED_STACK_TRANSCEIVE_RESULT_READ_NONE;
+		slave->status = RED_STACK_SLAVE_STATUS_AVAILABLE_BUSY;
+		goto ret;
 	}
 
 	// Check length
