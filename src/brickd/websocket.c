@@ -126,9 +126,14 @@ int websocket_parse_handshake_line(Websocket *websocket, char *line, int length)
 			sha1_update(&sha1, (uint8_t *)WEBSOCKET_SERVER_KEY, strlen(WEBSOCKET_SERVER_KEY));
 			sha1_final(&sha1, digest);
 
-			// BASE64 encode SHA1 digest
+			// Base64 encode SHA1 digest
 			base64_length = base64_encode((char *)digest, SHA1_DIGEST_LENGTH,
 			                              base64, WEBSOCKET_BASE64_DIGEST_LENGTH);
+
+			if (base64_length < 0) {
+				log_error("Base64 encoding failed");
+				return -1;
+			}
 
 			websocket->state = WEBSOCKET_STATE_HANDSHAKE_DONE;
 
