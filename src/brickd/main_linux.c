@@ -92,22 +92,18 @@ static int prepare_paths(void) {
 	snprintf(_pid_filename, sizeof(_pid_filename), "%s/.brickd/brickd.pid", home);
 	snprintf(_log_filename, sizeof(_log_filename), "%s/.brickd/brickd.log", home);
 
-	if (stat(brickd_dirname, &st) < 0) {
-		if (errno != ENOENT) {
-			fprintf(stderr, "Could not stat '%s': %s (%d)\n",
-			        brickd_dirname, get_errno_name(errno), errno);
-
-			return -1;
-		}
-
-		if (mkdir(brickd_dirname, 0700) < 0 && errno != EEXIST) {
+	if (mkdir(brickd_dirname, 0755) < 0) {
+		if (errno == EEXIST) {
+			if (stat(brickd_dirname, &st) < 0) {
+				fprintf(stderr, "Could not stat '%s': %s (%d)\n",
+				        brickd_dirname, get_errno_name(errno), errno);
+			} else if (!S_ISDIR(st.st_mode)) {
+				fprintf(stderr, "'%s' is not a directory\n", brickd_dirname);
+			}
+		} else {
 			fprintf(stderr, "Could not create '%s': %s (%d)\n",
 			        brickd_dirname, get_errno_name(errno), errno);
-
-			return -1;
 		}
-	} else if (!S_ISDIR(st.st_mode)) {
-		fprintf(stderr, "'%s' is not a directory\n", brickd_dirname);
 
 		return -1;
 	}
@@ -183,7 +179,9 @@ int main(int argc, char **argv) {
 		return EXIT_SUCCESS;
 	}
 
-	prepare_paths();
+	if (prepare_paths() < 0) {
+		return EXIT_FAILURE;
+	}
 
 	if (check_config) {
 		return config_check(_config_filename) < 0 ? EXIT_FAILURE : EXIT_SUCCESS;
