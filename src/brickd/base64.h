@@ -35,6 +35,6 @@
 
 #include <stdint.h>
 
-int32_t base64_encode(const char *in, int32_t in_len, char *out, int32_t out_len);
+int base64_encode(const char *in, int in_len, char *out, int out_len);
 
 #endif // BRICKD_BASE64_H
