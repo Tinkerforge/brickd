@@ -42,7 +42,6 @@ typedef struct {
 	Stack base;
 
 	Socket socket;
-	int disconnected;
 	Packet response;
 	int response_used;
 	int response_header_checked;
@@ -95,7 +94,7 @@ static void redapid_handle_read(void *opaque) {
 
 	_redapid.response_used += length;
 
-	while (!_redapid.disconnected && _redapid.response_used > 0) {
+	while (_redapid_connected && _redapid.response_used > 0) {
 		if (_redapid.response_used < (int)sizeof(PacketHeader)) {
 			// wait for complete header
 			break;
@@ -250,8 +249,8 @@ static int redapid_connect(void) {
 	strcpy(address.sun_path, UDS_FILENAME);
 
 	if (socket_connect(&_redapid.socket, (struct sockaddr *)&address, sizeof(address)) < 0) {
-		log_error("Could not connect UNIX domain socket to '%s': %s (%d)",
-		          UDS_FILENAME, get_errno_name(errno), errno);
+		log_warn("Could not connect UNIX domain socket to '%s': %s (%d)",
+		         UDS_FILENAME, get_errno_name(errno), errno);
 
 		goto cleanup;
 	}
@@ -306,8 +305,6 @@ static void redapid_disconnect(void) {
 }
 
 int redapid_init(void) {
-	int phase = 0;
-
 	log_debug("Initializing RED Brick API subsystem");
 
 	// create base stack
@@ -316,37 +313,23 @@ int redapid_init(void) {
 		log_error("Could not create base stack for RED Brick API Daemon: %s (%d)",
 		          get_errno_name(errno), errno);
 
-		goto cleanup;
+		return -1;
 	}
 
-	phase = 1;
-
-	if (redapid_connect() < 0) {
-		goto cleanup;
-	}
-
-	phase = 2;
+	redapid_connect();
 
 	// add to stacks array
 	if (hardware_add_stack(&_redapid.base) < 0) {
-		goto cleanup;
-	}
+		if (_redapid_connected) {
+			redapid_disconnect();
+		}
 
-	phase = 3;
-
-cleanup:
-	switch (phase) { // no breaks, all cases fall through intentionally
-	case 2:
-		redapid_disconnect();
-
-	case 1:
 		stack_destroy(&_redapid.base);
 
-	default:
-		break;
+		return -1;
 	}
 
-	return phase == 3 ? 0 : -1;
+	return  0;
 }
 
 void redapid_exit(void) {
