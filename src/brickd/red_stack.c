@@ -425,7 +425,7 @@ static void red_stack_spi_create_routing_table() {
 
     	response = (StackEnumerateResponse *)&packet;
 
-    	for(i = 0; i < PACKET_STACK_ENUMERATE_MAX_UIDS; i++) {
+    	for(i = 0; i < PACKET_MAX_STACK_ENUMERATE_UIDS; i++) {
     		if(response->uids[i] != 0) {
     			uid_counter++;
     			stack_add_recipient(&_red_stack.base, response->uids[i], stack_address);
