@@ -85,7 +85,8 @@ static void usb_stack_read_callback(USBTransfer *usb_transfer) {
 		          usb_transfer->usb_stack->base.name);
 	}
 
-	if (stack_add_uid(&usb_transfer->usb_stack->base, usb_transfer->packet.header.uid) < 0) {
+	if (stack_add_recipient(&usb_transfer->usb_stack->base,
+	                        usb_transfer->packet.header.uid, 0) < 0) {
 		return;
 	}
 
@@ -119,12 +120,15 @@ static void usb_stack_write_callback(USBTransfer *usb_transfer) {
 	}
 }
 
-static int usb_stack_dispatch_request(USBStack *usb_stack, Packet *request) {
+static int usb_stack_dispatch_request(USBStack *usb_stack, Packet *request,
+                                      Recipient *recipient) {
 	int i;
 	USBTransfer *usb_transfer;
 	Packet *queued_request;
 	char packet_signature[PACKET_MAX_SIGNATURE_LENGTH];
 	uint32_t requests_to_drop;
+
+	(void)recipient;
 
 	// find free write transfer
 	for (i = 0; i < usb_stack->write_transfers.count; ++i) {
@@ -488,22 +492,22 @@ void usb_stack_destroy(USBStack *usb_stack) {
 }
 
 void usb_stack_announce_disconnect(USBStack *usb_stack) {
-	int k;
-	uint32_t uid; // always little endian
+	int i;
+	Recipient *recipient;
 	EnumerateCallback enumerate_callback;
 
-	for (k = 0; k < usb_stack->base.uids.count; ++k) {
-		uid = *(uint32_t *)array_get(&usb_stack->base.uids, k);
+	for (i = 0; i < usb_stack->base.recipients.count; ++i) {
+		recipient = array_get(&usb_stack->base.recipients, i);
 
 		memset(&enumerate_callback, 0, sizeof(enumerate_callback));
 
-		enumerate_callback.header.uid = uid;
+		enumerate_callback.header.uid = recipient->uid;
 		enumerate_callback.header.length = sizeof(enumerate_callback);
 		enumerate_callback.header.function_id = CALLBACK_ENUMERATE;
 		packet_header_set_sequence_number(&enumerate_callback.header, 0);
 		packet_header_set_response_expected(&enumerate_callback.header, 1);
 
-		base58_encode(enumerate_callback.uid, uint32_from_le(uid));
+		base58_encode(enumerate_callback.uid, uint32_from_le(recipient->uid));
 		enumerate_callback.enumeration_type = ENUMERATION_TYPE_DISCONNECTED;
 
 		log_debug("Sending enumerate-disconnected callback (uid: %s)",

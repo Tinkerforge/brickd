@@ -131,7 +131,7 @@ static void redapid_handle_read(void *opaque) {
 			          packet_get_response_signature(packet_signature, &_redapid.response));
 		}
 
-		stack_add_uid(&_redapid.base, _redapid.response.header.uid);
+		stack_add_recipient(&_redapid.base, _redapid.response.header.uid, 0);
 
 		network_dispatch_response(&_redapid.response);
 
@@ -143,19 +143,15 @@ static void redapid_handle_read(void *opaque) {
 	}
 }
 
-static int redapid_dispatch_request(REDBrickAPIDaemon *redapid, Packet *request) {
+static int redapid_dispatch_request(REDBrickAPIDaemon *redapid, Packet *request,
+                                    Recipient *recipient) {
 	char base58[BASE58_MAX_LENGTH];
 	uint32_t uid; // always little endian
 	EnumerateCallback enumerate_callback;
 	int enqueued = 0;
 
 	(void)redapid;
-
-	if (!_redapid_connected) {
-		log_debug("Not connected to RED Brick API Daemon, ignoring request");
-
-		return 0;
-	}
+	(void)recipient;
 
 	if (request->header.function_id == FUNCTION_ENUMERATE) {
 		uid = red_usb_gadget_get_uid();
@@ -185,7 +181,7 @@ static int redapid_dispatch_request(REDBrickAPIDaemon *redapid, Packet *request)
 		enumerate_callback.enumeration_type = ENUMERATION_TYPE_AVAILABLE;
 
 		network_dispatch_response((Packet *)&enumerate_callback);
-	} else {
+	} else if (_redapid_connected) {
 		// forward to redapid
 		enqueued = writer_write(&_redapid.request_writer, request);
 
@@ -195,6 +191,8 @@ static int redapid_dispatch_request(REDBrickAPIDaemon *redapid, Packet *request)
 
 		log_debug("%s request to RED Brick API Daemon",
 		          enqueued ? "Enqueued" : "Sent");
+	} else {
+		log_debug("Not connected to RED Brick API Daemon, ignoring request");
 	}
 
 	return 0;

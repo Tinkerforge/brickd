@@ -124,8 +124,6 @@ typedef struct {
 	uint8_t stack_address;
 	REDStackSlaveStatus status;
 	GPIOPin slave_select_pin;
-	uint32_t uids[PACKET_STACK_ENUMERATE_MAX_UIDS]; // All UIDs always little endian
-	uint8_t uids_num;
 } REDStackSlave;
 
 typedef struct {
@@ -197,21 +195,6 @@ static uint8_t red_stack_spi_calculate_pearson_hash(const uint8_t *data, const u
     }
 
     return checksum;
-}
-
-// Returns the slave for a given UID, NULL if UID is unknown
-static REDStackSlave* red_stack_spi_get_slave_for_uid(const uint32_t uid) {
-	uint8_t is;
-	uint8_t iu;
-	for(is = 0; is < _red_stack.slave_num; is++) {
-		for(iu = 0; iu < _red_stack.slaves[is].uids_num; iu++) {
-			if(_red_stack.slaves[is].uids[iu] == uid) {
-				return &_red_stack.slaves[is];
-			}
-		}
-	}
-
-	return NULL;
 }
 
 static void red_stack_spi_select(REDStackSlave *slave) {
@@ -445,16 +428,14 @@ static void red_stack_spi_create_routing_table() {
     	for(i = 0; i < PACKET_STACK_ENUMERATE_MAX_UIDS; i++) {
     		if(response->uids[i] != 0) {
     			uid_counter++;
-    			slave->uids[i] = response->uids[i];
-    			stack_add_uid(&_red_stack.base, slave->uids[i]);
+    			stack_add_recipient(&_red_stack.base, response->uids[i], stack_address);
     			log_debug("Found UID number %d of slave %d with UID %s",
     			          i, stack_address,
-    			          base58_encode(base58, uint32_from_le(slave->uids[i])));
+    			          base58_encode(base58, uint32_from_le(response->uids[i])));
     		} else {
     			break;
     		}
     	}
-    	slave->uids_num = i;
 
     	stack_address++;
     }
@@ -551,7 +532,6 @@ static void red_stack_spi_thread(void *opaque) {
 // These functions run in brickd main thread
 
 static int red_stack_init_spi(void) {
-	int i;
 	uint8_t slave;
 	const uint8_t mode = RED_STACK_SPI_CONFIG_MODE;
 	const uint8_t lsb_first = RED_STACK_SPI_CONFIG_LSB_FIRST;
@@ -566,11 +546,6 @@ static int red_stack_init_spi(void) {
 
 	// Initialize slaves
 	for(slave = 0; slave < RED_STACK_SPI_MAX_SLAVES; slave++) {
-		for(i = 0; i < PACKET_STACK_ENUMERATE_MAX_UIDS; i++) {
-			_red_stack.slaves[slave].uids[i] = 0;
-		}
-
-		_red_stack.slaves[slave].uids_num = 0;
 		_red_stack.slaves[slave].stack_address = slave;
 		_red_stack.slaves[slave].status = RED_STACK_SLAVE_STATUS_ABSENT;
 		_red_stack.slaves[slave].slave_select_pin = _red_stack_slave_select_pins[slave];
@@ -633,7 +608,7 @@ static void red_stack_dispatch_from_spi(void *opaque) {
 }
 
 // New packet from brickd event loop is queued to be written to stack via SPI
-static void red_stack_dispatch_to_spi(Stack *stack, Packet *request) {
+static void red_stack_dispatch_to_spi(Stack *stack, Packet *request, Recipient *recipient) {
 	REDStackPacket *queued_request;
 	(void)stack;
 
@@ -652,16 +627,9 @@ static void red_stack_dispatch_to_spi(Stack *stack, Packet *request) {
 			          packet_get_request_signature(packet_signature, request));
 
 		}
-	} else {
-		// Find slave for UID of packet
-		REDStackSlave *slave = red_stack_spi_get_slave_for_uid(request->header.uid);
-		if(slave == NULL) {
-			char base58[BASE58_MAX_LENGTH];
-			log_debug("Could not find UID %s in list of known SPI UIDs, discarding request",
-			          base58_encode(base58, uint32_from_le(request->header.uid)));
-
-			return;
-		}
+	} else if (recipient != NULL) {
+		// Get slave for recipient opaque (== stack_address)
+		REDStackSlave *slave = &_red_stack.slaves[recipient->opaque];
 
 		mutex_lock(&_red_stack_packet_queue_mutex);
 		queued_request = queue_push(&_red_stack.packet_to_spi_queue);
@@ -672,7 +640,6 @@ static void red_stack_dispatch_to_spi(Stack *stack, Packet *request) {
 		log_debug("Packet is queued to be send to slave %d over SPI (%s)",
 		          slave->stack_address,
 		          packet_get_request_signature(packet_signature, request));
-
 	}
 }
 

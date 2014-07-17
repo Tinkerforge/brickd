@@ -49,8 +49,8 @@ int stack_create(Stack *stack, const char *name,
 
 	stack->dispatch_request = dispatch_request;
 
-	if (array_create(&stack->uids, 32, sizeof(uint32_t), 1) < 0) {
-		log_error("Could not create UID array: %s (%d)",
+	if (array_create(&stack->recipients, 32, sizeof(Recipient), 1) < 0) {
+		log_error("Could not create recipient array: %s (%d)",
 		          get_errno_name(errno), errno);
 
 		return -1;
@@ -60,60 +60,68 @@ int stack_create(Stack *stack, const char *name,
 }
 
 void stack_destroy(Stack *stack) {
-	array_destroy(&stack->uids, NULL);
+	array_destroy(&stack->recipients, NULL);
 }
 
-int stack_add_uid(Stack *stack, uint32_t uid /* always little endian */) {
+int stack_add_recipient(Stack *stack, uint32_t uid /* always little endian */, int opaque) {
 	int i;
-	uint32_t known_uid;
-	uint32_t *new_uid;
+	Recipient *recipient;
 	char base58[BASE58_MAX_LENGTH];
 
-	for (i = 0; i < stack->uids.count; ++i) {
-		known_uid = *(uint32_t *)array_get(&stack->uids, i);
+	for (i = 0; i < stack->recipients.count; ++i) {
+		recipient = array_get(&stack->recipients, i);
 
-		if (known_uid == uid) {
+		if (recipient->uid == uid) {
+			recipient->opaque = opaque;
+
 			return 0;
 		}
 	}
 
-	new_uid = array_append(&stack->uids);
+	recipient = array_append(&stack->recipients);
 
-	if (new_uid == NULL) {
-		log_error("Could not append %s to UID array: %s (%d)",
+	if (recipient == NULL) {
+		log_error("Could not append %s to recipient array: %s (%d)",
 		          base58_encode(base58, uint32_from_le(uid)),
 		          get_errno_name(errno), errno);
 
 		return -1;
 	}
 
-	*new_uid = uid;
+	recipient->uid = uid;
+	recipient->opaque = opaque;
 
 	return 0;
 }
 
-int stack_knows_uid(Stack *stack, uint32_t uid /* always little endian */) {
+Recipient *stack_get_recipient(Stack *stack, uint32_t uid /* always little endian */) {
 	int i;
-	uint32_t known_uid;
+	Recipient *recipient;
 
-	for (i = 0; i < stack->uids.count; ++i) {
-		known_uid = *(uint32_t *)array_get(&stack->uids, i);
+	for (i = 0; i < stack->recipients.count; ++i) {
+		recipient = array_get(&stack->recipients, i);
 
-		if (known_uid == uid) {
-			return 1;
+		if (recipient->uid == uid) {
+			return recipient;
 		}
 	}
 
-	return 0;
+	return NULL;
 }
 
 // returns -1 on error, 0 if the request was not dispatched and 1 if it was dispatch
 int stack_dispatch_request(Stack *stack, Packet *request, int force) {
-	if (!force && !stack_knows_uid(stack, request->header.uid)) {
-		return 0;
+	Recipient *recipient = NULL;
+
+	if (!force) {
+		recipient = stack_get_recipient(stack, request->header.uid);
+
+		if (recipient == NULL) {
+			return 0;
+		}
 	}
 
-	if (stack->dispatch_request(stack, request) < 0) {
+	if (stack->dispatch_request(stack, request, recipient) < 0) {
 		return -1;
 	}
 

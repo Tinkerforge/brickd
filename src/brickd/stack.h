@@ -27,22 +27,27 @@
 
 typedef struct _Stack Stack;
 
-typedef int (*StackDispatchRequestFunction)(Stack *stack, Packet *request);
+typedef struct {
+	uint32_t uid; // always little endian
+	int opaque;
+} Recipient;
+
+typedef int (*StackDispatchRequestFunction)(Stack *stack, Packet *request, Recipient *recipient);
 
 #define STACK_MAX_NAME_LENGTH 128
 
 struct _Stack {
 	char name[STACK_MAX_NAME_LENGTH]; // for display purpose
 	StackDispatchRequestFunction dispatch_request;
-	Array uids;
+	Array recipients;
 };
 
 int stack_create(Stack *stack, const char *name,
                  StackDispatchRequestFunction dispatch_request);
 void stack_destroy(Stack *stack);
 
-int stack_add_uid(Stack *stack, uint32_t uid /* always little endian */);
-int stack_knows_uid(Stack *stack, uint32_t uid /* always little endian */);
+int stack_add_recipient(Stack *stack, uint32_t uid /* always little endian */, int opaque);
+Recipient *stack_get_recipient(Stack *stack, uint32_t uid /* always little endian */);
 
 int stack_dispatch_request(Stack *stack, Packet *request, int force);
 
