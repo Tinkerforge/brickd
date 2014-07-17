@@ -38,7 +38,7 @@ int hardware_init(void) {
 	log_debug("Initializing hardware subsystem");
 
 	// create stack array
-	if (array_create(&_stacks, 32, sizeof(Stack *), 1) < 0) {
+	if (array_create(&_stacks, 32, sizeof(Stack *), true) < 0) {
 		log_error("Could not create stack array: %s (%d)",
 		          get_errno_name(errno), errno);
 

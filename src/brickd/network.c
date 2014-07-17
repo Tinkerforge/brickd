@@ -242,7 +242,7 @@ int network_init(void) {
 
 	// create client array. the Client struct is not relocatable, because a
 	// pointer to it is passed as opaque parameter to the event subsystem
-	if (array_create(&_clients, 32, sizeof(Client), 0) < 0) {
+	if (array_create(&_clients, 32, sizeof(Client), false) < 0) {
 		log_error("Could not create client array: %s (%d)",
 		          get_errno_name(errno), errno);
 

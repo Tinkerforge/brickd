@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2012-2013 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2012-2014 Matthias Bolte <matthias@tinkerforge.com>
  *
  * stack.c: Stack specific functions
  *
@@ -49,7 +49,7 @@ int stack_create(Stack *stack, const char *name,
 
 	stack->dispatch_request = dispatch_request;
 
-	if (array_create(&stack->recipients, 32, sizeof(Recipient), 1) < 0) {
+	if (array_create(&stack->recipients, 32, sizeof(Recipient), true) < 0) {
 		log_error("Could not create recipient array: %s (%d)",
 		          get_errno_name(errno), errno);
 

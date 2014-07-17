@@ -352,7 +352,7 @@ int usb_stack_create(USBStack *usb_stack, uint8_t bus_number, uint8_t device_add
 
 	// allocate and submit read transfers
 	if (array_create(&usb_stack->read_transfers, MAX_READ_TRANSFERS,
-	                 sizeof(USBTransfer), 1) < 0) {
+	                 sizeof(USBTransfer), true) < 0) {
 		log_error("Could not create read transfer array for %s: %s (%d)",
 		          usb_stack->base.name, get_errno_name(errno), errno);
 
@@ -398,7 +398,7 @@ int usb_stack_create(USBStack *usb_stack, uint8_t bus_number, uint8_t device_add
 
 	// allocate write transfers
 	if (array_create(&usb_stack->write_transfers, MAX_WRITE_TRANSFERS,
-	                 sizeof(USBTransfer), 1) < 0) {
+	                 sizeof(USBTransfer), true) < 0) {
 		log_error("Could not create write transfer array for %s: %s (%d)",
 		          usb_stack->base.name, get_errno_name(errno), errno);
 

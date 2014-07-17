@@ -222,7 +222,7 @@ int usb_init(int libusb_debug) {
 
 	// create USB stack array. the USBStack struct is not relocatable, because
 	// its USB transfers keep a pointer to it
-	if (array_create(&_usb_stacks, 32, sizeof(USBStack), 0) < 0) {
+	if (array_create(&_usb_stacks, 32, sizeof(USBStack), false) < 0) {
 		log_error("Could not create USB stack array: %s (%d)",
 		          get_errno_name(errno), errno);
 

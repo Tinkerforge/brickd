@@ -220,7 +220,9 @@ else
 	DIST :=
 endif
 
-CFLAGS += -Wall -Wextra -I..
+# tell GCC to use C99, but actually write C89 code plus stdint.h and stdbool.h
+# to be able to compile it with MSVC/WDK which supports C89 only
+CFLAGS += -std=gnu99 -Wall -Wextra -I..
 
 ifeq ($(WITH_DEBUG),yes)
 	CFLAGS += -O0 -g -ggdb

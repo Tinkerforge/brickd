@@ -373,7 +373,7 @@ int client_create(Client *client, const char *name, IO *io,
 	}
 
 	// create pending request array
-	if (array_create(&client->pending_requests, 32, sizeof(PendingRequest), 1) < 0) {
+	if (array_create(&client->pending_requests, 32, sizeof(PendingRequest), true) < 0) {
 		log_error("Could not create pending request array: %s (%d)",
 		          get_errno_name(errno), errno);
 
