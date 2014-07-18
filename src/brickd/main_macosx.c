@@ -29,6 +29,7 @@
 #include <fcntl.h>
 
 #include <daemonlib/config.h>
+#include <daemonlib/daemon.h>
 #include <daemonlib/event.h>
 #include <daemonlib/log.h>
 #include <daemonlib/pid_file.h>
