@@ -154,8 +154,40 @@ static void client_handle_authenticate_request(Client *client, AuthenticateReque
 
 static void client_handle_request(Client *client, Packet *request) {
 	char packet_signature[PACKET_MAX_SIGNATURE_LENGTH];
+	PendingRequest *pending_request;
 	ErrorCodeResponse response;
 
+	// add to pending request if response is expected
+	if (packet_header_get_response_expected(&request->header)) {
+		if (client->pending_requests.count >= MAX_PENDING_REQUESTS) {
+			log_warn("Pending requests array for client ("CLIENT_INFO_FORMAT") is full, dropping %d pending request(s)",
+			         client_expand_info(client),
+			         client->pending_requests.count - MAX_PENDING_REQUESTS + 1);
+
+			while (client->pending_requests.count >= MAX_PENDING_REQUESTS) {
+				array_remove(&client->pending_requests, 0, NULL);
+			}
+		}
+
+		pending_request = array_append(&client->pending_requests);
+
+		if (pending_request == NULL) {
+			log_error("Could not append to pending requests array for client ("CLIENT_INFO_FORMAT"): %s (%d)",
+			          client_expand_info(client), get_errno_name(errno), errno);
+		} else {
+			memcpy(&pending_request->header, &request->header, sizeof(PacketHeader));
+
+#ifdef BRICKD_WITH_PROFILING
+			pending_request->arrival_time = microseconds();
+#endif
+
+			log_debug("Added pending request (%s) for client ("CLIENT_INFO_FORMAT")",
+			          packet_get_request_signature(packet_signature, request),
+			          client_expand_info(client));
+		}
+	}
+
+	// handle requests meant for brickd
 	if (uint32_from_le(request->header.uid) == UID_BRICK_DAEMON) {
 		if (request->header.function_id == FUNCTION_GET_AUTHENTICATION_NONCE) {
 			if (request->header.length != sizeof(GetAuthenticationNonceRequest)) {
@@ -205,7 +237,6 @@ static void client_handle_read(void *opaque) {
 	int length;
 	const char *message = NULL;
 	char packet_signature[PACKET_MAX_SIGNATURE_LENGTH];
-	PendingRequest *pending_request;
 
 	length = io_read(client->io, (uint8_t *)&client->request + client->request_used,
 	                 sizeof(Packet) - client->request_used);
@@ -274,36 +305,6 @@ static void client_handle_read(void *opaque) {
 			log_debug("Got request (%s) from client ("CLIENT_INFO_FORMAT")",
 			          packet_get_request_signature(packet_signature, &client->request),
 			          client_expand_info(client));
-
-			if (packet_header_get_response_expected(&client->request.header)) {
-				if (client->pending_requests.count >= MAX_PENDING_REQUESTS) {
-					log_warn("Pending requests array for client ("CLIENT_INFO_FORMAT") is full, dropping %d pending request(s)",
-					         client_expand_info(client),
-					         client->pending_requests.count - MAX_PENDING_REQUESTS + 1);
-
-					while (client->pending_requests.count >= MAX_PENDING_REQUESTS) {
-						array_remove(&client->pending_requests, 0, NULL);
-					}
-				}
-
-				pending_request = array_append(&client->pending_requests);
-
-				if (pending_request == NULL) {
-					log_error("Could not append to pending requests array for client ("CLIENT_INFO_FORMAT"): %s (%d)",
-					          client_expand_info(client), get_errno_name(errno), errno);
-				} else {
-					memcpy(&pending_request->header, &client->request.header,
-					       sizeof(PacketHeader));
-
-#ifdef BRICKD_WITH_PROFILING
-					pending_request->arrival_time = microseconds();
-#endif
-
-					log_debug("Added pending request (%s) for client ("CLIENT_INFO_FORMAT")",
-					          packet_get_request_signature(packet_signature, &client->request),
-					          client_expand_info(client));
-				}
-			}
 
 			client_handle_request(client, &client->request);
 		}
