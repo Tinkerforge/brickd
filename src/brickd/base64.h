@@ -31,7 +31,7 @@
  */
 
 #ifndef BRICKD_BASE64_H
-#define BRICKD_BAES64_H
+#define BRICKD_BASE64_H
 
 #include <stdint.h>
 
