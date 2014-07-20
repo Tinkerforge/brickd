@@ -20,6 +20,7 @@
  */
 
 #include <errno.h>
+#include <stdbool.h>
 #include <stdint.h>
 #include <unistd.h>
 #include <stdio.h>
@@ -108,8 +109,8 @@ static const uint8_t _red_stack_spi_pearson_permutation[RED_STACK_SPI_PEARSON_PE
 
 static char packet_signature[PACKET_MAX_SIGNATURE_LENGTH];
 
-static int _red_stack_spi_thread_running = 0;
-static int _red_stack_spi_fd = 0;
+static bool _red_stack_spi_thread_running = false;
+static int _red_stack_spi_fd = -1;
 
 static Thread _red_stack_spi_thread;
 static Semaphore _red_stack_dispatch_packet_from_spi_semaphore;
@@ -479,7 +480,7 @@ static void red_stack_spi_thread(void *opaque) {
 	}
 
 	clock_gettime(CLOCK_MONOTONIC, &_red_stack.spi_deadline);
-	_red_stack_spi_thread_running = 1;
+	_red_stack_spi_thread_running = true;
 	while(_red_stack_spi_thread_running) {
 		REDStackSlave *slave = &_red_stack.slaves[stack_address_cycle];
 		Packet *request = NULL;
@@ -769,8 +770,8 @@ void red_stack_exit(void) {
 	event_remove_source(_red_stack_notification_event, EVENT_SOURCE_TYPE_GENERIC);
 
 	// Make sure that Thread shuts down properly
-	if(_red_stack_spi_thread_running != 0) {
-		_red_stack_spi_thread_running = 0;
+	if(_red_stack_spi_thread_running) {
+		_red_stack_spi_thread_running = false;
 		// Write in eventfd to make sure that we are not blocking the Thread
 		eventfd_t ev = 1;
 		eventfd_write(_red_stack_notification_event, ev);

@@ -23,6 +23,7 @@
 #ifndef BRICKD_CLIENT_H
 #define BRICKD_CLIENT_H
 
+#include <stdbool.h>
 #ifdef _WIN32
 	#include <ws2tcpip.h>
 #else
@@ -50,10 +51,10 @@ typedef void (*ClientDestroyDoneFunction)(void);
 struct _Client {
 	char name[CLIENT_MAX_NAME_LENGTH]; // for display purpose
 	IO *io;
-	int disconnected;
+	bool disconnected;
 	Packet request;
 	int request_used;
-	int request_header_checked;
+	bool request_header_checked;
 	Array pending_requests;
 	Writer response_writer;
 	ClientAuthenticationState authentication_state;
@@ -72,7 +73,7 @@ int client_create(Client *client, const char *name, IO *io,
                   ClientDestroyDoneFunction destroy_done);
 void client_destroy(Client *client);
 
-int client_dispatch_response(Client *client, Packet *response, int force,
-                             int ignore_authentication);
+int client_dispatch_response(Client *client, Packet *response, bool force,
+                             bool ignore_authentication);
 
 #endif // BRICKD_CLIENT_H

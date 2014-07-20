@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2012-2013 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2012-2014 Matthias Bolte <matthias@tinkerforge.com>
  *
  * stack.h: Stack specific functions
  *
@@ -21,6 +21,8 @@
 
 #ifndef BRICKD_STACK_H
 #define BRICKD_STACK_H
+
+#include <stdbool.h>
 
 #include <daemonlib/array.h>
 #include <daemonlib/packet.h>
@@ -49,6 +51,6 @@ void stack_destroy(Stack *stack);
 int stack_add_recipient(Stack *stack, uint32_t uid /* always little endian */, int opaque);
 Recipient *stack_get_recipient(Stack *stack, uint32_t uid /* always little endian */);
 
-int stack_dispatch_request(Stack *stack, Packet *request, int force);
+int stack_dispatch_request(Stack *stack, Packet *request, bool force);
 
 #endif // BRICKD_STACK_H

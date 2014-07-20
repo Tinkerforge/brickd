@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2012-2013 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2012-2014 Matthias Bolte <matthias@tinkerforge.com>
  *
  * service.c: Windows service specific functions
  *
@@ -118,11 +118,7 @@ int service_is_running(void) {
 	CloseServiceHandle(service);
 	CloseServiceHandle(service_control_manager);
 
-	if (service_status.dwCurrentState != SERVICE_STOPPED) {
-		return 1;
-	} else {
-		return 0;
-	}
+	return service_status.dwCurrentState != SERVICE_STOPPED ? 1 : 0;
 }
 
 SERVICE_STATUS_HANDLE service_get_status_handle(void) {

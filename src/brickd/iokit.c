@@ -20,6 +20,7 @@
  */
 
 #include <errno.h>
+#include <stdbool.h>
 #include <IOKit/IOMessage.h>
 #include <IOKit/pwr_mgt/IOPMLib.h>
 #include <AvailabilityMacros.h>
@@ -41,7 +42,7 @@
 
 static Pipe _notification_pipe;
 static Thread _poll_thread;
-static int _running = 0;
+static bool _running = false;
 static CFRunLoopRef _run_loop = NULL;
 
 static void iokit_forward_notifications(void *opaque) {
@@ -142,7 +143,7 @@ static void iokit_poll_notifications(void *opaque) {
 	// start loop
 	_run_loop = (CFRunLoopRef)CFRetain(CFRunLoopGetCurrent());
 
-	_running = 1;
+	_running = true;
 	semaphore_release(handshake);
 
 	CFRunLoopRun();
@@ -170,7 +171,7 @@ cleanup:
 		break;
 	}
 
-	_running = 0;
+	_running = false;
 }
 
 int iokit_init(void) {
@@ -241,7 +242,7 @@ void iokit_exit(void) {
 	log_debug("Shutting down IOKit subsystem");
 
 	if (_running) {
-		_running = 0;
+		_running = false;
 
 		CFRunLoopStop(_run_loop);
 		CFRelease(_run_loop);

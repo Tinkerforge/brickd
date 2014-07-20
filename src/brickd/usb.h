@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2012-2013 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2012-2014 Matthias Bolte <matthias@tinkerforge.com>
  *
  * usb.h: USB specific functions
  *
@@ -22,6 +22,7 @@
 #ifndef BRICKD_USB_H
 #define BRICKD_USB_H
 
+#include <stdbool.h>
 #include <libusb.h>
 
 // newer libusb defines LIBUSB_CALL but older libusb doesn't
@@ -34,10 +35,10 @@
 #define USB_BRICK_DEVICE_RELEASE ((1 << 8) | (1 << 4) | (0 << 0)) /* 1.10 */
 #define USB_BRICK_INTERFACE 0
 
-int usb_init(int libusb_debug);
+int usb_init(bool libusb_debug);
 void usb_exit(void);
 
-int usb_has_hotplug(void);
+bool usb_has_hotplug(void);
 
 int usb_rescan(void);
 int usb_reopen(void);

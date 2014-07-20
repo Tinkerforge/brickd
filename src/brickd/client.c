@@ -59,7 +59,7 @@ static void client_handle_get_authentication_nonce_request(Client *client, GetAu
 		log_error("Client ("CLIENT_INFO_FORMAT") tries to authenticate, but authentication is disabled, disconnecting client",
 		          client_expand_info(client));
 
-		client->disconnected = 1;
+		client->disconnected = true;
 
 		return;
 	}
@@ -77,7 +77,7 @@ static void client_handle_get_authentication_nonce_request(Client *client, GetAu
 		          client_get_authentication_state_name(client->authentication_state),
 		          client_get_authentication_state_name(CLIENT_AUTHENTICATION_STATE_NONCE_SEND));
 
-		client->disconnected = 1;
+		client->disconnected = true;
 
 		return;
 	}
@@ -87,7 +87,7 @@ static void client_handle_get_authentication_nonce_request(Client *client, GetAu
 
 	memcpy(response.server_nonce, &client->authentication_nonce, sizeof(response.server_nonce));
 
-	if (client_dispatch_response(client, (Packet *)&response, 0, 1) > 0) {
+	if (client_dispatch_response(client, (Packet *)&response, false, true) > 0) {
 		client->authentication_state = CLIENT_AUTHENTICATION_STATE_NONCE_SEND;
 	}
 }
@@ -103,7 +103,7 @@ static void client_handle_authenticate_request(Client *client, AuthenticateReque
 		log_error("Client ("CLIENT_INFO_FORMAT") tries to authenticate, but authentication is disabled, disconnecting client",
 		          client_expand_info(client));
 
-		client->disconnected = 1;
+		client->disconnected = true;
 
 		return;
 	}
@@ -114,7 +114,7 @@ static void client_handle_authenticate_request(Client *client, AuthenticateReque
 		          client_get_authentication_state_name(client->authentication_state),
 		          client_get_authentication_state_name(CLIENT_AUTHENTICATION_STATE_DONE));
 
-		client->disconnected = 1;
+		client->disconnected = true;
 
 		return;
 	}
@@ -132,7 +132,7 @@ static void client_handle_authenticate_request(Client *client, AuthenticateReque
 		          packet_get_request_signature(packet_signature, (Packet *)request),
 		          client_expand_info(client));
 
-		client->disconnected = 1;
+		client->disconnected = true;
 
 		return;
 	}
@@ -142,13 +142,13 @@ static void client_handle_authenticate_request(Client *client, AuthenticateReque
 	log_info("Client ("CLIENT_INFO_FORMAT") successfully finished authentication",
 	         client_expand_info(client));
 
-	if (packet_header_get_response_expected(&request->header) != 0) {
+	if (packet_header_get_response_expected(&request->header)) {
 		response.header = request->header;
 		response.header.length = sizeof(response);
 
 		packet_header_set_error_code(&response.header, ERROR_CODE_OK);
 
-		client_dispatch_response(client, (Packet *)&response, 0, 0);
+		client_dispatch_response(client, (Packet *)&response, false, false);
 	}
 }
 
@@ -195,7 +195,7 @@ static void client_handle_request(Client *client, Packet *request) {
 				          packet_get_request_signature(packet_signature, request),
 				          client_expand_info(client));
 
-				client->disconnected = 1;
+				client->disconnected = true;
 
 				return;
 			}
@@ -207,7 +207,7 @@ static void client_handle_request(Client *client, Packet *request) {
 				          packet_get_request_signature(packet_signature, request),
 				          client_expand_info(client));
 
-				client->disconnected = 1;
+				client->disconnected = true;
 
 				return;
 			}
@@ -220,7 +220,7 @@ static void client_handle_request(Client *client, Packet *request) {
 			packet_header_set_error_code(&response.header,
 			                             ERROR_CODE_FUNCTION_NOT_SUPPORTED);
 
-			client_dispatch_response(client, (Packet *)&response, 0, 0);
+			client_dispatch_response(client, (Packet *)&response, false, false);
 		}
 	} else if (client->authentication_state == CLIENT_AUTHENTICATION_STATE_DISABLED ||
 	           client->authentication_state == CLIENT_AUTHENTICATION_STATE_DONE) {
@@ -245,7 +245,7 @@ static void client_handle_read(void *opaque) {
 		log_info("Client ("CLIENT_INFO_FORMAT") disconnected by peer",
 		         client_expand_info(client));
 
-		client->disconnected = 1;
+		client->disconnected = true;
 
 		return;
 	}
@@ -263,7 +263,7 @@ static void client_handle_read(void *opaque) {
 			log_error("Could not receive from client ("CLIENT_INFO_FORMAT"), disconnecting client: %s (%d)",
 			          client_expand_info(client), get_errno_name(errno), errno);
 
-			client->disconnected = 1;
+			client->disconnected = true;
 		}
 
 		return;
@@ -283,12 +283,12 @@ static void client_handle_read(void *opaque) {
 				          packet_get_request_signature(packet_signature, &client->request),
 				          client_expand_info(client), message);
 
-				client->disconnected = 1;
+				client->disconnected = true;
 
 				return;
 			}
 
-			client->request_header_checked = 1;
+			client->request_header_checked = true;
 		}
 
 		length = client->request.header.length;
@@ -313,7 +313,7 @@ static void client_handle_read(void *opaque) {
 		        client->request_used - length);
 
 		client->request_used -= length;
-		client->request_header_checked = 0;
+		client->request_header_checked = false;
 	}
 }
 
@@ -336,7 +336,7 @@ const char *client_get_authentication_state_name(ClientAuthenticationState state
 	}
 }
 
-static char *client_get_recipient_signature(char *signature, int upper, void *opaque) {
+static char *client_get_recipient_signature(char *signature, bool upper, void *opaque) {
 	Client *client = opaque;
 
 	snprintf(signature, WRITER_MAX_RECIPIENT_SIGNATURE_LENGTH,
@@ -349,7 +349,7 @@ static char *client_get_recipient_signature(char *signature, int upper, void *op
 static void client_recipient_disconnect(void *opaque) {
 	Client *client = opaque;
 
-	client->disconnected = 1;
+	client->disconnected = true;
 }
 
 int client_create(Client *client, const char *name, IO *io,
@@ -362,9 +362,9 @@ int client_create(Client *client, const char *name, IO *io,
 	string_copy(client->name, name, sizeof(client->name));
 
 	client->io = io;
-	client->disconnected = 0;
+	client->disconnected = false;
 	client->request_used = 0;
-	client->request_header_checked = 0;
+	client->request_header_checked = false;
 	client->authentication_state = CLIENT_AUTHENTICATION_STATE_DISABLED;
 	client->authentication_nonce = authentication_nonce;
 	client->destroy_done = destroy_done;
@@ -439,8 +439,8 @@ void client_destroy(Client *client) {
 }
 
 // returns -1 on error, 0 if the response was not dispatched and 1 if it was dispatch
-int client_dispatch_response(Client *client, Packet *response, int force,
-                             int ignore_authentication) {
+int client_dispatch_response(Client *client, Packet *response, bool force,
+                             bool ignore_authentication) {
 	int i;
 	PendingRequest *pending_request = NULL;
 	int found = -1;

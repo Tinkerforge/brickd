@@ -20,6 +20,7 @@
  */
 
 #include <errno.h>
+#include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -36,10 +37,10 @@
 
 #define LOG_CATEGORY LOG_CATEGORY_USB
 
-static int _libusb_debug = 0;
+static bool _libusb_debug = false;
 static libusb_context *_context = NULL;
 static Array _usb_stacks;
-static int _initialized_hotplug = 0;
+static bool _initialized_hotplug = false;
 
 extern int usb_init_platform(void);
 extern void usb_exit_platform(void);
@@ -55,7 +56,7 @@ static int usb_enumerate(void) {
 	struct libusb_device_descriptor descriptor;
 	uint8_t bus_number;
 	uint8_t device_address;
-	int known;
+	bool known;
 	int k;
 	USBStack *usb_stack;
 
@@ -96,7 +97,7 @@ static int usb_enumerate(void) {
 		}
 
 		// check all known stacks
-		known = 0;
+		known = false;
 
 		for (k = 0; k < _usb_stacks.count; ++k) {
 			usb_stack = array_get(&_usb_stacks, k);
@@ -104,8 +105,8 @@ static int usb_enumerate(void) {
 			if (usb_stack->bus_number == bus_number &&
 			    usb_stack->device_address == device_address) {
 				// mark known USBStack as connected
-				usb_stack->connected = 1;
-				known = 1;
+				usb_stack->connected = true;
+				known = true;
 
 				break;
 			}
@@ -138,7 +139,7 @@ static int usb_enumerate(void) {
 		}
 
 		// mark new stack as connected
-		usb_stack->connected = 1;
+		usb_stack->connected = true;
 
 		log_info("Added USB device (bus: %u, device: %u) at index %d: %s",
 		         usb_stack->bus_number, usb_stack->device_address,
@@ -186,7 +187,7 @@ static void LIBUSB_CALL usb_remove_pollfd(int fd, void *opaque) {
 	event_remove_source(fd, EVENT_SOURCE_TYPE_USB);
 }
 
-int usb_init(int libusb_debug) {
+int usb_init(bool libusb_debug) {
 	int phase = 0;
 
 	log_debug("Initializing USB subsystem");
@@ -238,7 +239,7 @@ int usb_init(int libusb_debug) {
 			goto cleanup;
 		}
 
-		_initialized_hotplug = 1;
+		_initialized_hotplug = true;
 	} else {
 		log_debug("libusb does not support hotplug");
 	}
@@ -291,7 +292,7 @@ int usb_rescan(void) {
 	for (i = 0; i < _usb_stacks.count; ++i) {
 		usb_stack = array_get(&_usb_stacks, i);
 
-		usb_stack->connected = 0;
+		usb_stack->connected = false;
 	}
 
 	// enumerate all USB devices, mark all USB stacks that are still connected

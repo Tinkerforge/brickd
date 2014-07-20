@@ -23,6 +23,7 @@
 #define BRICKD_USB_STACK_H
 
 #include <libusb.h>
+#include <stdbool.h>
 
 #include <daemonlib/array.h>
 #include <daemonlib/queue.h>
@@ -42,8 +43,8 @@ typedef struct {
 	Array write_transfers;
 	Queue write_queue;
 	uint32_t dropped_requests;
-	int connected;
-	int active;
+	bool connected;
+	bool active;
 } USBStack;
 
 int usb_stack_create(USBStack *usb_stack, uint8_t bus_number, uint8_t device_address);

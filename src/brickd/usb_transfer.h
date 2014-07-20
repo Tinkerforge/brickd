@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2012-2013 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2012-2014 Matthias Bolte <matthias@tinkerforge.com>
  *
  * usb_transfer.h: libusb transfer specific functions
  *
@@ -23,6 +23,7 @@
 #define BRICKD_USB_TRANSFER_H
 
 #include <libusb.h>
+#include <stdbool.h>
 
 #include <daemonlib/packet.h>
 
@@ -40,15 +41,13 @@ typedef void (*USBTransferFunction)(USBTransfer *usb_transfer);
 struct _USBTransfer {
 	USBStack *usb_stack;
 	USBTransferType type;
-	int submitted;
-	int completed;
-	int canceled;
+	bool submitted;
+	bool completed;
+	bool canceled;
 	USBTransferFunction function;
 	struct libusb_transfer *handle;
 	Packet packet;
 };
-
-const char *usb_transfer_get_type_name(USBTransferType type, int upper);
 
 int usb_transfer_create(USBTransfer *usb_transfer, USBStack *usb_stack,
                         USBTransferType type, USBTransferFunction function);

@@ -20,6 +20,7 @@
  */
 
 #include <errno.h>
+#include <stdbool.h>
 
 #include <daemonlib/array.h>
 #include <daemonlib/log.h>
@@ -97,7 +98,7 @@ void hardware_dispatch_request(Packet *request) {
 	int i;
 	Stack *stack;
 	int rc;
-	int dispatched = 0;
+	bool dispatched = false;
 
 	if (_stacks.count == 0) {
 		log_debug("No stacks connected, dropping request (%s)",
@@ -115,7 +116,7 @@ void hardware_dispatch_request(Packet *request) {
 		for (i = 0; i < _stacks.count; ++i) {
 			stack = *(Stack **)array_get(&_stacks, i);
 
-			stack_dispatch_request(stack, request, 1);
+			stack_dispatch_request(stack, request, true);
 		}
 	} else {
 		log_debug("Dispatching request (%s) to %d stack(s)",
@@ -127,12 +128,12 @@ void hardware_dispatch_request(Packet *request) {
 		for (i = 0; i < _stacks.count; ++i) {
 			stack = *(Stack **)array_get(&_stacks, i);
 
-			rc = stack_dispatch_request(stack, request, 0);
+			rc = stack_dispatch_request(stack, request, false);
 
 			if (rc < 0) {
 				continue;
 			} else if (rc > 0) {
-				dispatched = 1;
+				dispatched = true;
 			}
 		}
 
@@ -146,7 +147,7 @@ void hardware_dispatch_request(Packet *request) {
 		for (i = 0; i < _stacks.count; ++i) {
 			stack = *(Stack **)array_get(&_stacks, i);
 
-			stack_dispatch_request(stack, request, 1);
+			stack_dispatch_request(stack, request, true);
 		}
 	}
 }

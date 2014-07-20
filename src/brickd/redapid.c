@@ -20,6 +20,7 @@
  */
 
 #include <errno.h>
+#include <stdbool.h>
 #include <sys/un.h>
 
 #include <daemonlib/event.h>
@@ -44,12 +45,12 @@ typedef struct {
 	Socket socket;
 	Packet response;
 	int response_used;
-	int response_header_checked;
+	bool response_header_checked;
 	Writer request_writer;
 } REDBrickAPIDaemon;
 
 static REDBrickAPIDaemon _redapid;
-static int _redapid_connected = 0;
+static bool _redapid_connected = false;
 
 static int redapid_connect(void);
 static void redapid_disconnect(void);
@@ -112,7 +113,7 @@ static void redapid_handle_read(void *opaque) {
 				return;
 			}
 
-			_redapid.response_header_checked = 1;
+			_redapid.response_header_checked = true;
 		}
 
 		length = _redapid.response.header.length;
@@ -139,7 +140,7 @@ static void redapid_handle_read(void *opaque) {
 		        _redapid.response_used - length);
 
 		_redapid.response_used -= length;
-		_redapid.response_header_checked = 0;
+		_redapid.response_header_checked = false;
 	}
 }
 
@@ -166,7 +167,7 @@ static int redapid_dispatch_request(REDBrickAPIDaemon *redapid, Packet *request,
 		enumerate_callback.header.length = sizeof(enumerate_callback);
 		enumerate_callback.header.function_id = CALLBACK_ENUMERATE;
 		packet_header_set_sequence_number(&enumerate_callback.header, 0);
-		packet_header_set_response_expected(&enumerate_callback.header, 1);
+		packet_header_set_response_expected(&enumerate_callback.header, true);
 
 		base58_encode(enumerate_callback.uid, uint32_from_le(uid));
 		enumerate_callback.connected_uid[0] = '0';
@@ -198,7 +199,7 @@ static int redapid_dispatch_request(REDBrickAPIDaemon *redapid, Packet *request,
 	return 0;
 }
 
-static char *redapid_get_recipient_signature(char *signature, int upper, void *opaque) {
+static char *redapid_get_recipient_signature(char *signature, bool upper, void *opaque) {
 	(void)upper;
 	(void)opaque;
 
@@ -217,11 +218,10 @@ static void redapid_recipient_disconnect(void *opaque) {
 
 static int redapid_connect(void) {
 	int phase = 0;
-
 	struct sockaddr_un address;
 
 	_redapid.response_used = 0;
-	_redapid.response_header_checked = 0;
+	_redapid.response_header_checked = false;
 
 	log_debug("Connecting to RED Brick API Daemon");
 
@@ -272,7 +272,7 @@ static int redapid_connect(void) {
 		goto cleanup;
 	}
 
-	_redapid_connected = 1;
+	_redapid_connected = true;
 
 	log_info("Connected to RED Brick API Daemon");
 
@@ -299,7 +299,7 @@ static void redapid_disconnect(void) {
 	event_remove_source(_redapid.socket.base.handle, EVENT_SOURCE_TYPE_GENERIC);
 	socket_destroy(&_redapid.socket);
 
-	_redapid_connected = 0;
+	_redapid_connected = false;
 }
 
 int redapid_init(void) {

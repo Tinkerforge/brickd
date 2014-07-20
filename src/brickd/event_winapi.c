@@ -21,6 +21,7 @@
 
 #include <errno.h>
 #include <libusb.h>
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdlib.h>
 
@@ -59,8 +60,8 @@ typedef struct {
 static SocketSet *_socket_read_set = NULL;
 static SocketSet *_socket_write_set = NULL;
 static Pipe _stop_pipe;
-static int _usb_poll_running;
-static int _usb_poll_stuck;
+static bool _usb_poll_running;
+static bool _usb_poll_stuck;
 static int _usb_poll_suspend_pipe[2]; // libusb pipe
 static Pipe _usb_poll_ready_pipe;
 static Semaphore _usb_poll_resume;
@@ -172,7 +173,7 @@ static void event_poll_usb_events(void *opaque) {
 		// start to poll
 		log_debug("Starting to poll on %d %s event source(s)",
 		          _usb_poll_pollfds.count - 1,
-		          event_get_source_type_name(EVENT_SOURCE_TYPE_USB, 0));
+		          event_get_source_type_name(EVENT_SOURCE_TYPE_USB, false));
 
 	retry:
 		ready = usbi_poll((struct usbi_pollfd *)_usb_poll_pollfds.bytes,
@@ -186,7 +187,7 @@ static void event_poll_usb_events(void *opaque) {
 			}
 
 			log_error("Could not poll on %s event source(s): %s (%d)",
-			          event_get_source_type_name(EVENT_SOURCE_TYPE_USB, 0),
+			          event_get_source_type_name(EVENT_SOURCE_TYPE_USB, false),
 			          get_errno_name(errno), errno);
 
 			goto suspend;
@@ -210,7 +211,7 @@ static void event_poll_usb_events(void *opaque) {
 		}
 
 		log_debug("Poll returned %d %s event source(s) as ready", ready,
-		          event_get_source_type_name(EVENT_SOURCE_TYPE_USB, 0));
+		          event_get_source_type_name(EVENT_SOURCE_TYPE_USB, false));
 
 		_usb_poll_pollfds_ready = ready;
 
@@ -232,7 +233,7 @@ cleanup:
 
 	semaphore_release(&_usb_poll_suspend);
 
-	_usb_poll_running = 0;
+	_usb_poll_running = false;
 }
 
 static void event_forward_usb_events(void *opaque) {
@@ -294,11 +295,11 @@ static void event_forward_usb_events(void *opaque) {
 
 	if (_usb_poll_pollfds_ready == handled) {
 		log_debug("Handled all ready %s event sources",
-		          event_get_source_type_name(EVENT_SOURCE_TYPE_USB, 0));
+		          event_get_source_type_name(EVENT_SOURCE_TYPE_USB, false));
 	} else {
 		log_warn("Handled only %d of %d ready %s event source(s)",
 		         handled, _usb_poll_pollfds_ready,
-		         event_get_source_type_name(EVENT_SOURCE_TYPE_USB, 0));
+		         event_get_source_type_name(EVENT_SOURCE_TYPE_USB, false));
 	}
 }
 
@@ -343,8 +344,8 @@ int event_init_platform(void) {
 	phase = 4;
 
 	// create USB poll thread
-	_usb_poll_running = 0;
-	_usb_poll_stuck = 0;
+	_usb_poll_running = false;
+	_usb_poll_stuck = false;
 
 	if (usbi_pipe(_usb_poll_suspend_pipe) < 0) {
 		log_error("Could not create USB suspend pipe");
@@ -458,7 +459,7 @@ void event_source_removed_platform(EventSource *event_source) {
 	(void)event_source;
 }
 
-int event_run_platform(Array *event_sources, int *running, EventCleanupFunction cleanup) {
+int event_run_platform(Array *event_sources, bool *running, EventCleanupFunction cleanup) {
 	int result = -1;
 	int i;
 	EventSource *event_source;
@@ -477,9 +478,8 @@ int event_run_platform(Array *event_sources, int *running, EventCleanupFunction 
 		return -1;
 	}
 
-	*running = 1;
-
-	_usb_poll_running = 1;
+	*running = true;
+	_usb_poll_running = true;
 
 	thread_create(&_usb_poll_thread, event_poll_usb_events, event_sources);
 
@@ -526,7 +526,7 @@ int event_run_platform(Array *event_sources, int *running, EventCleanupFunction 
 		// start to select
 		log_debug("Starting to select on %d + %d %s event source(s)",
 		          _socket_read_set->count, _socket_write_set->count,
-		          event_get_source_type_name(EVENT_SOURCE_TYPE_GENERIC, 0));
+		          event_get_source_type_name(EVENT_SOURCE_TYPE_GENERIC, false));
 
 		semaphore_release(&_usb_poll_resume);
 
@@ -541,7 +541,7 @@ int event_run_platform(Array *event_sources, int *running, EventCleanupFunction 
 			if (usbi_write(_usb_poll_suspend_pipe[1], &byte, 1) < 0) {
 				log_error("Could not write to USB suspend pipe");
 
-				_usb_poll_stuck = 1;
+				_usb_poll_stuck = true;
 
 				goto cleanup;
 			}
@@ -551,7 +551,7 @@ int event_run_platform(Array *event_sources, int *running, EventCleanupFunction 
 			if (usbi_read(_usb_poll_suspend_pipe[0], &byte, 1) < 0) {
 				log_error("Could not read from USB suspend pipe");
 
-				_usb_poll_stuck = 1;
+				_usb_poll_stuck = true;
 
 				goto cleanup;
 			}
@@ -565,7 +565,7 @@ int event_run_platform(Array *event_sources, int *running, EventCleanupFunction 
 			}
 
 			log_error("Could not select on %s event sources: %s (%d)",
-			          event_get_source_type_name(EVENT_SOURCE_TYPE_GENERIC, 0),
+			          event_get_source_type_name(EVENT_SOURCE_TYPE_GENERIC, false),
 			          get_errno_name(rc), rc);
 
 			goto cleanup;
@@ -573,7 +573,7 @@ int event_run_platform(Array *event_sources, int *running, EventCleanupFunction 
 
 		// handle select result
 		log_debug("Select returned %d %s event source(s) as ready", ready,
-		          event_get_source_type_name(EVENT_SOURCE_TYPE_GENERIC, 0));
+		          event_get_source_type_name(EVENT_SOURCE_TYPE_GENERIC, false));
 
 		handled = 0;
 
@@ -608,11 +608,11 @@ int event_run_platform(Array *event_sources, int *running, EventCleanupFunction 
 
 		if (ready == handled) {
 			log_debug("Handled all ready %s event sources",
-			          event_get_source_type_name(EVENT_SOURCE_TYPE_GENERIC, 0));
+			          event_get_source_type_name(EVENT_SOURCE_TYPE_GENERIC, false));
 		} else {
 			log_warn("Handled only %d of %d ready %s event source(s)",
 			         handled, ready,
-			         event_get_source_type_name(EVENT_SOURCE_TYPE_GENERIC, 0));
+			         event_get_source_type_name(EVENT_SOURCE_TYPE_GENERIC, false));
 		}
 
 		// now cleanup event sources that got marked as disconnected/removed
@@ -624,10 +624,10 @@ int event_run_platform(Array *event_sources, int *running, EventCleanupFunction 
 	result = 0;
 
 cleanup:
-	*running = 0;
+	*running = false;
 
 	if (_usb_poll_running && !_usb_poll_stuck) {
-		_usb_poll_running = 0;
+		_usb_poll_running = false;
 
 		log_debug("Stopping USB poll thread");
 

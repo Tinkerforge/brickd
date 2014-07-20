@@ -20,6 +20,7 @@
  */
 
 #include <errno.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <winsock2.h>
@@ -69,12 +70,12 @@ static const GUID GUID_DEVINTERFACE_USB_DEVICE =
 { 0xA5DCBF10L, 0x6530, 0x11D2, { 0x90, 0x1F, 0x00, 0xC0, 0x4F, 0xB9, 0x51, 0xED } };
 
 static char _config_filename[1024];
-static int _run_as_service = 1;
-static int _pause_before_exit = 0;
+static bool _run_as_service = true;
+static bool _pause_before_exit = false;
 static Pipe _notification_pipe;
 static HWND _message_pump_hwnd = NULL;
 static Thread _message_pump_thread;
-static int _message_pump_running = 0;
+static bool _message_pump_running = false;
 
 typedef BOOL (WINAPI *QUERYFULLPROCESSIMAGENAME)(HANDLE, DWORD, LPTSTR, PDWORD);
 
@@ -123,9 +124,9 @@ static int get_process_image_name(PROCESSENTRY32 entry, char *buffer, DWORD leng
 	return 0;
 }
 
-static int started_by_explorer(int log_available) {
+static bool started_by_explorer(bool log_available) {
 	int rc;
-	int result = 0;
+	bool result = false;
 	PROCESSENTRY32 entry;
 	DWORD process_id = GetCurrentProcessId();
 	HANDLE handle = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
@@ -143,7 +144,7 @@ static int started_by_explorer(int log_available) {
 			        get_errno_name(rc), rc);
 		}
 
-		return 0;
+		return false;
 	}
 
 	ZeroMemory(&entry, sizeof(entry));
@@ -164,14 +165,14 @@ static int started_by_explorer(int log_available) {
 							}
 
 							if (strcasecmp(buffer, "explorer.exe") == 0) {
-								result = 1;
+								result = true;
 							} else {
 								length = strlen(buffer);
 
 								if (length > 13 /* = strlen("\\explorer.exe") */ &&
 								    (strcasecmp(buffer + length - 13, "\\explorer.exe") == 0 ||
 								     strcasecmp(buffer + length - 13, ":explorer.exe") == 0)) {
-									result = 1;
+									result = true;
 								}
 							}
 
@@ -310,7 +311,7 @@ static void message_pump_thread_proc(void *opaque) {
 		goto cleanup;
 	}
 
-	_message_pump_running = 1;
+	_message_pump_running = true;
 	semaphore_release(handshake);
 
 	while (_message_pump_running &&
@@ -341,7 +342,7 @@ cleanup:
 		semaphore_release(handshake);
 	}
 
-	_message_pump_running = 0;
+	_message_pump_running = false;
 }
 
 static int message_pump_start(void) {
@@ -372,7 +373,7 @@ static void message_pump_stop(void) {
 
 	log_debug("Stopping message pump");
 
-	_message_pump_running = 0;
+	_message_pump_running = false;
 
 	if (!PostMessage(_message_pump_hwnd, WM_USER, 0, 0)) {
 		rc = ERRNO_WINAPI_OFFSET + GetLastError();
@@ -445,7 +446,7 @@ static BOOL WINAPI console_ctrl_handler(DWORD ctrl_type) {
 		return FALSE;
 	}
 
-	_pause_before_exit = 0;
+	_pause_before_exit = false;
 
 	event_stop();
 
@@ -454,11 +455,11 @@ static BOOL WINAPI console_ctrl_handler(DWORD ctrl_type) {
 
 // NOTE: this function needs to call RegisterServiceCtrlHandlerEx and
 // SetServiceStatus in all circumstances if brickd is running as service
-static int generic_main(int log_to_file, int debug, int libusb_debug) {
+static int generic_main(bool log_to_file, bool debug, bool libusb_debug) {
 	int exit_code = EXIT_FAILURE;
 	const char *mutex_name = "Global\\Tinkerforge-Brick-Daemon-Single-Instance";
 	HANDLE mutex_handle = NULL;
-	int fatal_error = 0;
+	bool fatal_error = false;
 	DWORD service_exit_code = NO_ERROR;
 	int rc;
 	char filename[1024];
@@ -477,12 +478,12 @@ static int generic_main(int log_to_file, int debug, int libusb_debug) {
 			rc = service_is_running();
 
 			if (rc < 0) {
-				fatal_error = 1;
+				fatal_error = true;
 				// FIXME: set service_exit_code
 
 				goto error_mutex;
 			} else if (rc) {
-				fatal_error = 1;
+				fatal_error = true;
 				service_exit_code = ERROR_SERVICE_ALREADY_RUNNING;
 
 				log_error("Could not start as %s, another instance is already running as service",
@@ -493,7 +494,7 @@ static int generic_main(int log_to_file, int debug, int libusb_debug) {
 		}
 
 		if (rc != ERROR_FILE_NOT_FOUND) {
-			fatal_error = 1;
+			fatal_error = true;
 			// FIXME: set service_exit_code
 			rc += ERRNO_WINAPI_OFFSET;
 
@@ -505,7 +506,7 @@ static int generic_main(int log_to_file, int debug, int libusb_debug) {
 	}
 
 	if (mutex_handle != NULL) {
-		fatal_error = 1;
+		fatal_error = true;
 		service_exit_code = ERROR_SERVICE_ALREADY_RUNNING;
 
 		log_error("Could not start as %s, another instance is already running",
@@ -517,7 +518,7 @@ static int generic_main(int log_to_file, int debug, int libusb_debug) {
 	mutex_handle = CreateMutex(NULL, FALSE, mutex_name);
 
 	if (mutex_handle == NULL) {
-		fatal_error = 1;
+		fatal_error = true;
 		// FIXME: set service_exit_code
 		rc = ERRNO_WINAPI_OFFSET + GetLastError();
 
@@ -577,7 +578,7 @@ static int generic_main(int log_to_file, int debug, int libusb_debug) {
 		log_error("Error(s) in config file '%s', run with --check-config option for details",
 		          _config_filename);
 
-		fatal_error = 1;
+		fatal_error = true;
 
 		goto error_config;
 	}
@@ -773,17 +774,17 @@ error:
 
 static void WINAPI service_main(DWORD argc, LPTSTR *argv) {
 	DWORD i;
-	int log_to_file = 0;
-	int debug = 0;
-	int libusb_debug = 0;
+	bool log_to_file = false;
+	bool debug = false;
+	bool libusb_debug = false;
 
 	for (i = 1; i < argc; ++i) {
 		if (strcmp(argv[i], "--log-to-file") == 0) {
-			log_to_file = 1;
+			log_to_file = true;
 		} else if (strcmp(argv[i], "--debug") == 0) {
-			debug = 1;
+			debug = true;
 		} else if (strcmp(argv[i], "--libusb-debug") == 0) {
-			libusb_debug = 1;
+			libusb_debug = true;
 		} else {
 			log_warn("Unknown start parameter '%s'", argv[i]);
 		}
@@ -792,7 +793,7 @@ static void WINAPI service_main(DWORD argc, LPTSTR *argv) {
 	generic_main(log_to_file, debug, libusb_debug);
 }
 
-static int service_run(int log_to_file, int debug, int libusb_debug) {
+static int service_run(bool log_to_file, bool debug, bool libusb_debug) {
 	SERVICE_TABLE_ENTRY service_table[2];
 	int rc;
 
@@ -812,8 +813,8 @@ static int service_run(int log_to_file, int debug, int libusb_debug) {
 				log_info("Could not start as service, starting as console application");
 			}
 
-			_run_as_service = 0;
-			_pause_before_exit = started_by_explorer(1);
+			_run_as_service = false;
+			_pause_before_exit = started_by_explorer(true);
 
 			return generic_main(log_to_file, debug, libusb_debug);
 		} else {
@@ -847,7 +848,7 @@ static void print_usage(void) {
 	       "  --debug         Set all log levels to debug\n"
 	       "  --libusb-debug  Set libusb log level to debug\n");
 
-	if (started_by_explorer(0)) {
+	if (started_by_explorer(false)) {
 		printf("\nPress any key to exit...\n");
 		getch();
 	}
@@ -856,7 +857,7 @@ static void print_usage(void) {
 static void print_version(void) {
 	printf("%s\n", VERSION_STRING);
 
-	if (started_by_explorer(0)) {
+	if (started_by_explorer(false)) {
 		printf("\nPress any key to exit...\n");
 		getch();
 	}
@@ -864,38 +865,38 @@ static void print_version(void) {
 
 int main(int argc, char **argv) {
 	int i;
-	int help = 0;
-	int version = 0;
-	int check_config = 0;
-	int install = 0;
-	int uninstall = 0;
-	int console = 0;
-	int log_to_file = 0;
-	int debug = 0;
-	int libusb_debug = 0;
+	bool help = false;
+	bool version = false;
+	bool check_config = false;
+	bool install = false;
+	bool uninstall = false;
+	bool console = false;
+	bool log_to_file = false;
+	bool debug = false;
+	bool libusb_debug = false;
 	int rc;
 
 	fixes_init();
 
 	for (i = 1; i < argc; ++i) {
 		if (strcmp(argv[i], "--help") == 0) {
-			help = 1;
+			help = true;
 		} else if (strcmp(argv[i], "--version") == 0) {
-			version = 1;
+			version = true;
 		} else if (strcmp(argv[i], "--check-config") == 0) {
-			check_config = 1;
+			check_config = true;
 		} else if (strcmp(argv[i], "--install") == 0) {
-			install = 1;
+			install = true;
 		} else if (strcmp(argv[i], "--uninstall") == 0) {
-			uninstall = 1;
+			uninstall = true;
 		} else if (strcmp(argv[i], "--console") == 0) {
-			console = 1;
+			console = true;
 		} else if (strcmp(argv[i], "--log-to-file") == 0) {
-			log_to_file = 1;
+			log_to_file = true;
 		} else if (strcmp(argv[i], "--debug") == 0) {
-			debug = 1;
+			debug = true;
 		} else if (strcmp(argv[i], "--libusb-debug") == 0) {
-			libusb_debug = 1;
+			libusb_debug = true;
 		} else {
 			fprintf(stderr, "Unknown option '%s'\n\n", argv[i]);
 			print_usage();
@@ -939,7 +940,7 @@ int main(int argc, char **argv) {
 	if (check_config) {
 		rc = config_check(_config_filename);
 
-		if (started_by_explorer(0)) {
+		if (started_by_explorer(false)) {
 			printf("\nPress any key to exit...\n");
 			getch();
 		}
@@ -970,8 +971,8 @@ int main(int argc, char **argv) {
 		log_init();
 
 		if (console) {
-			_run_as_service = 0;
-			_pause_before_exit = started_by_explorer(1);
+			_run_as_service = false;
+			_pause_before_exit = started_by_explorer(true);
 
 			return generic_main(log_to_file, debug, libusb_debug);
 		} else {

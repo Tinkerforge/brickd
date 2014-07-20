@@ -265,7 +265,7 @@ void usb_exit_hotplug(libusb_context *context) {
 	libusbz_hotplug_deregister_callback(context, _hotplug_handle);
 }
 
-int usb_has_hotplug(void) {
+bool usb_has_hotplug(void) {
 #if DLOPEN_HOTPLUG_FUNCTIONS
 	return libusbz_has_capability != NULL &&
 	       libusbz_hotplug_register_callback != NULL &&

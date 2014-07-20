@@ -19,10 +19,11 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
+#include <libusb.h>
+#include <stdbool.h>
 #ifndef _MSC_VER
 	#include <sys/time.h>
 #endif
-#include <libusb.h>
 #include <windows.h>
 
 #include <daemonlib/log.h>
@@ -50,11 +51,11 @@ typedef struct {
 
 #define NAMED_PIPE_BUFFER_LENGTH (sizeof(LogPipeMessage) * 4)
 
-int _log_debug_override_platform = 0;
+bool _log_debug_override_platform = false;
 
 static HANDLE _event_log = NULL;
-static int _named_pipe_connected = 0;
-static int _named_pipe_running = 0;
+static bool _named_pipe_connected = false;
+static bool _named_pipe_running = false;
 static HANDLE _named_pipe = INVALID_HANDLE_VALUE;
 static Thread _named_pipe_thread;
 static HANDLE _named_pipe_write_event = NULL;
@@ -124,7 +125,7 @@ static void LIBUSB_CALL log_forward_libusb_message(enum libusb_log_level level,
 	log_send_pipe_message(&pipe_message);
 }
 
-static void log_set_named_pipe_connected(int connected) {
+static void log_set_named_pipe_connected(bool connected) {
 	_named_pipe_connected = connected;
 	_log_debug_override_platform = connected;
 
@@ -171,7 +172,7 @@ static void log_connect_named_pipe(void *opaque) {
 	phase = 2;
 
 	// start loop
-	_named_pipe_running = 1;
+	_named_pipe_running = true;
 	semaphore_release(handshake);
 
 	log_debug("Started named pipe connect thread");
@@ -205,7 +206,7 @@ static void log_connect_named_pipe(void *opaque) {
 				// named pipe connect thread stopped
 				goto cleanup;
 			} else if (rc == WAIT_OBJECT_0 + 1) {
-				log_set_named_pipe_connected(1);
+				log_set_named_pipe_connected(true);
 
 				log_info("Log Viewer connected");
 			} else {
@@ -252,7 +253,7 @@ static void log_connect_named_pipe(void *opaque) {
 
 				log_info("Log Viewer disconnected");
 
-				log_set_named_pipe_connected(0);
+				log_set_named_pipe_connected(false);
 
 				break;
 			}
@@ -270,7 +271,7 @@ static void log_connect_named_pipe(void *opaque) {
 
 				log_info("Log Viewer disconnected");
 
-				log_set_named_pipe_connected(0);
+				log_set_named_pipe_connected(false);
 
 				break;
 			} else {
@@ -303,7 +304,7 @@ cleanup:
 		break;
 	}
 
-	_named_pipe_running = 0;
+	_named_pipe_running = false;
 }
 
 void log_init_platform(void) {
@@ -385,7 +386,7 @@ void log_exit_platform(void) {
 		thread_destroy(&_named_pipe_thread);
 	}
 
-	log_set_named_pipe_connected(0);
+	log_set_named_pipe_connected(false);
 
 	if (_named_pipe != INVALID_HANDLE_VALUE) {
 		CloseHandle(_named_pipe);

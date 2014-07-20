@@ -110,7 +110,7 @@ Recipient *stack_get_recipient(Stack *stack, uint32_t uid /* always little endia
 }
 
 // returns -1 on error, 0 if the request was not dispatched and 1 if it was dispatch
-int stack_dispatch_request(Stack *stack, Packet *request, int force) {
+int stack_dispatch_request(Stack *stack, Packet *request, bool force) {
 	Recipient *recipient = NULL;
 
 	if (!force) {

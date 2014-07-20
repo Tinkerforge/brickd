@@ -21,6 +21,7 @@
  */
 
 #include <errno.h>
+#include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
@@ -47,8 +48,8 @@
 static Array _clients;
 static Socket _server_socket_plain;
 static Socket _server_socket_websocket;
-static int _server_socket_plain_open = 0;
-static int _server_socket_websocket_open = 0;
+static bool _server_socket_plain_open = false;
+static bool _server_socket_websocket_open = false;
 static uint32_t _next_authentication_nonce = 0;
 
 static void network_handle_accept(void *opaque) {
@@ -95,7 +96,7 @@ static void network_handle_accept(void *opaque) {
 	}
 }
 
-static const char *network_get_address_family_name(int family, int report_dual_stack) {
+static const char *network_get_address_family_name(int family, bool report_dual_stack) {
 	switch (family) {
 	case AF_INET:
 		return "IPv4";
@@ -117,7 +118,7 @@ static int network_open_server_socket(Socket *server_socket, uint16_t port,
 	int phase = 0;
 	const char *address = config_get_option("listen.address")->value.string;
 	struct addrinfo *resolved_address = NULL;
-	int dual_stack;
+	bool dual_stack;
 
 	log_debug("Opening server socket on port %u", port);
 
@@ -149,7 +150,7 @@ static int network_open_server_socket(Socket *server_socket, uint16_t port,
 	if (socket_open(server_socket, resolved_address->ai_family,
 	                resolved_address->ai_socktype, resolved_address->ai_protocol) < 0) {
 		log_error("Could not open %s server socket: %s (%d)",
-		          network_get_address_family_name(resolved_address->ai_family, 0),
+		          network_get_address_family_name(resolved_address->ai_family, false),
 		          get_errno_name(errno), errno);
 
 		goto cleanup;
@@ -173,7 +174,7 @@ static int network_open_server_socket(Socket *server_socket, uint16_t port,
 	// allows to rebind sockets in any state. this is dangerous. therefore,
 	// don't set SO_REUSEADDR on Windows. sockets can be rebound in CLOSE-WAIT
 	// state on Windows by default.
-	if (socket_set_address_reuse(server_socket, 1) < 0) {
+	if (socket_set_address_reuse(server_socket, true) < 0) {
 		log_error("Could not enable address-reuse mode for server socket: %s (%d)",
 		          get_errno_name(errno), errno);
 
@@ -185,7 +186,7 @@ static int network_open_server_socket(Socket *server_socket, uint16_t port,
 	if (socket_bind(server_socket, resolved_address->ai_addr,
 	                resolved_address->ai_addrlen) < 0) {
 		log_error("Could not bind %s server socket to '%s' on port %u: %s (%d)",
-		          network_get_address_family_name(resolved_address->ai_family, 1),
+		          network_get_address_family_name(resolved_address->ai_family, true),
 		          address, port, get_errno_name(errno), errno);
 
 		goto cleanup;
@@ -193,7 +194,7 @@ static int network_open_server_socket(Socket *server_socket, uint16_t port,
 
 	if (socket_listen(server_socket, 10, create_allocated) < 0) {
 		log_error("Could not listen to %s server socket bound to '%s' on port %u: %s (%d)",
-		          network_get_address_family_name(resolved_address->ai_family, 1),
+		          network_get_address_family_name(resolved_address->ai_family, true),
 		          address, port, get_errno_name(errno), errno);
 
 		goto cleanup;
@@ -201,7 +202,7 @@ static int network_open_server_socket(Socket *server_socket, uint16_t port,
 
 	log_debug("Started listening to '%s' (%s) on port %u",
 	          address,
-	          network_get_address_family_name(resolved_address->ai_family, 1),
+	          network_get_address_family_name(resolved_address->ai_family, true),
 	          port);
 
 	if (event_add_source(server_socket->base.handle, EVENT_SOURCE_TYPE_GENERIC,
@@ -251,7 +252,7 @@ int network_init(void) {
 
 	if (network_open_server_socket(&_server_socket_plain, plain_port,
 	                               socket_create_allocated) >= 0) {
-		_server_socket_plain_open = 1;
+		_server_socket_plain_open = true;
 	}
 
 	if (websocket_port != 0) {
@@ -261,7 +262,7 @@ int network_init(void) {
 
 		if (network_open_server_socket(&_server_socket_websocket, websocket_port,
 		                               websocket_create_allocated) >= 0) {
-			_server_socket_websocket_open = 1;
+			_server_socket_websocket_open = true;
 		}
 	}
 
@@ -362,7 +363,7 @@ void network_dispatch_response(Packet *response) {
 		for (i = 0; i < _clients.count; ++i) {
 			client = array_get(&_clients, i);
 
-			client_dispatch_response(client, response, 1, 0);
+			client_dispatch_response(client, response, true, false);
 		}
 	} else {
 		log_debug("Dispatching response (%s) to %d client(s)",
@@ -372,7 +373,7 @@ void network_dispatch_response(Packet *response) {
 		for (i = 0; i < _clients.count; ++i) {
 			client = array_get(&_clients, i);
 
-			if (client_dispatch_response(client, response, 0, 0) > 0) {
+			if (client_dispatch_response(client, response, false, false) > 0) {
 				// found client with matching pending request
 				return;
 			}
@@ -384,7 +385,7 @@ void network_dispatch_response(Packet *response) {
 		for (i = 0; i < _clients.count; ++i) {
 			client = array_get(&_clients, i);
 
-			client_dispatch_response(client, response, 1, 0);
+			client_dispatch_response(client, response, true, false);
 		}
 	}
 }

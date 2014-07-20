@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2013 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2013-2014 Matthias Bolte <matthias@tinkerforge.com>
  *
  * usb_winapi.c: WinAPI based USB specific functions
  *
@@ -49,6 +49,6 @@ void usb_exit_hotplug(libusb_context *context) {
 	(void)context;
 }
 
-int usb_has_hotplug(void) {
-	return 0;
+bool usb_has_hotplug(void) {
+	return false;
 }

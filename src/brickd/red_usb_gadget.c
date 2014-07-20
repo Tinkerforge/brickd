@@ -27,7 +27,7 @@
  * the brickd routing system as if it had been received from a normal TCP/IP
  * client.
  *
- * the RED Brick enumeration process is splitted into multiple locations.
+ * the RED Brick enumeration process is split into multiple locations.
  * the enumerate-connected packet is send from here to the USB gadget driver,
  * because only the brickd on the host side connected to the RED Brick should
  * receive the enumerate-connected for the RED Brick.
@@ -131,7 +131,7 @@ static int red_usb_gadget_connect(void) {
 	enumerate_callback.header.length = sizeof(enumerate_callback);
 	enumerate_callback.header.function_id = CALLBACK_ENUMERATE;
 	packet_header_set_sequence_number(&enumerate_callback.header, 0);
-	packet_header_set_response_expected(&enumerate_callback.header, 1);
+	packet_header_set_response_expected(&enumerate_callback.header, true);
 
 	base58_encode(enumerate_callback.uid, uint32_from_le(_uid));
 	enumerate_callback.connected_uid[0] = '0';
@@ -148,14 +148,14 @@ static int red_usb_gadget_connect(void) {
 	log_debug("Sending enumerate-connected callback for RED Brick to '%s'",
 	          G_RED_BRICK_DATA_FILENAME);
 
-	client_dispatch_response(_client, (Packet *)&enumerate_callback, 1, 0);
+	client_dispatch_response(_client, (Packet *)&enumerate_callback, true, false);
 
 	return 0;
 }
 
 static void red_usb_gadget_disconnect() {
 	_client->destroy_done = NULL;
-	_client->disconnected = 1;
+	_client->disconnected = true;
 	_client = NULL;
 
 	log_info("Disconnected from RED Brick USB gadget");

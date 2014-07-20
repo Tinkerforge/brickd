@@ -59,6 +59,7 @@
 #ifndef BRICKD_WITH_LIBUDEV_DLOPEN
 	#include <libudev.h>
 #endif
+#include <stdbool.h>
 #include <string.h>
 
 #include <daemonlib/event.h>
@@ -115,7 +116,7 @@ static const char *_libudev0 = "libudev.so.0";
 static const char *_libudev1 = "libudev.so.1";
 static void *_libudev_handle = NULL;
 static const char *_loaded_libudev = "<unknown>";
-static int _dlsym_error = 0;
+static bool _dlsym_error = false;
 
 #if defined(__clang__) || !defined(__GNUC__) || __GNUC_PREREQ(4, 6)
 
@@ -156,7 +157,7 @@ static void *udev_dlsym(const char *name) {
 	if (error != NULL) {
 		log_error("Could not resolve '%s': %s", name, error);
 
-		_dlsym_error = 1;
+		_dlsym_error = true;
 	}
 
 	return pointer;

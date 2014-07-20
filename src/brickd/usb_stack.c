@@ -203,8 +203,8 @@ int usb_stack_create(USBStack *usb_stack, uint8_t bus_number, uint8_t device_add
 	usb_stack->context = NULL;
 	usb_stack->device_handle = NULL;
 	usb_stack->dropped_requests = 0;
-	usb_stack->connected = 1;
-	usb_stack->active = 0;
+	usb_stack->connected = true;
+	usb_stack->active = false;
 
 	// create stack base
 	snprintf(preliminary_name, sizeof(preliminary_name),
@@ -427,7 +427,7 @@ int usb_stack_create(USBStack *usb_stack, uint8_t bus_number, uint8_t device_add
 	}
 
 	// add to stacks array
-	usb_stack->active = 1;
+	usb_stack->active = true;
 
 	if (hardware_add_stack(&usb_stack->base) < 0) {
 		goto cleanup;
@@ -468,7 +468,7 @@ cleanup:
 void usb_stack_destroy(USBStack *usb_stack) {
 	char name[STACK_MAX_NAME_LENGTH];
 
-	usb_stack->active = 0;
+	usb_stack->active = false;
 
 	hardware_remove_stack(&usb_stack->base);
 
@@ -505,7 +505,7 @@ void usb_stack_announce_disconnect(USBStack *usb_stack) {
 		enumerate_callback.header.length = sizeof(enumerate_callback);
 		enumerate_callback.header.function_id = CALLBACK_ENUMERATE;
 		packet_header_set_sequence_number(&enumerate_callback.header, 0);
-		packet_header_set_response_expected(&enumerate_callback.header, 1);
+		packet_header_set_response_expected(&enumerate_callback.header, true);
 
 		base58_encode(enumerate_callback.uid, uint32_from_le(recipient->uid));
 		enumerate_callback.enumeration_type = ENUMERATION_TYPE_DISCONNECTED;
