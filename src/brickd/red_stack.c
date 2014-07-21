@@ -145,6 +145,7 @@ typedef struct {
 
 static REDStack _red_stack;
 
+static const GPIOPin _red_stack_master_high_pin = {GPIO_PORT_B, GPIO_PIN_11};
 static const GPIOPin _red_stack_slave_select_pins[RED_STACK_SPI_MAX_SLAVES] = {
 	{GPIO_PORT_C, GPIO_PIN_8},
 	{GPIO_PORT_C, GPIO_PIN_9},
@@ -560,6 +561,13 @@ static int red_stack_init_spi(void) {
 		log_error("Could not initialize RED Brick GPIO");
 		return -1;
 	}
+
+	// Set Master High pin to low (so Master Bricks above RED Brick can
+	// configure themselves as slave)
+	gpio_mux_configure(_red_stack_master_high_pin, GPIO_MUX_OUTPUT);
+	gpio_output_clear(_red_stack_master_high_pin);
+
+	// TODO: Reset slaves and sleep (can't be implemented in current hardware version)
 
 	// Initialize slaves
 	for(slave = 0; slave < RED_STACK_SPI_MAX_SLAVES; slave++) {
