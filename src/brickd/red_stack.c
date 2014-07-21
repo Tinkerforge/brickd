@@ -38,11 +38,13 @@
 #include <daemonlib/red_gpio.h>
 #include <daemonlib/event.h>
 
-#include "red_stack.h"
 
 #include "network.h"
 #include "stack.h"
 #include "hardware.h"
+
+#include "red_usb_gadget.h"
+#include "red_stack.h"
 
 #define LOG_CATEGORY LOG_CATEGORY_RED_BRICK
 
@@ -445,6 +447,17 @@ static void red_stack_spi_create_routing_table() {
 	          stack_address, uid_counter);
 }
 
+static void red_stack_spi_insert_position(REDStackSlave *slave) {
+	if(_red_stack.packet_from_spi.header.function_id == CALLBACK_ENUMERATE ||
+	   _red_stack.packet_from_spi.header.function_id == FUNCTION_GET_IDENTITY) {
+		EnumerateCallback *enum_cb = (EnumerateCallback *)&_red_stack.packet_from_spi;
+		if(enum_cb->position == '0') {
+			enum_cb->position = '0' + slave->stack_address + 1;
+			base58_encode(enum_cb->connected_uid, uint32_from_le(red_usb_gadget_get_uid()));
+		}
+	}
+}
+
 // Main SPI loop. This runs independently from the brickd event thread.
 // Data between RED Brick and SPI slave is exchanged every 500us.
 // If there is no data to be send, we cycle through the slaves and request
@@ -516,6 +529,10 @@ static void red_stack_spi_thread(void *opaque) {
 		if(ret & RED_STACK_TRANSCEIVE_DATA_RECEIVED) {
 			// TODO: Check again if packet is valid?
 			// We did already check the hash.
+
+			// Before the dispatching we insert the stack position into an enumerate message
+			red_stack_spi_insert_position(slave);
+
 			red_stack_spi_request_dispatch_response_event();
 			// Wait until message is dispatched, so we don't overwrite it
 			// accidentally.
