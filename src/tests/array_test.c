@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2013 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2013-2014 Matthias Bolte <matthias@tinkerforge.com>
  *
  * array_test.c: Tests for the Array type
  *
@@ -19,12 +19,13 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 
 #include <daemonlib/array.h>
 
-int test1(int relocatable) {
+int test1(bool relocatable) {
 	Array array;
 
 	if (array_create(&array, 0, sizeof(uint32_t), relocatable)) {
@@ -95,7 +96,7 @@ int test2(void) {
 	int i;
 	void *value;
 
-	if (array_create(&array, 0, 17, 0)) {
+	if (array_create(&array, 0, 17, false)) {
 		printf("test2: array_create failed\n");
 
 		return -1;
@@ -133,7 +134,7 @@ int main(void) {
 	fixes_init();
 #endif
 
-	if (test1(0) < 0 || test1(1) < 0) {
+	if (test1(false) < 0 || test1(true) < 0) {
 		return EXIT_FAILURE;
 	}
 

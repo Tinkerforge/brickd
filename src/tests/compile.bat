@@ -9,9 +9,9 @@
 )
 
 @set CC=cl /nologo /c /MD /O2 /W4 /wd4200 /wd4214 /FI..\brickd\fixes_msvc.h^
- /FIbool_msvc.h /DWIN32_LEAN_AND_MEAN /DNDEBUG
+ /FI..\build_data\windows\stdbool.h /DWIN32_LEAN_AND_MEAN /DNDEBUG
 rem @set CC=cl /nologo /c /MD /Zi /EHsc /Oy- /Ob0 /W4 /wd4200 /wd4214^
-rem  /FI..\brickd\fixes_msvc.h /FIbool_msvc.h /DWIN32_LEAN_AND_MEAN /DDEBUG
+rem  /FI..\brickd\fixes_msvc.h /FI..\build_data\windows\stdbool.h /DWIN32_LEAN_AND_MEAN /DDEBUG
 @set MC=mc
 @set RC=rc /dWIN32 /r
 @set LD=link /nologo /opt:ref /opt:icf /release
