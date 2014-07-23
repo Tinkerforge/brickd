@@ -49,9 +49,9 @@ typedef enum {
 
 typedef void (*ClientDestroyDoneFunction)(void);
 
-typedef struct PendingRequest_ PendingRequest;
+typedef struct _PendingRequest PendingRequest;
 
-struct PendingRequest_ {
+struct _PendingRequest {
 	Node global_node;
 	Node client_node;
 	Client *client;

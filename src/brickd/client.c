@@ -265,7 +265,7 @@ static void client_handle_read(void *opaque) {
 		}
 
 		if (client->request.header.function_id == FUNCTION_DISCONNECT_PROBE) {
-			log_debug("Got disconnect probe from client ("CLIENT_INFO_FORMAT"), discarding request",
+			log_debug("Got disconnect probe from client ("CLIENT_INFO_FORMAT"), dropping request",
 			          client_expand_info(client));
 		} else {
 			log_debug("Got request (%s) from client ("CLIENT_INFO_FORMAT")",

@@ -170,7 +170,7 @@ static int usb_stack_dispatch_request(USBStack *usb_stack, Packet *request,
 	queued_request = queue_push(&usb_stack->write_queue);
 
 	if (queued_request == NULL) {
-		log_error("Could not push request (%s) to write queue for %s, discarding request: %s (%d)",
+		log_error("Could not push request (%s) to write queue for %s, dropping request: %s (%d)",
 		          packet_get_request_signature(packet_signature, request),
 		          usb_stack->base.name,
 		          get_errno_name(errno), errno);
