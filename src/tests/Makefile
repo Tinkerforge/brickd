@@ -36,13 +36,15 @@ THROUGHPUT_TEST_SOURCES := throughput_test.c ip_connection.c brick_master.c $(ca
 SHA1_TEST_SOURCES := sha1_test.c $(call FIX_PATH,../brickd/sha1.c)
 PUTENV_TEST_SOURCES := putenv_test.c
 BASE58_TEST_SOURCES := base58_test.c $(call FIX_PATH,../daemonlib/utils.c)
+NODE_TEST_SOURCES := node_test.c $(call FIX_PATH,../daemonlib/utils.c)
 
 SOURCES := $(ARRAY_TEST_SOURCES) \
            $(QUEUE_TEST_SOURCES) \
            $(THROUGHPUT_TEST_SOURCES) \
            $(SHA1_TEST_SOURCES) \
            $(PUTENV_TEST_SOURCES) \
-           $(BASE58_TEST_SOURCES)
+           $(BASE58_TEST_SOURCES) \
+           $(NODE_TEST_SOURCES)
 
 ifeq ($(PLATFORM),Windows)
 	ARRAY_TEST_SOURCES += $(call FIX_PATH,../brickd/fixes_mingw.c)
@@ -51,6 +53,7 @@ ifeq ($(PLATFORM),Windows)
 	SHA1_TEST_SOURCES += $(call FIX_PATH,../brickd/fixes_mingw.c)
 	PUTENV_TEST_SOURCES += $(call FIX_PATH,../brickd/fixes_mingw.c)
 	BASE58_TEST_SOURCES += $(call FIX_PATH,../brickd/fixes_mingw.c)
+	NODE_TEST_SOURCES += $(call FIX_PATH,../brickd/fixes_mingw.c)
 endif
 
 ARRAY_TEST_OBJECTS := ${ARRAY_TEST_SOURCES:.c=.o}
@@ -59,20 +62,23 @@ THROUGHPUT_TEST_OBJECTS := ${THROUGHPUT_TEST_SOURCES:.c=.o}
 SHA1_TEST_OBJECTS := ${SHA1_TEST_SOURCES:.c=.o}
 PUTENV_TEST_OBJECTS := ${PUTENV_TEST_SOURCES:.c=.o}
 BASE58_TEST_OBJECTS := ${BASE58_TEST_SOURCES:.c=.o}
+NODE_TEST_OBJECTS := ${NODE_TEST_SOURCES:.c=.o}
 
 OBJECTS := $(ARRAY_TEST_OBJECTS) \
            $(QUEUE_TEST_OBJECTS) \
            $(THROUGHPUT_TEST_OBJECTS) \
            $(SHA1_TEST_OBJECTS) \
            $(PUTENV_TEST_OBJECTS) \
-           $(BASE58_TEST_OBJECTS)
+           $(BASE58_TEST_OBJECTS) \
+           $(NODE_TEST_OBJECTS)
 
 DEPENDS := ${ARRAY_TEST_SOURCES:.c=.p} \
            ${QUEUE_TEST_SOURCES:.c=.p} \
            ${THROUGHPUT_TEST_SOURCES:.c=.p} \
            ${SHA1_TEST_SOURCES:.c=.p} \
            ${PUTENV_TEST_SOURCES:.c=.p} \
-           ${BASE58_TEST_SOURCES:.c=.p}
+           ${BASE58_TEST_SOURCES:.c=.p} \
+           ${NODE_TEST_SOURCES:.c=.p}
 
 ifeq ($(PLATFORM),Windows)
 	ARRAY_TEST_TARGET := array_test.exe
@@ -81,6 +87,7 @@ ifeq ($(PLATFORM),Windows)
 	SHA1_TEST_TARGET := sha1_test.exe
 	PUTENV_TEST_TARGET := putenv_test.exe
 	BASE58_TEST_TARGET := base58_test.exe
+	NODE_TEST_TARGET := node_test.exe
 else
 	ARRAY_TEST_TARGET := array_test
 	QUEUE_TEST_TARGET := queue_test
@@ -88,6 +95,7 @@ else
 	SHA1_TEST_TARGET := sha1_test
 	PUTENV_TEST_TARGET := putenv_test
 	BASE58_TEST_TARGET := base58_test
+	NODE_TEST_TARGET := node_test
 endif
 
 TARGETS := $(ARRAY_TEST_TARGET) \
@@ -95,7 +103,8 @@ TARGETS := $(ARRAY_TEST_TARGET) \
            $(THROUGHPUT_TEST_TARGET) \
            $(SHA1_TEST_TARGET) \
            $(PUTENV_TEST_TARGET) \
-           $(BASE58_TEST_TARGET)
+           $(BASE58_TEST_TARGET) \
+           $(NODE_TEST_TARGET)
 
 CFLAGS += -O2 -Wall -Wextra -I..
 #CFLAGS += -O0 -g -ggdb
@@ -138,6 +147,10 @@ $(PUTENV_TEST_TARGET): $(PUTENV_TEST_OBJECTS) Makefile
 $(BASE58_TEST_TARGET): $(BASE58_TEST_OBJECTS) Makefile
 	@echo LD $@
 	$(E)$(CC) -o $(BASE58_TEST_TARGET) $(LDFLAGS) $(BASE58_TEST_OBJECTS) $(LIBS)
+
+$(NODE_TEST_TARGET): $(NODE_TEST_OBJECTS) Makefile
+	@echo LD $@
+	$(E)$(CC) -o $(NODE_TEST_TARGET) $(LDFLAGS) $(NODE_TEST_OBJECTS) $(LIBS)
 
 %.o: %.c $(GENERATED) Makefile
 	@echo CC $@

@@ -108,5 +108,17 @@ rem @set LD=link /nologo /debug
 @del *.obj *.res *.bin *.exp *.manifest
 
 
+%CC% node_test.c^
+ ..\brickd\fixes_msvc.c^
+ ..\daemonlib\utils.c
+
+%LD% /out:node_test.exe *.obj ws2_32.lib
+
+@if exist node_test.exe.manifest^
+ %MT% /manifest node_test.exe.manifest -outputresource:node_test.exe
+
+@del *.obj *.res *.bin *.exp *.manifest
+
+
 :done
 @endlocal
