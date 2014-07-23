@@ -51,6 +51,7 @@ static Socket _server_socket_websocket;
 static bool _server_socket_plain_open = false;
 static bool _server_socket_websocket_open = false;
 static uint32_t _next_authentication_nonce = 0;
+static Node _pending_request_sentinel;
 
 static void network_handle_accept(void *opaque) {
 	Socket *server_socket = opaque;
@@ -235,6 +236,8 @@ int network_init(void) {
 
 	log_debug("Initializing network subsystem");
 
+	node_reset(&_pending_request_sentinel);
+
 	if (config_get_option("authentication.secret")->value.string != NULL) {
 		log_info("Authentication is enabled");
 
@@ -336,10 +339,63 @@ void network_cleanup_clients(void) {
 	}
 }
 
+void network_client_expects_response(Client *client, Packet *request) {
+	PendingRequest *pending_request;
+	char packet_signature[PACKET_MAX_SIGNATURE_LENGTH];
+
+	if (client->pending_request_count >= CLIENT_MAX_PENDING_REQUESTS) {
+		log_warn("Pending requests list for client ("CLIENT_INFO_FORMAT") is full, dropping %d pending request(s)",
+		         client_expand_info(client),
+		         client->pending_request_count - CLIENT_MAX_PENDING_REQUESTS + 1);
+
+		while (client->pending_request_count >= CLIENT_MAX_PENDING_REQUESTS) {
+			pending_request = containerof(client->pending_request_sentinel.next, PendingRequest, client_node);
+
+			node_remove(&pending_request->global_node);
+			node_remove(&pending_request->client_node);
+
+			free(pending_request);
+
+			--client->pending_request_count;
+		}
+	}
+
+	pending_request = calloc(1, sizeof(PendingRequest));
+
+	if (pending_request == NULL) {
+		log_error("Could not allocate pending request: %s (%d)",
+		          get_errno_name(ENOMEM), ENOMEM);
+
+		return;
+	}
+
+	node_reset(&pending_request->global_node);
+	node_insert_before(&_pending_request_sentinel, &pending_request->global_node);
+
+	node_reset(&pending_request->client_node);
+	node_insert_before(&client->pending_request_sentinel, &pending_request->client_node);
+
+	++client->pending_request_count;
+
+	pending_request->client = client;
+
+	memcpy(&pending_request->header, &request->header, sizeof(PacketHeader));
+
+#ifdef BRICKD_WITH_PROFILING
+	pending_request->arrival_time = microseconds();
+#endif
+
+	log_debug("Added pending request (%s) for client ("CLIENT_INFO_FORMAT")",
+	          packet_get_request_signature(packet_signature, request),
+	          client_expand_info(client));
+}
+
 void network_dispatch_response(Packet *response) {
 	char packet_signature[PACKET_MAX_SIGNATURE_LENGTH];
 	int i;
 	Client *client;
+	Node *pending_request_global_node;
+	PendingRequest *pending_request;
 
 	if (_clients.count == 0) {
 		if (packet_header_get_sequence_number(&response->header) == 0) {
@@ -363,20 +419,26 @@ void network_dispatch_response(Packet *response) {
 		for (i = 0; i < _clients.count; ++i) {
 			client = array_get(&_clients, i);
 
-			client_dispatch_response(client, response, true, false);
+			client_dispatch_response(client, NULL, response, true, false);
 		}
 	} else {
 		log_debug("Dispatching response (%s) to %d client(s)",
 		          packet_get_response_signature(packet_signature, response),
 		          _clients.count);
 
-		for (i = 0; i < _clients.count; ++i) {
-			client = array_get(&_clients, i);
+		pending_request_global_node = _pending_request_sentinel.next;
 
-			if (client_dispatch_response(client, response, false, false) > 0) {
-				// found client with matching pending request
+		while (pending_request_global_node != &_pending_request_sentinel) {
+			pending_request = containerof(pending_request_global_node, PendingRequest, global_node);
+
+			if (packet_is_matching_response(response, &pending_request->header)) {
+				client_dispatch_response(pending_request->client, pending_request,
+				                         response, false, false);
+
 				return;
 			}
+
+			pending_request_global_node = pending_request_global_node->next;
 		}
 
 		log_warn("Broadcasting response (%s) because no client has a matching pending request",
@@ -385,7 +447,7 @@ void network_dispatch_response(Packet *response) {
 		for (i = 0; i < _clients.count; ++i) {
 			client = array_get(&_clients, i);
 
-			client_dispatch_response(client, response, true, false);
+			client_dispatch_response(client, NULL, response, true, false);
 		}
 	}
 }

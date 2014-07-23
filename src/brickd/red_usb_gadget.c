@@ -148,7 +148,7 @@ static int red_usb_gadget_connect(void) {
 	log_debug("Sending enumerate-connected callback for RED Brick to '%s'",
 	          G_RED_BRICK_DATA_FILENAME);
 
-	client_dispatch_response(_client, (Packet *)&enumerate_callback, true, false);
+	client_dispatch_response(_client, NULL, (Packet *)&enumerate_callback, true, false);
 
 	return 0;
 }

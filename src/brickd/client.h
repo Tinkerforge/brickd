@@ -36,6 +36,7 @@
 #include <daemonlib/writer.h>
 
 #define CLIENT_MAX_NAME_LENGTH 128
+#define CLIENT_MAX_PENDING_REQUESTS 32768
 
 typedef struct _Client Client;
 
@@ -48,6 +49,18 @@ typedef enum {
 
 typedef void (*ClientDestroyDoneFunction)(void);
 
+typedef struct PendingRequest_ PendingRequest;
+
+struct PendingRequest_ {
+	Node global_node;
+	Node client_node;
+	Client *client;
+	PacketHeader header;
+#ifdef BRICKD_WITH_PROFILING
+	uint64_t arrival_time; // in usec
+#endif
+};
+
 struct _Client {
 	char name[CLIENT_MAX_NAME_LENGTH]; // for display purpose
 	IO *io;
@@ -55,7 +68,8 @@ struct _Client {
 	Packet request;
 	int request_used;
 	bool request_header_checked;
-	Array pending_requests;
+	Node pending_request_sentinel;
+	int pending_request_count;
 	Writer response_writer;
 	ClientAuthenticationState authentication_state;
 	uint32_t authentication_nonce; // server
@@ -73,7 +87,7 @@ int client_create(Client *client, const char *name, IO *io,
                   ClientDestroyDoneFunction destroy_done);
 void client_destroy(Client *client);
 
-int client_dispatch_response(Client *client, Packet *response, bool force,
-                             bool ignore_authentication);
+void client_dispatch_response(Client *client, PendingRequest *pending_request,
+                              Packet *response, bool force, bool ignore_authentication);
 
 #endif // BRICKD_CLIENT_H

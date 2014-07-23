@@ -33,10 +33,9 @@
 
 #include "hardware.h"
 #include "hmac.h"
+#include "network.h"
 
 #define LOG_CATEGORY LOG_CATEGORY_NETWORK
-
-#define MAX_PENDING_REQUESTS 512
 
 #define UID_BRICK_DAEMON 1
 
@@ -44,13 +43,6 @@ typedef enum {
 	FUNCTION_GET_AUTHENTICATION_NONCE = 1,
 	FUNCTION_AUTHENTICATE = 2
 } BrickDaemonFunctionID;
-
-typedef struct {
-	PacketHeader header;
-#ifdef BRICKD_WITH_PROFILING
-	uint64_t arrival_time; // in usec
-#endif
-} PendingRequest;
 
 static void client_handle_get_authentication_nonce_request(Client *client, GetAuthenticationNonceRequest *request) {
 	GetAuthenticationNonceResponse response;
@@ -87,9 +79,9 @@ static void client_handle_get_authentication_nonce_request(Client *client, GetAu
 
 	memcpy(response.server_nonce, &client->authentication_nonce, sizeof(response.server_nonce));
 
-	if (client_dispatch_response(client, (Packet *)&response, false, true) > 0) {
-		client->authentication_state = CLIENT_AUTHENTICATION_STATE_NONCE_SEND;
-	}
+	client_dispatch_response(client, NULL, (Packet *)&response, false, true);
+
+	client->authentication_state = CLIENT_AUTHENTICATION_STATE_NONCE_SEND;
 }
 
 static void client_handle_authenticate_request(Client *client, AuthenticateRequest *request) {
@@ -148,43 +140,17 @@ static void client_handle_authenticate_request(Client *client, AuthenticateReque
 
 		packet_header_set_error_code(&response.header, ERROR_CODE_OK);
 
-		client_dispatch_response(client, (Packet *)&response, false, false);
+		client_dispatch_response(client, NULL, (Packet *)&response, false, false);
 	}
 }
 
 static void client_handle_request(Client *client, Packet *request) {
 	char packet_signature[PACKET_MAX_SIGNATURE_LENGTH];
-	PendingRequest *pending_request;
 	ErrorCodeResponse response;
 
-	// add to pending request if response is expected
+	// add as pending request if response is expected
 	if (packet_header_get_response_expected(&request->header)) {
-		if (client->pending_requests.count >= MAX_PENDING_REQUESTS) {
-			log_warn("Pending requests array for client ("CLIENT_INFO_FORMAT") is full, dropping %d pending request(s)",
-			         client_expand_info(client),
-			         client->pending_requests.count - MAX_PENDING_REQUESTS + 1);
-
-			while (client->pending_requests.count >= MAX_PENDING_REQUESTS) {
-				array_remove(&client->pending_requests, 0, NULL);
-			}
-		}
-
-		pending_request = array_append(&client->pending_requests);
-
-		if (pending_request == NULL) {
-			log_error("Could not append to pending requests array for client ("CLIENT_INFO_FORMAT"): %s (%d)",
-			          client_expand_info(client), get_errno_name(errno), errno);
-		} else {
-			memcpy(&pending_request->header, &request->header, sizeof(PacketHeader));
-
-#ifdef BRICKD_WITH_PROFILING
-			pending_request->arrival_time = microseconds();
-#endif
-
-			log_debug("Added pending request (%s) for client ("CLIENT_INFO_FORMAT")",
-			          packet_get_request_signature(packet_signature, request),
-			          client_expand_info(client));
-		}
+		network_client_expects_response(client, request);
 	}
 
 	// handle requests meant for brickd
@@ -220,7 +186,7 @@ static void client_handle_request(Client *client, Packet *request) {
 			packet_header_set_error_code(&response.header,
 			                             ERROR_CODE_FUNCTION_NOT_SUPPORTED);
 
-			client_dispatch_response(client, (Packet *)&response, false, false);
+			client_dispatch_response(client, NULL, (Packet *)&response, false, false);
 		}
 	} else if (client->authentication_state == CLIENT_AUTHENTICATION_STATE_DISABLED ||
 	           client->authentication_state == CLIENT_AUTHENTICATION_STATE_DONE) {
@@ -355,8 +321,6 @@ static void client_recipient_disconnect(void *opaque) {
 int client_create(Client *client, const char *name, IO *io,
                   uint32_t authentication_nonce,
                   ClientDestroyDoneFunction destroy_done) {
-	int phase = 0;
-
 	log_debug("Creating client from %s (handle: %d)", io->type, io->handle);
 
 	string_copy(client->name, name, sizeof(client->name));
@@ -365,6 +329,7 @@ int client_create(Client *client, const char *name, IO *io,
 	client->disconnected = false;
 	client->request_used = 0;
 	client->request_header_checked = false;
+	client->pending_request_count = 0;
 	client->authentication_state = CLIENT_AUTHENTICATION_STATE_DISABLED;
 	client->authentication_nonce = authentication_nonce;
 	client->destroy_done = destroy_done;
@@ -373,15 +338,7 @@ int client_create(Client *client, const char *name, IO *io,
 		client->authentication_state = CLIENT_AUTHENTICATION_STATE_ENABLED;
 	}
 
-	// create pending request array
-	if (array_create(&client->pending_requests, 32, sizeof(PendingRequest), true) < 0) {
-		log_error("Could not create pending request array: %s (%d)",
-		          get_errno_name(errno), errno);
-
-		goto cleanup;
-	}
-
-	phase = 1;
+	node_reset(&client->pending_request_sentinel);
 
 	// create response writer
 	if (writer_create(&client->response_writer, client->io,
@@ -391,38 +348,22 @@ int client_create(Client *client, const char *name, IO *io,
 		log_error("Could not create response writer: %s (%d)",
 		          get_errno_name(errno), errno);
 
-		goto cleanup;
-	}
-
-	phase = 2;
-
-	// add I/O object as event source
-	if (event_add_source(client->io->handle, EVENT_SOURCE_TYPE_GENERIC,
-	                     EVENT_READ, client_handle_read, client) < 0) {
-		goto cleanup;
-	}
-
-	phase = 3;
-
-cleanup:
-	switch (phase) { // no breaks, all cases fall through intentionally
-	case 2:
 		writer_destroy(&client->response_writer);
 
-	case 1:
-		array_destroy(&client->pending_requests, NULL);
-
-	default:
-		break;
+		return -1;
 	}
 
-	return phase == 3 ? 0 : -1;
+	// add I/O object as event source
+	return event_add_source(client->io->handle, EVENT_SOURCE_TYPE_GENERIC,
+	                        EVENT_READ, client_handle_read, client);
 }
 
 void client_destroy(Client *client) {
-	if (client->pending_requests.count > 0) {
+	PendingRequest *pending_request;
+
+	if (client->pending_request_count > 0) {
 		log_warn("Destroying client ("CLIENT_INFO_FORMAT") while %d request(s) are still pending",
-		         client_expand_info(client), client->pending_requests.count);
+		         client_expand_info(client), client->pending_request_count);
 	}
 
 	writer_destroy(&client->response_writer);
@@ -431,21 +372,26 @@ void client_destroy(Client *client) {
 	io_destroy(client->io);
 	free(client->io);
 
-	array_destroy(&client->pending_requests, NULL);
+	if (client->pending_request_count > 0) {
+		while (client->pending_request_sentinel.next != &client->pending_request_sentinel) {
+			pending_request = containerof(client->pending_request_sentinel.next, PendingRequest, client_node);
+
+			node_remove(&pending_request->global_node);
+			node_remove(&pending_request->client_node);
+
+			free(pending_request);
+		}
+	}
 
 	if (client->destroy_done != NULL) {
 		client->destroy_done();
 	}
 }
 
-// returns -1 on error, 0 if the response was not dispatched and 1 if it was dispatch
-int client_dispatch_response(Client *client, Packet *response, bool force,
-                             bool ignore_authentication) {
-	int i;
-	PendingRequest *pending_request = NULL;
-	int found = -1;
+void client_dispatch_response(Client *client, PendingRequest *pending_request,
+                              Packet *response, bool force, bool ignore_authentication) {
+	Node *pending_request_client_node = NULL;
 	int enqueued = 0;
-	int rc = -1;
 #ifdef BRICKD_WITH_PROFILING
 	uint64_t elapsed;
 #endif
@@ -454,7 +400,7 @@ int client_dispatch_response(Client *client, Packet *response, bool force,
 		log_debug("Ignoring disconnected client ("CLIENT_INFO_FORMAT")",
 		          client_expand_info(client));
 
-		return 0;
+		return;
 	}
 
 	if (!ignore_authentication &&
@@ -463,22 +409,28 @@ int client_dispatch_response(Client *client, Packet *response, bool force,
 		log_debug("Ignoring non-authenticated client ("CLIENT_INFO_FORMAT")",
 		          client_expand_info(client));
 
-		return 0;
+		return;
 	}
 
-	if (!force) {
-		for (i = 0; i < client->pending_requests.count; ++i) {
-			pending_request = array_get(&client->pending_requests, i);
+	if (!force && pending_request == NULL) {
+		pending_request_client_node = client->pending_request_sentinel.next;
+
+		while (pending_request_client_node != &client->pending_request_sentinel) {
+			pending_request = containerof(pending_request_client_node, PendingRequest, client_node);
 
 			if (packet_is_matching_response(response, &pending_request->header)) {
-				found = i;
-
 				break;
 			}
+
+			pending_request_client_node = pending_request_client_node->next;
+		}
+
+		if (pending_request_client_node == &client->pending_request_sentinel) {
+			return;
 		}
 	}
 
-	if (force || found >= 0) {
+	if (force || pending_request != NULL) {
 		enqueued = writer_write(&client->response_writer, response);
 
 		if (enqueued < 0) {
@@ -495,25 +447,22 @@ int client_dispatch_response(Client *client, Packet *response, bool force,
 			log_debug("%s response to client ("CLIENT_INFO_FORMAT"), was requested %u.%03u msec ago, %d request(s) still pending",
 			          enqueued ? "Enqueued" : "Sent", client_expand_info(client),
 			          (unsigned int)(elapsed / 1000), (unsigned int)(elapsed % 1000),
-			          client->pending_requests.count - 1);
+			          client->pending_request_count - 1);
 #else
 			log_debug("%s response to client ("CLIENT_INFO_FORMAT"), %d request(s) still pending",
 			          enqueued ? "Enqueued" : "Sent", client_expand_info(client),
-			          client->pending_requests.count - 1);
+			          client->pending_request_count - 1);
 #endif
 		}
 	}
 
-	rc = 0;
-
 cleanup:
-	if (found >= 0) {
-		array_remove(&client->pending_requests, found, NULL);
+	if (pending_request != NULL) {
+		node_remove(&pending_request->global_node);
+		node_remove(&pending_request->client_node);
 
-		if (rc == 0) {
-			rc = 1;
-		}
+		free(pending_request);
+
+		--client->pending_request_count;
 	}
-
-	return rc;
 }

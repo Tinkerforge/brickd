@@ -28,6 +28,7 @@
 #include <daemonlib/array.h>
 #include <daemonlib/event.h>
 #include <daemonlib/log.h>
+#include <daemonlib/macros.h>
 #include <daemonlib/pipe.h>
 #include <daemonlib/threads.h>
 #include <daemonlib/utils.h>

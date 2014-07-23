@@ -34,6 +34,7 @@ Client *network_create_client(const char *name, IO *io);
 
 void network_cleanup_clients(void);
 
+void network_client_expects_response(Client *client, Packet *request);
 void network_dispatch_response(Packet *response);
 
 #endif // BRICKD_NETWORK_H
