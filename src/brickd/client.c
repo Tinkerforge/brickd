@@ -148,13 +148,13 @@ static void client_handle_request(Client *client, Packet *request) {
 	char packet_signature[PACKET_MAX_SIGNATURE_LENGTH];
 	ErrorCodeResponse response;
 
-	// add as pending request if response is expected
-	if (packet_header_get_response_expected(&request->header)) {
-		network_client_expects_response(client, request);
-	}
-
 	// handle requests meant for brickd
 	if (uint32_from_le(request->header.uid) == UID_BRICK_DAEMON) {
+		// add as pending request if response is expected
+		if (packet_header_get_response_expected(&request->header)) {
+			network_client_expects_response(client, request);
+		}
+
 		if (request->header.function_id == FUNCTION_GET_AUTHENTICATION_NONCE) {
 			if (request->header.length != sizeof(GetAuthenticationNonceRequest)) {
 				log_error("Received authentication request (%s) from client ("CLIENT_INFO_FORMAT") with wrong length, disconnecting client",
@@ -190,6 +190,12 @@ static void client_handle_request(Client *client, Packet *request) {
 		}
 	} else if (client->authentication_state == CLIENT_AUTHENTICATION_STATE_DISABLED ||
 	           client->authentication_state == CLIENT_AUTHENTICATION_STATE_DONE) {
+		// add as pending request if response is expected...
+		if (packet_header_get_response_expected(&request->header)) {
+			network_client_expects_response(client, request);
+		}
+
+		// ...then dispatch it to the hardware
 		hardware_dispatch_request(request);
 	} else {
 		log_debug("Client ("CLIENT_INFO_FORMAT") is not authenticated, dropping request (%s)",
@@ -396,22 +402,18 @@ void client_dispatch_response(Client *client, PendingRequest *pending_request,
 	uint64_t elapsed;
 #endif
 
-	if (client->disconnected) {
-		log_debug("Ignoring disconnected client ("CLIENT_INFO_FORMAT")",
-		          client_expand_info(client));
-
-		return;
-	}
-
 	if (!ignore_authentication &&
 	    client->authentication_state != CLIENT_AUTHENTICATION_STATE_DISABLED &&
 	    client->authentication_state != CLIENT_AUTHENTICATION_STATE_DONE) {
 		log_debug("Ignoring non-authenticated client ("CLIENT_INFO_FORMAT")",
 		          client_expand_info(client));
 
-		return;
+		goto cleanup;
 	}
 
+	// find matching pending request if not forced and no pending request is
+	// already given. do this before the disconnect check to ensure that even
+	// for a disconnected client the pending request list is updated correctly
 	if (!force && pending_request == NULL) {
 		pending_request_client_node = client->pending_request_sentinel.next;
 
@@ -426,8 +428,17 @@ void client_dispatch_response(Client *client, PendingRequest *pending_request,
 		}
 
 		if (pending_request_client_node == &client->pending_request_sentinel) {
-			return;
+			pending_request = NULL;
+
+			goto cleanup;
 		}
+	}
+
+	if (client->disconnected) {
+		log_debug("Ignoring disconnected client ("CLIENT_INFO_FORMAT")",
+		          client_expand_info(client));
+
+		goto cleanup;
 	}
 
 	if (force || pending_request != NULL) {
