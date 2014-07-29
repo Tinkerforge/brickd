@@ -190,7 +190,8 @@ ifeq ($(PLATFORM),Linux)
 endif
 
 ifeq ($(PLATFORM),Darwin)
-	SOURCES_DAEMONLIB += ../daemonlib/event_posix.c
+	SOURCES_DAEMONLIB += ../daemonlib/event_posix.c \
+	                     ../daemonlib/timer_posix.c
 
 	SOURCES_BRICKD += main_macosx.c \
 	                  iokit.c
