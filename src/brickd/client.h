@@ -35,12 +35,11 @@
 #include <daemonlib/packet.h>
 #include <daemonlib/writer.h>
 
-#include "zombie.h"
-
 #define CLIENT_MAX_NAME_LENGTH 128
 #define CLIENT_MAX_PENDING_REQUESTS 32768
 
 typedef struct _Client Client;
+typedef struct _Zombie Zombie;
 
 typedef enum {
 	CLIENT_AUTHENTICATION_STATE_DISABLED = 0,

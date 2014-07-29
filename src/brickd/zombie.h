@@ -29,16 +29,15 @@
 #include <daemonlib/timer.h>
 #include <daemonlib/utils.h>
 
-typedef struct _Client Client;
-typedef struct _PendingRequest PendingRequest;
+#include "client.h"
 
-typedef struct {
+struct _Zombie {
 	uint32_t id;
 	bool finished;
 	Timer timer;
 	Node pending_request_sentinel;
 	int pending_request_count;
-} Zombie;
+};
 
 int zombie_create(Zombie *zombie, Client *client);
 void zombie_destroy(Zombie *zombie);

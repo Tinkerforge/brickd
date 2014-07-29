@@ -42,6 +42,7 @@
 
 #include "hmac.h"
 #include "websocket.h"
+#include "zombie.h"
 
 #define LOG_CATEGORY LOG_CATEGORY_NETWORK
 
