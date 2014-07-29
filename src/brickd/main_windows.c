@@ -266,7 +266,7 @@ static LRESULT CALLBACK message_pump_window_proc(HWND hwnd, UINT msg,
 }
 
 static void message_pump_thread_proc(void *opaque) {
-	const char *class_name = "brickd_message_pump";
+	const char *class_name = "tinkerforge-brick-daemon-message-pump";
 	Semaphore *handshake = opaque;
 	WNDCLASSEX wc;
 	int rc;
