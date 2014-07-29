@@ -365,11 +365,19 @@ int client_create(Client *client, const char *name, IO *io,
 }
 
 void client_destroy(Client *client) {
+	bool destroy_pending_requests = false;
 	PendingRequest *pending_request;
 
 	if (client->pending_request_count > 0) {
 		log_warn("Destroying client ("CLIENT_INFO_FORMAT") while %d request(s) are still pending",
 		         client_expand_info(client), client->pending_request_count);
+
+		if (network_create_zombie(client) < 0) {
+			log_error("Could not create zombie for %d pending request(s) of ("CLIENT_INFO_FORMAT")",
+			          client->pending_request_count, client_expand_info(client));
+
+			destroy_pending_requests = true;
+		}
 	}
 
 	writer_destroy(&client->response_writer);
@@ -378,7 +386,7 @@ void client_destroy(Client *client) {
 	io_destroy(client->io);
 	free(client->io);
 
-	if (client->pending_request_count > 0) {
+	if (destroy_pending_requests) {
 		while (client->pending_request_sentinel.next != &client->pending_request_sentinel) {
 			pending_request = containerof(client->pending_request_sentinel.next, PendingRequest, client_node);
 

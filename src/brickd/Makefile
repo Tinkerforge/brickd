@@ -152,12 +152,14 @@ SOURCES_BRICKD := base64.c \
                   usb.c \
                   usb_stack.c \
                   usb_transfer.c \
-                  websocket.c
+                  websocket.c \
+                  zombie.c
 
 ifeq ($(PLATFORM),Windows)
 	SOURCES_DAEMONLIB += $(call FIX_PATH,../daemonlib/pipe_winapi.c) \
+	                     $(call FIX_PATH,../daemonlib/socket_winapi.c) \
 	                     $(call FIX_PATH,../daemonlib/threads_winapi.c) \
-	                     $(call FIX_PATH,../daemonlib/socket_winapi.c)
+	                     $(call FIX_PATH,../daemonlib/timer_winapi.c)
 
 	SOURCES_BRICKD += event_winapi.c \
 	                  fixes_mingw.c \
@@ -181,7 +183,8 @@ ifeq ($(PLATFORM),Windows)
 endif
 
 ifeq ($(PLATFORM),Linux)
-	SOURCES_DAEMONLIB += ../daemonlib/event_linux.c
+	SOURCES_DAEMONLIB += ../daemonlib/event_linux.c \
+	                     ../daemonlib/timer_linux.c
 
 	SOURCES_BRICKD += main_linux.c
 endif

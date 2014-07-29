@@ -289,7 +289,7 @@ int main(int argc, char **argv) {
 	}
 #endif
 
-	if (event_run(network_cleanup_clients) < 0) {
+	if (event_run(network_cleanup_clients_and_zombies) < 0) {
 		goto error_run;
 	}
 

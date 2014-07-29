@@ -55,6 +55,7 @@
  ..\daemonlib\socket.c^
  ..\daemonlib\socket_winapi.c^
  ..\daemonlib\threads_winapi.c^
+ ..\daemonlib\timer_winapi.c^
  ..\daemonlib\utils.c^
  ..\daemonlib\writer.c
 
@@ -76,7 +77,8 @@
  usb_stack.c^
  usb_transfer.c^
  usb_winapi.c^
- websocket.c
+ websocket.c^
+ zombie.c
 
 %RC% /folog_messages.res log_messages.rc
 %RC% /fobrickd.res brickd.rc

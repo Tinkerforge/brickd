@@ -1,9 +1,8 @@
 /*
  * brickd
- * Copyright (C) 2012-2014 Matthias Bolte <matthias@tinkerforge.com>
- * Copyright (C) 2014 Olaf Lüke <olaf@tinkerforge.com>
+ * Copyright (C) 2014 Matthias Bolte <matthias@tinkerforge.com>
  *
- * network.h: Network specific functions
+ * zombie.h: Zombie client specific functions
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,22 +19,30 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-#ifndef BRICKD_NETWORK_H
-#define BRICKD_NETWORK_H
+#ifndef BRICKD_ZOMBIE_H
+#define BRICKD_ZOMBIE_H
+
+#include <stdbool.h>
+#include <stdint.h>
 
 #include <daemonlib/packet.h>
+#include <daemonlib/timer.h>
+#include <daemonlib/utils.h>
 
-#include "client.h"
+typedef struct _Client Client;
+typedef struct _PendingRequest PendingRequest;
 
-int network_init(void);
-void network_exit(void);
+typedef struct {
+	uint32_t id;
+	bool finished;
+	Timer timer;
+	Node pending_request_sentinel;
+	int pending_request_count;
+} Zombie;
 
-Client *network_create_client(const char *name, IO *io);
-int network_create_zombie(Client *client);
+int zombie_create(Zombie *zombie, Client *client);
+void zombie_destroy(Zombie *zombie);
 
-void network_cleanup_clients_and_zombies(void);
+void zombie_dispatch_response(Zombie *zombie, PendingRequest *pending_request);
 
-void network_client_expects_response(Client *client, Packet *request);
-void network_dispatch_response(Packet *response);
-
-#endif // BRICKD_NETWORK_H
+#endif // BRICKD_ZOMBIE_H

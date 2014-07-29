@@ -697,7 +697,7 @@ error_mutex:
 		service_set_status(SERVICE_RUNNING, NO_ERROR);
 	}
 
-	if (event_run(network_cleanup_clients) < 0) {
+	if (event_run(network_cleanup_clients_and_zombies) < 0) {
 		// FIXME: set service_exit_code
 		goto error_run;
 	}

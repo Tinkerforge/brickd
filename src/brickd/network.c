@@ -46,6 +46,7 @@
 #define LOG_CATEGORY LOG_CATEGORY_NETWORK
 
 static Array _clients;
+static Array _zombies;
 static Socket _server_socket_plain;
 static Socket _server_socket_websocket;
 static bool _server_socket_plain_open = false;
@@ -253,6 +254,17 @@ int network_init(void) {
 		return -1;
 	}
 
+	// create zombie array. the Zombie struct is not relocatable, because a
+	// pointer to it is passed as opaque parameter to its timer object
+	if (array_create(&_zombies, 32, sizeof(Zombie), false) < 0) {
+		log_error("Could not create zombie array: %s (%d)",
+		          get_errno_name(errno), errno);
+
+		array_destroy(&_clients, (ItemDestroyFunction)client_destroy);
+
+		return -1;
+	}
+
 	if (network_open_server_socket(&_server_socket_plain, plain_port,
 	                               socket_create_allocated) >= 0) {
 		_server_socket_plain_open = true;
@@ -272,6 +284,7 @@ int network_init(void) {
 	if (!_server_socket_plain_open && !_server_socket_websocket_open) {
 		log_error("Could not open any socket to listen to");
 
+		array_destroy(&_zombies, (ItemDestroyFunction)zombie_destroy);
 		array_destroy(&_clients, (ItemDestroyFunction)client_destroy);
 
 		return -1;
@@ -283,7 +296,8 @@ int network_init(void) {
 void network_exit(void) {
 	log_debug("Shutting down network subsystem");
 
-	array_destroy(&_clients, (ItemDestroyFunction)client_destroy);
+	array_destroy(&_clients, (ItemDestroyFunction)client_destroy); // might call network_create_zombie
+	array_destroy(&_zombies, (ItemDestroyFunction)zombie_destroy);
 
 	if (_server_socket_plain_open) {
 		event_remove_source(_server_socket_plain.base.handle, EVENT_SOURCE_TYPE_GENERIC);
@@ -321,10 +335,36 @@ Client *network_create_client(const char *name, IO *io) {
 	return client;
 }
 
-// remove clients that got marked as disconnected
-void network_cleanup_clients(void) {
+int network_create_zombie(Client *client) {
+	Zombie *zombie;
+
+	// append to zombie array
+	zombie = array_append(&_zombies);
+
+	if (zombie == NULL) {
+		log_error("Could not append to zombie array: %s (%d)",
+		          get_errno_name(errno), errno);
+
+		return -1;
+	}
+
+	// create new zombie that takes ownership of the pending requests
+	if (zombie_create(zombie, client) < 0) {
+		array_remove(&_zombies, _zombies.count - 1, NULL);
+
+		return -1;
+	}
+
+	log_debug("Added new zombie (id: %u)", zombie->id);
+
+	return 0;
+}
+
+// remove clients that got marked as disconnected and finished zombies
+void network_cleanup_clients_and_zombies(void) {
 	int i;
 	Client *client;
+	Zombie *zombie;
 
 	// iterate backwards for simpler index handling
 	for (i = _clients.count - 1; i >= 0; --i) {
@@ -335,6 +375,17 @@ void network_cleanup_clients(void) {
 			          client_expand_info(client));
 
 			array_remove(&_clients, i, (ItemDestroyFunction)client_destroy);
+		}
+	}
+
+	// iterate backwards for simpler index handling
+	for (i = _zombies.count - 1; i >= 0; --i) {
+		zombie = array_get(&_zombies, i);
+
+		if (zombie->finished) {
+			log_debug("Removing finished zombie (id: %u)", zombie->id);
+
+			array_remove(&_zombies, i, (ItemDestroyFunction)zombie_destroy);
 		}
 	}
 }
@@ -378,6 +429,7 @@ void network_client_expects_response(Client *client, Packet *request) {
 	++client->pending_request_count;
 
 	pending_request->client = client;
+	pending_request->zombie = NULL;
 
 	memcpy(&pending_request->header, &request->header, sizeof(PacketHeader));
 
@@ -397,20 +449,15 @@ void network_dispatch_response(Packet *response) {
 	Node *pending_request_global_node;
 	PendingRequest *pending_request;
 
-	if (_clients.count == 0) {
-		if (packet_header_get_sequence_number(&response->header) == 0) {
+	if (packet_header_get_sequence_number(&response->header) == 0) {
+		if (_clients.count == 0) {
 			log_debug("No clients connected, dropping %scallback (%s)",
 			          packet_get_callback_type(response),
 			          packet_get_callback_signature(packet_signature, response));
-		} else {
-			log_debug("No clients connected, dropping response (%s)",
-			          packet_get_response_signature(packet_signature, response));
+
+			return;
 		}
 
-		return;
-	}
-
-	if (packet_header_get_sequence_number(&response->header) == 0) {
 		log_debug("Broadcasting %scallback (%s) to %d client(s)",
 		          packet_get_callback_type(response),
 		          packet_get_callback_signature(packet_signature, response),
@@ -421,10 +468,10 @@ void network_dispatch_response(Packet *response) {
 
 			client_dispatch_response(client, NULL, response, true, false);
 		}
-	} else {
-		log_debug("Dispatching response (%s) to %d client(s)",
+	} else if (_clients.count + _zombies.count > 0) {
+		log_debug("Dispatching response (%s) to %d client(s) and %d zombies(s)",
 		          packet_get_response_signature(packet_signature, response),
-		          _clients.count);
+		          _clients.count, _zombies.count);
 
 		pending_request_global_node = _pending_request_sentinel.next;
 
@@ -432,8 +479,12 @@ void network_dispatch_response(Packet *response) {
 			pending_request = containerof(pending_request_global_node, PendingRequest, global_node);
 
 			if (packet_is_matching_response(response, &pending_request->header)) {
-				client_dispatch_response(pending_request->client, pending_request,
-				                         response, false, false);
+				if (pending_request->client != NULL) {
+					client_dispatch_response(pending_request->client, pending_request,
+					                         response, false, false);
+				} else {
+					zombie_dispatch_response(pending_request->zombie, pending_request);
+				}
 
 				return;
 			}
@@ -441,7 +492,7 @@ void network_dispatch_response(Packet *response) {
 			pending_request_global_node = pending_request_global_node->next;
 		}
 
-		log_warn("Broadcasting response (%s) because no client has a matching pending request",
+		log_warn("Broadcasting response (%s) because no client/zombie has a matching pending request",
 		         packet_get_response_signature(packet_signature, response));
 
 		for (i = 0; i < _clients.count; ++i) {
@@ -449,5 +500,8 @@ void network_dispatch_response(Packet *response) {
 
 			client_dispatch_response(client, NULL, response, true, false);
 		}
+	} else {
+		log_debug("No clients/zombies connected, dropping response (%s)",
+		          packet_get_response_signature(packet_signature, response));
 	}
 }

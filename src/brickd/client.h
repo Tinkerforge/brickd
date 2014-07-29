@@ -35,6 +35,8 @@
 #include <daemonlib/packet.h>
 #include <daemonlib/writer.h>
 
+#include "zombie.h"
+
 #define CLIENT_MAX_NAME_LENGTH 128
 #define CLIENT_MAX_PENDING_REQUESTS 32768
 
@@ -53,8 +55,9 @@ typedef struct _PendingRequest PendingRequest;
 
 struct _PendingRequest {
 	Node global_node;
-	Node client_node;
+	Node client_node; // also used as zombie_node
 	Client *client;
+	Zombie *zombie;
 	PacketHeader header;
 #ifdef BRICKD_WITH_PROFILING
 	uint64_t arrival_time; // in usec

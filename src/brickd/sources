@@ -24,6 +24,7 @@ SOURCES=array.c \
 	socket.c \
 	socket_winapi.c \
 	threads_winapi.c \
+	timer_winapi.c \
 	utils.c \
 	writer.c \
 	base64.c \
@@ -42,4 +43,5 @@ SOURCES=array.c \
 	usb_stack.c \
 	usb_transfer.c \
 	usb_winapi.c \
-	websocket.c
+	websocket.c \
+	zombie.c
