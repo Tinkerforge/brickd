@@ -78,3 +78,9 @@
        Increase upper limits for pending requests and USB write queues
        Add socket_send queue for clients, enqueue packet instead of disconnecting client if socket_send would block
        Only dispatch response to the first client with a matching pending request, fixes response duplication
+2.1.1: Add live debug log view to logviewer.exe on Windows
+       Include signed version of the Brick bootloader driver for Windows
+       Workaround race condition in USB hotplug handling on Linux
+       Fix crash if client with pending responses disconnects
+       Fix possible mismatch while handling responses for identical requests
+       Avoid broadcasting unexpected responses in most cases
