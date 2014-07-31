@@ -252,12 +252,36 @@ SectionEnd
 
 ;--------------------------------
 
-Section /o "-install driver" SEC_INSTALL_DRIVER
+Section /o "-install brick driver" SEC_INSTALL_BRICK_DRIVER
 
   Push "Brick"
   Push "$INSTDIR\drivers\brick"
   Push "$INSTDIR\drivers\brick\brick.inf"
   Push "USB\VID_16D0&PID_063D"
+  Call InstallUpgradeDriver
+
+SectionEnd
+
+;--------------------------------
+
+Section /o "-install red brick driver" SEC_INSTALL_RED_BRICK_DRIVER
+
+  Push "RED Brick"
+  Push "$INSTDIR\drivers\brick"
+  Push "$INSTDIR\drivers\brick\red_brick.inf"
+  Push "USB\VID_16D0&PID_09E5&MI_00"
+  Call InstallUpgradeDriver
+
+SectionEnd
+
+;--------------------------------
+
+Section "Install/Update Serial Console Driver"
+
+  Push "RED Brick Serial Console"
+  Push "$INSTDIR\drivers\serial_console"
+  Push "$INSTDIR\drivers\serial_console\serial_console.inf"
+  Push "USB\VID_16D0&PID_09E5&MI_01"
   Call InstallUpgradeDriver
 
 SectionEnd
@@ -280,10 +304,13 @@ Function .onInit
 
 not_installed:
 
- ; install driver only on systems < Windows 8
+  ; install (RED) Brick driver only on systems < Windows 8
 ${If} ${AtMostWin2008R2}
-  SectionSetText ${SEC_INSTALL_DRIVER} "Install/Update Brick Driver" ; make item visible
-  SectionSetFlags ${SEC_INSTALL_DRIVER} ${SF_SELECTED}
+  SectionSetText ${SEC_INSTALL_BRICK_DRIVER} "Install/Update Brick Driver" ; make item visible
+  SectionSetFlags ${SEC_INSTALL_BRICK_DRIVER} ${SF_SELECTED}
+
+  SectionSetText ${SEC_INSTALL_RED_BRICK_DRIVER} "Install/Update RED Brick Driver" ; make item visible
+  SectionSetFlags ${SEC_INSTALL_RED_BRICK_DRIVER} ${SF_SELECTED}
 ${EndIf}
 
 FunctionEnd

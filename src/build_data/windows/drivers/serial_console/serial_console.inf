@@ -1,0 +1,75 @@
+; serial_console.inf
+
+[Strings]
+DeviceName = "Tinkerforge RED Brick Serial Console"
+VendorName = "Tinkerforge"
+DeviceID   = "VID_16D0&PID_09E5&MI_01"
+
+[Version]
+Signature   = "$Windows NT$"
+Class       = Ports
+ClassGuid   = {4D36E978-E325-11CE-BFC1-08002BE10318}
+Provider    = %VendorName%
+LayoutFile  = layout.inf
+CatalogFile = serial_console.cat
+DriverVer   = 03/09/2011,2.0.0.0
+
+[Manufacturer]
+%VendorName% = DeviceList,NTamd64
+
+[DestinationDirs]
+DefaultDestDir = 12
+
+[DriverInstall.nt]
+include   = mdmcpq.inf
+CopyFiles = DriverCopyFiles.nt
+AddReg    = DriverInstall.nt.AddReg
+
+[DriverCopyFiles.nt]
+usbser.sys,,,0x20
+
+[DriverInstall.nt.AddReg]
+HKR,,DevLoader,,*ntkern
+HKR,,NTMPDriver,,usbser.sys
+HKR,,EnumPropPages32,,"MsPorts.dll,SerialPortPropPageProvider"
+
+[DriverInstall.nt.Services]
+AddService = usbser, 0x00000002, DriverService.nt
+
+[DriverService.nt]
+DisplayName   = %DeviceName%
+ServiceType   = 1
+StartType     = 3
+ErrorControl  = 1
+ServiceBinary = %12%\usbser.sys
+
+[DriverInstall.NTamd64]
+include   = mdmcpq.inf
+CopyFiles = DriverCopyFiles.NTamd64
+AddReg    = DriverInstall.NTamd64.AddReg
+
+[DriverCopyFiles.NTamd64]
+usbser.sys,,,0x20
+
+[DriverInstall.NTamd64.AddReg]
+HKR,,DevLoader,,*ntkern
+HKR,,NTMPDriver,,usbser.sys
+HKR,,EnumPropPages32,,"MsPorts.dll,SerialPortPropPageProvider"
+
+[DriverInstall.NTamd64.Services]
+AddService = usbser, 0x00000002, DriverService.NTamd64
+
+[DriverService.NTamd64]
+DisplayName   = %DeviceName%
+ServiceType   = 1
+StartType     = 3
+ErrorControl  = 1
+ServiceBinary = %12%\usbser.sys
+
+[SourceDisksFiles]
+[SourceDisksNames]
+[DeviceList]
+%DeviceName% = DriverInstall, USB\%DeviceID%
+
+[DeviceList.NTamd64]
+%DeviceName% = DriverInstall, USB\%DeviceID%
