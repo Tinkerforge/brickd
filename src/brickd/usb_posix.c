@@ -184,7 +184,8 @@ static void usb_dlclose(void) {
 
 #endif
 
-static libusbz_hotplug_callback_handle _hotplug_handle;
+static libusbz_hotplug_callback_handle _brick_hotplug_handle;
+static libusbz_hotplug_callback_handle _red_brick_hotplug_handle;
 
 static int LIBUSB_CALL usb_handle_hotplug(libusb_context *context, libusb_device *device,
                                           libusbz_hotplug_event event, void *user_data) {
@@ -249,9 +250,26 @@ int usb_init_hotplug(libusb_context *context) {
 	                                       USB_BRICK_VENDOR_ID, USB_BRICK_PRODUCT_ID,
 	                                       LIBUSBZ_HOTPLUG_MATCH_ANY,
 	                                       usb_handle_hotplug, NULL,
-	                                       &_hotplug_handle);
+	                                       &_brick_hotplug_handle);
 
 	if (rc < 0) {
+		log_error("Could not register libusb hotplug callback: %s (%d)",
+		          usb_get_error_name(rc), rc);
+
+		return -1;
+	}
+
+	rc = libusbz_hotplug_register_callback(context,
+	                                       LIBUSBZ_HOTPLUG_EVENT_DEVICE_ARRIVED |
+	                                       LIBUSBZ_HOTPLUG_EVENT_DEVICE_LEFT, 0,
+	                                       USB_RED_BRICK_VENDOR_ID, USB_RED_BRICK_PRODUCT_ID,
+	                                       LIBUSBZ_HOTPLUG_MATCH_ANY,
+	                                       usb_handle_hotplug, NULL,
+	                                       &_brick_hotplug_handle);
+
+	if (rc < 0) {
+		libusbz_hotplug_deregister_callback(context, _brick_hotplug_handle);
+
 		log_error("Could not register libusb hotplug callback: %s (%d)",
 		          usb_get_error_name(rc), rc);
 
@@ -262,7 +280,8 @@ int usb_init_hotplug(libusb_context *context) {
 }
 
 void usb_exit_hotplug(libusb_context *context) {
-	libusbz_hotplug_deregister_callback(context, _hotplug_handle);
+	libusbz_hotplug_deregister_callback(context, _brick_hotplug_handle);
+	libusbz_hotplug_deregister_callback(context, _red_brick_hotplug_handle);
 }
 
 bool usb_has_hotplug(void) {

@@ -37,6 +37,7 @@ typedef struct {
 	uint8_t device_address;
 	libusb_context *context;
 	libusb_device_handle *device_handle;
+	int interface_number;
 	uint8_t endpoint_in;
 	uint8_t endpoint_out;
 	Array read_transfers;

@@ -84,15 +84,23 @@ static int usb_enumerate(void) {
 			continue;
 		}
 
-		if (descriptor.idVendor != USB_BRICK_VENDOR_ID ||
-		    descriptor.idProduct != USB_BRICK_PRODUCT_ID) {
-			continue;
-		}
+		if (descriptor.idVendor == USB_BRICK_VENDOR_ID &&
+		    descriptor.idProduct == USB_BRICK_PRODUCT_ID) {
+			if (descriptor.bcdDevice < USB_BRICK_DEVICE_RELEASE) {
+				log_warn("USB device (bus: %u, device: %u) has protocol 1.0 firmware, ignoring USB device",
+				         bus_number, device_address);
 
-		if (descriptor.bcdDevice < USB_BRICK_DEVICE_RELEASE) {
-			log_warn("USB device (bus: %u, device: %u) has protocol 1.0 firmware, ignoring USB device",
-			         bus_number, device_address);
+				continue;
+			}
+		} else if (descriptor.idVendor == USB_RED_BRICK_VENDOR_ID &&
+		           descriptor.idProduct == USB_RED_BRICK_PRODUCT_ID) {
+			if (descriptor.bcdDevice < USB_RED_BRICK_DEVICE_RELEASE) {
+				log_warn("USB device (bus: %u, device: %u) has unexpected release version, ignoring USB device",
+				         bus_number, device_address);
 
+				continue;
+			}
+		} else {
 			continue;
 		}
 
@@ -441,7 +449,7 @@ void usb_destroy_context(libusb_context *context) {
 	libusb_exit(context);
 }
 
-int usb_get_interface_endpoints(libusb_device_handle *device_handle,
+int usb_get_interface_endpoints(libusb_device_handle *device_handle, int interface_number,
                                 uint8_t *endpoint_in, uint8_t *endpoint_out) {
 	int rc;
 	libusb_device *device = libusb_get_device(device_handle);
@@ -472,7 +480,7 @@ int usb_get_interface_endpoints(libusb_device_handle *device_handle,
 
 		interface_descriptor = &config_descriptor->interface[i].altsetting[0];
 
-		if (interface_descriptor->bInterfaceNumber != USB_BRICK_INTERFACE) {
+		if (interface_descriptor->bInterfaceNumber != interface_number) {
 			continue;
 		}
 

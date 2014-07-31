@@ -252,18 +252,31 @@ int usb_stack_create(USBStack *usb_stack, uint8_t bus_number, uint8_t device_add
 			continue;
 		}
 
-		if (descriptor.idVendor != USB_BRICK_VENDOR_ID ||
-		    descriptor.idProduct != USB_BRICK_PRODUCT_ID) {
+
+		if (descriptor.idVendor == USB_BRICK_VENDOR_ID &&
+		    descriptor.idProduct == USB_BRICK_PRODUCT_ID) {
+			if (descriptor.bcdDevice < USB_BRICK_DEVICE_RELEASE) {
+				log_warn("%s has protocol 1.0 firmware, ignoring USB device",
+				         usb_stack->base.name);
+
+				continue;
+			}
+
+			usb_stack->interface_number = USB_BRICK_INTERFACE;
+		} else if (descriptor.idVendor == USB_RED_BRICK_VENDOR_ID &&
+		           descriptor.idProduct == USB_RED_BRICK_PRODUCT_ID) {
+			if (descriptor.bcdDevice < USB_RED_BRICK_DEVICE_RELEASE) {
+				log_warn("%s has unexpected release version, ignoring USB device",
+				         usb_stack->base.name);
+
+				continue;
+			}
+
+			usb_stack->interface_number = USB_RED_BRICK_INTERFACE;
+		} else {
 			log_warn("Found non-Brick USB device (bus: %u, device: %u, vendor: 0x%04X, product: 0x%04X) with address collision, ignoring USB device",
 			         usb_stack->bus_number, usb_stack->device_address,
 			         descriptor.idVendor, descriptor.idProduct);
-
-			continue;
-		}
-
-		if (descriptor.bcdDevice < USB_BRICK_DEVICE_RELEASE) {
-			log_warn("%s has protocol 1.0 firmware, ignoring USB device",
-			         usb_stack->base.name);
 
 			continue;
 		}
@@ -292,7 +305,7 @@ int usb_stack_create(USBStack *usb_stack, uint8_t bus_number, uint8_t device_add
 	phase = 3;
 
 	// get interface endpoints
-	rc = usb_get_interface_endpoints(usb_stack->device_handle,
+	rc = usb_get_interface_endpoints(usb_stack->device_handle, usb_stack->interface_number,
 	                                 &usb_stack->endpoint_in, &usb_stack->endpoint_out);
 
 	if (rc < 0) {
@@ -307,9 +320,9 @@ int usb_stack_create(USBStack *usb_stack, uint8_t bus_number, uint8_t device_add
 
 	// claim device interface
 	log_debug("Trying to claim interface %d of %s",
-	          USB_BRICK_INTERFACE, usb_stack->base.name);
+	          usb_stack->interface_number, usb_stack->base.name);
 
-	rc = libusb_claim_interface(usb_stack->device_handle, USB_BRICK_INTERFACE);
+	rc = libusb_claim_interface(usb_stack->device_handle, usb_stack->interface_number);
 
 	if (rc < 0) {
 		// claiming the interface might fail on Linux because the uevent for
@@ -322,7 +335,7 @@ int usb_stack_create(USBStack *usb_stack, uint8_t bus_number, uint8_t device_add
 
 			++retries;
 
-			rc = libusb_claim_interface(usb_stack->device_handle, USB_BRICK_INTERFACE);
+			rc = libusb_claim_interface(usb_stack->device_handle, usb_stack->interface_number);
 		}
 
 		if (rc < 0) {
@@ -333,10 +346,10 @@ int usb_stack_create(USBStack *usb_stack, uint8_t bus_number, uint8_t device_add
 		}
 
 		log_debug("Claimed interface %d of %s after %d retry(s)",
-		          USB_BRICK_INTERFACE, usb_stack->base.name, retries);
+		          usb_stack->interface_number, usb_stack->base.name, retries);
 	} else {
 		log_debug("Claimed interface %d of %s at first try",
-		          USB_BRICK_INTERFACE, usb_stack->base.name);
+		          usb_stack->interface_number, usb_stack->base.name);
 	}
 
 	phase = 4;
@@ -447,7 +460,7 @@ cleanup:
 		array_destroy(&usb_stack->read_transfers, (ItemDestroyFunction)usb_transfer_destroy);
 
 	case 4:
-		libusb_release_interface(usb_stack->device_handle, USB_BRICK_INTERFACE);
+		libusb_release_interface(usb_stack->device_handle, usb_stack->interface_number);
 
 	case 3:
 		libusb_close(usb_stack->device_handle);
@@ -477,7 +490,7 @@ void usb_stack_destroy(USBStack *usb_stack) {
 
 	queue_destroy(&usb_stack->write_queue, NULL);
 
-	libusb_release_interface(usb_stack->device_handle, USB_BRICK_INTERFACE);
+	libusb_release_interface(usb_stack->device_handle, usb_stack->interface_number);
 
 	libusb_close(usb_stack->device_handle);
 
