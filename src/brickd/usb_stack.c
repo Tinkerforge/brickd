@@ -47,27 +47,43 @@
 
 static void usb_stack_read_callback(USBTransfer *usb_transfer) {
 	const char *message = NULL;
+	char packet_content_dump[PACKET_MAX_CONTENT_DUMP_LENGTH];
 	char packet_signature[PACKET_MAX_SIGNATURE_LENGTH];
 
 	if (usb_transfer->handle->actual_length < (int)sizeof(PacketHeader)) {
-		log_error("Read transfer %p returned response with incomplete header (actual: %u < minimum: %d) from %s",
-		          usb_transfer, usb_transfer->handle->actual_length, (int)sizeof(PacketHeader),
+		log_error("Read transfer %p returned response%s%s%s with incomplete header (actual: %u < minimum: %d) from %s",
+		          usb_transfer,
+		          usb_transfer->handle->actual_length > 0 ? " (packet: " : "",
+		          packet_get_content_dump(packet_content_dump, &usb_transfer->packet,
+		                                  usb_transfer->handle->actual_length),
+		          usb_transfer->handle->actual_length > 0 ? ")" : "",
+		          usb_transfer->handle->actual_length,
+		          (int)sizeof(PacketHeader),
 		          usb_transfer->usb_stack->base.name);
 
 		return;
 	}
 
 	if (usb_transfer->handle->actual_length != usb_transfer->packet.header.length) {
-		log_error("Read transfer %p returned response with length mismatch (actual: %u != expected: %u) from %s",
-		          usb_transfer, usb_transfer->handle->actual_length, usb_transfer->packet.header.length,
+		log_error("Read transfer %p returned response%s%s%s with length mismatch (actual: %u != expected: %u) from %s",
+		          usb_transfer,
+		          usb_transfer->handle->actual_length > 0 ? " (packet: " : "",
+		          packet_get_content_dump(packet_content_dump, &usb_transfer->packet,
+		                                  usb_transfer->handle->actual_length),
+		          usb_transfer->handle->actual_length > 0 ? ")" : "",
+		          usb_transfer->handle->actual_length,
+		          usb_transfer->packet.header.length,
 		          usb_transfer->usb_stack->base.name);
 
 		return;
 	}
 
 	if (!packet_header_is_valid_response(&usb_transfer->packet.header, &message)) {
-		log_debug("Got invalid response (%s) from %s: %s",
-		          packet_get_response_signature(packet_signature, &usb_transfer->packet),
+		log_debug("Got invalid response%s%s%s from %s: %s",
+		          usb_transfer->handle->actual_length > 0 ? " (packet: " : "",
+		          packet_get_content_dump(packet_content_dump, &usb_transfer->packet,
+		                                  usb_transfer->handle->actual_length),
+		          usb_transfer->handle->actual_length > 0 ? ")" : "",
 		          usb_transfer->usb_stack->base.name,
 		          message);
 
