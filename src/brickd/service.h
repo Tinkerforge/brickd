@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2012-2013 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2012-2014 Matthias Bolte <matthias@tinkerforge.com>
  *
  * service.h: Windows service specific functions
  *
@@ -22,12 +22,14 @@
 #ifndef BRICKD_SERVICE_H
 #define BRICKD_SERVICE_H
 
+#include <stdbool.h>
+
 int service_init(LPHANDLER_FUNCTION_EX handler);
 int service_is_running(void);
 void service_set_status(DWORD status, DWORD exit_code);
 SERVICE_STATUS_HANDLE service_get_status_handle(void);
 char *service_get_name(void);
-int service_install(int log_to_file, int debug);
+int service_install(bool log_to_file, bool debug);
 int service_uninstall(void);
 
 #endif // BRICKD_SERVICE_H

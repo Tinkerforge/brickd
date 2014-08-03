@@ -142,7 +142,7 @@ char *service_get_name(void) {
 	return _service_name;
 }
 
-int service_install(int log_to_file, int debug) {
+int service_install(bool log_to_file, bool debug) {
 	SC_HANDLE service_control_manager;
 	int rc;
 	char filename[1024];
