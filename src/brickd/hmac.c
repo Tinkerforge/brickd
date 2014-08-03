@@ -1,9 +1,9 @@
 /*
- * daemonlib
+ * brickd
  * Copyright (C) 2012-2014 Matthias Bolte <matthias@tinkerforge.com>
  * Copyright (C) 2014 Olaf Lüke <olaf@tinkerforge.com>
  *
- * utils.c: Utility functions
+ * hmac.c: HMAC functions
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
