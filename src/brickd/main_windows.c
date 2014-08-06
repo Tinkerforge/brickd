@@ -560,6 +560,8 @@ static int generic_main(bool log_to_file, bool debug, bool libusb_debug) {
 				}
 			}
 		}
+	} else if (_run_as_service) {
+		log_set_file(NULL);
 	}
 
 	if (!_run_as_service &&
