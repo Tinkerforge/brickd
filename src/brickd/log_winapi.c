@@ -19,6 +19,7 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
+#include <io.h>
 #include <libusb.h>
 #include <stdbool.h>
 #ifndef _MSC_VER
@@ -50,9 +51,15 @@ typedef struct {
 #include <daemonlib/packed_end.h>
 
 #define NAMED_PIPE_BUFFER_LENGTH (sizeof(LogPipeMessage) * 4)
+#define FOREGROUND_ALL (FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE | FOREGROUND_INTENSITY)
+#define BACKGROUND_ALL (BACKGROUND_RED | BACKGROUND_GREEN | BACKGROUND_BLUE | BACKGROUND_INTENSITY)
+#define FOREGROUND_YELLOW (FOREGROUND_RED | FOREGROUND_GREEN)
+#define FOREGROUND_WHITE (FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE)
 
 bool _log_debug_override_platform = false;
 
+static HANDLE _console = NULL;
+static WORD _default_attributes = 0;
 static HANDLE _event_log = NULL;
 static bool _named_pipe_connected = false;
 static bool _named_pipe_running = false;
@@ -61,6 +68,35 @@ static Thread _named_pipe_thread;
 static HANDLE _named_pipe_write_event = NULL;
 static Mutex _named_pipe_write_event_mutex; // protects _named_pipe_write_event
 static HANDLE _named_pipe_stop_event = NULL;
+
+void log_set_file_platform(FILE *file);
+
+static WORD log_prepare_color_attributes(WORD color) {
+	WORD attributes = _default_attributes;
+	WORD background = BACKGROUND_INTENSITY;
+
+	if ((color & FOREGROUND_RED) != 0) {
+		background |= BACKGROUND_RED;
+	}
+
+	if ((color & FOREGROUND_GREEN) != 0) {
+		background |= BACKGROUND_GREEN;
+	}
+
+	if ((color & FOREGROUND_BLUE) != 0) {
+		background |= BACKGROUND_BLUE;
+	}
+
+	if ((attributes & BACKGROUND_ALL) == background) {
+		attributes &= ~FOREGROUND_ALL;
+		attributes |= FOREGROUND_ALL & ~color;
+	} else {
+		attributes &= ~FOREGROUND_ALL;
+		attributes |= color;
+	}
+
+	return attributes;
+}
 
 static void log_send_pipe_message(LogPipeMessage *pipe_message) {
 	OVERLAPPED overlapped;
@@ -301,9 +337,11 @@ cleanup:
 	_named_pipe_running = false;
 }
 
-void log_init_platform(void) {
+void log_init_platform(FILE *file) {
 	int rc;
 	Semaphore handshake;
+
+	log_set_file_platform(file);
 
 	mutex_create(&_named_pipe_write_event_mutex);
 
@@ -396,12 +434,76 @@ void log_exit_platform(void) {
 	mutex_destroy(&_named_pipe_write_event_mutex);
 }
 
+void log_set_file_platform(FILE *file) {
+	HANDLE console;
+	CONSOLE_SCREEN_BUFFER_INFO screen_buffer_info;
+
+	_console = NULL;
+	console = (HANDLE)_get_osfhandle(fileno(file));
+
+	if (console == INVALID_HANDLE_VALUE) {
+		return;
+	}
+
+	if (GetFileType(console) != FILE_TYPE_CHAR) {
+		return;
+	}
+
+	if (!GetConsoleScreenBufferInfo(console, &screen_buffer_info)) {
+		return;
+	}
+
+	_console = console;
+	_default_attributes = screen_buffer_info.wAttributes;
+}
+
+void log_apply_color_platform(LogLevel level, bool begin) {
+	WORD attributes = _default_attributes;
+
+	if (_console == NULL) {
+		return;
+	}
+
+	if (begin) {
+		switch (level) {
+		case LOG_LEVEL_NONE:
+			attributes = log_prepare_color_attributes(FOREGROUND_BLUE | FOREGROUND_INTENSITY);
+
+			break;
+
+		case LOG_LEVEL_ERROR:
+			attributes = log_prepare_color_attributes(FOREGROUND_RED | FOREGROUND_INTENSITY);
+
+			break;
+
+		case LOG_LEVEL_WARN:
+			attributes = log_prepare_color_attributes(FOREGROUND_YELLOW | FOREGROUND_INTENSITY);
+
+			break;
+
+		case LOG_LEVEL_INFO:
+			attributes = log_prepare_color_attributes(FOREGROUND_WHITE | FOREGROUND_INTENSITY);
+
+			break;
+
+		case LOG_LEVEL_DEBUG:
+			attributes = log_prepare_color_attributes(FOREGROUND_WHITE);
+
+			break;
+		}
+
+		SetConsoleTextAttribute(_console, attributes);
+	} else {
+		SetConsoleTextAttribute(_console, _default_attributes);
+	}
+}
+
 // NOTE: assumes that _mutex (in log.c) is locked
-void log_handler_platform(struct timeval *timestamp,
-                          LogCategory category, LogLevel level,
-                          const char *file, int line,
-                          const char *function, const char *format,
-                          va_list arguments) {
+void log_secondary_output_platform(struct timeval *timestamp,
+                                   LogCategory category, LogLevel level,
+                                   const char *file, int line,
+                                   const char *function, const char *format,
+                                   va_list arguments) {
 	WORD type = 0;
 	DWORD event_id = 0;
 	LPCSTR insert_strings[1] = {NULL};
