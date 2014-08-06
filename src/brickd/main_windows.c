@@ -423,26 +423,32 @@ static BOOL WINAPI console_ctrl_handler(DWORD ctrl_type) {
 	switch (ctrl_type) {
 	case CTRL_C_EVENT:
 		log_info("Received CTRL_C_EVENT");
+
 		break;
 
 	case CTRL_CLOSE_EVENT:
 		log_info("Received CTRL_CLOSE_EVENT");
+
 		break;
 
 	case CTRL_BREAK_EVENT:
 		log_info("Received CTRL_BREAK_EVENT");
+
 		break;
 
 	case CTRL_LOGOFF_EVENT:
 		log_info("Received CTRL_LOGOFF_EVENT");
+
 		break;
 
 	case CTRL_SHUTDOWN_EVENT:
 		log_info("Received CTRL_SHUTDOWN_EVENT");
+
 		break;
 
 	default:
 		log_warn("Received unknown event %u", (uint32_t)ctrl_type);
+
 		return FALSE;
 	}
 
@@ -739,7 +745,7 @@ error:
 		// is not available anymore and the control handler tries to write a
 		// log messages triggering a crash. this situation could easily be
 		// created by clicking the close button of the command prompt window
-		// while the getch call if waiting for the user to press a key.
+		// while the getch call is waiting for the user to press a key.
 		SetConsoleCtrlHandler(console_ctrl_handler, FALSE);
 	}
 
