@@ -147,7 +147,6 @@ static void log_connect_named_pipe(void *opaque) {
 	if (overlapped_event == NULL) {
 		rc = ERRNO_WINAPI_OFFSET + GetLastError();
 
-		// this will go to the logfile if it is enabled via --debug
 		log_error("Could not create named pipe overlapped connect/read event: %s (%d)",
 		          get_errno_name(rc), rc);
 
@@ -162,7 +161,6 @@ static void log_connect_named_pipe(void *opaque) {
 	if (_named_pipe_stop_event == NULL) {
 		rc = ERRNO_WINAPI_OFFSET + GetLastError();
 
-		// this will go to the logfile if it is enabled via --debug
 		log_error("Could not create named pipe stop event: %s (%d)",
 		          get_errno_name(rc), rc);
 
@@ -185,7 +183,6 @@ static void log_connect_named_pipe(void *opaque) {
 		if (ConnectNamedPipe(_named_pipe, &overlapped)) {
 			rc = ERRNO_WINAPI_OFFSET + GetLastError();
 
-			// this will go to the logfile if it is enabled via --debug
 			log_error("Could not connect named pipe: %s (%d)",
 			          get_errno_name(rc), rc);
 
@@ -212,7 +209,6 @@ static void log_connect_named_pipe(void *opaque) {
 			} else {
 				rc = ERRNO_WINAPI_OFFSET + GetLastError();
 
-				// this will go to the logfile if it is enabled via --debug
 				log_error("Could not wait for connect/stop event: %s (%d)",
 				          get_errno_name(rc), rc);
 
@@ -230,7 +226,6 @@ static void log_connect_named_pipe(void *opaque) {
 		default:
 			rc += ERRNO_WINAPI_OFFSET;
 
-			// this will go to the logfile if it is enabled via --debug
 			log_error("Could not connect named pipe: %s (%d)",
 			          get_errno_name(rc), rc);
 
@@ -277,7 +272,6 @@ static void log_connect_named_pipe(void *opaque) {
 			} else {
 				rc = ERRNO_WINAPI_OFFSET + GetLastError();
 
-				// this will go to the logfile if it is enabled via --debug
 				log_error("Could not wait for connect/stop event: %s (%d)",
 				          get_errno_name(rc), rc);
 
@@ -319,7 +313,6 @@ void log_init_platform(void) {
 	if (_event_log == NULL) {
 		rc = ERRNO_WINAPI_OFFSET + GetLastError();
 
-		// this will go to the logfile if it is enabled via --debug
 		log_error("Could not open Windows event log: %s (%d)",
 		          get_errno_name(rc), rc);
 	}
@@ -330,7 +323,6 @@ void log_init_platform(void) {
 	if (_named_pipe_write_event == NULL) {
 		rc = ERRNO_WINAPI_OFFSET + GetLastError();
 
-		// this will go to the logfile if it is enabled via --debug
 		log_error("Could not create named pipe overlapped write event: %s (%d)",
 		          get_errno_name(rc), rc);
 	} else {
@@ -352,11 +344,9 @@ void log_init_platform(void) {
 			// ERROR_PIPE_BUSY/ERROR_ACCESS_DENIED means pipe already exists
 			if (rc == ERRNO_WINAPI_OFFSET + ERROR_PIPE_BUSY ||
 			    rc == ERRNO_WINAPI_OFFSET + ERROR_ACCESS_DENIED) {
-				// this will go to the logfile if it is enabled via --debug
-				log_debug("Could not create named pipe: %s (%d)",
-				          get_errno_name(rc), rc);
+				log_warn("Could not create named pipe: %s (%d)",
+				         get_errno_name(rc), rc);
 			} else {
-				// this will go to the logfile if it is enabled via --debug
 				log_error("Could not create named pipe: %s (%d)",
 				          get_errno_name(rc), rc);
 			}
@@ -365,7 +355,6 @@ void log_init_platform(void) {
 			if (semaphore_create(&handshake) < 0) {
 				rc = ERRNO_WINAPI_OFFSET + GetLastError();
 
-				// this will go to the logfile if it is enabled via --debug
 				log_error("Could not create handshake semaphore: %s (%d)",
 				          get_errno_name(rc), rc);
 			} else {
