@@ -71,11 +71,11 @@
 #define RS485_EXTENSION_SERIAL_PARITY_ODD                               111
 
 // Time related constants
-#define MASTER_POLL_SLAVE_TIMEOUT                                       500000000                // 8ms, in nano seconds
-#define MASTER_RETRY_TIMEOUT                                            500000000                // 8ms, in nano seconds
-#define PARTIAL_RECEIVE_TIMEOUT                                         250000000                // 8ms, in nano seconds
-#define SEND_VERIFY_TIMEOUT                                             250000000                // 8ms, in nano seconds
-#define MASTER_RETRIES                                                  5                     // Times master retries a request
+#define MASTER_POLL_SLAVE_TIMEOUT                                       8000000 // 8ms, in nano seconds
+#define MASTER_RETRY_TIMEOUT                                            8000000 // 8ms, in nano seconds
+#define PARTIAL_RECEIVE_TIMEOUT                                         MASTER_POLL_SLAVE_TIMEOUT/2
+#define SEND_VERIFY_TIMEOUT                                             MASTER_POLL_SLAVE_TIMEOUT/2
+#define MASTER_RETRIES                                                  4       // Times master retries a request
 #define TIME_UNIT_SEC                                                   0
 #define TIME_UNIT_NSEC                                                  1
 
@@ -725,25 +725,43 @@ void rs485_serial_data_available_handler(void* opaque) {
                 return;
             
             case PACKET_ERROR_SEND_VERIFY:
+                // Retry the current request
                 log_error("RS485: Send verify failed");
-                goto ABORT_CURRENT_REQUEST;
+                partial_receive_flag = 0;
+                master_current_retry = MASTER_RETRIES;
+                master_retry_timeout_handler(NULL);
+                return;
                 
             case PACKET_ERROR_ADDRESS:
+                // Retry the current request
                 log_error("RS485: Wrong address in packet");
-                goto ABORT_CURRENT_REQUEST;
+                partial_receive_flag = 0;
+                master_current_retry = MASTER_RETRIES;
+                master_retry_timeout_handler(NULL);
+                return;
                 
             case PACKET_ERROR_FUNCTION_CODE:
                 log_error("RS485: Wrong function code in packet");
-                goto ABORT_CURRENT_REQUEST;
+                partial_receive_flag = 0;
+                master_current_retry = MASTER_RETRIES;
+                master_retry_timeout_handler(NULL);
+                return;
                 
             case PACKET_ERROR_SEQUENCE_NUMBER:
-                log_info("RS485: Wrong sequence number in packet, PKT=%d,  CURRENT=%d", receive_buffer[2], current_sequence_number);
-                exit(0);
-                goto ABORT_CURRENT_REQUEST;
+                // Retry the current request
+                log_info("RS485: Wrong sequence number in packet");
+                partial_receive_flag = 0;
+                master_current_retry = MASTER_RETRIES;
+                master_retry_timeout_handler(NULL);
+                return;
                 
             case PACKET_ERROR_LENGTH:
+                // Retry the current request
                 log_error("RS485: Wrong length in packet");
-                goto ABORT_CURRENT_REQUEST;
+                partial_receive_flag = 0;
+                master_current_retry = MASTER_RETRIES;
+                master_retry_timeout_handler(NULL);
+                return;
             
             case PACKET_ERROR_LENGTH_PARTIAL:
                 log_debug("RS485: Partial data packet recieved");
