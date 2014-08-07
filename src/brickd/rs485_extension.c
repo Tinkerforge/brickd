@@ -179,7 +179,7 @@ static int _rs485_serial_fd; // Serial interface file descriptor
 static Packet current_request;
 static char current_request_as_byte_array[sizeof(Packet) + MODBUS_PACKET_OVERHEAD];
 static uint8_t current_sequence_number = 0; // Current session sequence number
-static uint8_t previous_sequence_number = 0; // Used by slave
+//static uint8_t previous_sequence_number = 0; // Used by slave
 static int master_current_slave_to_process = 0; // Only used used by master
 static unsigned int master_current_retry = 0; // For counting retries
 
@@ -189,8 +189,7 @@ static uint32_t _modbus_serial_config_address;
 static uint32_t _modbus_serial_config_baudrate;
 static uint8_t _modbus_serial_config_parity;
 static uint8_t _modbus_serial_config_stopbits;
-static uint32_t _modbus_serial_config_slave_addresses
-                [RS485_EXTENSION_MODBUS_MAX_SLAVES];
+//static uint32_t _modbus_serial_config_slave_addresses[RS485_EXTENSION_MODBUS_MAX_SLAVES];
 
 // Receive buffer
 static uint8_t receive_buffer[RECEIVE_BUFFER_SIZE] = {0};
@@ -212,7 +211,7 @@ static struct itimerspec send_verify_timer;
 static uint8_t master_current_request_processed = 1;
 static uint8_t sent_current_request_from_queue = 0;
 static uint8_t partial_receive_flag = 0;
-static uint8_t previous_request_had_payload = 0;
+//static uint8_t previous_request_had_payload = 0;
 static uint8_t send_verify_flag = 0;
 static uint8_t sent_ack_of_data_packet = 0;
 
@@ -452,7 +451,7 @@ int is_valid_packet(uint8_t* buffer, int size) {
     else {
         
         
-        log_info("RS485: %llu usec, WHAT?! %d", end - start, buffer[0]);
+        log_info("RS485: %u usec, WHAT?! %d", (uint32_t)(end - start), buffer[0]);
         
                     {
                 int i;
@@ -467,19 +466,11 @@ int is_valid_packet(uint8_t* buffer, int size) {
 
 // Send Modbus packet
 int send_modbus_packet(uint8_t device_address, uint8_t sequence_number, Packet* packet_to_send) {
-    int i = 0;
     int bytes_written = 0;
-    int bytes_read = 0;
     uint16_t packet_crc16 = 0;
     uint8_t crc16_first_byte_index = 0;
-    int packet_size =
-        packet_to_send->header.length + MODBUS_PACKET_OVERHEAD;
-    
+    int packet_size = packet_to_send->header.length + MODBUS_PACKET_OVERHEAD;
     uint8_t modbus_packet[packet_size];
-                          
-    uint8_t modbus_packet_dummy_read_buffer[packet_to_send->header.length +
-                                            MODBUS_PACKET_OVERHEAD];
-    
     
     //printf(">>>>>>>>>>>>>>>>>>>>> SEN %llu\n", microseconds());
     
@@ -591,10 +582,10 @@ void disable_all_timers(void) {
     uint64_t dummy_read_buffer = 0;
 
     // Make the event fd unreadable
-    read(_master_retry_event, &dummy_read_buffer, sizeof(uint64_t));
-    read(_master_poll_slave_event, &dummy_read_buffer, sizeof(uint64_t));
-    read(_partial_receive_timeout_event, &dummy_read_buffer, sizeof(uint64_t));
-    read(_send_verify_event, &dummy_read_buffer, sizeof(uint64_t));
+    if(read(_master_retry_event, &dummy_read_buffer, sizeof(uint64_t))) {}
+    if(read(_master_poll_slave_event, &dummy_read_buffer, sizeof(uint64_t))) {}
+    if(read(_partial_receive_timeout_event, &dummy_read_buffer, sizeof(uint64_t))) {}
+    if(read(_send_verify_event, &dummy_read_buffer, sizeof(uint64_t))) {}
     
     setup_timer(&master_retry_timer, TIME_UNIT_NSEC, 0);
     timerfd_settime(_master_retry_event, 0, &master_retry_timer, NULL);
@@ -609,6 +600,8 @@ void disable_all_timers(void) {
 
 // Handle partial receive timeout
 void partial_receive_timeout_handler(void* opaque) {
+	(void)opaque;
+
     //log_info("RS485_EXTENSION : IN partial_receive_timeout_handler()");
     disable_all_timers();
     master_current_retry = MASTER_RETRIES;
@@ -618,7 +611,9 @@ void partial_receive_timeout_handler(void* opaque) {
 }
 
 // New data available event handler
-void rs485_serial_data_available_handler(void* opaque) {    
+void rs485_serial_data_available_handler(void* opaque) {
+	(void)opaque;
+
     if(!send_verify_flag) {
         disable_all_timers();
     }
@@ -656,7 +651,7 @@ void rs485_serial_data_available_handler(void* opaque) {
         switch(packet_validation_code) {
             case PACKET_SEND_VERIFY_OK:
                 // Stop send verify timer
-                read(_send_verify_event, &dummy_read_buffer, sizeof(uint64_t));
+                if (read(_send_verify_event, &dummy_read_buffer, sizeof(uint64_t))) {}
                 setup_timer(&send_verify_timer, TIME_UNIT_NSEC, 0);
                 timerfd_settime(_send_verify_event, 0, &send_verify_timer, NULL);
                 // Disabling TX
@@ -785,13 +780,12 @@ void rs485_serial_data_available_handler(void* opaque) {
         handle_partial_receive();
         return;
     }
-    ABORT_CURRENT_REQUEST:
     if(send_verify_flag) {
         // Disabling TX
         gpio_output_clear(_tx_pin);
         end = microseconds();
         // Stop send verify timer
-        read(_send_verify_event, &dummy_read_buffer, sizeof(uint64_t));
+        if (read(_send_verify_event, &dummy_read_buffer, sizeof(uint64_t))) {}
         setup_timer(&send_verify_timer, TIME_UNIT_NSEC, 0);
         timerfd_settime(_send_verify_event, 0, &send_verify_timer, NULL);
         // Clearing send verify flag
@@ -803,6 +797,8 @@ void rs485_serial_data_available_handler(void* opaque) {
 
 // Master polling slave event handler
 void master_poll_slave_timeout_handler(void* opaque) {
+	(void)opaque;
+
     // Turning off the timers
     disable_all_timers();
 
@@ -878,6 +874,8 @@ void master_poll_slave_timeout_handler(void* opaque) {
 
 // Master retry event handler
 void master_retry_timeout_handler(void* opaque) {
+	(void)opaque;
+
     // Turning off the timers
     disable_all_timers();
     
@@ -917,7 +915,9 @@ void master_retry_timeout_handler(void* opaque) {
 }
 
 // Send verify timeout event handler
-void send_verify_timeout_handler(void* opauqe) {
+void send_verify_timeout_handler(void *opaque) {
+	(void)opaque;
+
     // Disabling TX
     gpio_output_clear(_tx_pin);
     end = microseconds();
