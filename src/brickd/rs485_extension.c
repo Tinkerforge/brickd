@@ -49,7 +49,7 @@
 #include "stack.h"
 #include "hardware.h"
 
-#define LOG_CATEGORY LOG_CATEGORY_RED_BRICK
+#define LOG_CATEGORY LOG_CATEGORY_RS485
 
 #define RS485_EXTENSION_TYPE                                            2
 

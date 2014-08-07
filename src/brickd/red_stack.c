@@ -47,7 +47,7 @@
 #include "red_usb_gadget.h"
 #include "red_stack.h"
 
-#define LOG_CATEGORY LOG_CATEGORY_RED_BRICK
+#define LOG_CATEGORY LOG_CATEGORY_SPI
 
 // We use the Pearson Hash for fast hashing
 // See: http://en.wikipedia.org/wiki/Pearson_hashing

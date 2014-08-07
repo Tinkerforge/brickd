@@ -225,6 +225,8 @@ int main(int argc, char **argv) {
 	log_set_level(LOG_CATEGORY_WEBSOCKET, config_get_option("log_level.websocket")->value.log_level);
 #ifdef BRICKD_WITH_RED_BRICK
 	log_set_level(LOG_CATEGORY_RED_BRICK, config_get_option("log_level.red_brick")->value.log_level);
+	log_set_level(LOG_CATEGORY_SPI, config_get_option("log_level.spi")->value.log_level);
+	log_set_level(LOG_CATEGORY_RS485, config_get_option("log_level.rs485")->value.log_level);
 #endif
 	log_set_level(LOG_CATEGORY_OTHER, config_get_option("log_level.other")->value.log_level);
 
