@@ -1,6 +1,7 @@
 /*
  * brickd
  * Copyright (C) 2014 Ishraq Ibne Ashraf <ishraq@tinkerforge.com>
+ * Copyright (C) 2014 Matthias Bolte <matthias@tinkerforge.com>
  *
  * rs485_extension.c: RS485 extension support for RED Brick
  *
@@ -20,6 +21,7 @@
  */
  
 #include <errno.h>
+#include <stdbool.h>
 #include <stdint.h>
 #include <unistd.h>
 #include <stdio.h>
@@ -171,6 +173,7 @@ typedef struct {
 	Queue packet_to_modbus_queue; // Packets from network subsystem to be sent through Modbus
 } RS485Extension;
 
+static bool _initialized = false;
 static RS485Extension _rs485_extension;
 static char packet_signature[PACKET_MAX_SIGNATURE_LENGTH];
 static int _rs485_serial_fd; // Serial interface file descriptor
@@ -1000,7 +1003,7 @@ int rs485_extension_init(void) {
                     _tmp_eeprom_read_buf, 4);
     if (_eeprom_read_status <= 0) {
         log_error("RS485: EEPROM read error. Most probably no RS485 extension present");
-		goto cleanup;
+		return 0;
     }
     _modbus_serial_config_type = (uint32_t)((_tmp_eeprom_read_buf[0] << 0) |
                                  (_tmp_eeprom_read_buf[1] << 8) |
@@ -1214,6 +1217,7 @@ int rs485_extension_init(void) {
         }
 
         phase = 8;
+        _initialized = true;
     }
     else {
         log_info("RS485: Extension not present");
@@ -1255,6 +1259,10 @@ int rs485_extension_init(void) {
 
 // Exit function called from central brickd code
 void rs485_extension_exit(void) {
+	if (!_initialized) {
+		return;
+	}
+
 	// Remove event as possible poll source
     event_remove_source(_send_verify_event, EVENT_SOURCE_TYPE_GENERIC);
     event_remove_source(_master_poll_slave_event, EVENT_SOURCE_TYPE_GENERIC);

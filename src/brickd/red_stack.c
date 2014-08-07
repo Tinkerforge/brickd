@@ -557,12 +557,6 @@ static int red_stack_init_spi(void) {
 	const uint8_t bits_per_word = RED_STACK_SPI_CONFIG_BITS_PER_WORD;
 	const uint32_t max_speed_hz = RED_STACK_SPI_CONFIG_MAX_SPEED_HZ;
 
-	// Initialize GPIO (stack select/deselect)
-	if(gpio_init() < 0) {
-		log_error("Could not initialize RED Brick GPIO");
-		return -1;
-	}
-
 	// Set Master High pin to low (so Master Bricks above RED Brick can
 	// configure themselves as slave)
 	gpio_mux_configure(_red_stack_master_high_pin, GPIO_MUX_OUTPUT);

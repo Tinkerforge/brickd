@@ -35,6 +35,7 @@
 #include <daemonlib/event.h>
 #include <daemonlib/log.h>
 #include <daemonlib/pid_file.h>
+#include <daemonlib/red_gpio.h>
 #include <daemonlib/signal.h>
 #include <daemonlib/utils.h>
 
@@ -279,6 +280,10 @@ int main(int argc, char **argv) {
 	}
 
 #ifdef BRICKD_WITH_RED_BRICK
+	if (gpio_init() < 0) {
+		goto error_gpio;
+	}
+
 	if (red_usb_gadget_init() < 0) {
 		goto error_red_usb_gadget;
 	}
@@ -290,8 +295,9 @@ int main(int argc, char **argv) {
 	if (red_stack_init() < 0) {
 		goto error_red_stack;
 	}
-    if (rs485_extension_init() < 0) {
-		rs485_extension_exit();
+
+	if (rs485_extension_init() < 0) {
+		goto error_rs485_extension;
 	}
 #endif
 
@@ -303,6 +309,9 @@ int main(int argc, char **argv) {
 
 error_run:
 #ifdef BRICKD_WITH_RED_BRICK
+	rs485_extension_exit();
+
+error_rs485_extension:
 	red_stack_exit();
     
 error_red_stack:
@@ -312,6 +321,9 @@ error_redapid:
 	red_usb_gadget_exit();
 
 error_red_usb_gadget:
+	//gpio_exit();
+
+error_gpio:
 #endif
 	network_exit();
 
