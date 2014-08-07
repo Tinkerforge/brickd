@@ -44,6 +44,7 @@
 	#include "redapid.h"
 	#include "red_stack.h"
 	#include "red_usb_gadget.h"
+    #include "rs485_extension.h"
 #endif
 #ifdef BRICKD_WITH_LIBUDEV
 	#include "udev.h"
@@ -287,6 +288,9 @@ int main(int argc, char **argv) {
 	if (red_stack_init() < 0) {
 		goto error_red_stack;
 	}
+    if (rs485_extension_init() < 0) {
+		rs485_extension_exit();
+	}
 #endif
 
 	if (event_run(network_cleanup_clients_and_zombies) < 0) {
@@ -298,7 +302,7 @@ int main(int argc, char **argv) {
 error_run:
 #ifdef BRICKD_WITH_RED_BRICK
 	red_stack_exit();
-
+    
 error_red_stack:
 	redapid_exit();
 
