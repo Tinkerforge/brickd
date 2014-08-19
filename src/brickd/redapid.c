@@ -103,7 +103,8 @@ static void redapid_handle_read(void *opaque) {
 
 		if (!_redapid.response_header_checked) {
 			if (!packet_header_is_valid_response(&_redapid.response.header, &message)) {
-				log_error("Got invalid response (%s) from RED Brick API Daemon, disconnecting redapid: %s",
+				// FIXME: include packet_get_content_dump output in the error message
+				log_error("Received invalid response (%s) from RED Brick API Daemon, disconnecting redapid: %s",
 				          packet_get_response_signature(packet_signature, &_redapid.response),
 				          message);
 
@@ -123,12 +124,13 @@ static void redapid_handle_read(void *opaque) {
 			break;
 		}
 
+		// FIXME: avoid packet_header_get_sequence_number call if log_debug is disabled
 		if (packet_header_get_sequence_number(&_redapid.response.header) == 0) {
-			log_debug("Got %scallback (%s) from RED Brick API Daemon",
+			log_debug("Received %scallback (%s) from RED Brick API Daemon",
 			          packet_get_callback_type(&_redapid.response),
 			          packet_get_callback_signature(packet_signature, &_redapid.response));
 		} else {
-			log_debug("Got response (%s) from RED Brick API Daemon",
+			log_debug("Received response (%s) from RED Brick API Daemon",
 			          packet_get_response_signature(packet_signature, &_redapid.response));
 		}
 
@@ -157,7 +159,7 @@ static int redapid_dispatch_request(REDBrickAPIDaemon *redapid, Packet *request,
 	if (request->header.function_id == FUNCTION_ENUMERATE) {
 		uid = red_usb_gadget_get_uid();
 
-		log_debug("Got enumerate request, sending enumerate-avialable callback for RED Brick [%s]",
+		log_debug("Received enumerate request, sending enumerate-avialable callback for RED Brick [%s]",
 		          base58_encode(base58, uint32_from_le(uid)));
 
 		// respond with enumerate-connected callback

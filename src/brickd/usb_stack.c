@@ -79,7 +79,7 @@ static void usb_stack_read_callback(USBTransfer *usb_transfer) {
 	}
 
 	if (!packet_header_is_valid_response(&usb_transfer->packet.header, &message)) {
-		log_debug("Got invalid response%s%s%s from %s: %s",
+		log_debug("Received invalid response%s%s%s from %s: %s",
 		          usb_transfer->handle->actual_length > 0 ? " (packet: " : "",
 		          packet_get_content_dump(packet_content_dump, &usb_transfer->packet,
 		                                  usb_transfer->handle->actual_length),
@@ -90,13 +90,14 @@ static void usb_stack_read_callback(USBTransfer *usb_transfer) {
 		return;
 	}
 
+	// FIXME: avoid packet_header_get_sequence_number call if log_debug is disabled
 	if (packet_header_get_sequence_number(&usb_transfer->packet.header) == 0) {
-		log_debug("Got %scallback (%s) from %s",
+		log_debug("Received %scallback (%s) from %s",
 		          packet_get_callback_type(&usb_transfer->packet),
 		          packet_get_callback_signature(packet_signature, &usb_transfer->packet),
 		          usb_transfer->usb_stack->base.name);
 	} else {
-		log_debug("Got response (%s) from %s",
+		log_debug("Received response (%s) from %s",
 		          packet_get_response_signature(packet_signature, &usb_transfer->packet),
 		          usb_transfer->usb_stack->base.name);
 	}

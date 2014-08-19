@@ -251,7 +251,8 @@ static void client_handle_read(void *opaque) {
 
 		if (!client->request_header_checked) {
 			if (!packet_header_is_valid_request(&client->request.header, &message)) {
-				log_error("Got invalid request (%s) from client ("CLIENT_INFO_FORMAT"), disconnecting client: %s",
+				// FIXME: include packet_get_content_dump output in the error message
+				log_error("Received invalid request (%s) from client ("CLIENT_INFO_FORMAT"), disconnecting client: %s",
 				          packet_get_request_signature(packet_signature, &client->request),
 				          client_expand_info(client), message);
 
@@ -271,10 +272,10 @@ static void client_handle_read(void *opaque) {
 		}
 
 		if (client->request.header.function_id == FUNCTION_DISCONNECT_PROBE) {
-			log_debug("Got disconnect probe from client ("CLIENT_INFO_FORMAT"), dropping request",
+			log_debug("Received disconnect probe from client ("CLIENT_INFO_FORMAT"), dropping request",
 			          client_expand_info(client));
 		} else {
-			log_debug("Got request (%s) from client ("CLIENT_INFO_FORMAT")",
+			log_debug("Received request (%s) from client ("CLIENT_INFO_FORMAT")",
 			          packet_get_request_signature(packet_signature, &client->request),
 			          client_expand_info(client));
 
