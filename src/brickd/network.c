@@ -232,6 +232,34 @@ cleanup:
 	return phase == 3 ? 0 : -1;
 }
 
+// drop all pending requests for the given UID from the global list
+static void network_drop_pending_requests(uint32_t uid) {
+	Node *pending_request_global_node = _pending_request_sentinel.next;
+	Node *pending_request_global_node_next;
+	PendingRequest *pending_request;
+	char base58[BASE58_MAX_LENGTH];
+	int count = 0;
+
+	while (pending_request_global_node != &_pending_request_sentinel) {
+		pending_request = containerof(pending_request_global_node, PendingRequest, global_node);
+		pending_request_global_node_next = pending_request_global_node->next;
+
+		if (pending_request->header.uid == uid) {
+			pending_request_remove_and_free(pending_request);
+
+			++count;
+		}
+
+		pending_request_global_node = pending_request_global_node_next;
+	}
+
+	if (count > 0) {
+		log_warn("Dropped %d pending request(s) (uid: %s)",
+		         count,
+		         base58_encode(base58, uint32_from_le(uid)));
+	}
+}
+
 int network_init(void) {
 	uint16_t plain_port = (uint16_t)config_get_option("listen.plain_port")->value.integer;
 	uint16_t websocket_port = (uint16_t)config_get_option("listen.websocket_port")->value.integer;
@@ -439,6 +467,7 @@ void network_client_expects_response(Client *client, Packet *request) {
 }
 
 void network_dispatch_response(Packet *response) {
+	EnumerateCallback *enumerate_callback;
 	char packet_signature[PACKET_MAX_SIGNATURE_LENGTH];
 	int i;
 	Client *client;
@@ -446,6 +475,15 @@ void network_dispatch_response(Packet *response) {
 	PendingRequest *pending_request;
 
 	if (packet_header_get_sequence_number(&response->header) == 0) {
+		if (response->header.function_id == CALLBACK_ENUMERATE) {
+			enumerate_callback = (EnumerateCallback *)response;
+
+			if (enumerate_callback->enumeration_type == ENUMERATION_TYPE_CONNECTED ||
+			    enumerate_callback->enumeration_type == ENUMERATION_TYPE_DISCONNECTED) {
+				network_drop_pending_requests(response->header.uid);
+			}
+		}
+
 		if (_clients.count == 0) {
 			log_debug("No clients connected, dropping %scallback (%s)",
 			          packet_get_callback_type(response),
