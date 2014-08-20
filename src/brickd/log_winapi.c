@@ -439,6 +439,11 @@ void log_set_file_platform(FILE *file) {
 	CONSOLE_SCREEN_BUFFER_INFO screen_buffer_info;
 
 	_console = NULL;
+
+	if (file == NULL) {
+		return;
+	}
+
 	console = (HANDLE)_get_osfhandle(fileno(file));
 
 	if (console == INVALID_HANDLE_VALUE) {
