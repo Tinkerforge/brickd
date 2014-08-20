@@ -82,6 +82,8 @@ struct _Client {
 #define client_expand_info(client) (client)->name, (client)->io->type, \
 	(client)->io->handle, client_get_authentication_state_name((client)->authentication_state)
 
+void pending_request_remove_and_free(PendingRequest *pending_request);
+
 const char *client_get_authentication_state_name(ClientAuthenticationState state);
 
 int client_create(Client *client, const char *name, IO *io,

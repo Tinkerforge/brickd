@@ -403,12 +403,7 @@ void network_client_expects_response(Client *client, Packet *request) {
 		while (client->pending_request_count >= CLIENT_MAX_PENDING_REQUESTS) {
 			pending_request = containerof(client->pending_request_sentinel.next, PendingRequest, client_node);
 
-			node_remove(&pending_request->global_node);
-			node_remove(&pending_request->client_node);
-
-			free(pending_request);
-
-			--client->pending_request_count;
+			pending_request_remove_and_free(pending_request);
 		}
 	}
 

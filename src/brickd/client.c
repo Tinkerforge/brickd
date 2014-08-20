@@ -34,6 +34,7 @@
 #include "hardware.h"
 #include "hmac.h"
 #include "network.h"
+#include "zombie.h"
 
 #define LOG_CATEGORY LOG_CATEGORY_NETWORK
 
@@ -290,6 +291,21 @@ static void client_handle_read(void *opaque) {
 	}
 }
 
+void pending_request_remove_and_free(PendingRequest *pending_request) {
+	node_remove(&pending_request->global_node);
+	node_remove(&pending_request->client_node);
+
+	if (pending_request->client != NULL) {
+		--pending_request->client->pending_request_count;
+	}
+
+	if (pending_request->zombie != NULL) {
+		--pending_request->zombie->pending_request_count;
+	}
+
+	free(pending_request);
+}
+
 const char *client_get_authentication_state_name(ClientAuthenticationState state) {
 	switch (state) {
 	case CLIENT_AUTHENTICATION_STATE_DISABLED:
@@ -391,10 +407,7 @@ void client_destroy(Client *client) {
 		while (client->pending_request_sentinel.next != &client->pending_request_sentinel) {
 			pending_request = containerof(client->pending_request_sentinel.next, PendingRequest, client_node);
 
-			node_remove(&pending_request->global_node);
-			node_remove(&pending_request->client_node);
-
-			free(pending_request);
+			pending_request_remove_and_free(pending_request);
 		}
 	}
 
@@ -478,11 +491,6 @@ void client_dispatch_response(Client *client, PendingRequest *pending_request,
 
 cleanup:
 	if (pending_request != NULL) {
-		node_remove(&pending_request->global_node);
-		node_remove(&pending_request->client_node);
-
-		free(pending_request);
-
-		--client->pending_request_count;
+		pending_request_remove_and_free(pending_request);
 	}
 }

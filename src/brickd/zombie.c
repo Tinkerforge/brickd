@@ -49,6 +49,7 @@ int zombie_create(Zombie *zombie, Client *client) {
 	log_debug("Creating zombie (id: %u) from client ("CLIENT_INFO_FORMAT") for %d pending request(s)",
 	          zombie->id, client_expand_info(client), zombie->pending_request_count);
 
+	// create single shot timer with a delay of 1sec
 	if (timer_create_(&zombie->timer, zombie_handle_timeout, zombie) < 0) {
 		return -1;
 	}
@@ -91,10 +92,7 @@ void zombie_destroy(Zombie *zombie) {
 		while (zombie->pending_request_sentinel.next != &zombie->pending_request_sentinel) {
 			pending_request = containerof(zombie->pending_request_sentinel.next, PendingRequest, client_node);
 
-			node_remove(&pending_request->global_node);
-			node_remove(&pending_request->client_node);
-
-			free(pending_request);
+			pending_request_remove_and_free(pending_request);
 		}
 	}
 
@@ -102,14 +100,9 @@ void zombie_destroy(Zombie *zombie) {
 }
 
 void zombie_dispatch_response(Zombie *zombie, PendingRequest *pending_request) {
-	node_remove(&pending_request->global_node);
-	node_remove(&pending_request->client_node);
+	pending_request_remove_and_free(pending_request);
 
-	free(pending_request);
-
-	--zombie->pending_request_count;
-
-	if (zombie->pending_request_sentinel.next == &zombie->pending_request_sentinel) {
+	if (zombie->pending_request_count == 0) {
 		zombie->finished = true;
 
 		log_debug("Zombie (id: %u) finished", zombie->id);
