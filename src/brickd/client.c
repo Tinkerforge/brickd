@@ -308,20 +308,12 @@ void pending_request_remove_and_free(PendingRequest *pending_request) {
 
 const char *client_get_authentication_state_name(ClientAuthenticationState state) {
 	switch (state) {
-	case CLIENT_AUTHENTICATION_STATE_DISABLED:
-		return "disabled";
+	case CLIENT_AUTHENTICATION_STATE_DISABLED:   return "disabled";
+	case CLIENT_AUTHENTICATION_STATE_ENABLED:    return "enabled";
+	case CLIENT_AUTHENTICATION_STATE_NONCE_SEND: return "nonce-send";
+	case CLIENT_AUTHENTICATION_STATE_DONE:       return "done";
 
-	case CLIENT_AUTHENTICATION_STATE_ENABLED:
-		return "enabled";
-
-	case CLIENT_AUTHENTICATION_STATE_NONCE_SEND:
-		return "nonce-send";
-
-	case CLIENT_AUTHENTICATION_STATE_DONE:
-		return "done";
-
-	default:
-		return "<unknown>";
+	default:                                     return "<unknown>";
 	}
 }
 

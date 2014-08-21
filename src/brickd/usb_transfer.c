@@ -32,14 +32,10 @@
 
 static const char *usb_transfer_get_type_name(USBTransferType type, bool upper) {
 	switch (type) {
-	case USB_TRANSFER_TYPE_READ:
-		return upper ? "Read" : "read";
+	case USB_TRANSFER_TYPE_READ:  return upper ? "Read" : "read";
+	case USB_TRANSFER_TYPE_WRITE: return upper ? "Write" : "write";
 
-	case USB_TRANSFER_TYPE_WRITE:
-		return upper ? "Write" : "write";
-
-	default:
-		return upper ? "<Unknown>" : "<unknown>";
+	default:                      return upper ? "<Unknown>" : "<unknown>";
 	}
 }
 
