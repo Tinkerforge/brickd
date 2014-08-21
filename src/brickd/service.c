@@ -73,7 +73,7 @@ int service_is_running(void) {
 	if (service_control_manager == NULL) {
 		rc = ERRNO_WINAPI_OFFSET + GetLastError();
 
-		log_error("Could not open service control manager: %s (%d)\n",
+		log_error("Could not open service control manager: %s (%d)",
 		          get_errno_name(rc), rc);
 
 		return -1;
@@ -94,7 +94,7 @@ int service_is_running(void) {
 
 		rc += ERRNO_WINAPI_OFFSET;
 
-		log_error("Could not open '%s' service: %s (%d)\n",
+		log_error("Could not open '%s' service: %s (%d)",
 		          _service_name, get_errno_name(rc), rc);
 
 		CloseServiceHandle(service_control_manager);
@@ -106,7 +106,7 @@ int service_is_running(void) {
 	if (!QueryServiceStatus(service, &service_status)) {
 		rc = ERRNO_WINAPI_OFFSET + GetLastError();
 
-		log_error("Could not query status of '%s' service: %s (%d)\n",
+		log_error("Could not query status of '%s' service: %s (%d)",
 		          _service_name, get_errno_name(rc), rc);
 
 		CloseServiceHandle(service);
