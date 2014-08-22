@@ -39,7 +39,6 @@
 #include <daemonlib/red_gpio.h>
 #include <daemonlib/event.h>
 
-
 #include "network.h"
 #include "stack.h"
 #include "hardware.h"
@@ -83,10 +82,13 @@ static const uint8_t _red_stack_spi_pearson_permutation[RED_STACK_SPI_PEARSON_PE
 #define RED_STACK_SPI_LENGTH            1
 #define RED_STACK_SPI_INFO(length)      ((length) -2)
 #define RED_STACK_SPI_CHECKSUM(length)  ((length) -1)
-#define RED_STACK_SPI_INFO_BUSY         (1 << 0)
 #define RED_STACK_SPI_MAX_SLAVES        8
 #define RED_STACK_SPI_ROUTING_WAIT      (1000*1000*50) // Give slave 50ms between each routing table setup try
 #define RED_STACK_SPI_ROUTING_TRIES     10             // Try 10 times for each slave to setup routing table
+
+#define RED_STACK_SPI_INFO_BUSY                 (1 << 6)
+#define RED_STACK_SPI_INFO_SEQUENCE_MASTER_MASK (0x7)
+#define RED_STACK_SPI_INFO_SEQUENCE_SLAVE_MASK  (0x38)
 
 #define RED_STACK_SPI_CONFIG_MODE           SPI_CPOL
 #define RED_STACK_SPI_CONFIG_LSB_FIRST      0
@@ -123,8 +125,15 @@ typedef enum {
 	RED_STACK_SLAVE_STATUS_AVAILABLE_BUSY
 } REDStackSlaveStatus;
 
+typedef enum {
+	RED_STACK_PACKET_STATUS_ADDED = 0,
+	RED_STACK_PACKET_STATUS_SEQUENCE_NUMBER_SET
+} REDStackPacketStatus;
+
 typedef struct {
 	uint8_t stack_address;
+	uint8_t sequence_number_master;
+	uint8_t sequence_number_slave;
 	REDStackSlaveStatus status;
 	GPIOPin slave_select_pin;
 } REDStackSlave;
@@ -142,6 +151,8 @@ typedef struct {
 typedef struct {
 	REDStackSlave *slave;
 	Packet packet;
+	REDStackPacketStatus status;
+	uint8_t info_master_sequence_part;
 } REDStackPacket;
 
 static REDStack _red_stack;
@@ -176,6 +187,14 @@ static const char *_red_stack_spi_device = "/dev/spidev0.0";
 
 // ----- RED STACK SPI ------
 // These functions run in SPI thread
+
+
+static void red_stack_increase_master_sequence_number(REDStackSlave *slave) {
+	slave->sequence_number_master += 1;
+	if(slave->sequence_number_master > RED_STACK_SPI_INFO_SEQUENCE_MASTER_MASK) {
+		slave->sequence_number_master = 0;
+	}
+}
 
 // Get "red_stack_dispatch_from_spi" called from main brickd event thread
 static int red_stack_spi_request_dispatch_response_event(void) {
@@ -216,11 +235,13 @@ static void red_stack_spi_deselect(REDStackSlave *slave) {
 // the exact reason for that is encoded in the return value.
 //
 // For the return value see RED_STACK_TRANSCEIVE_RESULT_* at the top of this file.
-static int red_stack_spi_transceive_message(Packet *packet_send, Packet *packet_recv, REDStackSlave *slave) {
+static int red_stack_spi_transceive_message(REDStackPacket *packet_send, Packet *packet_recv, REDStackSlave *slave) {
 	int retval = 0;
 	uint8_t length, length_send;
 	uint8_t checksum;
 	int rc;
+	uint8_t sequence_number_master = 0xFF;
+	uint8_t sequence_number_slave = 0xFF;
 
     uint8_t tx[RED_STACK_SPI_PACKET_SIZE] = {0};
     uint8_t rx[RED_STACK_SPI_PACKET_SIZE] = {0};
@@ -243,7 +264,7 @@ static int red_stack_spi_transceive_message(Packet *packet_send, Packet *packet_
         tx[RED_STACK_SPI_LENGTH] = RED_STACK_SPI_PACKET_EMPTY_SIZE;
         retval |= RED_STACK_TRANSCEIVE_RESULT_SEND_BUSY;
     } else if(slave->status == RED_STACK_SLAVE_STATUS_AVAILABLE) {
-    	length = packet_send->header.length;
+    	length = packet_send->packet.header.length;
     	if(length > sizeof(Packet)) {
     		retval |= RED_STACK_TRANSCEIVE_RESULT_SEND_ERROR;
 			log_error("Send length is greater then allowed (actual: %d > maximum: %d)",
@@ -251,10 +272,10 @@ static int red_stack_spi_transceive_message(Packet *packet_send, Packet *packet_
     		goto ret;
     	}
 
-    	retval |= RED_STACK_TRANSCEIVE_DATA_SEND | RED_STACK_TRANSCEIVE_RESULT_SEND_OK;
+    	retval |= RED_STACK_TRANSCEIVE_DATA_SEND;
 
         tx[RED_STACK_SPI_LENGTH] = length + RED_STACK_SPI_PACKET_EMPTY_SIZE;
-    	memcpy(tx+2, packet_send, length);
+    	memcpy(tx+2, &packet_send->packet, length);
     } else {
     	retval |= RED_STACK_TRANSCEIVE_RESULT_SEND_ERROR;
     	log_error("Slave with stack address %d is not present in stack", slave->stack_address);
@@ -263,10 +284,22 @@ static int red_stack_spi_transceive_message(Packet *packet_send, Packet *packet_
 
     length = tx[RED_STACK_SPI_LENGTH];
 
-    // The SPI Master is never busy
-    tx[RED_STACK_SPI_INFO(length)] = 0;
-    // Calculate checksum
-    tx[RED_STACK_SPI_CHECKSUM(length)] = red_stack_spi_calculate_pearson_hash(tx, length-1);
+    // Save master sequence numbers for this packet, it should never change for a given packet.
+    // The slave sequence number on the other hand needs to be updated every time.
+    if((packet_send != NULL) && (retval & RED_STACK_TRANSCEIVE_DATA_SEND)) {
+		if(packet_send->status == RED_STACK_PACKET_STATUS_ADDED) {
+			packet_send->info_master_sequence_part = slave->sequence_number_master;
+			packet_send->status = RED_STACK_PACKET_STATUS_SEQUENCE_NUMBER_SET;
+		}
+
+		// Set current slave and master sequence number, BUSY flag is never set
+		tx[RED_STACK_SPI_INFO(length)] = packet_send->info_master_sequence_part | slave->sequence_number_slave;
+    } else {
+		tx[RED_STACK_SPI_INFO(length)] = slave->sequence_number_master | slave->sequence_number_slave;
+    }
+
+   	// Calculate checksum
+   	tx[RED_STACK_SPI_CHECKSUM(length)] = red_stack_spi_calculate_pearson_hash(tx, length-1);
 
     struct spi_ioc_transfer spi_transfer = {
         .tx_buf = (unsigned long)&tx,
@@ -296,6 +329,8 @@ static int red_stack_spi_transceive_message(Packet *packet_send, Packet *packet_
 		          length_send, RED_STACK_SPI_PACKET_SIZE);
 		goto ret;
 	}
+
+
 
 	if(rx[RED_STACK_SPI_PREAMBLE] != RED_STACK_SPI_PREAMBLE_VALUE) {
 		// Do not log by default, an "unproper preamble" is part of the protocol
@@ -341,20 +376,45 @@ static int red_stack_spi_transceive_message(Packet *packet_send, Packet *packet_
 		}
 	}
 
-	if(length == RED_STACK_SPI_PACKET_EMPTY_SIZE) {
-		// Do not log by default, will produce 2000 log entries per second
-   		// log_debug("Received empty packet over SPI (w/ header)");
-   		retval |= RED_STACK_TRANSCEIVE_RESULT_READ_NONE;
+	// If we send data and the master sequence number matches to the one
+	// set in the packet we know that the slave received the packet!
+	if((packet_send != NULL) && (packet_send->status == RED_STACK_PACKET_STATUS_SEQUENCE_NUMBER_SET)) {
+		sequence_number_master = rx[RED_STACK_SPI_INFO(length)] & RED_STACK_SPI_INFO_SEQUENCE_MASTER_MASK;
+		if(sequence_number_master == packet_send->info_master_sequence_part) {
+			retval |= RED_STACK_TRANSCEIVE_RESULT_SEND_OK;
+
+			// Increase sequence number for next packet
+			red_stack_increase_master_sequence_number(slave);
+		}
 	} else {
-		// Everything seems OK, we can copy to buffer
-		memcpy(packet_recv, rx+2, length - RED_STACK_SPI_PACKET_EMPTY_SIZE);
-		log_debug("Received packet over SPI (%s)",
-		          packet_get_response_signature(packet_signature, packet_recv));
-		retval |= RED_STACK_TRANSCEIVE_RESULT_READ_OK | RED_STACK_TRANSCEIVE_DATA_RECEIVED;
+		// If we didn't send anything we can always increase the sequence number,
+		// it doesn't matter if the slave actually received it.
+		red_stack_increase_master_sequence_number(slave);
+	}
+
+
+	// If the slave sequence number matches we already processed this packet
+	sequence_number_slave = rx[RED_STACK_SPI_INFO(length)] & RED_STACK_SPI_INFO_SEQUENCE_SLAVE_MASK;
+	if(sequence_number_slave == slave->sequence_number_slave) {
+		retval |= RED_STACK_TRANSCEIVE_RESULT_READ_NONE;
+	} else {
+		// Otherwise we save the new sequence number
+		slave->sequence_number_slave = sequence_number_slave;
+		if(length == RED_STACK_SPI_PACKET_EMPTY_SIZE) {
+			// Do not log by default, will produce 2000 log entries per second
+			// log_debug("Received empty packet over SPI (w/ header)");
+			retval |= RED_STACK_TRANSCEIVE_RESULT_READ_NONE;
+		} else {
+			// Everything seems OK, we can copy to buffer
+			memcpy(packet_recv, rx+2, length - RED_STACK_SPI_PACKET_EMPTY_SIZE);
+			log_debug("Received packet over SPI (%s)",
+					  packet_get_response_signature(packet_signature, packet_recv));
+			retval |= RED_STACK_TRANSCEIVE_RESULT_READ_OK | RED_STACK_TRANSCEIVE_DATA_RECEIVED;
+		}
 	}
 
 ret:
-	// IF we have any kind of error we assume that the slave is busy
+	// If we have any kind of error we assume that the slave is busy
 	if(((retval & RED_STACK_TRANSCEIVE_RESULT_MASK_SEND) == RED_STACK_TRANSCEIVE_RESULT_SEND_ERROR) ||
 	   ((retval & RED_STACK_TRANSCEIVE_RESULT_MASK_READ) == RED_STACK_TRANSCEIVE_RESULT_READ_ERROR)) {
 		slave->status = RED_STACK_SLAVE_STATUS_AVAILABLE_BUSY;
@@ -378,21 +438,28 @@ static void red_stack_spi_create_routing_table() {
 
     	Packet packet;
     	StackEnumerateResponse *response;
-    	StackEnumerateRequest request = {{
-    		0,   // UID 0
-    		sizeof(StackEnumerateRequest),
-    		FUNCTION_STACK_ENUMERATE,
-    		0x08, // Return expecetd
-    		0
-    	}};
 
-    	// Lets assume the slave is available and see if we get an answer
-    	slave->status = RED_STACK_SLAVE_STATUS_AVAILABLE;
+    	REDStackPacket red_stack_packet = {
+    		slave,
+        	{{
+        		0,   // UID 0
+        		sizeof(StackEnumerateRequest),
+        		FUNCTION_STACK_ENUMERATE,
+        		0x08, // Return expecetd
+        		0
+        	}, {0}, {0}},
+        	RED_STACK_PACKET_STATUS_ADDED,
+        	0
+    	};
+
+    	// We have to assume that the slave is busy in the beginning
+    	slave->status = RED_STACK_SLAVE_STATUS_AVAILABLE_BUSY;
 
     	// Send stack enumerate request
     	for(tries = 0; tries < RED_STACK_SPI_ROUTING_TRIES; tries++) {
-    		ret = red_stack_spi_transceive_message((Packet *)&request, &packet, slave);
-    		if(ret & RED_STACK_TRANSCEIVE_DATA_SEND) {
+    		ret = red_stack_spi_transceive_message(&red_stack_packet, &packet, slave);
+
+    		if(ret & RED_STACK_TRANSCEIVE_RESULT_SEND_OK) {
     			break;
     		}
     		SLEEP_NS(RED_STACK_SPI_ROUTING_WAIT); // Give slave some more time
@@ -408,15 +475,17 @@ static void red_stack_spi_create_routing_table() {
 
     	// Receive stack enumerate response
     	for(tries = 0; tries < RED_STACK_SPI_ROUTING_TRIES; tries++) {
-    		// Here we sleep in the beginning so that there is some time
+    		// We first check if we already received an answer before we try again
+    		if(ret & RED_STACK_TRANSCEIVE_DATA_RECEIVED) {
+    			break;
+    		}
+
+    		// Here we sleep before transceive so that there is some time
     		// between the sending of stack enumerate and the receiving
     		// of the answer
     		SLEEP_NS(RED_STACK_SPI_ROUTING_WAIT); // Give slave some more time
 
     		ret = red_stack_spi_transceive_message(NULL, &packet, slave);
-    		if(ret & RED_STACK_TRANSCEIVE_DATA_RECEIVED) {
-    			break;
-    		}
     	}
 
     	if(tries == RED_STACK_SPI_ROUTING_TRIES) {
@@ -483,7 +552,7 @@ static void red_stack_spi_thread(void *opaque) {
 	_red_stack_spi_thread_running = true;
 	while(_red_stack_spi_thread_running) {
 		REDStackSlave *slave = &_red_stack.slaves[stack_address_cycle];
-		Packet *request = NULL;
+		REDStackPacket *request = NULL;
 		memset(&_red_stack.packet_from_spi, 0, sizeof(Packet));
 
 		// Get packet from queue. The queue contains that are to be
@@ -505,7 +574,7 @@ static void red_stack_spi_thread(void *opaque) {
 			log_debug("Packet will now be send over SPI (%s)",
 			          packet_get_request_signature(packet_signature, &packet_to_spi->packet));
 
-			request = &packet_to_spi->packet;
+			request = packet_to_spi;
 			slave = packet_to_spi->slave;
 		}
 
@@ -513,9 +582,8 @@ static void red_stack_spi_thread(void *opaque) {
 		                                       &_red_stack.packet_from_spi,
 		                                       slave);
 
-		if(ret & RED_STACK_TRANSCEIVE_DATA_SEND) {
-			if((!((ret & RED_STACK_TRANSCEIVE_RESULT_MASK_SEND) == RED_STACK_TRANSCEIVE_RESULT_SEND_ERROR)) &&
-			   (!((ret & RED_STACK_TRANSCEIVE_RESULT_MASK_READ) == RED_STACK_TRANSCEIVE_RESULT_READ_ERROR))) {
+		if(ret & RED_STACK_TRANSCEIVE_RESULT_SEND_OK) {
+			if((!((ret & RED_STACK_TRANSCEIVE_RESULT_MASK_READ) == RED_STACK_TRANSCEIVE_RESULT_READ_ERROR))) {
 				// If we send a packet it must have come from the queue, so we can
 				// pop it from the queue now.
 				// If the sending didn't work (for whatever reason), we don't pop it
@@ -569,6 +637,8 @@ static int red_stack_init_spi(void) {
 		_red_stack.slaves[slave].stack_address = slave;
 		_red_stack.slaves[slave].status = RED_STACK_SLAVE_STATUS_ABSENT;
 		_red_stack.slaves[slave].slave_select_pin = _red_stack_slave_select_pins[slave];
+		_red_stack.slaves[slave].sequence_number_master = 1;
+		_red_stack.slaves[slave].sequence_number_slave = 0;
 
 		// Bring slave in initial state (deselected)
 		gpio_mux_configure(_red_stack.slaves[slave].slave_select_pin, GPIO_MUX_OUTPUT);
@@ -632,12 +702,24 @@ static void red_stack_dispatch_to_spi(Stack *stack, Packet *request, Recipient *
 	REDStackPacket *queued_request;
 	(void)stack;
 
+	// TODO: It may be a possible to achieve more packets/second in big stacks if
+	// we would use a packet queue per slave. If we did that, we could send a packet
+	// to another slave while the sending of a message is not yet completed
+	// with another slave. This would however mean that going round robin is a
+	// lot more work.
+	// Currently we are only optimizing for one stack participant.
+
+	// However, with the current method we will never talk to other stack
+	// participants if only one of them is broken and doesn't want to talk
+	// to us anymore.
+
 	if(request->header.uid == 0) {
 		// UID = 0 -> Broadcast to all UIDs
 		uint8_t is;
 		for(is = 0; is < _red_stack.slave_num; is++) {
 			mutex_lock(&_red_stack_packet_queue_mutex);
 			queued_request = queue_push(&_red_stack.packet_to_spi_queue);
+			queued_request->status = RED_STACK_PACKET_STATUS_ADDED;
 			queued_request->slave = &_red_stack.slaves[is];
 			memcpy(&queued_request->packet, request, request->header.length);
 			mutex_unlock(&_red_stack_packet_queue_mutex);
@@ -653,6 +735,7 @@ static void red_stack_dispatch_to_spi(Stack *stack, Packet *request, Recipient *
 
 		mutex_lock(&_red_stack_packet_queue_mutex);
 		queued_request = queue_push(&_red_stack.packet_to_spi_queue);
+		queued_request->status = RED_STACK_PACKET_STATUS_ADDED;
 		queued_request->slave = slave;
 		memcpy(&queued_request->packet, request, request->header.length);
 		mutex_unlock(&_red_stack_packet_queue_mutex);
