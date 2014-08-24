@@ -336,9 +336,9 @@ int usb_reopen(void) {
 
 	log_debug("Reopening all USB devices");
 
-	// iterate backwards to avoid memmove in array_remove call
-	while (_usb_stacks.count > 0) {
-		i = _usb_stacks.count - 1;
+	// iterate backwards for simpler index handling and to avoid memmove
+	// in array_remove call
+	for (i = _usb_stacks.count - 1; i >= 0; --i) {
 		usb_stack = array_get(&_usb_stacks, i);
 
 		log_info("Temporarily removing USB device (bus: %u, device: %u) at index %d: %s ",
