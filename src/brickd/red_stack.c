@@ -439,6 +439,10 @@ static void red_stack_spi_create_routing_table() {
     	Packet packet;
     	StackEnumerateResponse *response;
 
+		// FIXME: need to detect stack reset using a GPIO pin and redo the
+		//        stack enumerate if a reset occurs. this will trigger new
+		//        enumerate-connected callbacks and result in dropping now
+		//        stale pending requests from the global pending request list
     	REDStackPacket red_stack_packet = {
     		slave,
         	{{
