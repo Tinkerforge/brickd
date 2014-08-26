@@ -219,7 +219,7 @@ static uint8_t send_verify_flag = 0;
 static uint8_t sent_ack_of_data_packet = 0;
 
 // TX/RX GPIO pin definitions
-static GPIOPin _tx_pin; // Active high
+//static GPIOPin _tx_pin; // Active high
 static GPIOPin _rx_pin; // Active low
 
 // Function prototypes
@@ -500,14 +500,14 @@ int send_modbus_packet(uint8_t device_address, uint8_t sequence_number, Packet* 
 
     // Enabling TX
     start = microseconds();
-    gpio_output_set(_tx_pin);
+    //gpio_output_set(_tx_pin);
     
     // Sending packet
     bytes_written = write(_rs485_serial_fd, modbus_packet, sizeof(modbus_packet));
     
     if (bytes_written <= 0) {
         // Disabling TX
-        gpio_output_clear(_tx_pin);
+        //gpio_output_clear(_tx_pin);
         end = microseconds();
         send_verify_flag = 0;
         log_error("RS485: Error sending packet through serial interface");
@@ -531,16 +531,16 @@ int send_modbus_packet(uint8_t device_address, uint8_t sequence_number, Packet* 
 
 // Initialize TX/RX state
 void init_tx_rx_state(void) {
-    _tx_pin.port_index = GPIO_PORT_C;
-    _tx_pin.pin_index = GPIO_PIN_19;
+    //_tx_pin.port_index = GPIO_PORT_C;
+    //_tx_pin.pin_index = GPIO_PIN_19;
     _rx_pin.port_index = GPIO_PORT_B;
     _rx_pin.pin_index = GPIO_PIN_13;
     
-    gpio_mux_configure(_tx_pin, GPIO_MUX_OUTPUT);
+    //gpio_mux_configure(_tx_pin, GPIO_MUX_OUTPUT);
     gpio_mux_configure(_rx_pin, GPIO_MUX_OUTPUT);
 
     // By default, RX = always on and TX = enabled on demand
-    gpio_output_clear(_tx_pin);
+    //gpio_output_clear(_tx_pin);
     gpio_output_clear(_rx_pin);
     
     log_debug("RS485: Initialized RS485 TX/RX state");
@@ -658,7 +658,7 @@ void rs485_serial_data_available_handler(void* opaque) {
                 setup_timer(&send_verify_timer, TIME_UNIT_NSEC, 0);
                 timerfd_settime(_send_verify_event, 0, &send_verify_timer, NULL);
                 // Disabling TX
-                gpio_output_clear(_tx_pin);
+                //gpio_output_clear(_tx_pin);
                 end = microseconds();
                 // Clearing send verify flag
                 send_verify_flag = 0;
@@ -785,7 +785,7 @@ void rs485_serial_data_available_handler(void* opaque) {
     }
     if(send_verify_flag) {
         // Disabling TX
-        gpio_output_clear(_tx_pin);
+        //gpio_output_clear(_tx_pin);
         end = microseconds();
         // Stop send verify timer
         if (read(_send_verify_event, &dummy_read_buffer, sizeof(uint64_t))) {}
@@ -885,7 +885,7 @@ void master_retry_timeout_handler(void* opaque) {
     if(master_current_retry <= 0) {
         if(send_verify_flag) {
             // Disabling TX
-            gpio_output_clear(_tx_pin);
+            //gpio_output_clear(_tx_pin);
             end = microseconds();
             // Clearing send verify flag
             send_verify_flag = 0;
@@ -922,7 +922,7 @@ void send_verify_timeout_handler(void *opaque) {
 	(void)opaque;
 
     // Disabling TX
-    gpio_output_clear(_tx_pin);
+    //gpio_output_clear(_tx_pin);
     end = microseconds();
     // Disabling timers
     disable_all_timers();
