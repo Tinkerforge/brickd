@@ -49,8 +49,8 @@ static void client_handle_get_authentication_nonce_request(Client *client, GetAu
 	GetAuthenticationNonceResponse response;
 
 	if (client->authentication_state == CLIENT_AUTHENTICATION_STATE_DISABLED) {
-		log_error("Client ("CLIENT_INFO_FORMAT") tries to authenticate, but authentication is disabled, disconnecting client",
-		          client_expand_info(client));
+		log_error("Client ("CLIENT_SIGNATURE_FORMAT") tries to authenticate, but authentication is disabled, disconnecting client",
+		          client_expand_signature(client));
 
 		client->disconnected = true;
 
@@ -58,15 +58,15 @@ static void client_handle_get_authentication_nonce_request(Client *client, GetAu
 	}
 
 	if (client->authentication_state == CLIENT_AUTHENTICATION_STATE_DONE) {
-		log_debug("Already authenticated client ("CLIENT_INFO_FORMAT") tries to authenticate again",
-		          client_expand_info(client));
+		log_debug("Already authenticated client ("CLIENT_SIGNATURE_FORMAT") tries to authenticate again",
+		          client_expand_signature(client));
 
 		client->authentication_state = CLIENT_AUTHENTICATION_STATE_ENABLED;
 	}
 
 	if (client->authentication_state != CLIENT_AUTHENTICATION_STATE_ENABLED) {
-		log_error("Client ("CLIENT_INFO_FORMAT") performed invalid authentication sequence (%s -> %s), disconnecting client",
-		          client_expand_info(client),
+		log_error("Client ("CLIENT_SIGNATURE_FORMAT") performed invalid authentication sequence (%s -> %s), disconnecting client",
+		          client_expand_signature(client),
 		          client_get_authentication_state_name(client->authentication_state),
 		          client_get_authentication_state_name(CLIENT_AUTHENTICATION_STATE_NONCE_SEND));
 
@@ -93,8 +93,8 @@ static void client_handle_authenticate_request(Client *client, AuthenticateReque
 	AuthenticateResponse response;
 
 	if (client->authentication_state == CLIENT_AUTHENTICATION_STATE_DISABLED) {
-		log_error("Client ("CLIENT_INFO_FORMAT") tries to authenticate, but authentication is disabled, disconnecting client",
-		          client_expand_info(client));
+		log_error("Client ("CLIENT_SIGNATURE_FORMAT") tries to authenticate, but authentication is disabled, disconnecting client",
+		          client_expand_signature(client));
 
 		client->disconnected = true;
 
@@ -102,8 +102,8 @@ static void client_handle_authenticate_request(Client *client, AuthenticateReque
 	}
 
 	if (client->authentication_state != CLIENT_AUTHENTICATION_STATE_NONCE_SEND) {
-		log_error("Client ("CLIENT_INFO_FORMAT") performed invalid authentication sequence (%s -> %s), disconnecting client",
-		          client_expand_info(client),
+		log_error("Client ("CLIENT_SIGNATURE_FORMAT") performed invalid authentication sequence (%s -> %s), disconnecting client",
+		          client_expand_signature(client),
 		          client_get_authentication_state_name(client->authentication_state),
 		          client_get_authentication_state_name(CLIENT_AUTHENTICATION_STATE_DONE));
 
@@ -121,9 +121,9 @@ static void client_handle_authenticate_request(Client *client, AuthenticateReque
 	          (uint8_t *)nonces, sizeof(nonces), digest);
 
 	if (memcmp(request->digest, digest, SHA1_DIGEST_LENGTH) != 0) {
-		log_error("Authentication request (%s) from client ("CLIENT_INFO_FORMAT") did not contain the expected data, disconnecting client",
+		log_error("Authentication request (%s) from client ("CLIENT_SIGNATURE_FORMAT") did not contain the expected data, disconnecting client",
 		          packet_get_request_signature(packet_signature, (Packet *)request),
-		          client_expand_info(client));
+		          client_expand_signature(client));
 
 		client->disconnected = true;
 
@@ -132,8 +132,8 @@ static void client_handle_authenticate_request(Client *client, AuthenticateReque
 
 	client->authentication_state = CLIENT_AUTHENTICATION_STATE_DONE;
 
-	log_info("Client ("CLIENT_INFO_FORMAT") successfully finished authentication",
-	         client_expand_info(client));
+	log_info("Client ("CLIENT_SIGNATURE_FORMAT") successfully finished authentication",
+	         client_expand_signature(client));
 
 	if (packet_header_get_response_expected(&request->header)) {
 		response.header = request->header;
@@ -158,9 +158,9 @@ static void client_handle_request(Client *client, Packet *request) {
 
 		if (request->header.function_id == FUNCTION_GET_AUTHENTICATION_NONCE) {
 			if (request->header.length != sizeof(GetAuthenticationNonceRequest)) {
-				log_error("Received authentication request (%s) from client ("CLIENT_INFO_FORMAT") with wrong length, disconnecting client",
+				log_error("Received authentication request (%s) from client ("CLIENT_SIGNATURE_FORMAT") with wrong length, disconnecting client",
 				          packet_get_request_signature(packet_signature, request),
-				          client_expand_info(client));
+				          client_expand_signature(client));
 
 				client->disconnected = true;
 
@@ -170,9 +170,9 @@ static void client_handle_request(Client *client, Packet *request) {
 			client_handle_get_authentication_nonce_request(client, (GetAuthenticationNonceRequest *)request);
 		} else if (request->header.function_id == FUNCTION_AUTHENTICATE) {
 			if (request->header.length != sizeof(AuthenticateRequest)) {
-				log_error("Received authentication request (%s) from client ("CLIENT_INFO_FORMAT") with wrong length, disconnecting client",
+				log_error("Received authentication request (%s) from client ("CLIENT_SIGNATURE_FORMAT") with wrong length, disconnecting client",
 				          packet_get_request_signature(packet_signature, request),
-				          client_expand_info(client));
+				          client_expand_signature(client));
 
 				client->disconnected = true;
 
@@ -199,8 +199,8 @@ static void client_handle_request(Client *client, Packet *request) {
 		// ...then dispatch it to the hardware
 		hardware_dispatch_request(request);
 	} else {
-		log_debug("Client ("CLIENT_INFO_FORMAT") is not authenticated, dropping request (%s)",
-		          client_expand_info(client),
+		log_debug("Client ("CLIENT_SIGNATURE_FORMAT") is not authenticated, dropping request (%s)",
+		          client_expand_signature(client),
 		          packet_get_request_signature(packet_signature, request));
 	}
 }
@@ -215,8 +215,8 @@ static void client_handle_read(void *opaque) {
 	                 sizeof(Packet) - client->request_used);
 
 	if (length == 0) {
-		log_info("Client ("CLIENT_INFO_FORMAT") disconnected by peer",
-		         client_expand_info(client));
+		log_info("Client ("CLIENT_SIGNATURE_FORMAT") disconnected by peer",
+		         client_expand_signature(client));
 
 		client->disconnected = true;
 
@@ -227,14 +227,14 @@ static void client_handle_read(void *opaque) {
 		if (length == IO_CONTINUE) {
 			// no actual data received
 		} else if (errno_interrupted()) {
-			log_debug("Receiving from client ("CLIENT_INFO_FORMAT") was interrupted, retrying",
-			          client_expand_info(client));
+			log_debug("Receiving from client ("CLIENT_SIGNATURE_FORMAT") was interrupted, retrying",
+			          client_expand_signature(client));
 		} else if (errno_would_block()) {
-			log_debug("Receiving from client ("CLIENT_INFO_FORMAT") would block, retrying",
-			          client_expand_info(client));
+			log_debug("Receiving from client ("CLIENT_SIGNATURE_FORMAT") would block, retrying",
+			          client_expand_signature(client));
 		} else {
-			log_error("Could not receive from client ("CLIENT_INFO_FORMAT"), disconnecting client: %s (%d)",
-			          client_expand_info(client), get_errno_name(errno), errno);
+			log_error("Could not receive from client ("CLIENT_SIGNATURE_FORMAT"), disconnecting client: %s (%d)",
+			          client_expand_signature(client), get_errno_name(errno), errno);
 
 			client->disconnected = true;
 		}
@@ -253,9 +253,9 @@ static void client_handle_read(void *opaque) {
 		if (!client->request_header_checked) {
 			if (!packet_header_is_valid_request(&client->request.header, &message)) {
 				// FIXME: include packet_get_content_dump output in the error message
-				log_error("Received invalid request (%s) from client ("CLIENT_INFO_FORMAT"), disconnecting client: %s",
+				log_error("Received invalid request (%s) from client ("CLIENT_SIGNATURE_FORMAT"), disconnecting client: %s",
 				          packet_get_request_signature(packet_signature, &client->request),
-				          client_expand_info(client), message);
+				          client_expand_signature(client), message);
 
 				client->disconnected = true;
 
@@ -273,12 +273,12 @@ static void client_handle_read(void *opaque) {
 		}
 
 		if (client->request.header.function_id == FUNCTION_DISCONNECT_PROBE) {
-			log_debug("Received disconnect probe from client ("CLIENT_INFO_FORMAT"), dropping request",
-			          client_expand_info(client));
+			log_debug("Received disconnect probe from client ("CLIENT_SIGNATURE_FORMAT"), dropping request",
+			          client_expand_signature(client));
 		} else {
-			log_debug("Received request (%s) from client ("CLIENT_INFO_FORMAT")",
+			log_debug("Received request (%s) from client ("CLIENT_SIGNATURE_FORMAT")",
 			          packet_get_request_signature(packet_signature, &client->request),
-			          client_expand_info(client));
+			          client_expand_signature(client));
 
 			client_handle_request(client, &client->request);
 		}
@@ -321,8 +321,8 @@ static char *client_get_recipient_signature(char *signature, bool upper, void *o
 	Client *client = opaque;
 
 	snprintf(signature, WRITER_MAX_RECIPIENT_SIGNATURE_LENGTH,
-	         "%client ("CLIENT_INFO_FORMAT")",
-	         upper ? 'C' : 'c', client_expand_info(client));
+	         "%client ("CLIENT_SIGNATURE_FORMAT")",
+	         upper ? 'C' : 'c', client_expand_signature(client));
 
 	return signature;
 }
@@ -378,12 +378,12 @@ void client_destroy(Client *client) {
 	PendingRequest *pending_request;
 
 	if (client->pending_request_count > 0) {
-		log_warn("Destroying client ("CLIENT_INFO_FORMAT") while %d request(s) are still pending",
-		         client_expand_info(client), client->pending_request_count);
+		log_warn("Destroying client ("CLIENT_SIGNATURE_FORMAT") while %d request(s) are still pending",
+		         client_expand_signature(client), client->pending_request_count);
 
 		if (network_create_zombie(client) < 0) {
-			log_error("Could not create zombie for %d pending request(s) of ("CLIENT_INFO_FORMAT")",
-			          client->pending_request_count, client_expand_info(client));
+			log_error("Could not create zombie for %d pending request(s) of ("CLIENT_SIGNATURE_FORMAT")",
+			          client->pending_request_count, client_expand_signature(client));
 
 			destroy_pending_requests = true;
 		}
@@ -419,8 +419,8 @@ void client_dispatch_response(Client *client, PendingRequest *pending_request,
 	if (!ignore_authentication &&
 	    client->authentication_state != CLIENT_AUTHENTICATION_STATE_DISABLED &&
 	    client->authentication_state != CLIENT_AUTHENTICATION_STATE_DONE) {
-		log_debug("Ignoring non-authenticated client ("CLIENT_INFO_FORMAT")",
-		          client_expand_info(client));
+		log_debug("Ignoring non-authenticated client ("CLIENT_SIGNATURE_FORMAT")",
+		          client_expand_signature(client));
 
 		goto cleanup;
 	}
@@ -449,8 +449,8 @@ void client_dispatch_response(Client *client, PendingRequest *pending_request,
 	}
 
 	if (client->disconnected) {
-		log_debug("Ignoring disconnected client ("CLIENT_INFO_FORMAT")",
-		          client_expand_info(client));
+		log_debug("Ignoring disconnected client ("CLIENT_SIGNATURE_FORMAT")",
+		          client_expand_signature(client));
 
 		goto cleanup;
 	}
@@ -463,19 +463,19 @@ void client_dispatch_response(Client *client, PendingRequest *pending_request,
 		}
 
 		if (force) {
-			log_debug("Forced to %s response to client ("CLIENT_INFO_FORMAT")",
-			          enqueued ? "enqueue" : "send", client_expand_info(client));
+			log_debug("Forced to %s response to client ("CLIENT_SIGNATURE_FORMAT")",
+			          enqueued ? "enqueue" : "send", client_expand_signature(client));
 		} else {
 #ifdef BRICKD_WITH_PROFILING
 			elapsed = microseconds() - pending_request->arrival_time;
 
-			log_debug("%s response to client ("CLIENT_INFO_FORMAT"), was requested %u.%03u msec ago, %d request(s) still pending",
-			          enqueued ? "Enqueued" : "Sent", client_expand_info(client),
+			log_debug("%s response to client ("CLIENT_SIGNATURE_FORMAT"), was requested %u.%03u msec ago, %d request(s) still pending",
+			          enqueued ? "Enqueued" : "Sent", client_expand_signature(client),
 			          (unsigned int)(elapsed / 1000), (unsigned int)(elapsed % 1000),
 			          client->pending_request_count - 1);
 #else
-			log_debug("%s response to client ("CLIENT_INFO_FORMAT"), %d request(s) still pending",
-			          enqueued ? "Enqueued" : "Sent", client_expand_info(client),
+			log_debug("%s response to client ("CLIENT_SIGNATURE_FORMAT"), %d request(s) still pending",
+			          enqueued ? "Enqueued" : "Sent", client_expand_signature(client),
 			          client->pending_request_count - 1);
 #endif
 		}

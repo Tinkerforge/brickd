@@ -78,8 +78,8 @@ struct _Client {
 	ClientDestroyDoneFunction destroy_done;
 };
 
-#define CLIENT_INFO_FORMAT "N: %s, T: %s, H: %d, A: %s"
-#define client_expand_info(client) (client)->name, (client)->io->type, \
+#define CLIENT_SIGNATURE_FORMAT "N: %s, T: %s, H: %d, A: %s"
+#define client_expand_signature(client) (client)->name, (client)->io->type, \
 	(client)->io->handle, client_get_authentication_state_name((client)->authentication_state)
 
 void pending_request_remove_and_free(PendingRequest *pending_request);

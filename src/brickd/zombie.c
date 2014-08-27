@@ -46,8 +46,8 @@ int zombie_create(Zombie *zombie, Client *client) {
 	zombie->finished = false;
 	zombie->pending_request_count = client->pending_request_count;
 
-	log_debug("Creating zombie (id: %u) from client ("CLIENT_INFO_FORMAT") for %d pending request(s)",
-	          zombie->id, client_expand_info(client), zombie->pending_request_count);
+	log_debug("Creating zombie (id: %u) from client ("CLIENT_SIGNATURE_FORMAT") for %d pending request(s)",
+	          zombie->id, client_expand_signature(client), zombie->pending_request_count);
 
 	// create single shot timer with a delay of 1sec
 	if (timer_create_(&zombie->timer, zombie_handle_timeout, zombie) < 0) {

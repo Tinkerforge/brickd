@@ -359,7 +359,8 @@ Client *network_create_client(const char *name, IO *io) {
 		return NULL;
 	}
 
-	log_info("Added new client ("CLIENT_INFO_FORMAT")", client_expand_info(client));
+	log_info("Added new client ("CLIENT_SIGNATURE_FORMAT")",
+	         client_expand_signature(client));
 
 	return client;
 }
@@ -400,8 +401,8 @@ void network_cleanup_clients_and_zombies(void) {
 		client = array_get(&_clients, i);
 
 		if (client->disconnected) {
-			log_debug("Removing disconnected client ("CLIENT_INFO_FORMAT")",
-			          client_expand_info(client));
+			log_debug("Removing disconnected client ("CLIENT_SIGNATURE_FORMAT")",
+			          client_expand_signature(client));
 
 			array_remove(&_clients, i, (ItemDestroyFunction)client_destroy);
 		}
@@ -424,8 +425,8 @@ void network_client_expects_response(Client *client, Packet *request) {
 	char packet_signature[PACKET_MAX_SIGNATURE_LENGTH];
 
 	if (client->pending_request_count >= CLIENT_MAX_PENDING_REQUESTS) {
-		log_warn("Pending requests list for client ("CLIENT_INFO_FORMAT") is full, dropping %d pending request(s)",
-		         client_expand_info(client),
+		log_warn("Pending requests list for client ("CLIENT_SIGNATURE_FORMAT") is full, dropping %d pending request(s)",
+		         client_expand_signature(client),
 		         client->pending_request_count - CLIENT_MAX_PENDING_REQUESTS + 1);
 
 		while (client->pending_request_count >= CLIENT_MAX_PENDING_REQUESTS) {
@@ -461,9 +462,9 @@ void network_client_expects_response(Client *client, Packet *request) {
 	pending_request->arrival_time = microseconds();
 #endif
 
-	log_debug("Added pending request (%s) for client ("CLIENT_INFO_FORMAT")",
+	log_debug("Added pending request (%s) for client ("CLIENT_SIGNATURE_FORMAT")",
 	          packet_get_request_signature(packet_signature, request),
-	          client_expand_info(client));
+	          client_expand_signature(client));
 }
 
 void network_dispatch_response(Packet *response) {
