@@ -86,8 +86,7 @@ static const uint8_t _red_stack_spi_pearson_permutation[RED_STACK_SPI_PEARSON_PE
 #define RED_STACK_SPI_ROUTING_WAIT      (1000*1000*50) // Give slave 50ms between each routing table setup try
 #define RED_STACK_SPI_ROUTING_TRIES     10             // Try 10 times for each slave to setup routing table
 
-#define RED_STACK_SPI_INFO_BUSY                 (1 << 6)
-#define RED_STACK_SPI_INFO_SEQUENCE_MASTER_MASK (0x7)
+#define RED_STACK_SPI_INFO_SEQUENCE_MASTER_MASK (0x07)
 #define RED_STACK_SPI_INFO_SEQUENCE_SLAVE_MASK  (0x38)
 
 #define RED_STACK_SPI_CONFIG_MODE           SPI_CPOL
@@ -99,9 +98,8 @@ static const uint8_t _red_stack_spi_pearson_permutation[RED_STACK_SPI_PEARSON_PE
 #define RED_STACK_TRANSCEIVE_DATA_RECEIVED      (1 << 7)   // data has been received
 
 #define RED_STACK_TRANSCEIVE_RESULT_SEND_ERROR  (1 << 0)   // data has not been send because of a problem (malformed packet or similar)
-#define RED_STACK_TRANSCEIVE_RESULT_SEND_BUSY   (2 << 0)   // data has not been send but it was expected, try again!
-#define RED_STACK_TRANSCEIVE_RESULT_SEND_NONE   (3 << 0)   // data has not been send because there was no data
-#define RED_STACK_TRANSCEIVE_RESULT_SEND_OK     (4 << 0)   // data has been send
+#define RED_STACK_TRANSCEIVE_RESULT_SEND_NONE   (2 << 0)   // data has not been send because there was no data
+#define RED_STACK_TRANSCEIVE_RESULT_SEND_OK     (3 << 0)   // data has been send
 #define RED_STACK_TRANSCEIVE_RESULT_READ_ERROR  (1 << 3)   // data has not been received because of an problem (wrong checksum or similar)
 #define RED_STACK_TRANSCEIVE_RESULT_READ_NONE   (2 << 3)   // data has not been received because slave had none
 #define RED_STACK_TRANSCEIVE_RESULT_READ_OK     (3 << 3)   // data has been received
@@ -122,7 +120,6 @@ static int _red_stack_notification_event;
 typedef enum {
 	RED_STACK_SLAVE_STATUS_ABSENT = 0,
 	RED_STACK_SLAVE_STATUS_AVAILABLE,
-	RED_STACK_SLAVE_STATUS_AVAILABLE_BUSY
 } REDStackSlaveStatus;
 
 typedef enum {
@@ -152,7 +149,6 @@ typedef struct {
 	REDStackSlave *slave;
 	Packet packet;
 	REDStackPacketStatus status;
-	uint8_t info_master_sequence_part;
 } REDStackPacket;
 
 static REDStack _red_stack;
@@ -183,6 +179,17 @@ static const char *_red_stack_spi_device = "/dev/spidev0.0";
 	clock_gettime(CLOCK_MONOTONIC, &t); \
 	printf(str ": %lds %ldms %ldus %ldns\n", t.tv_sec, t.tv_nsec/(1000*1000), t.tv_nsec/1000, t.tv_nsec); \
 }while(0)
+
+
+// * Packet structure:
+//  * Byte 0: Preamble = 0xAA
+//  * Byte 1: Length = n+2
+//  * Byte 2 to n: Payload
+//  * Byte n+1: Info (slave sequence, master sequence)
+//   * Bit 0-2: Master sequence number (MSN)
+//   * Bit 3-5: Slave sequence number (SSN)
+//   * Bit 6-7: Currently unused
+//  * Byte n+2: Checksum over bytes 0 to n+1
 
 
 // ----- RED STACK SPI ------
@@ -257,12 +264,7 @@ static int red_stack_spi_transceive_message(REDStackPacket *packet_send, Packet 
     	// If packet_send is NULL
     	// we send a message with empty payload (4 byte)
         tx[RED_STACK_SPI_LENGTH] = RED_STACK_SPI_PACKET_EMPTY_SIZE;
-        retval |= RED_STACK_TRANSCEIVE_RESULT_SEND_NONE;
-    } else if(slave->status == RED_STACK_SLAVE_STATUS_AVAILABLE_BUSY) {
-    	// If the slave is known to be busy
-    	// we also send a message with empty payload (4 byte)
-        tx[RED_STACK_SPI_LENGTH] = RED_STACK_SPI_PACKET_EMPTY_SIZE;
-        retval |= RED_STACK_TRANSCEIVE_RESULT_SEND_BUSY;
+        retval = RED_STACK_TRANSCEIVE_RESULT_SEND_NONE;
     } else if(slave->status == RED_STACK_SLAVE_STATUS_AVAILABLE) {
     	length = packet_send->packet.header.length;
     	if(length > sizeof(Packet)) {
@@ -272,19 +274,19 @@ static int red_stack_spi_transceive_message(REDStackPacket *packet_send, Packet 
     		goto ret;
     	}
 
-    	retval |= RED_STACK_TRANSCEIVE_DATA_SEND;
+    	retval = RED_STACK_TRANSCEIVE_DATA_SEND;
 
         tx[RED_STACK_SPI_LENGTH] = length + RED_STACK_SPI_PACKET_EMPTY_SIZE;
     	memcpy(tx+2, &packet_send->packet, length);
     } else {
-    	retval |= RED_STACK_TRANSCEIVE_RESULT_SEND_ERROR;
+    	retval = RED_STACK_TRANSCEIVE_RESULT_SEND_ERROR;
     	log_error("Slave with stack address %d is not present in stack", slave->stack_address);
     	goto ret;
     }
 
     length = tx[RED_STACK_SPI_LENGTH];
 
-    // Save master sequence numbers for this packet, it should never change for a given packet.
+    /*// Save master sequence numbers for this packet, it should never change for a given packet.
     // The slave sequence number on the other hand needs to be updated every time.
     if((packet_send != NULL) && (retval & RED_STACK_TRANSCEIVE_DATA_SEND)) {
 		if(packet_send->status == RED_STACK_PACKET_STATUS_ADDED) {
@@ -292,11 +294,11 @@ static int red_stack_spi_transceive_message(REDStackPacket *packet_send, Packet 
 			packet_send->status = RED_STACK_PACKET_STATUS_SEQUENCE_NUMBER_SET;
 		}
 
-		// Set current slave and master sequence number, BUSY flag is never set
+		// Set current slave and master sequence number
 		tx[RED_STACK_SPI_INFO(length)] = packet_send->info_master_sequence_part | slave->sequence_number_slave;
-    } else {
+    } else {*/
 		tx[RED_STACK_SPI_INFO(length)] = slave->sequence_number_master | slave->sequence_number_slave;
-    }
+    //}
 
    	// Calculate checksum
    	tx[RED_STACK_SPI_CHECKSUM(length)] = red_stack_spi_calculate_pearson_hash(tx, length-1);
@@ -337,9 +339,7 @@ static int red_stack_spi_transceive_message(REDStackPacket *packet_send, Packet 
 		// if the slave is too busy to fill the DMA buffers fast enough
 		// log_error("Received packet without proper preamble (actual: %d != expected: %d)",
 		//          rx[RED_STACK_SPI_PREAMBLE], RED_STACK_SPI_PREAMBLE_VALUE);
-		retval |= RED_STACK_TRANSCEIVE_RESULT_READ_ERROR;
-		retval |= RED_STACK_TRANSCEIVE_RESULT_READ_NONE;
-		slave->status = RED_STACK_SLAVE_STATUS_AVAILABLE_BUSY;
+		retval = (retval & (~RED_STACK_TRANSCEIVE_RESULT_MASK_READ)) | RED_STACK_TRANSCEIVE_RESULT_READ_ERROR;
 		goto ret;
 	}
 
@@ -350,7 +350,7 @@ static int red_stack_spi_transceive_message(REDStackPacket *packet_send, Packet 
 	   ((length < (RED_STACK_SPI_PACKET_EMPTY_SIZE + sizeof(PacketHeader))) ||
 	    (length > RED_STACK_SPI_PACKET_SIZE))) {
 		log_error("Received packet with malformed length: %d", length);
-		retval |= RED_STACK_TRANSCEIVE_RESULT_READ_ERROR;
+		retval = (retval & (~RED_STACK_TRANSCEIVE_RESULT_MASK_READ)) | RED_STACK_TRANSCEIVE_RESULT_READ_ERROR;
 		goto ret;
 	}
 
@@ -359,29 +359,16 @@ static int red_stack_spi_transceive_message(REDStackPacket *packet_send, Packet 
 	if(checksum != rx[RED_STACK_SPI_CHECKSUM(length)]) {
 		log_error("Received packet with wrong checksum (actual: %x != expected: %x)",
 		          checksum, rx[RED_STACK_SPI_CHECKSUM(length)]);
-		retval |= RED_STACK_TRANSCEIVE_RESULT_READ_ERROR;
+		retval = (retval & (~RED_STACK_TRANSCEIVE_RESULT_MASK_READ)) | RED_STACK_TRANSCEIVE_RESULT_READ_ERROR;
 		goto ret;
-	}
-
-	if(rx[RED_STACK_SPI_INFO(length)] & RED_STACK_SPI_INFO_BUSY) {
-		slave->status = RED_STACK_SLAVE_STATUS_AVAILABLE_BUSY;
-	} else {
-		if(retval & RED_STACK_TRANSCEIVE_DATA_SEND) {
-			// If we did send data this time, we have to assume
-			// that the receiver buffer of the slave is full the next time
-			// Regardless of what the slave is telling us.
-			slave->status = RED_STACK_SLAVE_STATUS_AVAILABLE_BUSY;
-		} else {
-			slave->status = RED_STACK_SLAVE_STATUS_AVAILABLE;
-		}
 	}
 
 	// If we send data and the master sequence number matches to the one
 	// set in the packet we know that the slave received the packet!
-	if((packet_send != NULL) && (packet_send->status == RED_STACK_PACKET_STATUS_SEQUENCE_NUMBER_SET)) {
+	if((packet_send != NULL) /*&& (packet_send->status == RED_STACK_PACKET_STATUS_SEQUENCE_NUMBER_SET)*/) {
 		sequence_number_master = rx[RED_STACK_SPI_INFO(length)] & RED_STACK_SPI_INFO_SEQUENCE_MASTER_MASK;
-		if(sequence_number_master == packet_send->info_master_sequence_part) {
-			retval |= RED_STACK_TRANSCEIVE_RESULT_SEND_OK;
+		if(sequence_number_master == slave->sequence_number_master) {
+			retval = (retval & (~RED_STACK_TRANSCEIVE_RESULT_MASK_SEND)) | RED_STACK_TRANSCEIVE_RESULT_SEND_OK;
 
 			// Increase sequence number for next packet
 			red_stack_increase_master_sequence_number(slave);
@@ -396,30 +383,25 @@ static int red_stack_spi_transceive_message(REDStackPacket *packet_send, Packet 
 	// If the slave sequence number matches we already processed this packet
 	sequence_number_slave = rx[RED_STACK_SPI_INFO(length)] & RED_STACK_SPI_INFO_SEQUENCE_SLAVE_MASK;
 	if(sequence_number_slave == slave->sequence_number_slave) {
-		retval |= RED_STACK_TRANSCEIVE_RESULT_READ_NONE;
+		retval = (retval & (~RED_STACK_TRANSCEIVE_RESULT_MASK_READ)) | RED_STACK_TRANSCEIVE_RESULT_READ_NONE;
 	} else {
 		// Otherwise we save the new sequence number
 		slave->sequence_number_slave = sequence_number_slave;
 		if(length == RED_STACK_SPI_PACKET_EMPTY_SIZE) {
 			// Do not log by default, will produce 2000 log entries per second
 			// log_debug("Received empty packet over SPI (w/ header)");
-			retval |= RED_STACK_TRANSCEIVE_RESULT_READ_NONE;
+			retval = (retval & (~RED_STACK_TRANSCEIVE_RESULT_MASK_READ)) | RED_STACK_TRANSCEIVE_RESULT_READ_NONE;
 		} else {
 			// Everything seems OK, we can copy to buffer
 			memcpy(packet_recv, rx+2, length - RED_STACK_SPI_PACKET_EMPTY_SIZE);
 			log_debug("Received packet over SPI (%s)",
 					  packet_get_response_signature(packet_signature, packet_recv));
-			retval |= RED_STACK_TRANSCEIVE_RESULT_READ_OK | RED_STACK_TRANSCEIVE_DATA_RECEIVED;
+			retval = (retval & (~RED_STACK_TRANSCEIVE_RESULT_MASK_READ)) | RED_STACK_TRANSCEIVE_RESULT_READ_OK;
+			retval |= RED_STACK_TRANSCEIVE_DATA_RECEIVED;
 		}
 	}
 
 ret:
-	// If we have any kind of error we assume that the slave is busy
-	if(((retval & RED_STACK_TRANSCEIVE_RESULT_MASK_SEND) == RED_STACK_TRANSCEIVE_RESULT_SEND_ERROR) ||
-	   ((retval & RED_STACK_TRANSCEIVE_RESULT_MASK_READ) == RED_STACK_TRANSCEIVE_RESULT_READ_ERROR)) {
-		slave->status = RED_STACK_SLAVE_STATUS_AVAILABLE_BUSY;
-	}
-
 	return retval;
 }
 
@@ -453,17 +435,16 @@ static void red_stack_spi_create_routing_table() {
         		0
         	}, {0}, {0}},
         	RED_STACK_PACKET_STATUS_ADDED,
-        	0
     	};
 
-    	// We have to assume that the slave is busy in the beginning
-    	slave->status = RED_STACK_SLAVE_STATUS_AVAILABLE_BUSY;
+    	// We have to assume that the slave is available
+    	slave->status = RED_STACK_SLAVE_STATUS_AVAILABLE;
 
     	// Send stack enumerate request
     	for(tries = 0; tries < RED_STACK_SPI_ROUTING_TRIES; tries++) {
     		ret = red_stack_spi_transceive_message(&red_stack_packet, &packet, slave);
 
-    		if(ret & RED_STACK_TRANSCEIVE_RESULT_SEND_OK) {
+    		if((ret & RED_STACK_TRANSCEIVE_RESULT_MASK_SEND) == RED_STACK_TRANSCEIVE_RESULT_SEND_OK) {
     			break;
     		}
     		SLEEP_NS(RED_STACK_SPI_ROUTING_WAIT); // Give slave some more time
@@ -480,7 +461,7 @@ static void red_stack_spi_create_routing_table() {
     	// Receive stack enumerate response
     	for(tries = 0; tries < RED_STACK_SPI_ROUTING_TRIES; tries++) {
     		// We first check if we already received an answer before we try again
-    		if(ret & RED_STACK_TRANSCEIVE_DATA_RECEIVED) {
+    		if((ret & RED_STACK_TRANSCEIVE_RESULT_MASK_READ) == RED_STACK_TRANSCEIVE_RESULT_READ_OK) {
     			break;
     		}
 
@@ -586,7 +567,7 @@ static void red_stack_spi_thread(void *opaque) {
 		                                       &_red_stack.packet_from_spi,
 		                                       slave);
 
-		if(ret & RED_STACK_TRANSCEIVE_RESULT_SEND_OK) {
+		if((ret & RED_STACK_TRANSCEIVE_RESULT_MASK_SEND) == RED_STACK_TRANSCEIVE_RESULT_SEND_OK) {
 			if((!((ret & RED_STACK_TRANSCEIVE_RESULT_MASK_READ) == RED_STACK_TRANSCEIVE_RESULT_READ_ERROR))) {
 				// If we send a packet it must have come from the queue, so we can
 				// pop it from the queue now.
@@ -600,7 +581,7 @@ static void red_stack_spi_thread(void *opaque) {
 
 		// If we received a packet, we will dispatch it immediately.
 		// We have some time until we try the next SPI communication anyway.
-		if(ret & RED_STACK_TRANSCEIVE_DATA_RECEIVED) {
+		if((ret & RED_STACK_TRANSCEIVE_RESULT_MASK_READ) == RED_STACK_TRANSCEIVE_RESULT_READ_OK) {
 			// TODO: Check again if packet is valid?
 			// We did already check the hash.
 
