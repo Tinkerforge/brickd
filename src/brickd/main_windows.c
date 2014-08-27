@@ -648,7 +648,7 @@ error_mutex:
 	}
 
 	// create notification pipe
-	if (pipe_create(&_notification_pipe, false) < 0) {
+	if (pipe_create(&_notification_pipe, 0) < 0) {
 		// FIXME: set service_exit_code
 
 		log_error("Could not create notification pipe: %s (%d)",

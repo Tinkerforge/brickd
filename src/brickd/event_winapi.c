@@ -328,7 +328,7 @@ int event_init_platform(void) {
 	phase = 2;
 
 	// create stop pipe
-	if (pipe_create(&_stop_pipe, false) < 0) {
+	if (pipe_create(&_stop_pipe, 0) < 0) {
 		log_error("Could not create stop pipe: %s (%d)",
 		          get_errno_name(errno), errno);
 
@@ -356,7 +356,7 @@ int event_init_platform(void) {
 
 	phase = 5;
 
-	if (pipe_create(&_usb_poll_ready_pipe, false) < 0) {
+	if (pipe_create(&_usb_poll_ready_pipe, 0) < 0) {
 		log_error("Could not create USB ready pipe: %s (%d)",
 		          get_errno_name(errno), errno);
 
