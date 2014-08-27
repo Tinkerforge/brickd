@@ -279,7 +279,7 @@ int rs485_extension_serial_init(char* serial_interface) {
     memset(&serial_interface_config, 0, sizeof(serial_interface_config));
         
     // Control options
-    serial_interface_config.c_cflag |= (CREAD | CLOCAL);
+    serial_interface_config.c_cflag |= (CREAD | CLOCAL | CRTSCTS);
     serial_interface_config.c_cflag &= ~CSIZE;
     serial_interface_config.c_cflag |= CS8; // Setting data bits
     
