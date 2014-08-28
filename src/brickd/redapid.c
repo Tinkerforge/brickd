@@ -37,7 +37,7 @@
 
 #define LOG_CATEGORY LOG_CATEGORY_RED_BRICK
 
-#define UDS_FILENAME "/var/run/redapid.uds"
+#define SOCKET_FILENAME "/var/run/redapid.socket"
 
 typedef struct {
 	Stack base;
@@ -246,11 +246,11 @@ static int redapid_connect(void) {
 
 	// connect socket
 	address.sun_family = AF_UNIX;
-	strcpy(address.sun_path, UDS_FILENAME);
+	strcpy(address.sun_path, SOCKET_FILENAME);
 
 	if (socket_connect(&_redapid.socket, (struct sockaddr *)&address, sizeof(address)) < 0) {
 		log_warn("Could not connect UNIX domain socket to '%s': %s (%d)",
-		         UDS_FILENAME, get_errno_name(errno), errno);
+		         SOCKET_FILENAME, get_errno_name(errno), errno);
 
 		goto cleanup;
 	}
