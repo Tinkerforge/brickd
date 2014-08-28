@@ -96,27 +96,25 @@ static int prepare_paths(void) {
 	snprintf(_log_filename, sizeof(_log_filename), "%s/.brickd/brickd.log", home);
 
 	if (mkdir(brickd_dirname, 0755) < 0) {
-		if (errno == EEXIST) {
-			if (stat(brickd_dirname, &st) < 0) {
-				fprintf(stderr, "Could not stat '%s': %s (%d)\n",
-				        brickd_dirname, get_errno_name(errno), errno);
-
-				return -1;
-			}
-
-			if (!S_ISDIR(st.st_mode)) {
-				fprintf(stderr, "Expecting '%s' to be a directory\n", brickd_dirname);
-
-				return -1;
-			}
-
-			return 0;
-		} else {
+		if (errno != EEXIST) {
 			fprintf(stderr, "Could not create directory '%s': %s (%d)\n",
 			        brickd_dirname, get_errno_name(errno), errno);
+
+			return -1;
 		}
 
-		return -1;
+		if (stat(brickd_dirname, &st) < 0) {
+			fprintf(stderr, "Could not get information for '%s': %s (%d)\n",
+			        brickd_dirname, get_errno_name(errno), errno);
+
+			return -1;
+		}
+
+		if (!S_ISDIR(st.st_mode)) {
+			fprintf(stderr, "Expecting '%s' to be a directory\n", brickd_dirname);
+
+			return -1;
+		}
 	}
 
 	return 0;
