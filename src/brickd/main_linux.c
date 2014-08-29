@@ -61,7 +61,7 @@ static char _log_filename[1024] = LOCALSTATEDIR "/log/brickd.log";
 
 static int prepare_paths(void) {
 	char *home;
-	struct passwd *pwd;
+	struct passwd *pw;
 	char brickd_dirname[1024];
 	struct stat st;
 
@@ -72,16 +72,16 @@ static int prepare_paths(void) {
 	home = getenv("HOME");
 
 	if (home == NULL || *home == '\0') {
-		pwd = getpwuid(getuid());
+		pw = getpwuid(getuid());
 
-		if (pwd == NULL) {
+		if (pw == NULL) {
 			fprintf(stderr, "Could not determine home directory: %s (%d)\n",
 			        get_errno_name(errno), errno);
 
 			return -1;
 		}
 
-		home = pwd->pw_dir;
+		home = pw->pw_dir;
 	}
 
 	if (strlen(home) + strlen("/.brickd/brickd.conf") >= sizeof(brickd_dirname)) {
