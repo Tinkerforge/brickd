@@ -40,11 +40,6 @@
 
 #define UID_BRICK_DAEMON 1
 
-typedef enum {
-	FUNCTION_GET_AUTHENTICATION_NONCE = 1,
-	FUNCTION_AUTHENTICATE = 2
-} BrickDaemonFunctionID;
-
 static void client_handle_get_authentication_nonce_request(Client *client, GetAuthenticationNonceRequest *request) {
 	GetAuthenticationNonceResponse response;
 
