@@ -114,7 +114,6 @@ static int _red_stack_spi_fd = -1;
 
 static Thread _red_stack_spi_thread;
 static Semaphore _red_stack_dispatch_packet_from_spi_semaphore;
-static Mutex _red_stack_packet_queue_mutex;
 static int _red_stack_notification_event;
 
 typedef enum {
@@ -133,6 +132,8 @@ typedef struct {
 	uint8_t sequence_number_slave;
 	REDStackSlaveStatus status;
 	GPIOPin slave_select_pin;
+	Queue packet_to_spi_queue;
+	Mutex packet_queue_mutex;
 } REDStackSlave;
 
 typedef struct {
@@ -141,8 +142,6 @@ typedef struct {
 	uint8_t slave_num;
 
 	Packet packet_from_spi;
-	Queue packet_to_spi_queue;
-	struct timespec spi_deadline;
 } REDStack;
 
 typedef struct {
@@ -286,19 +285,8 @@ static int red_stack_spi_transceive_message(REDStackPacket *packet_send, Packet 
 
     length = tx[RED_STACK_SPI_LENGTH];
 
-    /*// Save master sequence numbers for this packet, it should never change for a given packet.
-    // The slave sequence number on the other hand needs to be updated every time.
-    if((packet_send != NULL) && (retval & RED_STACK_TRANSCEIVE_DATA_SEND)) {
-		if(packet_send->status == RED_STACK_PACKET_STATUS_ADDED) {
-			packet_send->info_master_sequence_part = slave->sequence_number_master;
-			packet_send->status = RED_STACK_PACKET_STATUS_SEQUENCE_NUMBER_SET;
-		}
-
-		// Set current slave and master sequence number
-		tx[RED_STACK_SPI_INFO(length)] = packet_send->info_master_sequence_part | slave->sequence_number_slave;
-    } else {*/
-		tx[RED_STACK_SPI_INFO(length)] = slave->sequence_number_master | slave->sequence_number_slave;
-    //}
+    // Set master and slave sequence number
+	tx[RED_STACK_SPI_INFO(length)] = slave->sequence_number_master | slave->sequence_number_slave;
 
    	// Calculate checksum
    	tx[RED_STACK_SPI_CHECKSUM(length)] = red_stack_spi_calculate_pearson_hash(tx, length-1);
@@ -431,7 +419,7 @@ static void red_stack_spi_create_routing_table() {
         		0,   // UID 0
         		sizeof(StackEnumerateRequest),
         		FUNCTION_STACK_ENUMERATE,
-        		0x08, // Return expecetd
+        		0x08, // Return expected
         		0
         	}, {0}, {0}},
         	RED_STACK_PACKET_STATUS_ADDED,
@@ -533,7 +521,6 @@ static void red_stack_spi_thread(void *opaque) {
 		return;
 	}
 
-	clock_gettime(CLOCK_MONOTONIC, &_red_stack.spi_deadline);
 	_red_stack_spi_thread_running = true;
 	while(_red_stack_spi_thread_running) {
 		REDStackSlave *slave = &_red_stack.slaves[stack_address_cycle];
@@ -544,23 +531,21 @@ static void red_stack_spi_thread(void *opaque) {
 		// send over SPI. It is filled through from the main brickd
 		// event thread, so we have to make sure that there is not race
 		// condition.
-		mutex_lock(&_red_stack_packet_queue_mutex);
-		packet_to_spi = queue_peek(&_red_stack.packet_to_spi_queue);
-		mutex_unlock(&_red_stack_packet_queue_mutex);
+		mutex_lock(&(slave->packet_queue_mutex));
+		packet_to_spi = queue_peek(&slave->packet_to_spi_queue);
+		mutex_unlock(&(slave->packet_queue_mutex));
 
-		if(packet_to_spi == NULL) {
-			// If there is no packet in the queue we just cycle through the slaves
-			stack_address_cycle++;
-			if(stack_address_cycle >= _red_stack.slave_num) {
-				stack_address_cycle = 0;
-			}
-		} else {
-			// Otherwise the request gets send
+		stack_address_cycle++;
+		if(stack_address_cycle >= _red_stack.slave_num) {
+			stack_address_cycle = 0;
+		}
+
+		// Set request if we have a packet to send
+		if(packet_to_spi != NULL) {
 			log_debug("Packet will now be send over SPI (%s)",
 			          packet_get_request_signature(packet_signature, &packet_to_spi->packet));
 
 			request = packet_to_spi;
-			slave = packet_to_spi->slave;
 		}
 
 		ret = red_stack_spi_transceive_message(request,
@@ -573,9 +558,9 @@ static void red_stack_spi_thread(void *opaque) {
 				// pop it from the queue now.
 				// If the sending didn't work (for whatever reason), we don't pop it
 				// and therefore we will automatically try to send it again in the next cycle.
-				mutex_lock(&_red_stack_packet_queue_mutex);
-				queue_pop(&_red_stack.packet_to_spi_queue, NULL);
-				mutex_unlock(&_red_stack_packet_queue_mutex);
+				mutex_lock(&(slave->packet_queue_mutex));
+				queue_pop(&slave->packet_to_spi_queue, NULL);
+				mutex_unlock(&(slave->packet_queue_mutex));
 			}
 		}
 
@@ -687,27 +672,16 @@ static void red_stack_dispatch_to_spi(Stack *stack, Packet *request, Recipient *
 	REDStackPacket *queued_request;
 	(void)stack;
 
-	// TODO: It may be a possible to achieve more packets/second in big stacks if
-	// we would use a packet queue per slave. If we did that, we could send a packet
-	// to another slave while the sending of a message is not yet completed
-	// with another slave. This would however mean that going round robin is a
-	// lot more work.
-	// Currently we are only optimizing for one stack participant.
-
-	// However, with the current method we will never talk to other stack
-	// participants if only one of them is broken and doesn't want to talk
-	// to us anymore.
-
 	if(request->header.uid == 0) {
 		// UID = 0 -> Broadcast to all UIDs
 		uint8_t is;
 		for(is = 0; is < _red_stack.slave_num; is++) {
-			mutex_lock(&_red_stack_packet_queue_mutex);
-			queued_request = queue_push(&_red_stack.packet_to_spi_queue);
+			mutex_lock(&_red_stack.slaves[is].packet_queue_mutex);
+			queued_request = queue_push(&_red_stack.slaves[is].packet_to_spi_queue);
 			queued_request->status = RED_STACK_PACKET_STATUS_ADDED;
 			queued_request->slave = &_red_stack.slaves[is];
 			memcpy(&queued_request->packet, request, request->header.length);
-			mutex_unlock(&_red_stack_packet_queue_mutex);
+			mutex_unlock(&_red_stack.slaves[is].packet_queue_mutex);
 
 			log_debug("Request is queued to be broadcast to slave %d (%s)",
 			          is,
@@ -718,12 +692,12 @@ static void red_stack_dispatch_to_spi(Stack *stack, Packet *request, Recipient *
 		// Get slave for recipient opaque (== stack_address)
 		REDStackSlave *slave = &_red_stack.slaves[recipient->opaque];
 
-		mutex_lock(&_red_stack_packet_queue_mutex);
-		queued_request = queue_push(&_red_stack.packet_to_spi_queue);
+		mutex_lock(&(slave->packet_queue_mutex));
+		queued_request = queue_push(&(slave->packet_to_spi_queue));
 		queued_request->status = RED_STACK_PACKET_STATUS_ADDED;
 		queued_request->slave = slave;
 		memcpy(&queued_request->packet, request, request->header.length);
-		mutex_unlock(&_red_stack_packet_queue_mutex);
+		mutex_unlock(&(slave->packet_queue_mutex));
 
 		log_debug("Packet is queued to be send to slave %d over SPI (%s)",
 		          slave->stack_address,
@@ -732,6 +706,7 @@ static void red_stack_dispatch_to_spi(Stack *stack, Packet *request, Recipient *
 }
 
 int red_stack_init(void) {
+	int i = 0;
 	int phase = 0;
 
 	log_debug("Initializing RED Brick SPI Stack subsystem");
@@ -772,11 +747,13 @@ int red_stack_init(void) {
 
 	phase = 4;
 
-	// Initialize SPI packet queue
-	if(queue_create(&_red_stack.packet_to_spi_queue, sizeof(REDStackPacket)) < 0) {
-		log_error("Could not create SPI queue: %s (%d)",
-		          get_errno_name(errno), errno);
-		goto cleanup;
+	// Initialize SPI packet queues
+	for(i = 0; i < RED_STACK_SPI_MAX_SLAVES; i++) {
+		if(queue_create(&_red_stack.slaves[i].packet_to_spi_queue, sizeof(REDStackPacket)) < 0) {
+			log_error("Could not create SPI queue %d: %s (%d)",
+					  i, get_errno_name(errno), errno);
+			goto cleanup;
+		}
 	}
 
 	phase = 5;
@@ -787,7 +764,9 @@ int red_stack_init(void) {
 		goto cleanup;
 	}
 
-	mutex_create(&_red_stack_packet_queue_mutex);
+	for(i = 0; i < RED_STACK_SPI_MAX_SLAVES; i++) {
+		mutex_create(&_red_stack.slaves[i].packet_queue_mutex);
+	}
 
 	phase = 6;
 
@@ -800,11 +779,15 @@ int red_stack_init(void) {
 cleanup:
 	switch (phase) { // no breaks, all cases fall through intentionally
 	case 6:
-		mutex_destroy(&_red_stack_packet_queue_mutex);
+		for(i = 0; i < RED_STACK_SPI_MAX_SLAVES; i++) {
+			mutex_destroy(&_red_stack.slaves[i].packet_queue_mutex);
+		}
 		semaphore_destroy(&_red_stack_dispatch_packet_from_spi_semaphore);
 
 	case 5:
-		queue_destroy(&_red_stack.packet_to_spi_queue, NULL);
+		for(; i > 0; i--) {
+			queue_destroy(&_red_stack.slaves[i].packet_to_spi_queue, NULL);
+		}
 
 	case 4:
 		event_remove_source(_red_stack_notification_event, EVENT_SOURCE_TYPE_GENERIC);
@@ -826,6 +809,7 @@ cleanup:
 }
 
 void red_stack_exit(void) {
+	int i;
 	int slave;
 
 	// Remove event as possible poll source
@@ -848,11 +832,15 @@ void red_stack_exit(void) {
 	}
 
 	// We can also free the queue and stack now, nobody will use them anymore
-	queue_destroy(&_red_stack.packet_to_spi_queue, NULL);
+	for(i = 0; i < RED_STACK_SPI_MAX_SLAVES; i++) {
+		queue_destroy(&_red_stack.slaves[i].packet_to_spi_queue, NULL);
+	}
 	hardware_remove_stack(&_red_stack.base);
 	stack_destroy(&_red_stack.base);
 
-	mutex_destroy(&_red_stack_packet_queue_mutex);
+	for(i = 0; i < RED_STACK_SPI_MAX_SLAVES; i++) {
+		mutex_destroy(&_red_stack.slaves[i].packet_queue_mutex);
+	}
 	semaphore_destroy(&_red_stack_dispatch_packet_from_spi_semaphore);
 
 	// Close file descriptors
