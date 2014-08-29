@@ -756,8 +756,6 @@ int red_stack_init(void) {
 		}
 	}
 
-	phase = 5;
-
 	if(semaphore_create(&_red_stack_dispatch_packet_from_spi_semaphore) < 0) {
 		log_error("Could not create SPI request semaphore: %s (%d)",
 		          get_errno_name(errno), errno);
@@ -768,28 +766,27 @@ int red_stack_init(void) {
 		mutex_create(&_red_stack.slaves[i].packet_queue_mutex);
 	}
 
-	phase = 6;
+	phase = 5;
 
 	if(red_stack_init_spi() < 0) {
 		goto cleanup;
 	}
 
-	phase = 7;
+	phase = 6;
 
 cleanup:
 	switch (phase) { // no breaks, all cases fall through intentionally
-	case 6:
+	case 5:
 		for(i = 0; i < RED_STACK_SPI_MAX_SLAVES; i++) {
 			mutex_destroy(&_red_stack.slaves[i].packet_queue_mutex);
 		}
 		semaphore_destroy(&_red_stack_dispatch_packet_from_spi_semaphore);
 
-	case 5:
-		for(; i > 0; i--) {
+	case 4:
+		for(i--; i >= 0; i--) {
 			queue_destroy(&_red_stack.slaves[i].packet_to_spi_queue, NULL);
 		}
 
-	case 4:
 		event_remove_source(_red_stack_notification_event, EVENT_SOURCE_TYPE_GENERIC);
 
 	case 3:
@@ -805,7 +802,7 @@ cleanup:
 		break;
 	}
 
-	return phase == 7 ? 0 : -1;
+	return phase == 6 ? 0 : -1;
 }
 
 void red_stack_exit(void) {
