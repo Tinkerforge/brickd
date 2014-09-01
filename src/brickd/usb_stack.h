@@ -46,6 +46,7 @@ typedef struct {
 	uint32_t dropped_requests;
 	bool connected;
 	bool active;
+	bool expecting_short_A1_response;
 } USBStack;
 
 int usb_stack_create(USBStack *usb_stack, uint8_t bus_number, uint8_t device_address);

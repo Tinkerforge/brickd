@@ -50,20 +50,44 @@ static void usb_stack_read_callback(USBTransfer *usb_transfer) {
 	char packet_content_dump[PACKET_MAX_CONTENT_DUMP_LENGTH];
 	char packet_signature[PACKET_MAX_SIGNATURE_LENGTH];
 
+	// check if packet is too short
 	if (usb_transfer->handle->actual_length < (int)sizeof(PacketHeader)) {
-		log_error("Read transfer %p returned response%s%s%s with incomplete header (actual: %u < minimum: %d) from %s",
-		          usb_transfer,
-		          usb_transfer->handle->actual_length > 0 ? " (packet: " : "",
-		          packet_get_content_dump(packet_content_dump, &usb_transfer->packet,
-		                                  usb_transfer->handle->actual_length),
-		          usb_transfer->handle->actual_length > 0 ? ")" : "",
-		          usb_transfer->handle->actual_length,
-		          (int)sizeof(PacketHeader),
-		          usb_transfer->usb_stack->base.name);
+		// there is a problem with the first USB transfer send by the RED
+		// Brick. if the first USB transfer was queued to the A10s USB hardware
+		// before the USB OTG connection got established then the payload of
+		// the USB transfer is mangled. the first 12 bytes are overwritten with
+		// a fixed pattern that starts with 0xA1. to deal with this problem the
+		// RED Brick sends a USB transfer with one byte payload before sending
+		// anything else. this short response with 0xA1 as payload is detected
+		// here and dropped
+		if (usb_transfer->usb_stack->expecting_short_A1_response &&
+		    usb_transfer->handle->actual_length == 1 &&
+		    *(uint8_t *)&usb_transfer->packet == 0xA1) {
+			usb_transfer->usb_stack->expecting_short_A1_response = false;
+
+			log_debug("Read transfer %p returned expected short 0xA1 response from %s, dropping response",
+			          usb_transfer, usb_transfer->usb_stack->base.name);
+		} else {
+			log_error("Read transfer %p returned response%s%s%s with incomplete header (actual: %u < minimum: %d) from %s",
+			          usb_transfer,
+			          usb_transfer->handle->actual_length > 0 ? " (packet: " : "",
+			          packet_get_content_dump(packet_content_dump, &usb_transfer->packet,
+			                                  usb_transfer->handle->actual_length),
+			          usb_transfer->handle->actual_length > 0 ? ")" : "",
+			          usb_transfer->handle->actual_length,
+			          (int)sizeof(PacketHeader),
+			          usb_transfer->usb_stack->base.name);
+		}
 
 		return;
 	}
 
+	// only the first response from the RED Brick is expected to be a short
+	// 0xA1 response. after the first non-short response arrived stop expecting
+	// a short response
+	usb_transfer->usb_stack->expecting_short_A1_response = false;
+
+	// check if USB transfer length and packet length in header mismatches
 	if (usb_transfer->handle->actual_length != usb_transfer->packet.header.length) {
 		log_error("Read transfer %p returned response%s%s%s with length mismatch (actual: %u != expected: %u) from %s",
 		          usb_transfer,
@@ -78,6 +102,7 @@ static void usb_stack_read_callback(USBTransfer *usb_transfer) {
 		return;
 	}
 
+	// check if packet is a valid response
 	if (!packet_header_is_valid_response(&usb_transfer->packet.header, &message)) {
 		log_debug("Received invalid response%s%s%s from %s: %s",
 		          usb_transfer->handle->actual_length > 0 ? " (packet: " : "",
@@ -166,7 +191,7 @@ static int usb_stack_dispatch_request(USBStack *usb_stack, Packet *request,
 		return 0;
 	}
 
-	// no free write transfer available, push it to write queue
+	// no free write transfer available, push request to write queue
 	log_debug("Could not find a free write transfer for %s, pushing request to write queue (count: %d +1)",
 	          usb_stack->base.name, usb_stack->write_queue.count);
 
@@ -222,6 +247,7 @@ int usb_stack_create(USBStack *usb_stack, uint8_t bus_number, uint8_t device_add
 	usb_stack->dropped_requests = 0;
 	usb_stack->connected = true;
 	usb_stack->active = false;
+	usb_stack->expecting_short_A1_response = false;
 
 	// create stack base
 	snprintf(preliminary_name, sizeof(preliminary_name),
@@ -269,7 +295,6 @@ int usb_stack_create(USBStack *usb_stack, uint8_t bus_number, uint8_t device_add
 			continue;
 		}
 
-
 		if (descriptor.idVendor == USB_BRICK_VENDOR_ID &&
 		    descriptor.idProduct == USB_BRICK_PRODUCT_ID) {
 			if (descriptor.bcdDevice < USB_BRICK_DEVICE_RELEASE) {
@@ -280,6 +305,7 @@ int usb_stack_create(USBStack *usb_stack, uint8_t bus_number, uint8_t device_add
 			}
 
 			usb_stack->interface_number = USB_BRICK_INTERFACE;
+			usb_stack->expecting_short_A1_response = false;
 		} else if (descriptor.idVendor == USB_RED_BRICK_VENDOR_ID &&
 		           descriptor.idProduct == USB_RED_BRICK_PRODUCT_ID) {
 			if (descriptor.bcdDevice < USB_RED_BRICK_DEVICE_RELEASE) {
@@ -290,6 +316,7 @@ int usb_stack_create(USBStack *usb_stack, uint8_t bus_number, uint8_t device_add
 			}
 
 			usb_stack->interface_number = USB_RED_BRICK_INTERFACE;
+			usb_stack->expecting_short_A1_response = true;
 		} else {
 			log_warn("Found non-Brick USB device (bus: %u, device: %u, vendor: 0x%04X, product: 0x%04X) with address collision, ignoring USB device",
 			         usb_stack->bus_number, usb_stack->device_address,
