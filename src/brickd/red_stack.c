@@ -152,6 +152,7 @@ typedef struct {
 
 static REDStack _red_stack;
 
+static const GPIOPin _red_stack_reset_stack_pin = {GPIO_PORT_G, GPIO_PIN_4}; // TODO: Change to PB4 in final version
 static const GPIOPin _red_stack_master_high_pin = {GPIO_PORT_B, GPIO_PIN_11};
 static const GPIOPin _red_stack_slave_select_pins[RED_STACK_SPI_MAX_SLAVES] = {
 	{GPIO_PORT_C, GPIO_PIN_8},
@@ -166,10 +167,10 @@ static const GPIOPin _red_stack_slave_select_pins[RED_STACK_SPI_MAX_SLAVES] = {
 
 static const char *_red_stack_spi_device = "/dev/spidev0.0";
 
-#define SLEEP_NS(value) do{ \
+#define SLEEP_NS(s, ns) do{ \
 	struct timespec t; \
-	t.tv_sec = 0; \
-	t.tv_nsec = (value); \
+	t.tv_sec = (s); \
+	t.tv_nsec = (ns); \
 	clock_nanosleep(CLOCK_MONOTONIC, 0, &t, NULL); \
 }while(0)
 
@@ -435,7 +436,7 @@ static void red_stack_spi_create_routing_table() {
     		if((ret & RED_STACK_TRANSCEIVE_RESULT_MASK_SEND) == RED_STACK_TRANSCEIVE_RESULT_SEND_OK) {
     			break;
     		}
-    		SLEEP_NS(RED_STACK_SPI_ROUTING_WAIT); // Give slave some more time
+    		SLEEP_NS(0, RED_STACK_SPI_ROUTING_WAIT); // Give slave some more time
     	}
 
     	if(tries == RED_STACK_SPI_ROUTING_TRIES) {
@@ -456,7 +457,7 @@ static void red_stack_spi_create_routing_table() {
     		// Here we sleep before transceive so that there is some time
     		// between the sending of stack enumerate and the receiving
     		// of the answer
-    		SLEEP_NS(RED_STACK_SPI_ROUTING_WAIT); // Give slave some more time
+    		SLEEP_NS(0, RED_STACK_SPI_ROUTING_WAIT); // Give slave some more time
 
     		ret = red_stack_spi_transceive_message(NULL, &packet, slave);
     	}
@@ -487,8 +488,8 @@ static void red_stack_spi_create_routing_table() {
     }
     _red_stack.slave_num = stack_address;
 
-	log_debug("SPI stack slave discovery done. Found %d slave(s) with %d UID(s) in total",
-	          stack_address, uid_counter);
+	log_info("SPI stack slave discovery done. Found %d slave(s) with %d UID(s) in total",
+	         stack_address, uid_counter);
 }
 
 static void red_stack_spi_insert_position(REDStackSlave *slave) {
@@ -580,7 +581,7 @@ static void red_stack_spi_thread(void *opaque) {
 		}
 
 		// TODO: Get sleep time between transfers through RED Brick API with a minimum of 50us
-		SLEEP_NS(1000*50);
+		SLEEP_NS(0, 1000*50);
 	}
 }
 
@@ -600,8 +601,6 @@ static int red_stack_init_spi(void) {
 	gpio_mux_configure(_red_stack_master_high_pin, GPIO_MUX_OUTPUT);
 	gpio_output_clear(_red_stack_master_high_pin);
 
-	// TODO: Reset slaves and sleep (can't be implemented in current hardware version)
-
 	// Initialize slaves
 	for(slave = 0; slave < RED_STACK_SPI_MAX_SLAVES; slave++) {
 		_red_stack.slaves[slave].stack_address = slave;
@@ -614,6 +613,15 @@ static int red_stack_init_spi(void) {
 		gpio_mux_configure(_red_stack.slaves[slave].slave_select_pin, GPIO_MUX_OUTPUT);
 		red_stack_spi_deselect(&_red_stack.slaves[slave]);
 	}
+
+	// Reset slaves and wait for slaves to be ready
+	gpio_mux_configure(_red_stack_reset_stack_pin, GPIO_MUX_OUTPUT);
+	gpio_output_clear(_red_stack_reset_stack_pin);
+	SLEEP_NS(0, 1000*1000*100); // Clear reset pin for 100ms to force reset
+	gpio_output_set(_red_stack_reset_stack_pin);
+	printf("wait1\n");
+	SLEEP_NS(1, 1000*1000*500); // Wait 1.5s so slaves can start properly
+	printf("wait2\n");
 
 	// Open spidev
 	_red_stack_spi_fd = open(_red_stack_spi_device, O_RDWR);
