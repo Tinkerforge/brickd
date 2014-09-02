@@ -619,9 +619,7 @@ static int red_stack_init_spi(void) {
 	gpio_output_clear(_red_stack_reset_stack_pin);
 	SLEEP_NS(0, 1000*1000*100); // Clear reset pin for 100ms to force reset
 	gpio_output_set(_red_stack_reset_stack_pin);
-	printf("wait1\n");
 	SLEEP_NS(1, 1000*1000*500); // Wait 1.5s so slaves can start properly
-	printf("wait2\n");
 
 	// Open spidev
 	_red_stack_spi_fd = open(_red_stack_spi_device, O_RDWR);
