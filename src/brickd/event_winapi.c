@@ -60,6 +60,7 @@ typedef struct {
 
 static SocketSet *_socket_read_set = NULL;
 static SocketSet *_socket_write_set = NULL;
+static SocketSet *_socket_error_set = NULL;
 static Pipe _stop_pipe;
 static bool _usb_poll_running;
 static bool _usb_poll_stuck;
@@ -327,6 +328,16 @@ int event_init_platform(void) {
 
 	phase = 2;
 
+	// create error set
+	if (event_reserve_socket_set(&_socket_error_set, 32) < 0) {
+		log_error("Could not create socket error set: %s (%d)",
+		          get_errno_name(errno), errno);
+
+		goto cleanup;
+	}
+
+	phase = 3;
+
 	// create stop pipe
 	if (pipe_create(&_stop_pipe, 0) < 0) {
 		log_error("Could not create stop pipe: %s (%d)",
@@ -335,14 +346,14 @@ int event_init_platform(void) {
 		goto cleanup;
 	}
 
-	phase = 3;
+	phase = 4;
 
 	if (event_add_source(_stop_pipe.read_end, EVENT_SOURCE_TYPE_GENERIC,
 	                     EVENT_READ, NULL, NULL) < 0) {
 		goto cleanup;
 	}
 
-	phase = 4;
+	phase = 5;
 
 	// create USB poll thread
 	_usb_poll_running = false;
@@ -354,7 +365,7 @@ int event_init_platform(void) {
 		goto cleanup;
 	}
 
-	phase = 5;
+	phase = 6;
 
 	if (pipe_create(&_usb_poll_ready_pipe, 0) < 0) {
 		log_error("Could not create USB ready pipe: %s (%d)",
@@ -363,7 +374,7 @@ int event_init_platform(void) {
 		goto cleanup;
 	}
 
-	phase = 6;
+	phase = 7;
 
 	if (array_create(&_usb_poll_pollfds, 32, sizeof(struct usbi_pollfd), true) < 0) {
 		log_error("Could not create USB pollfd array: %s (%d)",
@@ -372,7 +383,7 @@ int event_init_platform(void) {
 		goto cleanup;
 	}
 
-	phase = 7;
+	phase = 8;
 
 	if (semaphore_create(&_usb_poll_resume) < 0) {
 		log_error("Could not create USB resume semaphore: %s (%d)",
@@ -381,7 +392,7 @@ int event_init_platform(void) {
 		goto cleanup;
 	}
 
-	phase = 8;
+	phase = 9;
 
 	if (semaphore_create(&_usb_poll_suspend) < 0) {
 		log_error("Could not create USB suspend semaphore: %s (%d)",
@@ -390,28 +401,31 @@ int event_init_platform(void) {
 		goto cleanup;
 	}
 
-	phase = 9;
+	phase = 10;
 
 cleanup:
 	switch (phase) { // no breaks, all cases fall through intentionally
-	case 8:
+	case 9:
 		semaphore_destroy(&_usb_poll_suspend);
 
-	case 7:
+	case 8:
 		semaphore_destroy(&_usb_poll_resume);
 
-	case 6:
+	case 7:
 		pipe_destroy(&_usb_poll_ready_pipe);
 
-	case 5:
+	case 6:
 		usbi_close(_usb_poll_suspend_pipe[0]);
 		usbi_close(_usb_poll_suspend_pipe[1]);
 
-	case 4:
+	case 5:
 		event_remove_source(_stop_pipe.read_end, EVENT_SOURCE_TYPE_GENERIC);
 
-	case 3:
+	case 4:
 		pipe_destroy(&_stop_pipe);
+
+	case 3:
+		free(_socket_error_set);
 
 	case 2:
 		free(_socket_write_set);
@@ -423,7 +437,7 @@ cleanup:
 		break;
 	}
 
-	return phase == 9 ? 0 : -1;
+	return phase == 10 ? 0 : -1;
 }
 
 void event_exit_platform(void) {
@@ -440,6 +454,7 @@ void event_exit_platform(void) {
 	event_remove_source(_stop_pipe.read_end, EVENT_SOURCE_TYPE_GENERIC);
 	pipe_destroy(&_stop_pipe);
 
+	free(_socket_error_set);
 	free(_socket_write_set);
 	free(_socket_read_set);
 }
@@ -466,6 +481,7 @@ int event_run_platform(Array *event_sources, bool *running, EventCleanupFunction
 	EventSource *event_source;
 	fd_set *fd_read_set;
 	fd_set *fd_write_set;
+	fd_set *fd_error_set;
 	int ready;
 	int handled;
 	uint8_t byte = 1;
@@ -505,8 +521,17 @@ int event_run_platform(Array *event_sources, bool *running, EventCleanupFunction
 			goto cleanup;
 		}
 
+		if (event_reserve_socket_set(&_socket_error_set, // FIXME: this over allocates
+		                             event_sources->count) < 0) {
+			log_error("Could not resize socket error set: %s (%d)",
+			          get_errno_name(errno), errno);
+
+			goto cleanup;
+		}
+
 		_socket_read_set->count = 0;
 		_socket_write_set->count = 0;
+		_socket_error_set->count = 0;
 
 		for (i = 0; i < event_sources->count; ++i) {
 			event_source = array_get(event_sources, i);
@@ -515,26 +540,35 @@ int event_run_platform(Array *event_sources, bool *running, EventCleanupFunction
 				continue;
 			}
 
-			if (event_source->events & EVENT_READ) {
+			if ((event_source->events & EVENT_READ) != 0) {
 				_socket_read_set->sockets[_socket_read_set->count++] = event_source->handle;
 			}
 
-			if (event_source->events & EVENT_WRITE) {
+			if ((event_source->events & EVENT_WRITE) != 0) {
 				_socket_write_set->sockets[_socket_write_set->count++] = event_source->handle;
+			}
+
+			if ((event_source->events & EVENT_PRIO) != 0) {
+				log_error("Event prio is not supported");
+			}
+
+			if ((event_source->events & EVENT_ERROR) != 0) {
+				_socket_error_set->sockets[_socket_error_set->count++] = event_source->handle;
 			}
 		}
 
 		// start to select
-		log_debug("Starting to select on %d + %d %s event source(s)",
-		          _socket_read_set->count, _socket_write_set->count,
+		log_debug("Starting to select on %d + %d + %d %s event source(s)",
+		          _socket_read_set->count, _socket_write_set->count, _socket_error_set->count,
 		          event_get_source_type_name(EVENT_SOURCE_TYPE_GENERIC, false));
 
 		semaphore_release(&_usb_poll_resume);
 
 		fd_read_set = event_get_socket_set_as_fd_set(_socket_read_set);
 		fd_write_set = event_get_socket_set_as_fd_set(_socket_write_set);
+		fd_error_set = event_get_socket_set_as_fd_set(_socket_error_set);
 
-		ready = select(0, fd_read_set, fd_write_set, NULL, NULL);
+		ready = select(0, fd_read_set, fd_write_set, fd_error_set, NULL);
 
 		if (_usb_poll_running) {
 			log_debug("Sending suspend signal to USB poll thread");
@@ -596,6 +630,10 @@ int event_run_platform(Array *event_sources, bool *running, EventCleanupFunction
 
 			if (FD_ISSET(event_source->handle, fd_write_set)) {
 				received_events |= EVENT_WRITE;
+			}
+
+			if (FD_ISSET(event_source->handle, fd_error_set)) {
+				received_events |= EVENT_ERROR;
 			}
 
 			if (received_events == 0) {
