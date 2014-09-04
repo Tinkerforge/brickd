@@ -146,14 +146,14 @@ static void redapid_handle_read(void *opaque) {
 	}
 }
 
-static int redapid_dispatch_request(REDBrickAPIDaemon *redapid, Packet *request,
+static int redapid_dispatch_request(Stack *stack, Packet *request,
                                     Recipient *recipient) {
 	char base58[BASE58_MAX_LENGTH];
 	uint32_t uid; // always little endian
 	EnumerateCallback enumerate_callback;
 	int enqueued = 0;
 
-	(void)redapid;
+	(void)stack;
 	(void)recipient;
 
 	if (request->header.function_id == FUNCTION_ENUMERATE) {
@@ -308,8 +308,7 @@ int redapid_init(void) {
 	log_debug("Initializing RED Brick API subsystem");
 
 	// create base stack
-	if (stack_create(&_redapid.base, "redapid",
-	                 (StackDispatchRequestFunction)redapid_dispatch_request) < 0) {
+	if (stack_create(&_redapid.base, "redapid", redapid_dispatch_request) < 0) {
 		log_error("Could not create base stack for RED Brick API Daemon: %s (%d)",
 		          get_errno_name(errno), errno);
 

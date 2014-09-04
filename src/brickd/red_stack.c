@@ -741,7 +741,7 @@ static void red_stack_dispatch_from_spi(void *opaque) {
 }
 
 // New packet from brickd event loop is queued to be written to stack via SPI
-static void red_stack_dispatch_to_spi(Stack *stack, Packet *request, Recipient *recipient) {
+static int red_stack_dispatch_to_spi(Stack *stack, Packet *request, Recipient *recipient) {
 	REDStackPacket *queued_request;
 	(void)stack;
 
@@ -759,7 +759,6 @@ static void red_stack_dispatch_to_spi(Stack *stack, Packet *request, Recipient *
 			log_debug("Request is queued to be broadcast to slave %d (%s)",
 			          is,
 			          packet_get_request_signature(packet_signature, request));
-
 		}
 	} else if (recipient != NULL) {
 		// Get slave for recipient opaque (== stack_address)
@@ -776,6 +775,8 @@ static void red_stack_dispatch_to_spi(Stack *stack, Packet *request, Recipient *
 		          slave->stack_address,
 		          packet_get_request_signature(packet_signature, request));
 	}
+
+	return 0;
 }
 
 static void red_stack_reset_handler(void *opaque) {
@@ -818,8 +819,7 @@ int red_stack_init(void) {
 	}
 
 	// create base stack
-	if(stack_create(&_red_stack.base, "red_stack",
-	                (StackDispatchRequestFunction)red_stack_dispatch_to_spi) < 0) {
+	if(stack_create(&_red_stack.base, "red_stack", red_stack_dispatch_to_spi) < 0) {
 		log_error("Could not create base stack for RED Brick SPI Stack: %s (%d)",
 		          get_errno_name(errno), errno);
 

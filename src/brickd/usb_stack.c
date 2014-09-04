@@ -162,8 +162,9 @@ static void usb_stack_write_callback(USBTransfer *usb_transfer) {
 	}
 }
 
-static int usb_stack_dispatch_request(USBStack *usb_stack, Packet *request,
+static int usb_stack_dispatch_request(Stack *stack, Packet *request,
                                       Recipient *recipient) {
+	USBStack *usb_stack = (USBStack *)stack;
 	int i;
 	USBTransfer *usb_transfer;
 	Packet *queued_request;
@@ -254,7 +255,7 @@ int usb_stack_create(USBStack *usb_stack, uint8_t bus_number, uint8_t device_add
 	         "USB device (bus: %u, device: %u)", bus_number, device_address);
 
 	if (stack_create(&usb_stack->base, preliminary_name,
-	                 (StackDispatchRequestFunction)usb_stack_dispatch_request) < 0) {
+	                 usb_stack_dispatch_request) < 0) {
 		log_error("Could not create base stack for %s: %s (%d)",
 		          preliminary_name, get_errno_name(errno), errno);
 

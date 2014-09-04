@@ -237,7 +237,7 @@ void master_poll_slave_timeout_handler(void*);
 void master_retry_timeout_handler(void*);
 void send_verify_timeout_handler(void*);
 void setup_timer(struct itimerspec*, uint8_t, long);
-void rs485_extension_dispatch_to_modbus(Stack*, Packet*, Recipient*);
+int rs485_extension_dispatch_to_modbus(Stack*, Packet*, Recipient*);
 void abort_current_request(void);
 void handle_partial_receive(void);
 int rs485_extension_init(void);
@@ -938,7 +938,7 @@ void send_verify_timeout_handler(void *opaque) {
 }
 
 // New packet from brickd event loop is queued to be sent via Modbus
-void rs485_extension_dispatch_to_modbus(Stack *stack, Packet *request, Recipient *recipient) {
+int rs485_extension_dispatch_to_modbus(Stack *stack, Packet *request, Recipient *recipient) {
 	RS485ExtensionPacket *queued_request;
 	(void)stack;
 
@@ -962,6 +962,8 @@ void rs485_extension_dispatch_to_modbus(Stack *stack, Packet *request, Recipient
 		          recipient->opaque,
 		          packet_get_request_signature(packet_signature, request));
 	}
+
+	return 0;
 }
 
 // Used from data available handler to abort the current request
@@ -1016,7 +1018,7 @@ int rs485_extension_init(void) {
         
         // Create base stack
         if(stack_create(&_rs485_extension.base, "rs485_extension",
-                        (StackDispatchRequestFunction)rs485_extension_dispatch_to_modbus) < 0) {
+                        rs485_extension_dispatch_to_modbus) < 0) {
             log_error("RS485: Could not create base stack for extension: %s (%d)",
                       get_errno_name(errno), errno);
 
