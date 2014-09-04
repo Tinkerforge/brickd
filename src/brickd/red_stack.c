@@ -809,12 +809,12 @@ int red_stack_init(void) {
 
 	if(gpio_sysfs_export(RED_STACK_RESET_PIN_GPIO_NUM) < 0) {
 		// Just issue a warning, RED Brick will work without reset interrupt
-		log_warn("Could not export GPIO %d in sysfs, disabling reset interrupt\n",
+		log_warn("Could not export GPIO %d in sysfs, disabling reset interrupt",
 		         RED_STACK_RESET_PIN_GPIO_NUM);
 	} else {
 		if((_red_stack_reset_fd = gpio_sysfs_get_value_fd(RED_STACK_RESET_PIN_GPIO_NAME)) < 0) {
 			// Just issue a warning, RED Brick will work without reset interrupt
-			log_warn("Could not retrieve fd for GPIO %s in sysfs, disabling reset interrupt\n",
+			log_warn("Could not retrieve fd for GPIO %s in sysfs, disabling reset interrupt",
 			         RED_STACK_RESET_PIN_GPIO_NAME);
 		}
 	}
