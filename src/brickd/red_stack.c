@@ -107,6 +107,9 @@ static const uint8_t _red_stack_spi_pearson_permutation[RED_STACK_SPI_PEARSON_PE
 #define RED_STACK_TRANSCEIVE_RESULT_MASK_SEND   0x7
 #define RED_STACK_TRANSCEIVE_RESULT_MASK_READ   0x38
 
+#define RED_STACK_RESET_PIN_GPIO_NUM            16           // defined in fex file
+#define RED_STACK_RESET_PIN_GPIO_NAME           "gpio16_pg4" // defined in fex file, TODO: change to pb5 in final version
+
 static char packet_signature[PACKET_MAX_SIGNATURE_LENGTH];
 
 static bool _red_stack_spi_thread_running = false;
@@ -114,7 +117,16 @@ static int _red_stack_spi_fd = -1;
 
 static Thread _red_stack_spi_thread;
 static Semaphore _red_stack_dispatch_packet_from_spi_semaphore;
+
+// We use a proper condition variable with mutex (as is suggested by kernel documentation)
+// to synchronize after a reset. If someone else needs this we may want to add
+// the mechanism to daemonlibs thread implementation.
+static pthread_cond_t   _red_stack_wait_for_reset_cond  = PTHREAD_COND_INITIALIZER;
+static pthread_mutex_t  _red_stack_wait_for_reset_mutex = PTHREAD_MUTEX_INITIALIZER;
+
 static int _red_stack_notification_event;
+static int _red_stack_reset_fd;
+static int _red_stack_reset_detected = 0;
 
 typedef enum {
 	RED_STACK_SLAVE_STATUS_ABSENT = 0,
@@ -503,6 +515,35 @@ static void red_stack_spi_insert_position(REDStackSlave *slave) {
 	}
 }
 
+static void red_stack_spi_handle_reset(void) {
+	int slave;
+
+	stack_announce_disconnect(&_red_stack.base);
+	_red_stack.base.recipients.count = 0;
+
+	log_info("Starting reinitialization of SPI slaves");
+
+	// Someone pressed reset we have to wait until he stops pressing
+	while(gpio_input(_red_stack_reset_stack_pin) == 0) {
+		// Wait 100us and check again. We wait as long as the user presses the button
+		SLEEP_NS(0, 1000*100);
+	}
+	SLEEP_NS(1, 1000*1000*500); // Wait 1.5s so slaves can start properly
+
+	// Reinitialize slaves
+	_red_stack.slave_num = 0;
+	for(slave = 0; slave < RED_STACK_SPI_MAX_SLAVES; slave++) {
+		_red_stack.slaves[slave].stack_address = slave;
+		_red_stack.slaves[slave].status = RED_STACK_SLAVE_STATUS_ABSENT;
+		_red_stack.slaves[slave].sequence_number_master = 1;
+		_red_stack.slaves[slave].sequence_number_slave = 0;
+
+		// Unfortunately we have to discard all of the queued packets.
+		// we can't be sure that the packets are for the correct slave after a reset.
+		while(queue_peek(&_red_stack.slaves[slave].packet_to_spi_queue) != NULL);
+	}
+}
+
 // Main SPI loop. This runs independently from the brickd event thread.
 // Data between RED Brick and SPI slave is exchanged every 500us.
 // If there is no data to be send, we cycle through the slaves and request
@@ -510,84 +551,113 @@ static void red_stack_spi_insert_position(REDStackSlave *slave) {
 // the data gets priority. This can greatly reduce latency in a big stack.
 static void red_stack_spi_thread(void *opaque) {
 	REDStackPacket *packet_to_spi;
-	uint8_t stack_address_cycle = 0;
+	uint8_t stack_address_cycle;
 	int ret;
 
 	(void)opaque;
 
-	red_stack_spi_create_routing_table();
+	do {
+		stack_address_cycle = 0;
+		_red_stack_reset_detected = 0;
+		_red_stack.slave_num = 0;
+		red_stack_spi_create_routing_table();
 
-	if(_red_stack.slave_num == 0) {
-		log_info("Shutting SPI stack thread down, there are no SPI slaves");
-		return;
-	}
-
-	_red_stack_spi_thread_running = true;
-	while(_red_stack_spi_thread_running) {
-		REDStackSlave *slave = &_red_stack.slaves[stack_address_cycle];
-		REDStackPacket *request = NULL;
-		memset(&_red_stack.packet_from_spi, 0, sizeof(Packet));
-
-		// Get packet from queue. The queue contains that are to be
-		// send over SPI. It is filled through from the main brickd
-		// event thread, so we have to make sure that there is not race
-		// condition.
-		mutex_lock(&(slave->packet_queue_mutex));
-		packet_to_spi = queue_peek(&slave->packet_to_spi_queue);
-		mutex_unlock(&(slave->packet_queue_mutex));
-
-		stack_address_cycle++;
-		if(stack_address_cycle >= _red_stack.slave_num) {
-			stack_address_cycle = 0;
+		_red_stack_spi_thread_running = false;
+		if(_red_stack.slave_num > 0) {
+			_red_stack_spi_thread_running = true;
 		}
 
-		// Set request if we have a packet to send
-		if(packet_to_spi != NULL) {
-			log_debug("Packet will now be send over SPI (%s)",
-			          packet_get_request_signature(packet_signature, &packet_to_spi->packet));
+		while(_red_stack_spi_thread_running) {
+			REDStackSlave *slave = &_red_stack.slaves[stack_address_cycle];
+			REDStackPacket *request = NULL;
+			memset(&_red_stack.packet_from_spi, 0, sizeof(Packet));
 
-			request = packet_to_spi;
-		}
+			// Get packet from queue. The queue contains that are to be
+			// send over SPI. It is filled through from the main brickd
+			// event thread, so we have to make sure that there is not race
+			// condition.
+			mutex_lock(&(slave->packet_queue_mutex));
+			packet_to_spi = queue_peek(&slave->packet_to_spi_queue);
+			mutex_unlock(&(slave->packet_queue_mutex));
 
-		ret = red_stack_spi_transceive_message(request,
-		                                       &_red_stack.packet_from_spi,
-		                                       slave);
-
-		if((ret & RED_STACK_TRANSCEIVE_RESULT_MASK_SEND) == RED_STACK_TRANSCEIVE_RESULT_SEND_OK) {
-			if((!((ret & RED_STACK_TRANSCEIVE_RESULT_MASK_READ) == RED_STACK_TRANSCEIVE_RESULT_READ_ERROR))) {
-				// If we send a packet it must have come from the queue, so we can
-				// pop it from the queue now.
-				// If the sending didn't work (for whatever reason), we don't pop it
-				// and therefore we will automatically try to send it again in the next cycle.
-				mutex_lock(&(slave->packet_queue_mutex));
-				queue_pop(&slave->packet_to_spi_queue, NULL);
-				mutex_unlock(&(slave->packet_queue_mutex));
+			stack_address_cycle++;
+			if(stack_address_cycle >= _red_stack.slave_num) {
+				stack_address_cycle = 0;
 			}
+
+			// Set request if we have a packet to send
+			if(packet_to_spi != NULL) {
+				log_debug("Packet will now be send over SPI (%s)",
+						  packet_get_request_signature(packet_signature, &packet_to_spi->packet));
+
+				request = packet_to_spi;
+			}
+
+			ret = red_stack_spi_transceive_message(request,
+												   &_red_stack.packet_from_spi,
+												   slave);
+
+			if((ret & RED_STACK_TRANSCEIVE_RESULT_MASK_SEND) == RED_STACK_TRANSCEIVE_RESULT_SEND_OK) {
+				if((!((ret & RED_STACK_TRANSCEIVE_RESULT_MASK_READ) == RED_STACK_TRANSCEIVE_RESULT_READ_ERROR))) {
+					// If we send a packet it must have come from the queue, so we can
+					// pop it from the queue now.
+					// If the sending didn't work (for whatever reason), we don't pop it
+					// and therefore we will automatically try to send it again in the next cycle.
+					mutex_lock(&(slave->packet_queue_mutex));
+					queue_pop(&slave->packet_to_spi_queue, NULL);
+					mutex_unlock(&(slave->packet_queue_mutex));
+				}
+			}
+
+			// If we received a packet, we will dispatch it immediately.
+			// We have some time until we try the next SPI communication anyway.
+			if((ret & RED_STACK_TRANSCEIVE_RESULT_MASK_READ) == RED_STACK_TRANSCEIVE_RESULT_READ_OK) {
+				// TODO: Check again if packet is valid?
+				// We did already check the hash.
+
+				// Before the dispatching we insert the stack position into an enumerate message
+				red_stack_spi_insert_position(slave);
+
+				red_stack_spi_request_dispatch_response_event();
+				// Wait until message is dispatched, so we don't overwrite it
+				// accidentally.
+				semaphore_acquire(&_red_stack_dispatch_packet_from_spi_semaphore);
+			}
+
+			// TODO: Get sleep time between transfers through RED Brick API with a minimum of 50us
+			SLEEP_NS(0, 1000*50);
 		}
 
-		// If we received a packet, we will dispatch it immediately.
-		// We have some time until we try the next SPI communication anyway.
-		if((ret & RED_STACK_TRANSCEIVE_RESULT_MASK_READ) == RED_STACK_TRANSCEIVE_RESULT_READ_OK) {
-			// TODO: Check again if packet is valid?
-			// We did already check the hash.
-
-			// Before the dispatching we insert the stack position into an enumerate message
-			red_stack_spi_insert_position(slave);
-
-			red_stack_spi_request_dispatch_response_event();
-			// Wait until message is dispatched, so we don't overwrite it
-			// accidentally.
-			semaphore_acquire(&_red_stack_dispatch_packet_from_spi_semaphore);
+		if(_red_stack.slave_num == 0) {
+			pthread_mutex_lock(&_red_stack_wait_for_reset_mutex);
+			pthread_cond_wait(&_red_stack_wait_for_reset_cond, &_red_stack_wait_for_reset_mutex);
+			pthread_mutex_unlock(&_red_stack_wait_for_reset_mutex);
 		}
 
-		// TODO: Get sleep time between transfers through RED Brick API with a minimum of 50us
-		SLEEP_NS(0, 1000*50);
-	}
+		if(_red_stack_reset_detected > 0) {
+			red_stack_spi_handle_reset();
+		}
+	} while(_red_stack_reset_detected > 0);
 }
 
 
 // ----- RED STACK -----
 // These functions run in brickd main thread
+
+// Resets stack
+static void red_stack_reset(void) {
+	// Change mux of reset pin to output
+	gpio_mux_configure(_red_stack_reset_stack_pin, GPIO_MUX_OUTPUT);
+
+	gpio_output_clear(_red_stack_reset_stack_pin);
+	SLEEP_NS(0, 1000*1000*100); // Clear reset pin for 100ms to force reset
+	gpio_output_set(_red_stack_reset_stack_pin);
+	SLEEP_NS(1, 1000*1000*500); // Wait 1.5s so slaves can start properly
+	gpio_output_clear(_red_stack_reset_stack_pin);
+
+	// Change mux back to input, so we can see if a human presses reset
+	gpio_mux_configure(_red_stack_reset_stack_pin, GPIO_MUX_INPUT);
+}
 
 static int red_stack_init_spi(void) {
 	uint8_t slave;
@@ -615,11 +685,7 @@ static int red_stack_init_spi(void) {
 	}
 
 	// Reset slaves and wait for slaves to be ready
-	gpio_mux_configure(_red_stack_reset_stack_pin, GPIO_MUX_OUTPUT);
-	gpio_output_clear(_red_stack_reset_stack_pin);
-	SLEEP_NS(0, 1000*1000*100); // Clear reset pin for 100ms to force reset
-	gpio_output_set(_red_stack_reset_stack_pin);
-	SLEEP_NS(1, 1000*1000*500); // Wait 1.5s so slaves can start properly
+	red_stack_reset();
 
 	// Open spidev
 	_red_stack_spi_fd = open(_red_stack_spi_device, O_RDWR);
@@ -711,11 +777,43 @@ static void red_stack_dispatch_to_spi(Stack *stack, Packet *request, Recipient *
 	}
 }
 
+static void red_stack_reset_handler(void *opaque) {
+	(void)opaque;
+	char buf[2];
+
+	// Seek and read from gpio fd (see https://www.kernel.org/doc/Documentation/gpio/sysfs.txt)
+	lseek(_red_stack_reset_fd, 0, SEEK_SET);
+	read(_red_stack_reset_fd, buf, 2);
+
+	_red_stack_reset_detected++;
+	log_debug("Reset button press detected (%d since last reset)", _red_stack_reset_detected);
+
+	_red_stack_spi_thread_running = false;
+
+	if(_red_stack.slave_num == 0) {
+		pthread_mutex_lock(&_red_stack_wait_for_reset_mutex);
+		pthread_cond_signal(&_red_stack_wait_for_reset_cond);
+		pthread_mutex_unlock(&_red_stack_wait_for_reset_mutex);
+	}
+}
+
 int red_stack_init(void) {
 	int i = 0;
 	int phase = 0;
 
 	log_debug("Initializing RED Brick SPI Stack subsystem");
+
+	if(gpio_sysfs_export(RED_STACK_RESET_PIN_GPIO_NUM) < 0) {
+		// Just issue a warning, RED Brick will work without reset interrupt
+		log_warn("Could not export GPIO %d in sysfs, disabling reset interrupt\n",
+		         RED_STACK_RESET_PIN_GPIO_NUM);
+	} else {
+		if((_red_stack_reset_fd = gpio_sysfs_get_value_fd(RED_STACK_RESET_PIN_GPIO_NAME)) < 0) {
+			// Just issue a warning, RED Brick will work without reset interrupt
+			log_warn("Could not retrieve fd for GPIO %s in sysfs, disabling reset interrupt\n",
+			         RED_STACK_RESET_PIN_GPIO_NAME);
+		}
+	}
 
 	// create base stack
 	if(stack_create(&_red_stack.base, "red_stack",
@@ -774,14 +872,29 @@ int red_stack_init(void) {
 
 	phase = 5;
 
-	if(red_stack_init_spi() < 0) {
-		goto cleanup;
+    // Add reset interrupt as event source
+	if(_red_stack_reset_fd > 0) {
+		if(event_add_source(_red_stack_reset_fd, EVENT_SOURCE_TYPE_GENERIC,
+							EPOLLPRI | EPOLLERR, red_stack_reset_handler, NULL) < 0) {
+			log_error("Could not add reset fd event");
+			goto cleanup;
+		}
 	}
 
 	phase = 6;
 
+	if(red_stack_init_spi() < 0) {
+		goto cleanup;
+	}
+
+	phase = 7;
+
 cleanup:
 	switch (phase) { // no breaks, all cases fall through intentionally
+	case 6:
+		if(_red_stack_reset_fd > 0) {
+			event_remove_source(_red_stack_reset_fd, EVENT_SOURCE_TYPE_GENERIC);
+		}
 	case 5:
 		for(i = 0; i < RED_STACK_SPI_MAX_SLAVES; i++) {
 			mutex_destroy(&_red_stack.slaves[i].packet_queue_mutex);
@@ -808,7 +921,7 @@ cleanup:
 		break;
 	}
 
-	return phase == 6 ? 0 : -1;
+	return phase == 7 ? 0 : -1;
 }
 
 void red_stack_exit(void) {
