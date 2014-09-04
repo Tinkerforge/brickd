@@ -877,7 +877,7 @@ int red_stack_init(void) {
     // Add reset interrupt as event source
 	if(_red_stack_reset_fd > 0) {
 		if(event_add_source(_red_stack_reset_fd, EVENT_SOURCE_TYPE_GENERIC,
-							EPOLLPRI | EPOLLERR, red_stack_reset_handler, NULL) < 0) {
+		                    EVENT_PRIO | EVENT_ERROR, red_stack_reset_handler, NULL) < 0) {
 			log_error("Could not add reset fd event");
 			goto cleanup;
 		}
