@@ -118,11 +118,12 @@ static int _red_stack_spi_fd = -1;
 static Thread _red_stack_spi_thread;
 static Semaphore _red_stack_dispatch_packet_from_spi_semaphore;
 
-// We use a proper condition variable with mutex (as is suggested by kernel documentation)
+// We use a proper condition variable with mutex and helper variable (as is suggested by kernel documentation)
 // to synchronize after a reset. If someone else needs this we may want to add
 // the mechanism to daemonlibs thread implementation.
-static pthread_cond_t   _red_stack_wait_for_reset_cond  = PTHREAD_COND_INITIALIZER;
-static pthread_mutex_t  _red_stack_wait_for_reset_mutex = PTHREAD_MUTEX_INITIALIZER;
+static pthread_cond_t   _red_stack_wait_for_reset_cond   = PTHREAD_COND_INITIALIZER;
+static pthread_mutex_t  _red_stack_wait_for_reset_mutex  = PTHREAD_MUTEX_INITIALIZER;
+static int              _red_stack_wait_for_reset_helper = 0;
 
 static int _red_stack_notification_event;
 static int _red_stack_reset_fd;
@@ -630,7 +631,11 @@ static void red_stack_spi_thread(void *opaque) {
 
 		if(_red_stack.slave_num == 0) {
 			pthread_mutex_lock(&_red_stack_wait_for_reset_mutex);
-			pthread_cond_wait(&_red_stack_wait_for_reset_cond, &_red_stack_wait_for_reset_mutex);
+			// Use helper to be save against spurious wakeups
+			_red_stack_wait_for_reset_helper = 0;
+			while(_red_stack_wait_for_reset_helper == 0) {
+				pthread_cond_wait(&_red_stack_wait_for_reset_cond, &_red_stack_wait_for_reset_mutex);
+			}
 			pthread_mutex_unlock(&_red_stack_wait_for_reset_mutex);
 		}
 
@@ -792,6 +797,7 @@ static void red_stack_reset_handler(void *opaque) {
 
 	if(_red_stack.slave_num == 0) {
 		pthread_mutex_lock(&_red_stack_wait_for_reset_mutex);
+		_red_stack_wait_for_reset_helper = 1;
 		pthread_cond_signal(&_red_stack_wait_for_reset_cond);
 		pthread_mutex_unlock(&_red_stack_wait_for_reset_mutex);
 	}

@@ -23,7 +23,7 @@ WITH_PROFILING ?= no
 WITH_DEBUG ?= no
 WITH_USB_REOPEN_ON_SIGUSR1 ?= yes
 WITH_PM_UTILS ?= check
-WITH_RED_BRICK ?= no
+WITH_RED_BRICK ?= yes
 
 ## RULES ######################################################################
 
