@@ -32,10 +32,10 @@ int file_create(File *file, const char *name, int flags) {
 	int fcntl_flags;
 	int saved_errno;
 
-	rc  = io_create(&file->base, "file",
-	                (IODestroyFunction)file_destroy,
-	                (IOReadFunction)file_read,
-	                (IOWriteFunction)file_write);
+	rc = io_create(&file->base, "file",
+	               (IODestroyFunction)file_destroy,
+	               (IOReadFunction)file_read,
+	               (IOWriteFunction)file_write);
 
 	if (rc < 0) {
 		return rc;
