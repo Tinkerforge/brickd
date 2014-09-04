@@ -53,4 +53,6 @@ Recipient *stack_get_recipient(Stack *stack, uint32_t uid /* always little endia
 
 int stack_dispatch_request(Stack *stack, Packet *request, bool force);
 
+void stack_announce_disconnect(Stack *stack);
+
 #endif // BRICKD_STACK_H

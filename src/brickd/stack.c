@@ -39,6 +39,7 @@
 #include <daemonlib/log.h>
 #include <daemonlib/utils.h>
 
+#include "network.h"
 #include "stack.h"
 
 #define LOG_CATEGORY LOG_CATEGORY_HARDWARE
@@ -132,4 +133,32 @@ int stack_dispatch_request(Stack *stack, Packet *request, bool force) {
 	}
 
 	return 1;
+}
+
+void stack_announce_disconnect(Stack *stack) {
+	int i;
+	Recipient *recipient;
+	EnumerateCallback enumerate_callback;
+
+	log_debug("Disconnecting stack '%s'", stack->name);
+
+	for (i = 0; i < stack->recipients.count; ++i) {
+		recipient = array_get(&stack->recipients, i);
+
+		memset(&enumerate_callback, 0, sizeof(enumerate_callback));
+
+		enumerate_callback.header.uid = recipient->uid;
+		enumerate_callback.header.length = sizeof(enumerate_callback);
+		enumerate_callback.header.function_id = CALLBACK_ENUMERATE;
+		packet_header_set_sequence_number(&enumerate_callback.header, 0);
+		packet_header_set_response_expected(&enumerate_callback.header, true);
+
+		base58_encode(enumerate_callback.uid, uint32_from_le(recipient->uid));
+		enumerate_callback.enumeration_type = ENUMERATION_TYPE_DISCONNECTED;
+
+		log_debug("Sending enumerate-disconnected callback (uid: %s)",
+		          enumerate_callback.uid);
+
+		network_dispatch_response((Packet *)&enumerate_callback);
+	}
 }

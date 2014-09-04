@@ -322,7 +322,7 @@ int usb_rescan(void) {
 		         usb_stack->bus_number, usb_stack->device_address, i,
 		         usb_stack->base.name);
 
-		usb_stack_announce_disconnect(usb_stack);
+		stack_announce_disconnect(&usb_stack->base);
 
 		array_remove(&_usb_stacks, i, (ItemDestroyFunction)usb_stack_destroy);
 	}
@@ -345,7 +345,7 @@ int usb_reopen(void) {
 		         usb_stack->bus_number, usb_stack->device_address, i,
 		         usb_stack->base.name);
 
-		usb_stack_announce_disconnect(usb_stack);
+		stack_announce_disconnect(&usb_stack->base);
 
 		array_remove(&_usb_stacks, i, (ItemDestroyFunction)usb_stack_destroy);
 	}
