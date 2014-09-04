@@ -780,12 +780,13 @@ static int red_stack_dispatch_to_spi(Stack *stack, Packet *request, Recipient *r
 }
 
 static void red_stack_reset_handler(void *opaque) {
-	(void)opaque;
 	char buf[2];
+
+	(void)opaque;
 
 	// Seek and read from gpio fd (see https://www.kernel.org/doc/Documentation/gpio/sysfs.txt)
 	lseek(_red_stack_reset_fd, 0, SEEK_SET);
-	read(_red_stack_reset_fd, buf, 2);
+	if (read(_red_stack_reset_fd, buf, 2) < 0) {} // ignore return value
 
 	_red_stack_reset_detected++;
 	log_debug("Reset button press detected (%d since last reset)", _red_stack_reset_detected);
