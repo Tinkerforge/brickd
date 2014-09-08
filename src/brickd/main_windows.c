@@ -583,7 +583,7 @@ static int generic_main(bool log_to_file, bool debug, bool libusb_debug) {
 	log_set_level(LOG_CATEGORY_OTHER, config_get_option("log_level.other")->value.log_level);
 
 	if (config_has_error()) {
-		log_error("Error(s) in config file '%s', run with --check-config option for details",
+		log_error("Error(s) while reading config file '%s'",
 		          _config_filename);
 
 		fatal_error = true;
