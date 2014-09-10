@@ -110,7 +110,7 @@ static void client_handle_authenticate_request(Client *client, AuthenticateReque
 	memcpy(&nonces[0], &client->authentication_nonce, sizeof(client->authentication_nonce));
 	memcpy(&nonces[1], request->client_nonce, sizeof(request->client_nonce));
 
-	secret = config_get_option("authentication.secret")->value.string;
+	secret = config_get_option_value("authentication.secret")->string;
 
 	hmac_sha1((uint8_t *)secret, strlen(secret),
 	          (uint8_t *)nonces, sizeof(nonces), digest);
@@ -344,7 +344,7 @@ int client_create(Client *client, const char *name, IO *io,
 	client->authentication_nonce = authentication_nonce;
 	client->destroy_done = destroy_done;
 
-	if (config_get_option("authentication.secret")->value.string != NULL) {
+	if (config_get_option_value("authentication.secret")->string != NULL) {
 		client->authentication_state = CLIENT_AUTHENTICATION_STATE_ENABLED;
 	}
 

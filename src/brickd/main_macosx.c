@@ -138,13 +138,13 @@ int main(int argc, char **argv) {
 
 	log_set_debug_override(debug);
 
-	log_set_level(LOG_CATEGORY_EVENT, config_get_option("log_level.event")->value.log_level);
-	log_set_level(LOG_CATEGORY_USB, config_get_option("log_level.usb")->value.log_level);
-	log_set_level(LOG_CATEGORY_NETWORK, config_get_option("log_level.network")->value.log_level);
-	log_set_level(LOG_CATEGORY_HOTPLUG, config_get_option("log_level.hotplug")->value.log_level);
-	log_set_level(LOG_CATEGORY_HARDWARE, config_get_option("log_level.hardware")->value.log_level);
-	log_set_level(LOG_CATEGORY_WEBSOCKET, config_get_option("log_level.websocket")->value.log_level);
-	log_set_level(LOG_CATEGORY_OTHER, config_get_option("log_level.other")->value.log_level);
+	log_set_level(LOG_CATEGORY_EVENT, config_get_option_value("log_level.event")->log_level);
+	log_set_level(LOG_CATEGORY_USB, config_get_option_value("log_level.usb")->log_level);
+	log_set_level(LOG_CATEGORY_NETWORK, config_get_option_value("log_level.network")->log_level);
+	log_set_level(LOG_CATEGORY_HOTPLUG, config_get_option_value("log_level.hotplug")->log_level);
+	log_set_level(LOG_CATEGORY_HARDWARE, config_get_option_value("log_level.hardware")->log_level);
+	log_set_level(LOG_CATEGORY_WEBSOCKET, config_get_option_value("log_level.websocket")->log_level);
+	log_set_level(LOG_CATEGORY_OTHER, config_get_option_value("log_level.other")->log_level);
 
 	if (config_has_error()) {
 		log_error("Error(s) while reading config file '%s'",
