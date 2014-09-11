@@ -298,7 +298,7 @@ int rs485_extension_serial_init(char* serial_interface) {
         log_error("RS485: Error setting serial baudrate");
         return -1;
     }
-    log_info("\nRS485: Baudrate configured = %d\nBaudbase(BB) = %d\n\
+    log_debug("\nRS485: Baudrate configured = %d\nBaudbase(BB) = %d\n\
 Divisor(DIV) = %d\nActual baudrate(%d / %d) = %f",
              _modbus_serial_config_baudrate,
              serial_config.baud_base,
