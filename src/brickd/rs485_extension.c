@@ -72,6 +72,7 @@
 
 // Time related constants
 #define MASTER_TRIES                                                    1       // Times master retries a request
+static const uint32_t RETRY_TIMEOUT_PACKETS = 86;
 
 // Packet related constants
 #define MODBUS_PACKET_HEADER_LENGTH      3
@@ -859,7 +860,7 @@ int rs485_extension_init(void) {
             goto cleanup;
         }
         // Calculate time to send number of bytes of max Modbus packet length and receive same amount
-        MASTER_RETRY_TIMEOUT = ((double)(86 /
+        MASTER_RETRY_TIMEOUT = ((double)(RETRY_TIMEOUT_PACKETS /
                                (double)(_modbus_serial_config_baudrate / 8)) *
                                (double)1000000000) * (double)2;
 
