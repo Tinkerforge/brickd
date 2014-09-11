@@ -216,21 +216,21 @@ int main(int argc, char **argv) {
 
 	log_set_debug_override(debug);
 
-	log_set_level(LOG_CATEGORY_EVENT, config_get_option("log_level.event")->value.log_level);
-	log_set_level(LOG_CATEGORY_USB, config_get_option("log_level.usb")->value.log_level);
-	log_set_level(LOG_CATEGORY_NETWORK, config_get_option("log_level.network")->value.log_level);
-	log_set_level(LOG_CATEGORY_HOTPLUG, config_get_option("log_level.hotplug")->value.log_level);
-	log_set_level(LOG_CATEGORY_HARDWARE, config_get_option("log_level.hardware")->value.log_level);
-	log_set_level(LOG_CATEGORY_WEBSOCKET, config_get_option("log_level.websocket")->value.log_level);
+	log_set_level(LOG_CATEGORY_EVENT, config_get_option_value("log_level.event")->log_level);
+	log_set_level(LOG_CATEGORY_USB, config_get_option_value("log_level.usb")->log_level);
+	log_set_level(LOG_CATEGORY_NETWORK, config_get_option_value("log_level.network")->log_level);
+	log_set_level(LOG_CATEGORY_HOTPLUG, config_get_option_value("log_level.hotplug")->log_level);
+	log_set_level(LOG_CATEGORY_HARDWARE, config_get_option_value("log_level.hardware")->log_level);
+	log_set_level(LOG_CATEGORY_WEBSOCKET, config_get_option_value("log_level.websocket")->log_level);
 #ifdef BRICKD_WITH_RED_BRICK
-	log_set_level(LOG_CATEGORY_RED_BRICK, config_get_option("log_level.red_brick")->value.log_level);
-	log_set_level(LOG_CATEGORY_SPI, config_get_option("log_level.spi")->value.log_level);
-	log_set_level(LOG_CATEGORY_RS485, config_get_option("log_level.rs485")->value.log_level);
+	log_set_level(LOG_CATEGORY_RED_BRICK, config_get_option_value("log_level.red_brick")->log_level);
+	log_set_level(LOG_CATEGORY_SPI, config_get_option_value("log_level.spi")->log_level);
+	log_set_level(LOG_CATEGORY_RS485, config_get_option_value("log_level.rs485")->log_level);
 #endif
-	log_set_level(LOG_CATEGORY_OTHER, config_get_option("log_level.other")->value.log_level);
+	log_set_level(LOG_CATEGORY_OTHER, config_get_option_value("log_level.other")->log_level);
 
 	if (config_has_error()) {
-		log_error("Error(s) in config file '%s', run with --check-config option for details",
+		log_error("Error(s) occurred while reading config file '%s'",
 		          _config_filename);
 
 		goto error_config;

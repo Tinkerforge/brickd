@@ -14,6 +14,7 @@ USER_C_FLAGS=$(USER_C_FLAGS) /O2 /wd4200 /wd4214 /FIfixes_msvc.h
 TARGETLIBS=$(SDK_LIB_PATH)\advapi32.lib $(SDK_LIB_PATH)\user32.lib $(SDK_LIB_PATH)\ws2_32.lib
 SOURCES=array.c \
 	config.c \
+	conf_file.c \
 	event.c \
 	event_winapi.c \
 	io.c \
