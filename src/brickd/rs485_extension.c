@@ -71,7 +71,7 @@
 #define RS485_EXTENSION_SERIAL_PARITY_ODD                               111
 
 // Time related constants
-#define MASTER_TRIES                                                    1       // Times master retries a request
+#define MASTER_TRIES                                                    2       // Times master retries a request
 static const uint32_t RETRY_TIMEOUT_PACKETS = 86;
 
 // Packet related constants
@@ -165,6 +165,7 @@ static Packet current_request;
 static char current_request_as_byte_array[sizeof(Packet) + MODBUS_PACKET_OVERHEAD];
 static uint8_t current_sequence_number = 0; // Current session sequence number
 static int master_current_slave_to_process = 0; // Only used used by master
+static int master_current_slave_to_process_queue = 0;
 static int master_current_tries = 0; // For counting retries
 
 // Saved configs from EEPROM
@@ -206,7 +207,6 @@ void rs485_serial_data_available_handler(void*);
 void master_poll_slave(void);
 void master_retry_timeout_handler(void*);
 void rs485_extension_dispatch_to_modbus(Stack*, Packet*, Recipient*);
-void end_current_request(void);
 void disable_master_retry_timer(void);
 void rs485_extension_exit(void);
 
@@ -363,6 +363,7 @@ void verify_buffer(uint8_t* receive_buffer) {
     if(send_verify_flag) {
         for(i = 0; i <= packet_end_index; i++) {
             if(receive_buffer[i] != current_request_as_byte_array[i]) {
+				log_debug("RS485: Send verification failed. Retrying current request.");
                 // Abort current request and retry
                 master_retry_timeout_handler(NULL);
                 return;
@@ -373,9 +374,9 @@ void verify_buffer(uint8_t* receive_buffer) {
 
         if(sent_ack_of_data_packet) {
             // Request processing done. Move on to next slave.
-            sent_ack_of_data_packet = 0;
+			log_debug("RS485: Current request processed");
+			disable_master_retry_timer();
             master_poll_slave();
-            log_debug("RS485: Current request processed");
             return;
         }
         if(current_receive_buffer_index == packet_end_index+1) {
@@ -392,14 +393,15 @@ void verify_buffer(uint8_t* receive_buffer) {
                     current_receive_buffer_index - (packet_end_index+1));
             current_receive_buffer_index = current_receive_buffer_index - (packet_end_index+1);
             // A recursive call to handle the remaining bytes in the buffer
+            log_debug("RS485: Ptential artial data in the buffer. Verifying.");
             verify_buffer(receive_buffer);
-            log_debug("RS485: Partial data in the buffer");
             return;
         }
         // Undefined state, abort current request
-        // Abort current request and retry
-        master_retry_timeout_handler(NULL);
+        // Retry current request
         log_error("RS485: Undefined receive buffer state");
+        disable_master_retry_timer();
+        master_retry_timeout_handler(NULL);
         return;
     }
 
@@ -410,24 +412,38 @@ void verify_buffer(uint8_t* receive_buffer) {
         // If configured as master
         if(_modbus_serial_config_address == 0) {
             // Checking Modbus address
-            if(receive_buffer[0] != _rs485_extension.slaves[master_current_slave_to_process]){
-                // Retry the current request
-                master_retry_timeout_handler(NULL);
-                log_error("RS485: Wrong address in received empty packet");
-                return;
-            }
+            if(sent_current_request_from_queue) {
+				if(receive_buffer[0] != _rs485_extension.slaves[master_current_slave_to_process_queue]){
+					// Retry the current request
+					disable_master_retry_timer();
+					log_error("RS485: Wrong address in received empty packet");
+					master_retry_timeout_handler(NULL);
+					return;
+				}
+			}
+			else {
+				if(receive_buffer[0] != _rs485_extension.slaves[master_current_slave_to_process]){
+					// Retry the current request
+					disable_master_retry_timer();
+					log_error("RS485: Wrong address in received empty packet");
+					master_retry_timeout_handler(NULL);
+					return;
+				}
+			}
             // Checking Modbus function code
             if(receive_buffer[1] != RS485_EXTENSION_MODBUS_FUNCTION_CODE) {
                 // Retry the current request
+                disable_master_retry_timer();
+                log_error("RS485: Wrong address in received empty packet");
                 master_retry_timeout_handler(NULL);
-                log_error("RS485: Wrong function code in received empty packet");
                 return;
             }
             // Checking current sequence number
             if(receive_buffer[2] != current_sequence_number) {
                 // Retry the current request
-                master_retry_timeout_handler(NULL);
+                disable_master_retry_timer();
                 log_error("RS485: Wrong sequence number in received empty packet");
+                master_retry_timeout_handler(NULL);
                 return;
             }
             // Checking the CRC16 checksum
@@ -436,17 +452,14 @@ void verify_buffer(uint8_t* receive_buffer) {
                               receive_buffer[packet_end_index];
             if (crc16_calculated != crc16_on_packet) {
                 // Retry the current request
-                master_retry_timeout_handler(NULL);
+                disable_master_retry_timer();
                 log_error("RS485: Wrong CRC16 checksum in received empty packet");
+                master_retry_timeout_handler(NULL);
                 return;
             }
 
             disable_master_retry_timer();
             log_debug("RS485: Empty packet received");
-
-            if(sent_current_request_from_queue){
-                queue_pop(&_rs485_extension.packet_to_modbus_queue, NULL);
-            }
 
             // Updating recipient in the routing table
             memcpy(&uid_from_packet, &receive_buffer[3], sizeof(uint32_t));
@@ -469,24 +482,38 @@ void verify_buffer(uint8_t* receive_buffer) {
     // If configured as master
     if(_modbus_serial_config_address == 0) {
         // Checking Modbus address
-        if(receive_buffer[0] != _rs485_extension.slaves[master_current_slave_to_process]){
-            // Retry the current request
-            master_retry_timeout_handler(NULL);
-            log_error("RS485: Wrong address in received data packet");
-            return;
-        }
+        if(sent_current_request_from_queue) {
+			if(receive_buffer[0] != _rs485_extension.slaves[master_current_slave_to_process_queue]){
+				// Retry the current request
+				disable_master_retry_timer();
+				log_error("RS485: Wrong address in received data packet");
+				master_retry_timeout_handler(NULL);
+				return;
+			}
+		}
+		else {
+			if(receive_buffer[0] != _rs485_extension.slaves[master_current_slave_to_process]){
+				// Retry the current request
+				disable_master_retry_timer();
+				log_error("RS485: Wrong address in received data packet");
+				master_retry_timeout_handler(NULL);
+				return;
+			}
+		}
         // Checking Modbus function code
         if(receive_buffer[1] != RS485_EXTENSION_MODBUS_FUNCTION_CODE) {
             // Retry the current request
-            master_retry_timeout_handler(NULL);
+            disable_master_retry_timer();
             log_error("RS485: Wrong function code in received data packet");
+            master_retry_timeout_handler(NULL);
             return;
         }
         // Checking current sequence number
         if(receive_buffer[2] != current_sequence_number) {
             // Retry the current request
-            master_retry_timeout_handler(NULL);
+            disable_master_retry_timer();
             log_error("RS485: Wrong sequence number in received data packet");
+            master_retry_timeout_handler(NULL);
             return;
         }
         // Checking the CRC16 checksum
@@ -495,8 +522,9 @@ void verify_buffer(uint8_t* receive_buffer) {
                            receive_buffer[packet_end_index];
         if (crc16_calculated != crc16_on_packet) {
             // Retry the current request
-            master_retry_timeout_handler(NULL);
+            disable_master_retry_timer();
             log_error("RS485: Wrong CRC16 checksum in received data packet");
+            master_retry_timeout_handler(NULL);
             return;
         }
 
@@ -509,10 +537,6 @@ void verify_buffer(uint8_t* receive_buffer) {
         network_dispatch_response(&data_packet);
         log_debug("RS485: Dispatched packet to network subsystem");
 
-        if(sent_current_request_from_queue){
-            queue_pop(&_rs485_extension.packet_to_modbus_queue, NULL);
-        }
-
         // Updating recipient in the routing table
         memcpy(&uid_from_packet, &receive_buffer[3], sizeof(uint32_t));
         stack_add_recipient(&_rs485_extension.base, uid_from_packet, receive_buffer[0]);
@@ -520,11 +544,18 @@ void verify_buffer(uint8_t* receive_buffer) {
         // Send ACK to the slave
         memset(&current_request, 0, sizeof(Packet));
         current_request.header.length = 8;
-        send_modbus_packet(_rs485_extension.slaves[master_current_slave_to_process],
-                           current_sequence_number,
-                           &current_request);
-
+        current_receive_buffer_index = 0;
         sent_ack_of_data_packet = 1;
+        if(sent_current_request_from_queue) {
+			send_modbus_packet(_rs485_extension.slaves[master_current_slave_to_process_queue],
+							   current_sequence_number,
+							   &current_request);
+		}
+		else {
+			send_modbus_packet(_rs485_extension.slaves[master_current_slave_to_process],
+							   current_sequence_number,
+							   &current_request);
+		}
         return;
     }
     // If configured as a slave
@@ -534,8 +565,9 @@ void verify_buffer(uint8_t* receive_buffer) {
     // Undefined state
     
     // Retry current request
-    master_retry_timeout_handler(NULL);
+    disable_master_retry_timer();
     log_error("RS485: Undefined packet receive state");
+    master_retry_timeout_handler(NULL);
     return;
 }
 
@@ -610,7 +642,7 @@ void rs485_serial_data_available_handler(void* opaque) {
 
     // Check if there is space in the receive buffer
     if(current_receive_buffer_index >= (RECEIVE_BUFFER_SIZE - MODBUS_PACKET_MAX_LENGTH)) {
-        log_warn("RS485: No more space in the receive buffer");
+        log_warn("RS485: No more space in the receive buffer. Current request aborted.");
         master_poll_slave();
         return;
     }
@@ -628,9 +660,18 @@ void rs485_serial_data_available_handler(void* opaque) {
 
 // Master polling slave event handler
 void master_poll_slave() {
-    // Disable timer and reset current request states
+
     disable_master_retry_timer();
-    end_current_request();
+    
+	if(sent_current_request_from_queue) {
+		queue_pop(&_rs485_extension.packet_to_modbus_queue, NULL);
+	}
+	
+	// Flush buffer
+	tcflush(_rs485_serial_fd, TCIOFLUSH);
+	
+	current_receive_buffer_index = 0;
+
     // Check out going queue if nothing to send from there then
     // send modbus packet without payload to current slave
     RS485ExtensionPacket* packet_to_modbus;
@@ -641,14 +682,13 @@ void master_poll_slave() {
         // we poll a slave with an empty message
 
         // Update current slave to process
-        if(master_current_slave_to_process > 0) {
-            if (master_current_slave_to_process >= _rs485_extension.slave_num) {
-                master_current_slave_to_process = 0;
-            }
-            else {
-                master_current_slave_to_process++;
-            }
-        }
+		if (master_current_slave_to_process >= _rs485_extension.slave_num) {
+			master_current_slave_to_process = 0;
+		}
+        else {
+			master_current_slave_to_process++;
+		}
+
         log_debug("RS485: Updated current Modbus slave's index");
 
         // Update current sequence number
@@ -683,7 +723,7 @@ void master_poll_slave() {
         int i;
         for(i = 0; i < _rs485_extension.slave_num; i++){
             if(packet_to_modbus->slave_address == _rs485_extension.slaves[i]) {
-                master_current_slave_to_process = i;
+                master_current_slave_to_process_queue = i;
                 log_debug("RS485: Updated current Modbus slave's index");
                 break;
             }
@@ -722,9 +762,12 @@ void master_poll_slave() {
 void master_retry_timeout_handler(void* opaque) {
 	(void)opaque;
 
-    // Disable timer and reset current request states
+    // Disable timer
     disable_master_retry_timer();
-    end_current_request();
+    // Flush buffer
+    tcflush(_rs485_serial_fd, TCIOFLUSH);
+    
+    current_receive_buffer_index = 0;
 
     if(master_current_tries == 0) {
         master_poll_slave();
@@ -732,9 +775,16 @@ void master_retry_timeout_handler(void* opaque) {
     }
 
     // Resend request
-    send_modbus_packet(_rs485_extension.slaves[master_current_slave_to_process],
-                       current_sequence_number,
-                       &current_request);
+    if(sent_current_request_from_queue) {
+		send_modbus_packet(_rs485_extension.slaves[master_current_slave_to_process_queue],
+						   current_sequence_number,
+						   &current_request);
+	}
+    else {
+		send_modbus_packet(_rs485_extension.slaves[master_current_slave_to_process],
+						   current_sequence_number,
+						   &current_request);
+	}
     
     master_current_tries --;
     
@@ -766,16 +816,6 @@ void rs485_extension_dispatch_to_modbus(Stack *stack, Packet *request, Recipient
 		          recipient->opaque,
 		          packet_get_request_signature(packet_signature, request));
 	}
-}
-
-// Used from data available handler to abort the current request
-void end_current_request() {
-    current_receive_buffer_index = 0;
-    if(sent_current_request_from_queue) {
-        queue_pop(&_rs485_extension.packet_to_modbus_queue, NULL);
-    }
-    tcflush(_rs485_serial_fd, TCIOFLUSH);
-    log_debug("RS485: Current request ended");
 }
 
 // Init function called from central brickd code
@@ -860,9 +900,9 @@ int rs485_extension_init(void) {
             goto cleanup;
         }
         // Calculate time to send number of bytes of max Modbus packet length and receive same amount
-        MASTER_RETRY_TIMEOUT = ((double)(RETRY_TIMEOUT_PACKETS /
+        MASTER_RETRY_TIMEOUT = (((double)(RETRY_TIMEOUT_PACKETS /
                                (double)(_modbus_serial_config_baudrate / 8)) *
-                               (double)1000000000) * (double)2;
+                               (double)1000000000) * (double)2) + (double)8000000;
 
         // Modbus config: PARITY
         _eeprom_read_status = i2c_eeprom_read((uint16_t)RS485_EXTENSION_MODBUS_CONFIG_LOCATION_PARTIY,
