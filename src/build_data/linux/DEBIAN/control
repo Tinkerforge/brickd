@@ -12,4 +12,4 @@ Description: Tinkerforge Brick Daemon
  (Bricks) and TCP/IP sockets. This allows user programs to use TCP/IP sockets
  to communicate with Bricks and their Bricklets connected to USB without having
  to deal with USB themselves. The TCP/IP communication itself is encapsulated
- in API bindings available for various programming languages
+ in API bindings available for various programming languages.
