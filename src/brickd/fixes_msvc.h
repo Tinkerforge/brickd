@@ -52,6 +52,9 @@ int fixed_putenv(char *string);
 #define strdup _strdup
 #define getch _getch
 #define putenv _putenv
+#define fileno _fileno
+#define read _read
+#define write _write
 
 // ensure that functions are avialable under their POSIX names
 #define snprintf(buffer, count, format, ...) \
