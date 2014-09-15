@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2013 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2013-2014 Matthias Bolte <matthias@tinkerforge.com>
  *
  * queue_test.c: Tests for the Queue type
  *
@@ -27,7 +27,7 @@
 int test1(void) {
 	Queue queue;
 
-	if (queue_create(&queue, sizeof(uint32_t))) {
+	if (queue_create(&queue, sizeof(uint32_t)) < 0) {
 		printf("test1: queue_create failed\n");
 
 		return -1;
@@ -105,7 +105,7 @@ int test2(void) {
 	int i;
 	void *value;
 
-	if (queue_create(&queue, 17)) {
+	if (queue_create(&queue, 17) < 0) {
 		printf("test2: queue_create failed\n");
 
 		return -1;

@@ -28,7 +28,7 @@
 int test1(bool relocatable) {
 	Array array;
 
-	if (array_create(&array, 0, sizeof(uint32_t), relocatable)) {
+	if (array_create(&array, 0, sizeof(uint32_t), relocatable) < 0) {
 		printf("test1: array_create failed\n");
 
 		return -1;
@@ -96,7 +96,7 @@ int test2(void) {
 	int i;
 	void *value;
 
-	if (array_create(&array, 0, 17, false)) {
+	if (array_create(&array, 0, 17, false) < 0) {
 		printf("test2: array_create failed\n");
 
 		return -1;
