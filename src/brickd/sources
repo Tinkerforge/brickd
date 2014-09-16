@@ -7,7 +7,7 @@ MSC_WARNING_LEVEL=/W3
 !ENDIF
 USE_MSVCRT=1
 UMTYPE=console
-INCLUDES=..;..\daemonlib;..\build_data\Windows;..\build_data\Windows\libusb;$(DDK_INC_PATH)
+INCLUDES=$(INCLUDES);..;..\daemonlib;..\build_data\Windows;..\build_data\Windows\libusb
 UMLIBS=..\build_data\Windows\libusb\libusb-1.0.lib
 C_DEFINES=$(C_DEFINES) /DWIN32_LEAN_AND_MEAN /DNDEBUG /DBRICKD_WDK_BUILD /DDAEMONLIB_WITH_LOGGING
 USER_C_FLAGS=$(USER_C_FLAGS) /O2 /wd4200 /wd4214 /FIfixes_msvc.h
