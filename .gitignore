@@ -10,3 +10,4 @@ src/brickd/log_messages.rc
 src/oacr_tmp
 src/tests/*_test
 src/tests/*_test.exe
+src/tests/conf_file_test*_output.conf
