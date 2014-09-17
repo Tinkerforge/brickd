@@ -27,6 +27,7 @@
 #include <daemonlib/log.h>
 #include <daemonlib/queue.h>
 #include <daemonlib/socket.h>
+#include <daemonlib/timer.h>
 
 #include "redapid.h"
 
@@ -37,6 +38,7 @@
 
 #define LOG_CATEGORY LOG_CATEGORY_RED_BRICK
 
+#define RECONNECT_INTERVAL 2000000 // 2 seconds in microseconds
 #define SOCKET_FILENAME "/var/run/redapid.socket"
 
 typedef struct {
@@ -50,10 +52,29 @@ typedef struct {
 } REDBrickAPIDaemon;
 
 static REDBrickAPIDaemon _redapid;
-static bool _redapid_connected = false;
+static Timer _reconnect_timer;
+static bool _connected = false;
+static bool _connect_error_warning = false;
 
-static int redapid_connect(void);
-static void redapid_disconnect(void);
+static void redapid_disconnect(bool reconnect) {
+	writer_destroy(&_redapid.request_writer);
+
+	event_remove_source(_redapid.socket.base.handle, EVENT_SOURCE_TYPE_GENERIC);
+	socket_destroy(&_redapid.socket);
+
+	_connected = false;
+	_connect_error_warning = false;
+
+	if (reconnect) {
+		// start reconnect timer
+		if (timer_configure(&_reconnect_timer, 0, RECONNECT_INTERVAL) < 0) {
+			log_error("Could not start reconnect timer for RED Brick API Daemon: %s (%d)",
+			          get_errno_name(errno), errno);
+
+			return;
+		}
+	}
+}
 
 static void redapid_handle_read(void *opaque) {
 	int length;
@@ -68,9 +89,7 @@ static void redapid_handle_read(void *opaque) {
 	if (length == 0) {
 		log_info("RED Brick API Daemon disconnected by peer");
 
-		redapid_disconnect();
-
-		// FIXME: reconnect?
+		redapid_disconnect(true);
 
 		return;
 	}
@@ -86,8 +105,7 @@ static void redapid_handle_read(void *opaque) {
 			log_error("Could not receive from RED Brick API Daemon, disconnecting redapid: %s (%d)",
 			          get_errno_name(errno), errno);
 
-			redapid_disconnect();
-			redapid_connect();
+			redapid_disconnect(true);
 		}
 
 		return;
@@ -95,7 +113,7 @@ static void redapid_handle_read(void *opaque) {
 
 	_redapid.response_used += length;
 
-	while (_redapid_connected && _redapid.response_used > 0) {
+	while (_connected && _redapid.response_used > 0) {
 		if (_redapid.response_used < (int)sizeof(PacketHeader)) {
 			// wait for complete header
 			break;
@@ -108,8 +126,7 @@ static void redapid_handle_read(void *opaque) {
 				          packet_get_response_signature(packet_signature, &_redapid.response),
 				          message);
 
-				redapid_disconnect();
-				redapid_connect();
+				redapid_disconnect(true);
 
 				return;
 			}
@@ -184,7 +201,7 @@ static int redapid_dispatch_request(Stack *stack, Packet *request,
 		enumerate_callback.enumeration_type = ENUMERATION_TYPE_AVAILABLE;
 
 		network_dispatch_response((Packet *)&enumerate_callback);
-	} else if (_redapid_connected) {
+	} else if (_connected) {
 		// forward to redapid
 		enqueued = writer_write(&_redapid.request_writer, request);
 
@@ -214,13 +231,14 @@ static char *redapid_get_recipient_signature(char *signature, bool upper, void *
 static void redapid_recipient_disconnect(void *opaque) {
 	(void)opaque;
 
-	redapid_disconnect();
-	redapid_connect();
+	redapid_disconnect(true);
 }
 
-static int redapid_connect(void) {
+static void redapid_handle_reconnect(void *opaque) {
 	int phase = 0;
 	struct sockaddr_un address;
+
+	(void)opaque;
 
 	_redapid.response_used = 0;
 	_redapid.response_header_checked = false;
@@ -249,8 +267,12 @@ static int redapid_connect(void) {
 	strcpy(address.sun_path, SOCKET_FILENAME);
 
 	if (socket_connect(&_redapid.socket, (struct sockaddr *)&address, sizeof(address)) < 0) {
-		log_warn("Could not connect UNIX domain socket to '%s': %s (%d)",
-		         SOCKET_FILENAME, get_errno_name(errno), errno);
+		if (!_connect_error_warning) {
+			log_warn("Could not connect to UNIX domain socket '%s', retrying with 2 second interval: %s (%d)",
+			         SOCKET_FILENAME, get_errno_name(errno), errno);
+		}
+
+		_connect_error_warning = true;
 
 		goto cleanup;
 	}
@@ -274,14 +296,27 @@ static int redapid_connect(void) {
 		goto cleanup;
 	}
 
-	_redapid_connected = true;
+	phase = 3;
+
+	// stop reconnect timer
+	if (timer_configure(&_reconnect_timer, 0, 0) < 0) {
+		log_error("Could not stop reconnect timer: %s (%d)",
+		          get_errno_name(errno), errno);
+
+		goto cleanup;
+	}
+
+	_connected = true;
 
 	log_info("Connected to RED Brick API Daemon");
 
-	phase = 3;
+	phase = 4;
 
 cleanup:
 	switch (phase) { // no breaks, all cases fall through intentionally
+	case 3:
+		writer_destroy(&_redapid.request_writer);
+
 	case 2:
 		event_remove_source(_redapid.socket.base.handle, EVENT_SOURCE_TYPE_GENERIC);
 
@@ -291,20 +326,11 @@ cleanup:
 	default:
 		break;
 	}
-
-	return phase == 3 ? 0 : -1;
-}
-
-static void redapid_disconnect(void) {
-	writer_destroy(&_redapid.request_writer);
-
-	event_remove_source(_redapid.socket.base.handle, EVENT_SOURCE_TYPE_GENERIC);
-	socket_destroy(&_redapid.socket);
-
-	_redapid_connected = false;
 }
 
 int redapid_init(void) {
+	int phase = 0;
+
 	log_debug("Initializing RED Brick API subsystem");
 
 	// create base stack
@@ -312,23 +338,50 @@ int redapid_init(void) {
 		log_error("Could not create base stack for RED Brick API Daemon: %s (%d)",
 		          get_errno_name(errno), errno);
 
-		return -1;
+		goto cleanup;
 	}
 
-	redapid_connect();
+	phase = 1;
+
+	// create reconnect timer
+	if (timer_create_(&_reconnect_timer, redapid_handle_reconnect, NULL) < 0) {
+		log_error("Could not create reconnect timer: %s (%d)",
+		          get_errno_name(errno), errno);
+
+		goto cleanup;
+	}
+
+	phase = 2;
+
+	if (timer_configure(&_reconnect_timer, 0, RECONNECT_INTERVAL) < 0) {
+		log_error("Could not start reconnect timer: %s (%d)",
+		          get_errno_name(errno), errno);
+
+		goto cleanup;
+	}
 
 	// add to stacks array
 	if (hardware_add_stack(&_redapid.base) < 0) {
-		if (_redapid_connected) {
-			redapid_disconnect();
-		}
-
 		stack_destroy(&_redapid.base);
 
-		return -1;
+		goto cleanup;
 	}
 
-	return  0;
+	phase = 3;
+
+cleanup:
+	switch (phase) { // no breaks, all cases fall through intentionally
+	case 2:
+		timer_destroy(&_reconnect_timer);
+
+	case 1:
+		stack_destroy(&_redapid.base);
+
+	default:
+		break;
+	}
+
+	return phase == 3 ? 0 : -1;
 }
 
 void redapid_exit(void) {
@@ -336,9 +389,11 @@ void redapid_exit(void) {
 
 	hardware_remove_stack(&_redapid.base);
 
-	if (_redapid_connected) {
-		redapid_disconnect();
+	if (_connected) {
+		redapid_disconnect(false);
 	}
+
+	timer_destroy(&_reconnect_timer);
 
 	stack_destroy(&_redapid.base);
 }
