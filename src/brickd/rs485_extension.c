@@ -628,7 +628,7 @@ void init_rx_state(void) {
 
 void disable_master_timer() {
     uint64_t dummy_read_buffer = 0;
-    read(_master_timer_event, &dummy_read_buffer, sizeof(uint64_t));
+    if (read(_master_timer_event, &dummy_read_buffer, sizeof(uint64_t)) < 0) {}
     master_timer.it_interval.tv_sec = 0;
     master_timer.it_interval.tv_nsec = 0;
     master_timer.it_value.tv_sec = 0;
