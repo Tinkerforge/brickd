@@ -358,8 +358,6 @@ int client_create(Client *client, const char *name, IO *io,
 		log_error("Could not create response writer: %s (%d)",
 		          get_errno_name(errno), errno);
 
-		writer_destroy(&client->response_writer);
-
 		return -1;
 	}
 
