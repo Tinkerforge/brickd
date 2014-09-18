@@ -84,16 +84,37 @@ static int prepare_paths(void) {
 		home = pw->pw_dir;
 	}
 
-	if (strlen(home) + strlen("/.brickd/brickd.conf") >= sizeof(brickd_dirname)) {
-		fprintf(stderr, "Home directory name is too long\n");
+	if (robust_snprintf(brickd_dirname, sizeof(brickd_dirname),
+	                    "%s/.brickd", home) < 0) {
+		fprintf(stderr, "Could not format ~/.brickd directory name: %s (%d)\n",
+		        get_errno_name(errno), errno);
 
 		return -1;
 	}
 
-	snprintf(brickd_dirname, sizeof(brickd_dirname), "%s/.brickd", home);
-	snprintf(_config_filename, sizeof(_config_filename), "%s/.brickd/brickd.conf", home);
-	snprintf(_pid_filename, sizeof(_pid_filename), "%s/.brickd/brickd.pid", home);
-	snprintf(_log_filename, sizeof(_log_filename), "%s/.brickd/brickd.log", home);
+	if (robust_snprintf(_config_filename, sizeof(_config_filename),
+	                    "%s/.brickd/brickd.conf", home) < 0) {
+		fprintf(stderr, "Could not format ~/.brickd/brickd.conf file name: %s (%d)\n",
+		        get_errno_name(errno), errno);
+
+		return -1;
+	}
+
+	if (robust_snprintf(_pid_filename, sizeof(_pid_filename),
+	                    "%s/.brickd/brickd.pid", home) < 0) {
+		fprintf(stderr, "Could not format ~/.brickd/brickd.pid file name: %s (%d)\n",
+		        get_errno_name(errno), errno);
+
+		return -1;
+	}
+
+	if (robust_snprintf(_log_filename, sizeof(_log_filename),
+	                    "%s/.brickd/brickd.log", home) < 0) {
+		fprintf(stderr, "Could not format ~/.brickd/brickd.log file name: %s (%d)\n",
+		        get_errno_name(errno), errno);
+
+		return -1;
+	}
 
 	if (mkdir(brickd_dirname, 0755) < 0) {
 		if (errno != EEXIST) {
@@ -311,7 +332,7 @@ error_run:
 
 error_rs485_extension:
 	red_stack_exit();
-    
+
 error_red_stack:
 	redapid_exit();
 
