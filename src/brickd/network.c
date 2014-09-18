@@ -62,7 +62,7 @@ static void network_handle_accept(void *opaque) {
 	socklen_t length = sizeof(address);
 	char hostname[NI_MAXHOST];
 	char port[NI_MAXSERV];
-	char buffer[NI_MAXHOST + NI_MAXSERV];
+	char buffer[NI_MAXHOST + NI_MAXSERV + 4]; // 4 == strlen("[]:") + 1
 	char *name = "<unknown>";
 
 	// accept new client socket
