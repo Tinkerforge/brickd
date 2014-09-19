@@ -566,7 +566,9 @@ void verify_buffer(uint8_t* receive_buffer) {
         network_dispatch_response(&_rs485_extension.dispatch_packet);
         log_debug("RS485: Dispatched packet to network subsystem");
         
-        printf("DATA PACKET UID UPDATING ROUTING TABLE, %d <<<*\n\n", uid_from_packet);
+        printf("**>>>>>>>> DATA PACKET RECEIVED WITH SIGNATURE = (%s)\n\n",
+               packet_get_request_signature(packet_signature, &_rs485_extension.dispatch_packet));
+               
         stack_add_recipient(&_rs485_extension.base, uid_from_packet, receive_buffer[0]);
 
         slave_queue_packet = queue_peek(&_rs485_extension.slaves[master_current_slave_to_process].packet_queue);
@@ -657,7 +659,10 @@ void send_modbus_packet() {
             master_poll_slave();
             return;
         }
-
+		
+		printf("**>>>>>>>> PACKET SENT WITH SIGNATURE = (%s)\n\n",
+               packet_get_request_signature(packet_signature, &packet_to_send->packet));
+		
         // Start the master timer
         master_timer.it_interval.tv_sec = 0;
         master_timer.it_interval.tv_nsec = 0;
@@ -843,10 +848,12 @@ void rs485_extension_dispatch_to_modbus(Stack *stack, Packet *request, Recipient
                 queued_request = queue_push(&_rs485_extension.slaves[i].packet_queue);
                 queued_request->tries_left = PACKET_TRIES_DATA;
                 memcpy(&queued_request->packet, request, request->header.length);
-                log_debug("RS485: Packet is queued to be sent to slave %d over Modbus. Function signature = (%s)",
+                printf("RS485: [BROADCAST] Packet is queued to be sent to slave %d over Modbus. Function signature = (%s)\n\n",
                           _rs485_extension.slaves[i].address,
                           packet_get_request_signature(packet_signature, request));
-                printf("Queued from network sub-system. Broacast. SLAVE=%d\n\n", _rs485_extension.slaves[i].address);
+                /*log_debug("RS485: Packet is queued to be sent to slave %d over Modbus. Function signature = (%s)",
+                          _rs485_extension.slaves[i].address,
+                          packet_get_request_signature(packet_signature, request));*/
             }
         }
         else {
@@ -861,10 +868,12 @@ void rs485_extension_dispatch_to_modbus(Stack *stack, Packet *request, Recipient
                     queued_request = queue_push(&_rs485_extension.slaves[i].packet_queue);
                     queued_request->tries_left = PACKET_TRIES_DATA;
                     memcpy(&queued_request->packet, request, request->header.length);
-                    log_debug("RS485: Packet is queued to be sent to slave %d over Modbus. Function signature = (%s)",
+                    printf("RS485: [NO BROADCAST] Packet is queued to be sent to slave %d over Modbus. Function signature = (%s)\n\n",
                               _rs485_extension.slaves[i].address,
                               packet_get_request_signature(packet_signature, request));
-                    printf("Queued from network sub-system. No Broacast. SLAVE=%d\n\n", _rs485_extension.slaves[i].address);
+                    /*log_debug("RS485: Packet is queued to be sent to slave %d over Modbus. Function signature = (%s)",
+                              _rs485_extension.slaves[i].address,
+                              packet_get_request_signature(packet_signature, request));*/
                     break;
                 }
             }
