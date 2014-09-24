@@ -141,15 +141,9 @@ static void redapid_handle_read(void *opaque) {
 			break;
 		}
 
-		// FIXME: avoid packet_header_get_sequence_number call if log_debug is disabled
-		if (packet_header_get_sequence_number(&_redapid.response.header) == 0) {
-			log_debug("Received %scallback (%s) from RED Brick API Daemon",
-			          packet_get_callback_type(&_redapid.response),
-			          packet_get_callback_signature(packet_signature, &_redapid.response));
-		} else {
-			log_debug("Received response (%s) from RED Brick API Daemon",
-			          packet_get_response_signature(packet_signature, &_redapid.response));
-		}
+		log_debug("Received %s (%s) from RED Brick API Daemon",
+		          packet_get_response_type(&_redapid.response),
+		          packet_get_response_signature(packet_signature, &_redapid.response));
 
 		stack_add_recipient(&_redapid.base, _redapid.response.header.uid, 0);
 
