@@ -193,7 +193,7 @@ static struct itimerspec master_timer;
 // Used as boolean
 static uint8_t sent_ack_of_data_packet = 0;
 static uint8_t send_verify_flag = 0;
-static uint8_t slave_waiting_ack_of_data_packet = 0;
+//static uint8_t slave_waiting_ack_of_data_packet = 0;
 
 // RX GPIO pin definitions
 static GPIOPin _rx_pin; // Active low
@@ -400,7 +400,7 @@ void verify_buffer(uint8_t* receive_buffer) {
         if(current_receive_buffer_index == packet_end_index+1) {
             // Everything OK. Wait for response now
             current_receive_buffer_index = 0;
-            memset(receive_buffer, 0, sizeof(receive_buffer));
+            memset(receive_buffer, 0, RECEIVE_BUFFER_SIZE);
             log_debug("RS485: Current request processed. Waiting for response.");
             return;
         }
@@ -579,7 +579,7 @@ void verify_buffer(uint8_t* receive_buffer) {
         slave_queue_packet->packet.header.length = 8;
         
         current_receive_buffer_index = 0;
-        memset(receive_buffer, 0, sizeof(receive_buffer));
+        memset(receive_buffer, 0, RECEIVE_BUFFER_SIZE);
         sent_ack_of_data_packet = 1;
 
         send_modbus_packet();
