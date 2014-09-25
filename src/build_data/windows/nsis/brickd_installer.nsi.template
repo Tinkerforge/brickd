@@ -200,7 +200,7 @@ UninstPage instfiles
 
 ;--------------------------------
 
-Section /o "-uninstall old brickd" SEC_UNINSTALL_OLD
+Section /o "-Uninstall Brick Daemon" SEC_UNINSTALL_OLD
 
   !insertmacro macrouninstall
 
@@ -252,7 +252,7 @@ SectionEnd
 
 ;--------------------------------
 
-Section /o "-install brick driver" SEC_INSTALL_BRICK_DRIVER
+Section /o "-Install/Update Brick Driver" SEC_INSTALL_BRICK_DRIVER
 
   Push "Brick"
   Push "$INSTDIR\drivers\brick"
@@ -264,7 +264,7 @@ SectionEnd
 
 ;--------------------------------
 
-Section /o "-install red brick driver" SEC_INSTALL_RED_BRICK_DRIVER
+Section /o "-Install/Update RED Brick Driver" SEC_INSTALL_RED_BRICK_DRIVER
 
   Push "RED Brick"
   Push "$INSTDIR\drivers\brick"

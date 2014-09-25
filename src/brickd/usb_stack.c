@@ -115,17 +115,10 @@ static void usb_stack_read_callback(USBTransfer *usb_transfer) {
 		return;
 	}
 
-	// FIXME: avoid packet_header_get_sequence_number call if log_debug is disabled
-	if (packet_header_get_sequence_number(&usb_transfer->packet.header) == 0) {
-		log_debug("Received %scallback (%s) from %s",
-		          packet_get_callback_type(&usb_transfer->packet),
-		          packet_get_callback_signature(packet_signature, &usb_transfer->packet),
-		          usb_transfer->usb_stack->base.name);
-	} else {
-		log_debug("Received response (%s) from %s",
-		          packet_get_response_signature(packet_signature, &usb_transfer->packet),
-		          usb_transfer->usb_stack->base.name);
-	}
+	log_debug("Received %s (%s) from %s",
+	          packet_get_response_type(&usb_transfer->packet),
+	          packet_get_response_signature(packet_signature, &usb_transfer->packet),
+	          usb_transfer->usb_stack->base.name);
 
 	if (stack_add_recipient(&usb_transfer->usb_stack->base,
 	                        usb_transfer->packet.header.uid, 0) < 0) {

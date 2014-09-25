@@ -105,7 +105,7 @@ def build_windows_pkg():
     nsis_dir = os.path.join(os.getcwd(), 'dist', 'nsis')
     os.makedirs(nsis_dir)
     lines = []
-    for line in file('../build_data/Windows/nsis/brickd_installer.nsi', 'rb').readlines():
+    for line in file('../build_data/Windows/nsis/brickd_installer.nsi.template', 'rb').readlines():
         line = line.replace('<<BRICKD_DOT_VERSION>>', version)
         line = line.replace('<<BRICKD_UNDERSCORE_VERSION>>', version.replace('.', '_'))
         lines.append(line)

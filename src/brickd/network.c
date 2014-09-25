@@ -486,16 +486,16 @@ void network_dispatch_response(Packet *response) {
 		}
 
 		if (_clients.count == 0) {
-			log_debug("No clients connected, dropping %scallback (%s)",
-			          packet_get_callback_type(response),
-			          packet_get_callback_signature(packet_signature, response));
+			log_debug("No clients connected, dropping %s (%s)",
+			          packet_get_response_type(response),
+			          packet_get_response_signature(packet_signature, response));
 
 			return;
 		}
 
-		log_debug("Broadcasting %scallback (%s) to %d client(s)",
-		          packet_get_callback_type(response),
-		          packet_get_callback_signature(packet_signature, response),
+		log_debug("Broadcasting %s (%s) to %d client(s)",
+		          packet_get_response_type(response),
+		          packet_get_response_signature(packet_signature, response),
 		          _clients.count);
 
 		for (i = 0; i < _clients.count; ++i) {
