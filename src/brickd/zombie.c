@@ -51,10 +51,16 @@ int zombie_create(Zombie *zombie, Client *client) {
 
 	// create single shot timer with a delay of 1sec
 	if (timer_create_(&zombie->timer, zombie_handle_timeout, zombie) < 0) {
+		log_error("Could not create zombie timer: %s (%d)",
+		          get_errno_name(errno), errno);
+
 		return -1;
 	}
 
 	if (timer_configure(&zombie->timer, 1000000, 0) < 0) {
+		log_error("Could not start zombie timer: %s (%d)",
+		          get_errno_name(errno), errno);
+
 		timer_destroy(&zombie->timer);
 
 		return -1;
@@ -107,6 +113,11 @@ void zombie_dispatch_response(Zombie *zombie, PendingRequest *pending_request) {
 
 		log_debug("Zombie (id: %u) finished", zombie->id);
 
-		timer_configure(&zombie->timer, 0, 0);
+		if (timer_configure(&zombie->timer, 0, 0) < 0) {
+			log_error("Could not stop zombie timer: %s (%d)",
+			          get_errno_name(errno), errno);
+
+			return;
+		}
 	}
 }
