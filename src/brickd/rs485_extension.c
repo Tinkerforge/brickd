@@ -164,7 +164,7 @@ typedef struct {
 } RS485Extension;
 
 static RS485Extension _rs485_extension;
-static char packet_signature[PACKET_MAX_SIGNATURE_LENGTH] = {0};
+//static char packet_signature[PACKET_MAX_SIGNATURE_LENGTH] = {0};
 static int _rs485_serial_fd = -1; // Serial interface file descriptor
 
 // Variables tracking current states
@@ -1145,242 +1145,239 @@ int rs485_extension_init(void) {
                                  (_tmp_eeprom_read_buf[2] << 16) |
                                  (_tmp_eeprom_read_buf[3] << 24));
 
-    if (_rs485_eeprom_config_type == RS485_EXTENSION_TYPE) {
-
-        log_info("RS485: Initializing extension subsystem");
-
-        // Create base stack
-        if(stack_create(&_rs485_extension.base, "rs485_extension",
-                        (StackDispatchRequestFunction)rs485_extension_dispatch_to_rs485) < 0) {
-            log_error("RS485: Could not create base stack for extension: %s (%d)",
-                      get_errno_name(errno), errno);
-
-            goto cleanup;
-        }
-
-        phase = 1;
-
-        // Add to stacks array
-        if(hardware_add_stack(&_rs485_extension.base) < 0) {
-            goto cleanup;
-        }
-
-        phase = 2;
-
-        // Reading and storing eeprom config
-        
-        // Modbus config: ADDRESS
-        _eeprom_read_status =
-        i2c_eeprom_read((uint16_t)RS485_EXTENSION_EEPROM_CONFIG_LOCATION_ADDRESS,
-                        _tmp_eeprom_read_buf, 4);
-        if (_eeprom_read_status <= 0) {
-            log_error("RS485: Could not read config ADDRESS from EEPROM");
-            goto cleanup;
-        }
-        _rs485_eeprom_config_address = (uint32_t)((_tmp_eeprom_read_buf[0] << 0) |
-                                        (_tmp_eeprom_read_buf[1] << 8) |
-                                        (_tmp_eeprom_read_buf[2] << 16) |
-                                        (_tmp_eeprom_read_buf[3] << 24));
-        
-        // Modbus config: BAUDRATE
-        _eeprom_read_status = i2c_eeprom_read((uint16_t)RS485_EXTENSION_EEPROM_CONFIG_LOCATION_BAUDRATE,
-                                              _tmp_eeprom_read_buf, 4);
-        if (_eeprom_read_status <= 0) {
-            log_error("RS485: Could not read config BAUDRATE from EEPROM");
-            goto cleanup;
-        }
-        _rs485_eeprom_config_baudrate = (uint32_t)((_tmp_eeprom_read_buf[0] << 0) |
-                                         (_tmp_eeprom_read_buf[1] << 8) |
-                                         (_tmp_eeprom_read_buf[2] << 16) |
-                                         (_tmp_eeprom_read_buf[3] << 24));
-        
-        if(_rs485_eeprom_config_baudrate < 8) {
-            log_error("RS485: Configured bit rate is too low");
-            goto cleanup;
-        }
-
-        // Calculate time to send number of bytes of max Modbus packet length and receive same amount
-        TIMEOUT = (((double)(TIMEOUT_BYTES /
-                   (double)(_rs485_eeprom_config_baudrate / 8)) *
-                   (double)1000000000) * (double)2) + (double)8000000;
-
-        // Modbus config: PARITY
-        _eeprom_read_status = i2c_eeprom_read((uint16_t)RS485_EXTENSION_EEPROM_CONFIG_LOCATION_PARTIY,
-                                              _tmp_eeprom_read_buf, 1);
-        if (_eeprom_read_status <= 0) {
-            log_error("RS485: Could not read config PARITY from EEPROM");
-            goto cleanup;
-        }
-
-        if(_tmp_eeprom_read_buf[0] == RS485_EXTENSION_SERIAL_PARITY_NONE) {
-            _rs485_eeprom_config_parity = RS485_EXTENSION_SERIAL_PARITY_NONE;
-        }
-        else if (_tmp_eeprom_read_buf[0] == RS485_EXTENSION_SERIAL_PARITY_EVEN){
-            _rs485_eeprom_config_parity = RS485_EXTENSION_SERIAL_PARITY_EVEN;
-        }
-        else {
-            _rs485_eeprom_config_parity = RS485_EXTENSION_SERIAL_PARITY_ODD;
-        }
-    
-        // Modbus config: STOPBITS
-        _eeprom_read_status =
-        i2c_eeprom_read((uint16_t)RS485_EXTENSION_EEPROM_CONFIG_LOCATION_STOPBITS,
-                        _tmp_eeprom_read_buf, 1);
-        if (_eeprom_read_status <= 0) {
-            log_error("RS485: Could not read config STOPBITS from EEPROM");
-            goto cleanup;
-        }
-        _rs485_eeprom_config_stopbits = _tmp_eeprom_read_buf[0];
-
-        // Modbus config (if master): SLAVE ADDRESSES
-        if(_rs485_eeprom_config_address == 0) {
-            _rs485_extension.slave_num = 0;
-            uint16_t _current_eeprom_location =
-            RS485_EXTENSION_EEPROM_CONFIG_LOCATION_SLAVE_ADDRESSES_START;
-            uint32_t _current_slave_address;
-
-            _rs485_extension.slave_num = 0;
-
-            do {
-                _eeprom_read_status = i2c_eeprom_read(_current_eeprom_location, _tmp_eeprom_read_buf, 4);
-                if (_eeprom_read_status <= 0) {
-                    log_error("RS485[MASTER]: Could not read config SLAVE ADDRESSES from EEPROM");
-                    goto cleanup;
-                }
-                _current_slave_address = (uint32_t)((_tmp_eeprom_read_buf[0] << 0) |
-                                                    (_tmp_eeprom_read_buf[1] << 8) |
-                                                    (_tmp_eeprom_read_buf[2] << 16) |
-                                                    (_tmp_eeprom_read_buf[3] << 24));
-        
-                if(_current_slave_address != 0) {
-                    _rs485_extension.slaves[_rs485_extension.slave_num].address = _current_slave_address;
-                    _rs485_extension.slaves[_rs485_extension.slave_num].sequence = 0;
-                    _rs485_extension.slave_num ++;
-                }
-                _current_eeprom_location = _current_eeprom_location + 4;
-            }
-            while(_current_slave_address != 0 
-                  && 
-                  _rs485_extension.slave_num < RS485_EXTENSION_MAX_SLAVES);
-            
-            // Initialize packet queue for each slave
-            int i;
-            for(i = 0; i < _rs485_extension.slave_num; i++) {
-                if(queue_create(&_rs485_extension.slaves[i].packet_queue, sizeof(RS485ExtensionPacket)) < 0) {
-                    log_error("RS485[MASTER]: Could not create slave queue: %s (%d)",
-                              get_errno_name(errno), errno);
-                    goto cleanup;
-                }
-            }
-        }
-        else if (_rs485_eeprom_config_address > 0) {
-            // Initialize modbus packet queue if configured as a slave
-            if(queue_create(&_rs485_extension.slave_packet_queue, sizeof(Packet)) < 0) {
-                log_error("RS485[MASTER]: Could not create RS485 slave queue: %s (%d)",
-                          get_errno_name(errno), errno);
-                goto cleanup;
-            }
-        }
-        else {
-            log_error("RS485: Wrong address configured");
-            goto cleanup;
-        }
-
-        // Configuring serial interface from the configs
-        if(serial_interface_init(RS485_EXTENSION_SERIAL_DEVICE) < 0) {
-            goto cleanup;
-        }
-        
-        // Initial RS485 RX state
-        init_rxe_pin_state();
-
-        phase = 3;
-        
-        // Adding serial data available event
-        if(event_add_source(_rs485_serial_fd, EVENT_SOURCE_TYPE_GENERIC,
-                            EVENT_READ, serial_data_available_handler, NULL) < 0) {
-            log_error("RS485: Could not add new serial data event");
-            goto cleanup;
-        }
-
-        phase = 4;
-
-        // Setup master timer
-        _master_timer_event = timerfd_create(CLOCK_MONOTONIC, TFD_NONBLOCK);
-
-        if(!(_master_timer_event < 0)) {
-            if(event_add_source(_master_timer_event, EVENT_SOURCE_TYPE_GENERIC,
-                EVENT_READ, master_timeout_handler, NULL) < 0) {
-                log_error("RS485: Could not add RS485 master timer notification pipe as event source");
-                goto cleanup;
-            }
-        }
-        else {
-            log_error("RS485: Could not create RS485 master timer");
-            goto cleanup;
-        }
-
-        phase = 5;
-        
-        if(_rs485_eeprom_config_address == 0) {
-            // Get things going in case of a master with slaves configured
-            if(_rs485_eeprom_config_address == 0 && _rs485_extension.slave_num > 0) {
-                phase = 6;
-                _initialized = true;
-                log_info("RS485[MASTER]: Initialized");
-                master_poll_slave();
-            }
-            else {
-                log_warn("RS485[MASTER]: No slaves configured");
-                goto cleanup;
-            }
-        }
-        else if (_rs485_eeprom_config_address > 0) {
-            // If configured as slave then just wait for packets
-            phase = 6;
-            _initialized = true;
-            log_info("RS485[SLAVE]: Initialized");
-        }
-        else {
-            log_error("RS485[SLAVE]: Wrong address configured");
-            goto cleanup;
-        }
-        
-    }
-    else {
+    if (_rs485_eeprom_config_type != RS485_EXTENSION_TYPE) {
         log_info("RS485: Extension not present");
-        goto cleanup;
+		return 0;
     }
-    
-    cleanup:
-        switch (phase) { // no breaks, all cases fall through intentionally
-            case 5:
-                close(_master_timer_event);
-                event_remove_source(_master_timer_event, EVENT_SOURCE_TYPE_GENERIC);
-            case 4:
-                close(_rs485_serial_fd);
-                event_remove_source(_rs485_serial_fd, EVENT_SOURCE_TYPE_GENERIC);
-            
-            case 3:
-                if(_rs485_eeprom_config_address == 0) {
-                    int i;
-                    for(i = 0; i < _rs485_extension.slave_num; i++) {
-                        queue_destroy(&_rs485_extension.slaves[i].packet_queue, NULL);
-                    }
-                }
-                else if (_rs485_eeprom_config_address > 0) {
-                    queue_destroy(&_rs485_extension.slave_packet_queue, NULL);
-                }
 
-            case 2:
-                hardware_remove_stack(&_rs485_extension.base);
+	log_info("RS485: Initializing extension subsystem");
 
-            case 1:
-                stack_destroy(&_rs485_extension.base);
+	// Create base stack
+	if(stack_create(&_rs485_extension.base, "rs485_extension",
+					(StackDispatchRequestFunction)rs485_extension_dispatch_to_rs485) < 0) {
+		log_error("RS485: Could not create base stack for extension: %s (%d)",
+				  get_errno_name(errno), errno);
 
-            default:
-                break;
-        }
+		goto cleanup;
+	}
+
+	phase = 1;
+
+	// Add to stacks array
+	if(hardware_add_stack(&_rs485_extension.base) < 0) {
+		goto cleanup;
+	}
+
+	phase = 2;
+
+	// Reading and storing eeprom config
+
+	// Modbus config: ADDRESS
+	_eeprom_read_status =
+	i2c_eeprom_read((uint16_t)RS485_EXTENSION_EEPROM_CONFIG_LOCATION_ADDRESS,
+					_tmp_eeprom_read_buf, 4);
+	if (_eeprom_read_status <= 0) {
+		log_error("RS485: Could not read config ADDRESS from EEPROM");
+		goto cleanup;
+	}
+	_rs485_eeprom_config_address = (uint32_t)((_tmp_eeprom_read_buf[0] << 0) |
+									(_tmp_eeprom_read_buf[1] << 8) |
+									(_tmp_eeprom_read_buf[2] << 16) |
+									(_tmp_eeprom_read_buf[3] << 24));
+
+	// Modbus config: BAUDRATE
+	_eeprom_read_status = i2c_eeprom_read((uint16_t)RS485_EXTENSION_EEPROM_CONFIG_LOCATION_BAUDRATE,
+										  _tmp_eeprom_read_buf, 4);
+	if (_eeprom_read_status <= 0) {
+		log_error("RS485: Could not read config BAUDRATE from EEPROM");
+		goto cleanup;
+	}
+	_rs485_eeprom_config_baudrate = (uint32_t)((_tmp_eeprom_read_buf[0] << 0) |
+									 (_tmp_eeprom_read_buf[1] << 8) |
+									 (_tmp_eeprom_read_buf[2] << 16) |
+									 (_tmp_eeprom_read_buf[3] << 24));
+
+	if(_rs485_eeprom_config_baudrate < 8) {
+		log_error("RS485: Configured bit rate is too low");
+		goto cleanup;
+	}
+
+	// Calculate time to send number of bytes of max Modbus packet length and receive same amount
+	TIMEOUT = (((double)(TIMEOUT_BYTES /
+			   (double)(_rs485_eeprom_config_baudrate / 8)) *
+			   (double)1000000000) * (double)2) + (double)8000000;
+
+	// Modbus config: PARITY
+	_eeprom_read_status = i2c_eeprom_read((uint16_t)RS485_EXTENSION_EEPROM_CONFIG_LOCATION_PARTIY,
+										  _tmp_eeprom_read_buf, 1);
+	if (_eeprom_read_status <= 0) {
+		log_error("RS485: Could not read config PARITY from EEPROM");
+		goto cleanup;
+	}
+
+	if(_tmp_eeprom_read_buf[0] == RS485_EXTENSION_SERIAL_PARITY_NONE) {
+		_rs485_eeprom_config_parity = RS485_EXTENSION_SERIAL_PARITY_NONE;
+	}
+	else if (_tmp_eeprom_read_buf[0] == RS485_EXTENSION_SERIAL_PARITY_EVEN){
+		_rs485_eeprom_config_parity = RS485_EXTENSION_SERIAL_PARITY_EVEN;
+	}
+	else {
+		_rs485_eeprom_config_parity = RS485_EXTENSION_SERIAL_PARITY_ODD;
+	}
+
+	// Modbus config: STOPBITS
+	_eeprom_read_status =
+	i2c_eeprom_read((uint16_t)RS485_EXTENSION_EEPROM_CONFIG_LOCATION_STOPBITS,
+					_tmp_eeprom_read_buf, 1);
+	if (_eeprom_read_status <= 0) {
+		log_error("RS485: Could not read config STOPBITS from EEPROM");
+		goto cleanup;
+	}
+	_rs485_eeprom_config_stopbits = _tmp_eeprom_read_buf[0];
+
+	// Modbus config (if master): SLAVE ADDRESSES
+	if(_rs485_eeprom_config_address == 0) {
+		_rs485_extension.slave_num = 0;
+		uint16_t _current_eeprom_location =
+		RS485_EXTENSION_EEPROM_CONFIG_LOCATION_SLAVE_ADDRESSES_START;
+		uint32_t _current_slave_address;
+
+		_rs485_extension.slave_num = 0;
+
+		do {
+			_eeprom_read_status = i2c_eeprom_read(_current_eeprom_location, _tmp_eeprom_read_buf, 4);
+			if (_eeprom_read_status <= 0) {
+				log_error("RS485[MASTER]: Could not read config SLAVE ADDRESSES from EEPROM");
+				goto cleanup;
+			}
+			_current_slave_address = (uint32_t)((_tmp_eeprom_read_buf[0] << 0) |
+												(_tmp_eeprom_read_buf[1] << 8) |
+												(_tmp_eeprom_read_buf[2] << 16) |
+												(_tmp_eeprom_read_buf[3] << 24));
+
+			if(_current_slave_address != 0) {
+				_rs485_extension.slaves[_rs485_extension.slave_num].address = _current_slave_address;
+				_rs485_extension.slaves[_rs485_extension.slave_num].sequence = 0;
+				_rs485_extension.slave_num ++;
+			}
+			_current_eeprom_location = _current_eeprom_location + 4;
+		}
+		while(_current_slave_address != 0 &&
+			  _rs485_extension.slave_num < RS485_EXTENSION_MAX_SLAVES);
+
+		// Initialize packet queue for each slave
+		int i;
+		for(i = 0; i < _rs485_extension.slave_num; i++) {
+			if(queue_create(&_rs485_extension.slaves[i].packet_queue, sizeof(RS485ExtensionPacket)) < 0) {
+				log_error("RS485[MASTER]: Could not create slave queue: %s (%d)",
+						  get_errno_name(errno), errno);
+				goto cleanup;
+			}
+		}
+	}
+	else if (_rs485_eeprom_config_address > 0) {
+		// Initialize modbus packet queue if configured as a slave
+		if(queue_create(&_rs485_extension.slave_packet_queue, sizeof(Packet)) < 0) {
+			log_error("RS485[MASTER]: Could not create RS485 slave queue: %s (%d)",
+					  get_errno_name(errno), errno);
+			goto cleanup;
+		}
+	}
+	else {
+		log_error("RS485: Wrong address configured");
+		goto cleanup;
+	}
+
+	// Configuring serial interface from the configs
+	if(serial_interface_init(RS485_EXTENSION_SERIAL_DEVICE) < 0) {
+		goto cleanup;
+	}
+
+	// Initial RS485 RX state
+	init_rxe_pin_state();
+
+	phase = 3;
+
+	// Adding serial data available event
+	if(event_add_source(_rs485_serial_fd, EVENT_SOURCE_TYPE_GENERIC,
+						EVENT_READ, serial_data_available_handler, NULL) < 0) {
+		log_error("RS485: Could not add new serial data event");
+		goto cleanup;
+	}
+
+	phase = 4;
+
+	// Setup master timer
+	_master_timer_event = timerfd_create(CLOCK_MONOTONIC, TFD_NONBLOCK);
+
+	if(!(_master_timer_event < 0)) {
+		if(event_add_source(_master_timer_event, EVENT_SOURCE_TYPE_GENERIC,
+			EVENT_READ, master_timeout_handler, NULL) < 0) {
+			log_error("RS485: Could not add RS485 master timer notification pipe as event source");
+			goto cleanup;
+		}
+	}
+	else {
+		log_error("RS485: Could not create RS485 master timer");
+		goto cleanup;
+	}
+
+	phase = 5;
+
+	if(_rs485_eeprom_config_address == 0) {
+		// Get things going in case of a master with slaves configured
+		if(_rs485_eeprom_config_address == 0 && _rs485_extension.slave_num > 0) {
+			phase = 6;
+			_initialized = true;
+			log_info("RS485[MASTER]: Initialized");
+			master_poll_slave();
+		}
+		else {
+			log_warn("RS485[MASTER]: No slaves configured");
+			goto cleanup;
+		}
+	}
+	else if (_rs485_eeprom_config_address > 0) {
+		// If configured as slave then just wait for packets
+		phase = 6;
+		_initialized = true;
+		log_info("RS485[SLAVE]: Initialized");
+	}
+	else {
+		log_error("RS485[SLAVE]: Wrong address configured");
+		goto cleanup;
+	}
+
+cleanup:
+	switch (phase) { // no breaks, all cases fall through intentionally
+	case 5:
+		close(_master_timer_event);
+		event_remove_source(_master_timer_event, EVENT_SOURCE_TYPE_GENERIC);
+	case 4:
+		close(_rs485_serial_fd);
+		event_remove_source(_rs485_serial_fd, EVENT_SOURCE_TYPE_GENERIC);
+
+	case 3:
+		if(_rs485_eeprom_config_address == 0) {
+			int i;
+			for(i = 0; i < _rs485_extension.slave_num; i++) {
+				queue_destroy(&_rs485_extension.slaves[i].packet_queue, NULL);
+			}
+		}
+		else if (_rs485_eeprom_config_address > 0) {
+			queue_destroy(&_rs485_extension.slave_packet_queue, NULL);
+		}
+
+	case 2:
+		hardware_remove_stack(&_rs485_extension.base);
+
+	case 1:
+		stack_destroy(&_rs485_extension.base);
+
+	default:
+		break;
+	}
+
     return phase == 6 ? 0 : -1;
 }
 
