@@ -54,15 +54,15 @@
 
 #define RS485_EXTENSION_TYPE                                            2
 
-// Modbus config stuffs
+// Config stuffs
 #define RS485_EXTENSION_EEPROM_CONFIG_LOCATION_TYPE                     0
 #define RS485_EXTENSION_EEPROM_CONFIG_LOCATION_ADDRESS                  4
 #define RS485_EXTENSION_EEPROM_CONFIG_LOCATION_SLAVE_ADDRESSES_START    100
 #define RS485_EXTENSION_EEPROM_CONFIG_LOCATION_BAUDRATE                 400
 #define RS485_EXTENSION_EEPROM_CONFIG_LOCATION_PARTIY                   404
 #define RS485_EXTENSION_EEPROM_CONFIG_LOCATION_STOPBITS                 405
-#define RS485_EXTENSION_MAX_SLAVES                               32
-#define RS485_EXTENSION_FUNCTION_CODE                            100 // Custom modbus function
+#define RS485_EXTENSION_MAX_SLAVES                                      32
+#define RS485_EXTENSION_FUNCTION_CODE                                   100 // Custom modbus function code
 
 // Serial interface config stuffs
 #define RECEIVE_BUFFER_SIZE                                             1048576 //1MB, in bytes
@@ -72,7 +72,10 @@
 #define RS485_EXTENSION_SERIAL_PARITY_ODD                               111
 
 // Time related constants
+static unsigned long TIMEOUT = 0;
 static const uint32_t TIMEOUT_BYTES = 86;
+static uint64_t last_timer_enable_at_uS = 0;
+static uint64_t time_passed_from_last_timer_enable = 0;
 
 // Packet related constants
 #define RS485_PACKET_HEADER_LENGTH      3
@@ -154,26 +157,22 @@ typedef struct {
     uint8_t address;
     uint8_t sequence;
     Queue packet_queue;
-} ModbusSlave;
+} RS485Slave;
 
 typedef struct {
 	Stack base;
-	ModbusSlave slaves[RS485_EXTENSION_MAX_SLAVES];
+	RS485Slave slaves[RS485_EXTENSION_MAX_SLAVES];
 	int slave_num;
-	Queue slave_packet_queue;
     Packet dispatch_packet;
 } RS485Extension;
 
 static RS485Extension _red_rs485_extension;
-//static char packet_signature[PACKET_MAX_SIGNATURE_LENGTH] = {0};
+static char packet_signature[PACKET_MAX_SIGNATURE_LENGTH] = {0};
 static int _red_rs485_serial_fd = -1; // Serial interface file descriptor
 
 // Variables tracking current states
 static char current_request_as_byte_array[sizeof(Packet) + RS485_PACKET_OVERHEAD] = {0};
 static int master_current_slave_to_process = -1; // Only used used by master
-static uint8_t slave_send_with_sequence = 0;
-static uint8_t slave_waiting_sequence = 0;
-static Packet slave_packet_to_send;
 
 // Saved configs from EEPROM
 static uint32_t _red_rs485_eeprom_config_address = 0;
@@ -189,17 +188,18 @@ static int current_receive_buffer_index = 0;
 static int _master_timer_event = 0;
 
 // Timers
-static long TIMEOUT = 0;
 static struct itimerspec master_timer;
 
 // Used as boolean
 static bool _initialized = false;
 static uint8_t sent_ack_of_data_packet = 0;
 static uint8_t send_verify_flag = 0;
-static uint8_t slave_waiting_ack = 0;
 
 // RX GPIO pin definitions
 static GPIOPin _rx_pin; // Active low
+
+// For iterations
+static int i = 0;
 
 // Function prototypes
 uint16_t crc16(uint8_t*, uint16_t);
@@ -208,8 +208,6 @@ int serial_interface_init(char*);
 void verify_buffer(uint8_t*);
 void send_packet(void);
 void init_rxe_pin_state(int);
-void update_sequence_number(void);
-void update_slave_to_process(void);
 void serial_data_available_handler(void*);
 void master_poll_slave(void);
 void master_timeout_handler(void*);
@@ -217,18 +215,13 @@ void red_rs485_extension_dispatch_to_rs485(Stack*, Packet*, Recipient*);
 void disable_master_timer(void);
 void red_rs485_extension_exit(void);
 void pop_packet_from_slave_queue(void);
-void reset_slave_receive_state(void);
-void slave_common_tasks(void);
 bool is_current_request_empty(void);
-
-static long dummy_us = 0;
 
 // CRC16 function
 uint16_t crc16(uint8_t *buffer, uint16_t buffer_length)
 {
     uint8_t crc_hi = 0xFF; // High CRC byte initialized 
     uint8_t crc_lo = 0xFF; // Low CRC byte initialized 
-    unsigned int i; // Will index into CRC lookup 
 
     // Pass through message buffer
     while (buffer_length--) {
@@ -297,7 +290,7 @@ int serial_interface_init(char* serial_interface) {
     // Setting the baudrate
     serial_config.reserved_char[0] = 0;
     if (ioctl(_red_rs485_serial_fd, TIOCGSERIAL, &serial_config) < 0) {
-        log_error("Error setting RS485 serial baudrate");
+        log_error("RS485: Error setting RS485 serial baudrate");
         return -1;
     }
 	serial_config.flags &= ~ASYNC_SPD_MASK;
@@ -311,7 +304,7 @@ int serial_interface_init(char* serial_interface) {
         log_error("RS485: Error setting serial baudrate");
         return -1;
     }
-    log_debug("\nRS485: Baudrate configured = %d\nBaudbase(BB) = %d\n\
+    log_info("\nRS485: Baudrate configured = %d\nBaudbase(BB) = %d\n\
 Divisor(DIV) = %d\nActual baudrate(%d / %d) = %f",
              _red_rs485_eeprom_config_baudrate,
              serial_config.baud_base,
@@ -346,7 +339,7 @@ Divisor(DIV) = %d\nActual baudrate(%d / %d) = %f",
     tcsetattr(_red_rs485_serial_fd, TCSANOW, &serial_interface_config);
 
     // Flushing the buffer
-    //tcflush(_red_rs485_serial_fd, TCIOFLUSH);
+    tcflush(_red_rs485_serial_fd, TCIOFLUSH);
 
     log_info("RS485: Serial interface initialized");
 
@@ -355,11 +348,10 @@ Divisor(DIV) = %d\nActual baudrate(%d / %d) = %f",
 
 // Verify packet
 void verify_buffer(uint8_t* receive_buffer) {
-    int i = 0;
     int packet_end_index = 0;
+    uint32_t uid_from_packet;
     uint16_t crc16_calculated;
     uint16_t crc16_on_packet;
-    uint32_t uid_from_packet;
     RS485ExtensionPacket* queue_packet;
 
     // Check if partial or full packet
@@ -376,39 +368,21 @@ void verify_buffer(uint8_t* receive_buffer) {
         return;
     }
 
-    if(_red_rs485_eeprom_config_address > 0) {
-        disable_master_timer();
-    }
+    // Enough data in buffer to start verification
+    disable_master_timer();
 
     if(send_verify_flag) {
         for(i = 0; i <= packet_end_index; i++) {
             if(receive_buffer[i] != current_request_as_byte_array[i]) {
 				// Move on to next slave
-                printf("d1\n\n");
-                disable_master_timer();
-                printf("CURRENT SLAVE INDEX = %d\n\n", master_current_slave_to_process);
-                int j = 0;
-                printf("RBUF = ");
-                for(j = 0; j <= packet_end_index; j++) {
-                    printf("%d ", receive_buffer[j]);
+                log_error("RS485: Send verification failed");
+                if(is_current_request_empty()) {
+                    ++_red_rs485_extension.slaves[master_current_slave_to_process].sequence;
                 }
-                printf("\nCREQ = ");
-                for(j = 0; j <= packet_end_index; j++) {
-                    printf("%d ", current_request_as_byte_array[j]);
-                }
-                printf("\n\n");
-                printf("RS485: Send verification failed\n\n");
-                //exit(0);
-                if(_red_rs485_eeprom_config_address == 0) {
-                    if(is_current_request_empty()) {
-                        ++_red_rs485_extension.slaves[master_current_slave_to_process].sequence;
-                    }
-                    pop_packet_from_slave_queue();
-                    master_poll_slave();
-                }
-                else {
-                    reset_slave_receive_state();
-                }
+
+                pop_packet_from_slave_queue();
+                master_poll_slave();
+
                 return;
             }
         }
@@ -416,45 +390,32 @@ void verify_buffer(uint8_t* receive_buffer) {
         // Send verify successful. Reset flag
         send_verify_flag = 0;
 
-		printf("SEND VERIFY DONE, SLAVE=%d | SEQ=%d >>>>>>>>>\n\n", receive_buffer[0], receive_buffer[2]);
-
         if(sent_ack_of_data_packet) {
-            // Request processing done. Move on to next slave.
-            printf("d2\n\n");
-            disable_master_timer();
-            // Update sequence number
+            // Request processing done. Move on to next slave
+            log_debug("RS485: Processed current request");
             ++_red_rs485_extension.slaves[master_current_slave_to_process].sequence;
-            printf("SENT ACK POPPING SLAVE QUEUE >>>>>>>>>***\n\n");
             queue_pop(&_red_rs485_extension.slaves[master_current_slave_to_process].packet_queue, NULL);
-            //printf("RS485: Current request processed\n\n");
             master_poll_slave();
             return;
         }
         if(current_receive_buffer_index == packet_end_index+1) {
-            printf("RS485: No more Data\n\n");
             // Everything OK. Wait for response now
-            if(_red_rs485_eeprom_config_address > 0) {
-                reset_slave_receive_state();
-                return;
-            }
+            log_debug("RS485: No more Data. Waiting for response");
             current_receive_buffer_index = 0;
             memset(receive_buffer, 0, RECEIVE_BUFFER_SIZE);
             return;
         }
         if(current_receive_buffer_index > packet_end_index+1) {
             // More data in the receive buffer
+            log_debug("RS485: Potential partial data in the buffer. Verifying");
+
             memmove(&receive_buffer[0],
                     &receive_buffer[packet_end_index+1],
                     current_receive_buffer_index - (packet_end_index+1));
+
             current_receive_buffer_index = current_receive_buffer_index - (packet_end_index+1);
-            printf("***PARTIAL = ");
-            int i;
-            for(i = 0; i < current_receive_buffer_index; i++) {
-                printf("%d ", receive_buffer[i]);
-            }
-            printf("***\n\n");
+
             // A recursive call to handle the remaining bytes in the buffer
-            printf("RS485: Potential partial data in the buffer. Verifying.\n\n");
             if(current_receive_buffer_index >= 8) {
                 verify_buffer(receive_buffer);
             }
@@ -462,19 +423,14 @@ void verify_buffer(uint8_t* receive_buffer) {
         }
         // Undefined state, abort current request
         log_error("RS485: Undefined receive buffer state");
-        if(_red_rs485_eeprom_config_address == 0) {
-            // Move on to next slave
-            printf("d3\n\n");
-            disable_master_timer();
-            if(is_current_request_empty()) {
-                ++_red_rs485_extension.slaves[master_current_slave_to_process].sequence;
-            }
-            pop_packet_from_slave_queue();
-            master_poll_slave();
+
+        // Move on to next slave
+        if(is_current_request_empty()) {
+            ++_red_rs485_extension.slaves[master_current_slave_to_process].sequence;
         }
-        else {
-            reset_slave_receive_state();
-        }
+        pop_packet_from_slave_queue();
+        master_poll_slave();
+
         return;
     }
 
@@ -483,142 +439,41 @@ void verify_buffer(uint8_t* receive_buffer) {
 
     // Received empty packet from the other side (UID=0, LEN=8, FID=0)
     if(uid_from_packet == 0 && receive_buffer[RS485_PACKET_LENGTH_INDEX] == 8 && receive_buffer[8] == 0) {
-
-        // If configured as master
-        if(_red_rs485_eeprom_config_address == 0) {
-
-            // Checking Modbus address
-            if(receive_buffer[0] != current_request_as_byte_array[0]){
-                // Move on to next slave
-                disable_master_timer();
-
-                if(is_current_request_empty()) {
-                    ++_red_rs485_extension.slaves[master_current_slave_to_process].sequence;
-                }
-
-                printf("%d | %d*****\n\n", receive_buffer[0], current_request_as_byte_array[0]);
-                pop_packet_from_slave_queue();
-                log_error("RS485: Wrong address in received empty packet. Moving on");
-                master_poll_slave();
-                return;
-            }
-
-            // Checking Modbus function code
-            if(receive_buffer[1] != current_request_as_byte_array[1]) {
-                // Move on to next slave
-                disable_master_timer();
-                
-                if(is_current_request_empty()) {
-                    ++_red_rs485_extension.slaves[master_current_slave_to_process].sequence;
-                }
-                
-                pop_packet_from_slave_queue();
-                log_error("RS485: Wrong function code in received empty packet. Moving on");
-                master_poll_slave();
-                return;
-            }
-
-            // Checking current sequence number
-            if(receive_buffer[2] != current_request_as_byte_array[2]) {
-                // Move on to next slave
-                disable_master_timer();
-                
-                if(is_current_request_empty()) {
-                    ++_red_rs485_extension.slaves[master_current_slave_to_process].sequence;
-                }
-                
-                pop_packet_from_slave_queue();
-                log_error("RS485: Wrong sequence number in received empty packet. Moving on");
-                master_poll_slave();
-                return;
-            }
-
-            // Checking the CRC16 checksum
-            crc16_calculated = crc16(&receive_buffer[0], (packet_end_index - RS485_PACKET_FOOTER_LENGTH) + 1);
-            crc16_on_packet = (receive_buffer[packet_end_index-1] << 8) |
-                               receive_buffer[packet_end_index];
-
-            if (crc16_calculated != crc16_on_packet) {
-                // Move on to next slave
-                disable_master_timer();
-                
-                if(is_current_request_empty()) {
-                    ++_red_rs485_extension.slaves[master_current_slave_to_process].sequence;
-                }
-                
-                pop_packet_from_slave_queue();
-                log_error("RS485: Wrong CRC16 checksum in received empty packet. Moving on");
-                master_poll_slave();
-                return;
-            }
-
-            disable_master_timer();
-            printf("RS485: Empty packet received, %lu\n\n", ((long)microseconds() - dummy_us));
-
-			printf("RECEIVED EMPTY PACKET. SLAVE=%d, SEQ=%d >>>>>>>\n\n", receive_buffer[0], receive_buffer[2]);
-
-            // Updating sequence number
-            ++_red_rs485_extension.slaves[master_current_slave_to_process].sequence;
-
-            // Popping slave's packet queue
-            //printf("POPPING SLAVE QUEUE >>>>>>>>>***\n\n");
-            queue_pop(&_red_rs485_extension.slaves[master_current_slave_to_process].packet_queue, NULL);
+        // Checking address
+        if(receive_buffer[0] != current_request_as_byte_array[0]){
             // Move on to next slave
-            master_poll_slave();
-            return;
-        }
-        else {
-            slave_common_tasks();
-            return;
-        }
-    }
-    
-    // Received data packet from the other side
-    
-    // If configured as master
-    if(_red_rs485_eeprom_config_address == 0) {
-       
-        // Checking Modbus address
-        if(receive_buffer[0] != current_request_as_byte_array[0]) {
-            // Move on to next slave
-            disable_master_timer();
-            printf("%d | %d*****\n\n", receive_buffer[0], current_request_as_byte_array[0]);
-
+            log_error("RS485: Wrong address in received empty packet. Moving on");
             if(is_current_request_empty()) {
+                log_debug("RS485: Updating sequence");
                 ++_red_rs485_extension.slaves[master_current_slave_to_process].sequence;
             }
-
             pop_packet_from_slave_queue();
-            log_error("RS485: Wrong address in received data packet. Moving on");
-            master_poll_slave();
+            master_poll_slave();    
             return;
         }
 
-        // Checking Modbus function code
+        // Checking function code
         if(receive_buffer[1] != current_request_as_byte_array[1]) {
             // Move on to next slave
-            disable_master_timer();
-            
+            log_error("RS485: Wrong function code in received empty packet. Moving on");
             if(is_current_request_empty()) {
+                log_debug("RS485: Updating sequence");
                 ++_red_rs485_extension.slaves[master_current_slave_to_process].sequence;
             }
-            
             pop_packet_from_slave_queue();
-            log_error("RS485: Wrong function code in received data packet. Moving on");
             master_poll_slave();
             return;
         }
+
         // Checking current sequence number
         if(receive_buffer[2] != current_request_as_byte_array[2]) {
             // Move on to next slave
-            disable_master_timer();
-            
+            log_error("RS485: Wrong sequence number in received empty packet. Moving on");
             if(is_current_request_empty()) {
+                log_debug("RS485: Updating sequence");
                 ++_red_rs485_extension.slaves[master_current_slave_to_process].sequence;
             }
-            
             pop_packet_from_slave_queue();
-            log_error("RS485: Wrong sequence number in received data packet. Moving on");
             master_poll_slave();
             return;
         }
@@ -630,207 +485,177 @@ void verify_buffer(uint8_t* receive_buffer) {
 
         if (crc16_calculated != crc16_on_packet) {
             // Move on to next slave
-            disable_master_timer();
-            
+            log_error("RS485: Wrong CRC16 checksum in received empty packet. Moving on");
             if(is_current_request_empty()) {
+                log_debug("RS485: Updating sequence");
                 ++_red_rs485_extension.slaves[master_current_slave_to_process].sequence;
             }
-            
             pop_packet_from_slave_queue();
-            log_error("RS485: Wrong CRC16 checksum in received empty packet. Moving on");
             master_poll_slave();
             return;
         }
 
-        disable_master_timer();
-        //printf("RS485: Data packet received\n\n");
+        // Updating sequence number
+        ++_red_rs485_extension.slaves[master_current_slave_to_process].sequence;
+
+        // Popping slave's packet queue
+        queue_pop(&_red_rs485_extension.slaves[master_current_slave_to_process].packet_queue, NULL);
+        
+        // Move on to next slave
+        master_poll_slave();
+
+        return;
+    }
+    // Received data packet from the other side
+    else if (uid_from_packet != 0 && receive_buffer[8] != 0) {
+        // Checking address
+        if(receive_buffer[0] != current_request_as_byte_array[0]) {
+            // Move on to next slave
+            log_error("RS485: Wrong address in received data packet. Moving on");
+            if(is_current_request_empty()) {
+                log_debug("RS485: Updating sequence");
+                ++_red_rs485_extension.slaves[master_current_slave_to_process].sequence;
+            }
+            pop_packet_from_slave_queue();
+            master_poll_slave();
+            return;
+        }
+    
+        // Checking function code
+        if(receive_buffer[1] != current_request_as_byte_array[1]) {
+            // Move on to next slave
+            log_error("RS485: Wrong function code in received data packet. Moving on");
+            if(is_current_request_empty()) {
+                log_debug("RS485: Updating sequence");
+                ++_red_rs485_extension.slaves[master_current_slave_to_process].sequence;
+            }
+            pop_packet_from_slave_queue();
+            master_poll_slave();
+            return;
+        }
+        // Checking current sequence number
+        if(receive_buffer[2] != current_request_as_byte_array[2]) {
+            // Move on to next slave
+            log_error("RS485: Wrong sequence number in received data packet. Moving on");
+            if(is_current_request_empty()) {
+                log_debug("RS485: Updating sequence");
+                ++_red_rs485_extension.slaves[master_current_slave_to_process].sequence;
+            }
+            pop_packet_from_slave_queue();
+            master_poll_slave();
+            return;
+        }
+    
+        // Checking the CRC16 checksum
+        crc16_calculated = crc16(&receive_buffer[0], (packet_end_index - RS485_PACKET_FOOTER_LENGTH) + 1);
+        crc16_on_packet = (receive_buffer[packet_end_index-1] << 8) |
+                           receive_buffer[packet_end_index];
+    
+        if (crc16_calculated != crc16_on_packet) {
+            // Move on to next slave
+            log_error("RS485: Wrong CRC16 checksum in received empty packet. Moving on");
+            if(is_current_request_empty()) {
+                log_debug("RS485: Updating sequence");
+                ++_red_rs485_extension.slaves[master_current_slave_to_process].sequence;
+            }
+            pop_packet_from_slave_queue();
+            master_poll_slave();
+            return;
+        }
 
         // Send message into brickd dispatcher
         memset(&_red_rs485_extension.dispatch_packet, 0, sizeof(Packet));
         memcpy(&_red_rs485_extension.dispatch_packet, &receive_buffer[3], receive_buffer[RS485_PACKET_LENGTH_INDEX]);
         network_dispatch_response(&_red_rs485_extension.dispatch_packet);
-        printf("RS485: Dispatched packet to network subsystem\n\n");
-        
-        /*printf("**>>>>>>>> DATA PACKET RECEIVED WITH SIGNATURE = (%s)\n\n",
-               packet_get_request_signature(packet_signature, &_red_rs485_extension.dispatch_packet));*/
 
         if(uid_from_packet != 0) {
             stack_add_recipient(&_red_rs485_extension.base, uid_from_packet, receive_buffer[0]);
         }
 
         queue_packet = queue_peek(&_red_rs485_extension.slaves[master_current_slave_to_process].packet_queue);
-
+    
         // Replace head of slave queue with the ACK
         memset(queue_packet, 0, sizeof(RS485ExtensionPacket));
         queue_packet->tries_left = RS485_PACKET_TRIES_EMPTY;
         queue_packet->packet.header.length = 8;
-        
+
         current_receive_buffer_index = 0;
-        memset(receive_buffer, 0, RECEIVE_BUFFER_SIZE);
         sent_ack_of_data_packet = 1;
+        memset(receive_buffer, 0, RECEIVE_BUFFER_SIZE);
 
         send_packet();
-
-        /*if(sent_current_request_from_queue) {
-			send_packet(_red_rs485_extension.slaves[master_current_slave_to_process_queue].address,
-							   _red_rs485_extension.slaves[master_current_slave_to_process_queue].sequence,
-							   &current_request);
-			printf("SENT ACK OF DATA PKT. SLAVE=%d, SEQ=%d >>>>>>>\n\n", _red_rs485_extension.slaves[master_current_slave_to_process_queue].address, _red_rs485_extension.slaves[master_current_slave_to_process_queue].sequence);
-		}
-		else {
-			send_packet(_red_rs485_extension.slaves[master_current_slave_to_process].address,
-							   _red_rs485_extension.slaves[master_current_slave_to_process].sequence,
-							   &current_request);
-			printf("SENT ACK OF DATA PKT. SLAVE=%d, SEQ=%d >>>>>>>\n\n", _red_rs485_extension.slaves[master_current_slave_to_process].address, _red_rs485_extension.slaves[master_current_slave_to_process].sequence);
-
-		}*/
 
         return;
     }
     else {
-        memset(&_red_rs485_extension.dispatch_packet, 0, sizeof(Packet));
-        memcpy(&_red_rs485_extension.dispatch_packet, &receive_buffer[3], receive_buffer[RS485_PACKET_LENGTH_INDEX]);
-        network_dispatch_response(&_red_rs485_extension.dispatch_packet);
-        log_debug("RS485: Dispatched packet to network subsystem");
-
-        /*if(uid_from_packet != 0) {
-            stack_add_recipient(&_red_rs485_extension.base, uid_from_packet, receive_buffer[0]);
-        }*/
-        
-        slave_common_tasks();
-        return;
-    }
-
-    // Undefined state
-    if(_red_rs485_eeprom_config_address == 0) {
-        // Move on to next slave
-        disable_master_timer();
+        log_error("RS485: Undefined packet");
         if(is_current_request_empty()) {
             ++_red_rs485_extension.slaves[master_current_slave_to_process].sequence;
         }
         pop_packet_from_slave_queue();
-        log_error("RS485: Undefined packet receive state");
         master_poll_slave();
     }
-    else {
-        reset_slave_receive_state();
-    }
-    return;
 }
 
-// Send Modbus packet
+// Send packet
 void send_packet() {
-    //printf("send_packet()\n\n");
-
     uint16_t packet_crc16 = 0;
     uint8_t crc16_first_byte_index = 0;
-    ModbusSlave* current_slave = NULL;
+    RS485Slave* current_slave = NULL;
     RS485ExtensionPacket* packet_to_send = NULL;
 
-    if(_red_rs485_eeprom_config_address == 0) {
-        disable_master_timer();
-        printf("send_packet()\n\n");
-        current_slave = &_red_rs485_extension.slaves[master_current_slave_to_process];
-        packet_to_send = queue_peek(&current_slave->packet_queue);
+    current_slave = &_red_rs485_extension.slaves[master_current_slave_to_process];
+    packet_to_send = queue_peek(&current_slave->packet_queue);
 
-        if(packet_to_send == NULL) {
-            // Slave's packet queue is empty. Move on to next slave.
-            //printf("NOTHING TO SEND IN SLAVE'S QUEUE... MOVING ON >>>>>>>>>*\n\n");
-            log_debug("RS485[MASTER]: Slave packet queue empty. Moving on.");
-            master_poll_slave();
-            return;
-        }
-        
-        uint8_t modbus_packet[packet_to_send->packet.header.length + RS485_PACKET_OVERHEAD];
-
-        // Assemble Modbus packet header
-        modbus_packet[0] = current_slave->address;
-        modbus_packet[1] = RS485_EXTENSION_FUNCTION_CODE;
-        modbus_packet[2] = current_slave->sequence;
-
-        // Assemble Tinkerforge packet
-        memcpy(&modbus_packet[3], packet_to_send, packet_to_send->packet.header.length);
-
-        // Calculating CRC16
-        packet_crc16 = crc16(modbus_packet, packet_to_send->packet.header.length + RS485_PACKET_HEADER_LENGTH);
-
-        // Assemble the calculated CRC16
-        crc16_first_byte_index = packet_to_send->packet.header.length +
-                                 RS485_PACKET_HEADER_LENGTH;
-        modbus_packet[crc16_first_byte_index] = packet_crc16 >> 8;
-        modbus_packet[++crc16_first_byte_index] = packet_crc16 & 0x00FF;
-
-        // Sending packet
-        if ((write(_red_rs485_serial_fd, &modbus_packet, sizeof(modbus_packet))) <= 0) {
-            log_error("RS485[MASTER]: Error sending packet on interface");
-            master_poll_slave();
-            return;
-        }
-        printf("*** send_packet() = ");
-        unsigned int i=0;
-        for(i=0;i<sizeof(modbus_packet);i++) {
-            printf("%d ", modbus_packet[i]);
-        }
-        printf("\n\n");
-        // Save the packet as byte array
-        memcpy(&current_request_as_byte_array, &modbus_packet, sizeof(modbus_packet));
-        
-        /*printf("**>>>>>>>> PACKET SENT WITH SIGNATURE = (%s)\n\n",
-        packet_get_request_signature(packet_signature, &packet_to_send->packet));*/
-
-        // Set send verify flag
-        send_verify_flag = 1;
-
-        log_debug("RS485: Master sent RS485 packet");
-
-        disable_master_timer();
-
-        // Start the master timer
-        master_timer.it_interval.tv_sec = 0;
-        master_timer.it_interval.tv_nsec = 0;
-        master_timer.it_value.tv_sec = 0;
-        master_timer.it_value.tv_nsec = TIMEOUT;
-        printf("timer started....TIMEOUT=%lu\n\n", TIMEOUT);
-        timerfd_settime(_master_timer_event, 0, &master_timer, NULL);
-        dummy_us = microseconds();
+    if(packet_to_send == NULL) {
+        // Slave's packet queue is empty. Move on to next slave
+        log_debug("RS485: Slave packet queue empty. Moving on");
+        master_poll_slave();
+        return;
     }
-    else {
-        uint8_t modbus_packet[slave_packet_to_send.header.length + RS485_PACKET_OVERHEAD];
+    
+    uint8_t rs485_packet[packet_to_send->packet.header.length + RS485_PACKET_OVERHEAD];
 
-        // Assemble Modbus packet header
-        modbus_packet[0] = _red_rs485_eeprom_config_address;
-        modbus_packet[1] = RS485_EXTENSION_FUNCTION_CODE;
-        modbus_packet[2] = slave_send_with_sequence;
+    // Assemble packet header
+    rs485_packet[0] = current_slave->address;
+    rs485_packet[1] = RS485_EXTENSION_FUNCTION_CODE;
+    rs485_packet[2] = current_slave->sequence;
 
-        memcpy(&modbus_packet[3], &slave_packet_to_send, slave_packet_to_send.header.length);
+    // Assemble Tinkerforge packet
+    memcpy(&rs485_packet[3], packet_to_send, packet_to_send->packet.header.length);
 
-        // Calculating CRC16
-        packet_crc16 = crc16(modbus_packet, slave_packet_to_send.header.length + RS485_PACKET_HEADER_LENGTH);
+    // Calculating CRC16
+    packet_crc16 = crc16(rs485_packet, packet_to_send->packet.header.length + RS485_PACKET_HEADER_LENGTH);
 
-        // Assemble the calculated CRC16
-        crc16_first_byte_index = slave_packet_to_send.header.length +
-                                 RS485_PACKET_HEADER_LENGTH;
-        modbus_packet[crc16_first_byte_index] = packet_crc16 >> 8;
-        modbus_packet[++crc16_first_byte_index] = packet_crc16 & 0x00FF;
+    // Assemble the calculated CRC16
+    crc16_first_byte_index = packet_to_send->packet.header.length +
+                             RS485_PACKET_HEADER_LENGTH;
 
-        // Sending packet
-        if ((write(_red_rs485_serial_fd, modbus_packet, sizeof(modbus_packet))) <= 0) {
-            log_error("RS485[SLAVE]: Error sending packet on interface");
-            reset_slave_receive_state();
-            return;
-        }
-        
-        // Save the packet as byte array
-        memcpy(current_request_as_byte_array, &modbus_packet[0], sizeof(modbus_packet));
-        
-        /*printf("**>>>>>>>> SLAVE- PACKET SENT WITH SIGNATURE = (%s)\n\n",
-               packet_get_request_signature(packet_signature, &slave_packet_to_send));*/
+    rs485_packet[crc16_first_byte_index] = packet_crc16 >> 8;
+    rs485_packet[++crc16_first_byte_index] = packet_crc16 & 0x00FF;
 
-        // Set send verify flag
-        send_verify_flag = 1;
-
-        log_debug("RS485: Slave sent RS485 packet");
+    // Sending packet
+    if ((write(_red_rs485_serial_fd, &rs485_packet, sizeof(rs485_packet))) <= 0) {
+        log_error("RS485: Error sending packet on interface");
+        master_poll_slave();
+        return;
     }
+
+    // Save the packet as byte array
+    memcpy(&current_request_as_byte_array, &rs485_packet, sizeof(rs485_packet));
+
+    // Set send verify flag
+    send_verify_flag = 1;
+
+    log_debug("RS485: Sent packet");
+
+    // Start the master timer
+    master_timer.it_interval.tv_sec = 0;
+    master_timer.it_interval.tv_nsec = 0;
+    master_timer.it_value.tv_sec = 0;
+    master_timer.it_value.tv_nsec = TIMEOUT;
+    timerfd_settime(_master_timer_event, 0, &master_timer, NULL);
+    last_timer_enable_at_uS = microseconds();
 }
 
 // Initialize RX state
@@ -848,19 +673,18 @@ void init_rxe_pin_state(int extension) {
 
     gpio_mux_configure(_rx_pin, GPIO_MUX_OUTPUT);
     gpio_output_clear(_rx_pin);
-    log_info("RS485: Initialized RS485 RX state");
+    log_info("RS485: Initialized RS485 RXE state");
 }
 
 void disable_master_timer() {
-    printf("disable_master_timer() - ***%lu uS***\n\n", (long)microseconds() - dummy_us);
     uint64_t dummy_read_buffer = 0;
-    if((read(_master_timer_event, &dummy_read_buffer, sizeof(uint64_t))) < 0) { printf("DISABLE TIMERFD, READ=%ju\n\n", dummy_read_buffer);}
-    //read(_master_timer_event, &dummy_read_buffer, sizeof(uint64_t));
-    master_timer.it_interval.tv_sec = (time_t)0;
-    master_timer.it_interval.tv_nsec = (long)0;
-    master_timer.it_value.tv_sec = (time_t)0;
-    master_timer.it_value.tv_nsec = (long)0;
+    if((read(_master_timer_event, &dummy_read_buffer, sizeof(uint64_t))) < 0) {}
+    master_timer.it_interval.tv_sec = 0;
+    master_timer.it_interval.tv_nsec = 0;
+    master_timer.it_value.tv_sec = 0;
+    master_timer.it_value.tv_nsec = 0;
     timerfd_settime(_master_timer_event, 0, &master_timer, NULL);
+    log_debug("RS485: Disabled master timer");
 }
 
 // New data available event handler
@@ -869,37 +693,19 @@ void serial_data_available_handler(void* opaque) {
 
     // Check if there is space in the receive buffer
     if(current_receive_buffer_index >= (RECEIVE_BUFFER_SIZE - RS485_PACKET_MAX_LENGTH)) {
-        log_warn("RS485: No more space in the receive buffer. Current request aborted.");
-        if(_red_rs485_eeprom_config_address == 0) {
-            master_poll_slave();
-        }
-        else {
-            reset_slave_receive_state();
-        }
+        log_warn("RS485: No more space in the receive buffer. Current request aborted");
+        master_poll_slave();
         return;
     }
     // Put newly received bytes on the specific index in receive buffer
     int bytes_received = read(_red_rs485_serial_fd,
                               &receive_buffer[current_receive_buffer_index],
                               (RECEIVE_BUFFER_SIZE - current_receive_buffer_index));
-    printf("*** RECEIVED = ");
-    int i = 0;
-    for(i = 0; i < bytes_received; i++) {
-        printf("%d ", receive_buffer[i]);
-    }
-    printf("\n***\n\n");
+
     if(bytes_received < 0) {
         return;
     }
-    if(_red_rs485_eeprom_config_address > 0 && current_receive_buffer_index == 0) {
-        // Start the master timer
-        printf("SLAVE STARTING TIMER...***\n\n");
-        master_timer.it_interval.tv_sec = 0;
-        master_timer.it_interval.tv_nsec = 0;
-        master_timer.it_value.tv_sec = 0;
-        master_timer.it_value.tv_nsec = TIMEOUT;
-        timerfd_settime(_master_timer_event, 0, &master_timer, NULL);
-    }
+
     current_receive_buffer_index += bytes_received;
     verify_buffer(receive_buffer);
     return;
@@ -907,59 +713,40 @@ void serial_data_available_handler(void* opaque) {
 
 // Master polling slave event handler
 void master_poll_slave() {
-
-    //disable_master_timer();
-
-    //tcflush(_red_rs485_serial_fd, TCIOFLUSH);
-
     RS485ExtensionPacket* slave_queue_packet;
-	current_receive_buffer_index = 0;
-    memset(receive_buffer, 0, sizeof(receive_buffer));
     sent_ack_of_data_packet = 0;
+	current_receive_buffer_index = 0;
+    memset(receive_buffer, 0, RECEIVE_BUFFER_SIZE);
 
     // Updating current slave to process
 	if (++master_current_slave_to_process >= _red_rs485_extension.slave_num) {
         master_current_slave_to_process = 0;
 	}
 
-    printf("CSLAVE=%d\n\n", master_current_slave_to_process);
-    
     log_debug("RS485: Updated current RS485 slave's index");
 
     if((queue_peek(&_red_rs485_extension.slaves[master_current_slave_to_process].packet_queue)) == NULL) {
         // Nothing to send in the slave's queue. So send a poll packet
-
         slave_queue_packet = queue_push(&_red_rs485_extension.slaves[master_current_slave_to_process].packet_queue);
         slave_queue_packet->tries_left = RS485_PACKET_TRIES_EMPTY;
         slave_queue_packet->packet.header.length = 8;
 
+        log_debug("RS485: Sending empty packet to slave ID = %d, Sequence number = %d", 
+                 _red_rs485_extension.slaves[master_current_slave_to_process].address,
+                 _red_rs485_extension.slaves[master_current_slave_to_process].sequence);
+
         // The timer will be fired by the send function
         send_packet();
-
-        //printf("SENT POLL PKT... SLAVE'S QUEUE WAS EMPTY >>>>>>>>>>>>\n\n");
-        
-        /*printf("SENDING EMPTY PKT AS NOTHING IN QUEUE, SLAVE=%d, SEQ=%d, TF_FID=%d >>>>>>>>\n\n", _red_rs485_extension.slaves[master_current_slave_to_process].address,
-		_red_rs485_extension.slaves[master_current_slave_to_process].sequence,
-		current_request.header.function_id);*/
-		
-        /*log_debug("RS485: Sending empty packet to slave ID = %d, Sequence number = %d", 
-                 _red_rs485_extension.slaves[master_current_slave_to_process].address,
-                 _red_rs485_extension.slaves[master_current_slave_to_process].sequence);*/
     }
     else {
-        // Slave'S packet queue if not empty. Send the packet that is at the head of the queue.
+        log_debug("RS485: Sending packet from queue to slave ID = %d, Sequence number = %d", 
+                  _red_rs485_extension.slaves[master_current_slave_to_process].address,
+                  _red_rs485_extension.slaves[master_current_slave_to_process].sequence);
+
+        // Slave's packet queue if not empty. Send the packet that is at the head of the queue
+
         // The timer will be fired by the send function
         send_packet();
-        
-        //printf("SENT DATA PKT FROM SLAVE'S QUEUE >>>>>>>>>>>>\n\n");
-        
-        /*printf("SENDING PACKET THAT WAS IN QUEUE, SLAVE=%d, SEQ=%d, TF_FID=%d >>>>>>>>\n\n", _red_rs485_extension.slaves[master_current_slave_to_process_queue].address,
-		_red_rs485_extension.slaves[master_current_slave_to_process_queue].sequence,
-		current_request.header.function_id);*/
-		
-        /*log_debug("RS485: Sending packet from queue to slave ID = %d, Sequence number = %d", 
-                  packet_to_modbus->slave_address,
-                  _red_rs485_extension.slaves[master_current_slave_to_process_queue].sequence);*/
     }
 }
 
@@ -967,107 +754,43 @@ void master_poll_slave() {
 void master_timeout_handler(void* opaque) {
 	(void)opaque;
 
-    // Disable timer
-    printf("d4*\n\n");
-    disable_master_timer();
-	printf("RS485: Current request timed out. Moving on. ***%lu uS***\n\n", ((long)microseconds() - dummy_us));
-	log_debug("RS485: Current request timed out. Moving on.");
-	//printf("CURRENT REQUEST TIMEDOUT >>>>>>>>>****\n\n");
+	disable_master_timer();
 
-	// Current request timedout. Move on to next slave.
-    if(_red_rs485_eeprom_config_address == 0) {
-        if(is_current_request_empty()) {
-            ++_red_rs485_extension.slaves[master_current_slave_to_process].sequence;
-        }
-        pop_packet_from_slave_queue();
-        master_poll_slave();
+    log_debug("RS485: Current request timed out. Moving on");
+
+	/*
+     * For some unknown reason the timer randomly times out or this timeout function is called
+     * much long before the actual timeout. This is a fix to this problem
+     * until we find the real problem
+     */
+    time_passed_from_last_timer_enable = (microseconds() - last_timer_enable_at_uS) * 1000;
+
+	if (time_passed_from_last_timer_enable < TIMEOUT ) {
+        master_timer.it_interval.tv_sec = 0;
+        master_timer.it_interval.tv_nsec = 0;
+        master_timer.it_value.tv_sec = 0;
+        master_timer.it_value.tv_nsec = TIMEOUT - time_passed_from_last_timer_enable;
+        timerfd_settime(_master_timer_event, 0, &master_timer, NULL);
+        last_timer_enable_at_uS = microseconds();
         return;
+	}
+
+	// Current request timedout. Move on to next slave
+    if(is_current_request_empty()) {
+        ++_red_rs485_extension.slaves[master_current_slave_to_process].sequence;
     }
-    // If configured as slave
-    //tcflush(_red_rs485_serial_fd, TCIOFLUSH);
-    current_receive_buffer_index = 0;
-    memset(receive_buffer, 0, sizeof(receive_buffer));
+    pop_packet_from_slave_queue();
+    master_poll_slave();
 }
 
 void pop_packet_from_slave_queue() {
-
     RS485ExtensionPacket* current_slave_queue_packet;
     current_slave_queue_packet = queue_peek(&_red_rs485_extension.slaves[master_current_slave_to_process].packet_queue);
 
     if(current_slave_queue_packet != NULL &&
        --current_slave_queue_packet->tries_left == 0) {
         queue_pop(&_red_rs485_extension.slaves[master_current_slave_to_process].packet_queue, NULL);
-        //printf("SLAVE QUEUE POPPED*************************\n\n");
     }
-    else {
-        //printf("NOT POPPING SLAVE QUEUE*************************\n\n");
-    }
-}
-
-void reset_slave_receive_state() {
-    disable_master_timer();
-    send_verify_flag = 0;
-    slave_send_with_sequence = 0;
-    current_receive_buffer_index = 0;
-    //tcflush(_red_rs485_serial_fd, TCIOFLUSH);
-    memset(&receive_buffer, 0, sizeof(receive_buffer));
-}
-
-void slave_common_tasks() {
-	Packet* queue_packet_slave;
-    
-    if((receive_buffer[0] != _red_rs485_eeprom_config_address) ||
-       (receive_buffer[1] != RS485_EXTENSION_FUNCTION_CODE)) {
-        // Can not process the packet further
-        reset_slave_receive_state();
-        return;
-    }
-
-    if((receive_buffer[2] == slave_waiting_sequence) ||
-       (receive_buffer[2] == slave_waiting_sequence+1)) {
-        // If the slave was waiting ACK for sent data packet
-        if(slave_waiting_ack) {
-            // If this is the ACK the SLAVE was waiting for
-            if (receive_buffer[2] == slave_waiting_sequence) {
-                slave_waiting_ack = 0;
-                slave_waiting_sequence = 0;
-                slave_send_with_sequence = 0;
-                queue_pop(&_red_rs485_extension.slave_packet_queue, NULL);
-                reset_slave_receive_state();
-            }
-            else {
-                slave_waiting_ack = 1;
-                slave_waiting_sequence = receive_buffer[2];
-                slave_send_with_sequence = receive_buffer[2];
-                reset_slave_receive_state();
-                send_packet();
-            }
-            return;
-        }
-        if((queue_peek(&_red_rs485_extension.slave_packet_queue)) == NULL) {
-            // Send the same empty packet back
-            slave_waiting_ack = 0;
-            slave_waiting_sequence = 0;
-            slave_send_with_sequence = receive_buffer[2];
-            memset(&slave_packet_to_send, 0, sizeof(Packet));
-            slave_packet_to_send.header.length = 8;
-            reset_slave_receive_state();
-            send_packet();
-            return;
-        }
-        // Send data packet to the master
-        slave_waiting_ack = 1;
-        slave_waiting_sequence = receive_buffer[2];
-        slave_send_with_sequence = receive_buffer[2];
-        queue_packet_slave = queue_peek(&_red_rs485_extension.slave_packet_queue);
-        memcpy(&slave_packet_to_send, queue_packet_slave, sizeof(Packet));
-        reset_slave_receive_state();
-        send_packet();
-        return;
-    }
-    // Packet not for this slave
-    reset_slave_receive_state();
-    return;
 }
 
 bool is_current_request_empty() {
@@ -1085,51 +808,34 @@ bool is_current_request_empty() {
 
 // New packet from brickd event loop is queued to be sent via RS485 interface
 void red_rs485_extension_dispatch_to_rs485(Stack *stack, Packet *request, Recipient *recipient) {
-
 	RS485ExtensionPacket* queued_request;
-    Packet* queued_request_slave;
 	(void)stack;
 
-    if(_red_rs485_eeprom_config_address == 0) {
-        if(request->header.uid == 0 || recipient == NULL) {
-            log_debug("RS485: Broadcasting to all available Modbus slaves");
-            int i;
-            for(i = 0; i < _red_rs485_extension.slave_num; i++) {
+    if(request->header.uid == 0 || recipient == NULL) {
+        log_debug("RS485: Broadcasting to all available slaves");
+
+        for(i = 0; i < _red_rs485_extension.slave_num; i++) {
+            queued_request = queue_push(&_red_rs485_extension.slaves[i].packet_queue);
+            queued_request->tries_left = RS485_PACKET_TRIES_DATA;
+            memcpy(&queued_request->packet, request, request->header.length);
+            log_debug("RS485: Broadcast... Packet is queued to be sent to slave %d. Function signature = (%s)",
+                      _red_rs485_extension.slaves[i].address,
+                      packet_get_request_signature(packet_signature, request));
+        }
+    }
+    else if (recipient != NULL) {
+
+        for(i = 0; i < _red_rs485_extension.slave_num; i++) {
+            if(_red_rs485_extension.slaves[i].address == recipient->opaque) {
                 queued_request = queue_push(&_red_rs485_extension.slaves[i].packet_queue);
                 queued_request->tries_left = RS485_PACKET_TRIES_DATA;
                 memcpy(&queued_request->packet, request, request->header.length);
-                /*printf("RS485: [BROADCAST] Packet is queued to be sent to slave %d over Modbus. Function signature = (%s)\n\n",
-                       _red_rs485_extension.slaves[i].address,
-                       packet_get_request_signature(packet_signature, request));*/
-                /*log_debug("RS485: Packet is queued to be sent to slave %d over Modbus. Function signature = (%s)",
+                log_debug("RS485: Packet is queued to be sent to slave %d over. Function signature = (%s)",
                           _red_rs485_extension.slaves[i].address,
-                          packet_get_request_signature(packet_signature, request));*/
+                          packet_get_request_signature(packet_signature, request));
+                break;
             }
         }
-        else if (recipient != NULL) {
-            int i;
-            for(i = 0; i < _red_rs485_extension.slave_num; i++) {
-                if(_red_rs485_extension.slaves[i].address == recipient->opaque) {
-                    queued_request = queue_push(&_red_rs485_extension.slaves[i].packet_queue);
-                    queued_request->tries_left = RS485_PACKET_TRIES_DATA;
-                    memcpy(&queued_request->packet, request, request->header.length);
-                    /*printf("RS485: [NO BROADCAST] Packet is queued to be sent to slave %d over Modbus. Function signature = (%s)\n\n",
-                           _red_rs485_extension.slaves[i].address,
-                           packet_get_request_signature(packet_signature, request));*/
-                    /*log_debug("RS485: Packet is queued to be sent to slave %d over Modbus. Function signature = (%s)",
-                                _red_rs485_extension.slaves[i].address,
-                                packet_get_request_signature(packet_signature, request));*/
-                    break;
-                }
-            }
-        }
-    }
-    else {
-        // If configured as slave
-        queued_request_slave = queue_push(&_red_rs485_extension.slave_packet_queue);
-        memcpy(queued_request_slave, request, request->header.length);
-        /*printf("RS485: [NO BROADCAST] Packet is queued to be sent to master. Function signature = (%s)\n\n",
-               packet_get_request_signature(packet_signature, request));*/
     }
 }
 
@@ -1166,7 +872,7 @@ int red_rs485_extension_init(int extension) {
 
 	// Reading and storing eeprom config
 
-	// Modbus config: ADDRESS
+	// Config: ADDRESS
 	_eeprom_read_status =
 	i2c_eeprom_read(&i2c_eeprom,
 	                (uint16_t)RS485_EXTENSION_EEPROM_CONFIG_LOCATION_ADDRESS,
@@ -1180,7 +886,7 @@ int red_rs485_extension_init(int extension) {
 									(_tmp_eeprom_read_buf[2] << 16) |
 									(_tmp_eeprom_read_buf[3] << 24));
 
-	// Modbus config: BAUDRATE
+	// Config: BAUDRATE
 	_eeprom_read_status = i2c_eeprom_read(&i2c_eeprom,
 	                                      (uint16_t)RS485_EXTENSION_EEPROM_CONFIG_LOCATION_BAUDRATE,
 										  _tmp_eeprom_read_buf, 4);
@@ -1198,12 +904,12 @@ int red_rs485_extension_init(int extension) {
 		goto cleanup;
 	}
 
-	// Calculate time to send number of bytes of max Modbus packet length and receive same amount
+	// Calculate time to send number of bytes of max packet length and to receive the same amount
 	TIMEOUT = (((double)(TIMEOUT_BYTES /
 			   (double)(_red_rs485_eeprom_config_baudrate / 8)) *
 			   (double)1000000000) * (double)2) + (double)8000000;
 
-	// Modbus config: PARITY
+	// Config: PARITY
 	_eeprom_read_status = i2c_eeprom_read(&i2c_eeprom,
 	                                      (uint16_t)RS485_EXTENSION_EEPROM_CONFIG_LOCATION_PARTIY,
 										  _tmp_eeprom_read_buf, 1);
@@ -1222,7 +928,7 @@ int red_rs485_extension_init(int extension) {
 		_red_rs485_eeprom_config_parity = RS485_EXTENSION_SERIAL_PARITY_ODD;
 	}
 
-	// Modbus config: STOPBITS
+	// Config: STOPBITS
 	_eeprom_read_status =
 	i2c_eeprom_read(&i2c_eeprom,
 	                (uint16_t)RS485_EXTENSION_EEPROM_CONFIG_LOCATION_STOPBITS,
@@ -1233,7 +939,7 @@ int red_rs485_extension_init(int extension) {
 	}
 	_red_rs485_eeprom_config_stopbits = _tmp_eeprom_read_buf[0];
 
-	// Modbus config (if master): SLAVE ADDRESSES
+	// Config (if master): SLAVE ADDRESSES
 	if(_red_rs485_eeprom_config_address == 0) {
 		_red_rs485_extension.slave_num = 0;
 		uint16_t _current_eeprom_location =
@@ -1247,7 +953,7 @@ int red_rs485_extension_init(int extension) {
 			                                      _current_eeprom_location,
 			                                      _tmp_eeprom_read_buf, 4);
 			if (_eeprom_read_status <= 0) {
-				log_error("RS485[MASTER]: Could not read config SLAVE ADDRESSES from EEPROM");
+				log_error("RS485: Could not read config SLAVE ADDRESSES from EEPROM");
 				goto cleanup;
 			}
 			_current_slave_address = (uint32_t)((_tmp_eeprom_read_buf[0] << 0) |
@@ -1266,22 +972,17 @@ int red_rs485_extension_init(int extension) {
 			  _red_rs485_extension.slave_num < RS485_EXTENSION_MAX_SLAVES);
 
 		// Initialize packet queue for each slave
-		int i;
 		for(i = 0; i < _red_rs485_extension.slave_num; i++) {
 			if(queue_create(&_red_rs485_extension.slaves[i].packet_queue, sizeof(RS485ExtensionPacket)) < 0) {
-				log_error("RS485[MASTER]: Could not create slave queue: %s (%d)",
+				log_error("RS485: Could not create slave queue: %s (%d)",
 						  get_errno_name(errno), errno);
 				goto cleanup;
 			}
 		}
 	}
 	else if (_red_rs485_eeprom_config_address > 0) {
-		// Initialize modbus packet queue if configured as a slave
-		if(queue_create(&_red_rs485_extension.slave_packet_queue, sizeof(Packet)) < 0) {
-			log_error("RS485[MASTER]: Could not create RS485 slave queue: %s (%d)",
-					  get_errno_name(errno), errno);
-			goto cleanup;
-		}
+		log_error("RS485: Only master mode supported");
+		goto cleanup;
 	}
 	else {
 		log_error("RS485: Wrong address configured");
@@ -1332,22 +1033,20 @@ int red_rs485_extension_init(int extension) {
 		if(_red_rs485_eeprom_config_address == 0 && _red_rs485_extension.slave_num > 0) {
 			phase = 6;
 			_initialized = true;
-			log_info("RS485[MASTER]: Initialized");
+			log_info("RS485: Initialized as master");
 			master_poll_slave();
 		}
 		else {
-			log_warn("RS485[MASTER]: No slaves configured");
+			log_warn("RS485: No slaves configured");
 			goto cleanup;
 		}
 	}
 	else if (_red_rs485_eeprom_config_address > 0) {
-		// If configured as slave then just wait for packets
-		phase = 6;
-		_initialized = true;
-		log_info("RS485[SLAVE]: Initialized");
+		log_error("RS485: Only master mode supported");
+		goto cleanup;
 	}
 	else {
-		log_error("RS485[SLAVE]: Wrong address configured");
+		log_error("RS485: Wrong address configured");
 		goto cleanup;
 	}
 
@@ -1362,13 +1061,9 @@ cleanup:
 
 	case 3:
 		if(_red_rs485_eeprom_config_address == 0) {
-			int i;
 			for(i = 0; i < _red_rs485_extension.slave_num; i++) {
 				queue_destroy(&_red_rs485_extension.slaves[i].packet_queue, NULL);
 			}
-		}
-		else if (_red_rs485_eeprom_config_address > 0) {
-			queue_destroy(&_red_rs485_extension.slave_packet_queue, NULL);
 		}
 
 	case 2:
@@ -1404,12 +1099,8 @@ void red_rs485_extension_exit(void) {
     close(_master_timer_event);
 
     if(_red_rs485_eeprom_config_address == 0) {
-        int i;
         for(i = 0; i < _red_rs485_extension.slave_num; i++) {
             queue_destroy(&_red_rs485_extension.slaves[i].packet_queue, NULL);
         }
-    }
-    else if (_red_rs485_eeprom_config_address > 0) {
-        queue_destroy(&_red_rs485_extension.slave_packet_queue, NULL);
     }
 }
