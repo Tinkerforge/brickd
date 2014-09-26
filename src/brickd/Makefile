@@ -23,7 +23,7 @@ WITH_PROFILING ?= no
 WITH_DEBUG ?= no
 WITH_USB_REOPEN_ON_SIGUSR1 ?= yes
 WITH_PM_UTILS ?= check
-WITH_RED_BRICK ?= no
+WITH_RED_BRICK ?= yes
 
 ## RULES ######################################################################
 
@@ -208,7 +208,7 @@ ifeq ($(WITH_RED_BRICK),yes)
 	                  red_stack.c \
 	                  red_usb_gadget.c \
 					  red_extension.c \
-	                  rs485_extension.c
+	                  red_rs485_extension.c
 
 	SOURCES_DAEMONLIB += ../daemonlib/red_gpio.c \
 	                     ../daemonlib/red_i2c_eeprom.c
