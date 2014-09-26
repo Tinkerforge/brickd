@@ -207,10 +207,11 @@ ifeq ($(WITH_RED_BRICK),yes)
 	                  redapid.c \
 	                  red_stack.c \
 	                  red_usb_gadget.c \
+					  red_extension.c \
 	                  rs485_extension.c
 
 	SOURCES_DAEMONLIB += ../daemonlib/red_gpio.c \
-	                     ../daemonlib/i2c_eeprom.c
+	                     ../daemonlib/red_i2c_eeprom.c
 endif
 
 SOURCES := $(SOURCES_DAEMONLIB) $(SOURCES_BRICKD)

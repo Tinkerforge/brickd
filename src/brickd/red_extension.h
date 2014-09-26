@@ -1,8 +1,8 @@
 /*
  * brickd
- * Copyright (C) 2014 Ishraq Ibne Ashraf <ishraq@tinkerforge.com>
+ * Copyright (C) 2014 Olaf Lüke <olaf@tinkerforge.com>
  *
- * rs485_extension.h: RS485 extension support for RED Brick
+ * red_extension.h: Extension initialization for RED Brick
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,12 +19,10 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-#ifndef BRICKD_RS485_EXTENSION_H
-#define BRICKD_RS485_EXTENSION_H
+#ifndef BRICKD_RED_EXTENSION_H
+#define BRICKD_RED_EXTENSION_H
 
-#include <daemonlib/io.h>
+int red_extension_init(void);
+void red_extension_exit(void);
 
-int rs485_extension_init(int extension);
-void rs485_extension_exit(void);
-
-#endif // BRICKD_RS485_STACK_H
+#endif

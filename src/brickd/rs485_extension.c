@@ -42,7 +42,7 @@
 #include <daemonlib/log.h>
 #include <daemonlib/red_gpio.h>
 #include <daemonlib/event.h>
-#include <daemonlib/i2c_eeprom.h>
+#include <daemonlib/red_i2c_eeprom.h>
 
 #include "rs485_extension.h"
 #include "network.h"
@@ -175,7 +175,6 @@ static uint8_t slave_waiting_sequence = 0;
 static Packet slave_packet_to_send;
 
 // Saved configs from EEPROM
-static uint32_t _rs485_eeprom_config_type = 0;
 static uint32_t _rs485_eeprom_config_address = 0;
 static uint32_t _rs485_eeprom_config_baudrate = 0;
 static uint8_t _rs485_eeprom_config_parity = 0;
@@ -203,11 +202,11 @@ static GPIOPin _rx_pin; // Active low
 
 // Function prototypes
 uint16_t crc16(uint8_t*, uint16_t);
-int rs485_extension_init(void);
+int rs485_extension_init(int);
 int serial_interface_init(char*);
 void verify_buffer(uint8_t*);
 void send_packet(void);
-void init_rxe_pin_state(void);
+void init_rxe_pin_state(int);
 void update_sequence_number(void);
 void update_slave_to_process(void);
 void serial_data_available_handler(void*);
@@ -834,9 +833,17 @@ void send_packet() {
 }
 
 // Initialize RX state
-void init_rxe_pin_state(void) {
-    _rx_pin.port_index = GPIO_PORT_B;
-    _rx_pin.pin_index = GPIO_PIN_13;
+void init_rxe_pin_state(int extension) {
+	switch(extension) {
+		case 0:
+			_rx_pin.port_index = GPIO_PORT_B;
+			_rx_pin.pin_index = GPIO_PIN_13;
+			break;
+		case 1:
+			// TODO
+			break;
+	}
+
     gpio_mux_configure(_rx_pin, GPIO_MUX_OUTPUT);
     gpio_output_clear(_rx_pin);
     log_info("RS485: Initialized RS485 RX state");
@@ -1125,32 +1132,17 @@ void rs485_extension_dispatch_to_rs485(Stack *stack, Packet *request, Recipient 
 }
 
 // Init function called from central brickd code
-int rs485_extension_init(void) {
+int rs485_extension_init(int extension) {
     uint8_t _tmp_eeprom_read_buf[4];
     int _eeprom_read_status;
     int phase = 0;
-
-    log_info("RS485: Checking presence of extension");
-
-    // Modbus config: TYPE
-    _eeprom_read_status =
-    i2c_eeprom_read((uint16_t)RS485_EXTENSION_EEPROM_CONFIG_LOCATION_TYPE,
-                    _tmp_eeprom_read_buf, 4);
-    if (_eeprom_read_status <= 0) {
-        log_info("RS485: EEPROM read error. Most probably no RS485 extension present");
-		return 0;
-    }
-    _rs485_eeprom_config_type = (uint32_t)((_tmp_eeprom_read_buf[0] << 0) |
-                                 (_tmp_eeprom_read_buf[1] << 8) |
-                                 (_tmp_eeprom_read_buf[2] << 16) |
-                                 (_tmp_eeprom_read_buf[3] << 24));
-
-    if (_rs485_eeprom_config_type != RS485_EXTENSION_TYPE) {
-        log_info("RS485: Extension not present");
-		return 0;
-    }
+	I2CEEPROM i2c_eeprom;
 
 	log_info("RS485: Initializing extension subsystem");
+
+	if(i2c_eeprom_init(&i2c_eeprom, extension) < 0) {
+		goto cleanup;
+	}
 
 	// Create base stack
 	if(stack_create(&_rs485_extension.base, "rs485_extension",
@@ -1174,7 +1166,8 @@ int rs485_extension_init(void) {
 
 	// Modbus config: ADDRESS
 	_eeprom_read_status =
-	i2c_eeprom_read((uint16_t)RS485_EXTENSION_EEPROM_CONFIG_LOCATION_ADDRESS,
+	i2c_eeprom_read(&i2c_eeprom,
+	                (uint16_t)RS485_EXTENSION_EEPROM_CONFIG_LOCATION_ADDRESS,
 					_tmp_eeprom_read_buf, 4);
 	if (_eeprom_read_status <= 0) {
 		log_error("RS485: Could not read config ADDRESS from EEPROM");
@@ -1186,7 +1179,8 @@ int rs485_extension_init(void) {
 									(_tmp_eeprom_read_buf[3] << 24));
 
 	// Modbus config: BAUDRATE
-	_eeprom_read_status = i2c_eeprom_read((uint16_t)RS485_EXTENSION_EEPROM_CONFIG_LOCATION_BAUDRATE,
+	_eeprom_read_status = i2c_eeprom_read(&i2c_eeprom,
+	                                      (uint16_t)RS485_EXTENSION_EEPROM_CONFIG_LOCATION_BAUDRATE,
 										  _tmp_eeprom_read_buf, 4);
 	if (_eeprom_read_status <= 0) {
 		log_error("RS485: Could not read config BAUDRATE from EEPROM");
@@ -1208,7 +1202,8 @@ int rs485_extension_init(void) {
 			   (double)1000000000) * (double)2) + (double)8000000;
 
 	// Modbus config: PARITY
-	_eeprom_read_status = i2c_eeprom_read((uint16_t)RS485_EXTENSION_EEPROM_CONFIG_LOCATION_PARTIY,
+	_eeprom_read_status = i2c_eeprom_read(&i2c_eeprom,
+	                                      (uint16_t)RS485_EXTENSION_EEPROM_CONFIG_LOCATION_PARTIY,
 										  _tmp_eeprom_read_buf, 1);
 	if (_eeprom_read_status <= 0) {
 		log_error("RS485: Could not read config PARITY from EEPROM");
@@ -1227,7 +1222,8 @@ int rs485_extension_init(void) {
 
 	// Modbus config: STOPBITS
 	_eeprom_read_status =
-	i2c_eeprom_read((uint16_t)RS485_EXTENSION_EEPROM_CONFIG_LOCATION_STOPBITS,
+	i2c_eeprom_read(&i2c_eeprom,
+	                (uint16_t)RS485_EXTENSION_EEPROM_CONFIG_LOCATION_STOPBITS,
 					_tmp_eeprom_read_buf, 1);
 	if (_eeprom_read_status <= 0) {
 		log_error("RS485: Could not read config STOPBITS from EEPROM");
@@ -1245,7 +1241,9 @@ int rs485_extension_init(void) {
 		_rs485_extension.slave_num = 0;
 
 		do {
-			_eeprom_read_status = i2c_eeprom_read(_current_eeprom_location, _tmp_eeprom_read_buf, 4);
+			_eeprom_read_status = i2c_eeprom_read(&i2c_eeprom,
+			                                      _current_eeprom_location,
+			                                      _tmp_eeprom_read_buf, 4);
 			if (_eeprom_read_status <= 0) {
 				log_error("RS485[MASTER]: Could not read config SLAVE ADDRESSES from EEPROM");
 				goto cleanup;
@@ -1293,8 +1291,11 @@ int rs485_extension_init(void) {
 		goto cleanup;
 	}
 
+	// I2C handling done, we can release the I2C bus
+	i2c_eeprom_release(&i2c_eeprom);
+
 	// Initial RS485 RX state
-	init_rxe_pin_state();
+	init_rxe_pin_state(extension);
 
 	phase = 3;
 
@@ -1369,6 +1370,7 @@ cleanup:
 		}
 
 	case 2:
+		i2c_eeprom_release(&i2c_eeprom);
 		hardware_remove_stack(&_rs485_extension.base);
 
 	case 1:
