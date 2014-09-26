@@ -208,7 +208,8 @@ ifeq ($(WITH_RED_BRICK),yes)
 	                  red_stack.c \
 	                  red_usb_gadget.c \
 					  red_extension.c \
-	                  red_rs485_extension.c
+	                  red_rs485_extension.c \
+	                  red_ethernet_extension.c
 
 	SOURCES_DAEMONLIB += ../daemonlib/red_gpio.c \
 	                     ../daemonlib/red_i2c_eeprom.c

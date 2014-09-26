@@ -23,7 +23,7 @@
 #include "red_extension.h"
 
 #include "red_rs485_extension.h"
-//#include "red_ethernet_extension.h"
+#include "red_ethernet_extension.h"
 
 #include <daemonlib/red_i2c_eeprom.h>
 #include <daemonlib/log.h>
@@ -97,12 +97,12 @@ int red_extension_init(void) {
 				break;
 
 			case EXTENSION_TYPE_ETHERNET:
-/*				log_info("Found Ethernet Extension at position %d", i);
+				log_info("Found Ethernet Extension at position %d", i);
 				if(red_ethernet_extension_init(i) < 0) {
 					return -1;
 				}
 
-				_red_extension_type[i] = EXTENSION_TYPE_ETHERNET;*/
+				_red_extension_type[i] = EXTENSION_TYPE_ETHERNET;
 				break;
 		}
     }
@@ -121,8 +121,8 @@ void red_extension_exit(void) {
 				break;
 
 			case EXTENSION_TYPE_ETHERNET:
-				/*ethernet_extension_exit();
-				_red_extension_type[i] = EXTENSION_TYPE_NONE;*/
+				red_ethernet_extension_exit();
+				_red_extension_type[i] = EXTENSION_TYPE_NONE;
 				break;
 
 			default:
