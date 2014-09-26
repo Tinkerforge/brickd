@@ -841,7 +841,8 @@ void init_rxe_pin_state(int extension) {
 			_rx_pin.pin_index = GPIO_PIN_13;
 			break;
 		case 1:
-			// TODO
+			_rx_pin.port_index = GPIO_PORT_G;
+			_rx_pin.pin_index = GPIO_PIN_2;
 			break;
 	}
 
