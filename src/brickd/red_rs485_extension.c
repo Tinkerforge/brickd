@@ -352,7 +352,7 @@ void verify_buffer(uint8_t* receive_buffer) {
     uint16_t crc16_on_packet;
     RS485ExtensionPacket* queue_packet;
 
-    // Check if partial or full packet
+    // Check if length byte is available
     if(current_receive_buffer_index < 8) {
         log_debug("RS485: Partial packet recieved. Length byte not available");
         return;
@@ -361,25 +361,20 @@ void verify_buffer(uint8_t* receive_buffer) {
     // Calculate packet end index
     packet_end_index = 7+((receive_buffer[RS485_PACKET_LENGTH_INDEX] - 5) + RS485_PACKET_FOOTER_LENGTH);
 
+    // Check if complete packet is available
     if(current_receive_buffer_index <= packet_end_index) {
         log_debug("RS485: Partial packet recieved");
         return;
     }
 
+    // If send verify flag was set
     if(send_verify_flag) {
         for(i = 0; i <= packet_end_index; i++) {
             if(receive_buffer[i] != current_request_as_byte_array[i]) {
 				// Move on to next slave
                 disable_master_timer();
-
                 log_error("RS485: Send verification failed");
-                if(is_current_request_empty()) {
-                    ++_red_rs485_extension.slaves[master_current_slave_to_process].sequence;
-                }
-
-                pop_packet_from_slave_queue();
-                master_poll_slave();
-
+                seq_pop_poll();
                 return;
             }
         }
@@ -397,14 +392,14 @@ void verify_buffer(uint8_t* receive_buffer) {
             master_poll_slave();
             return;
         }
-        if(current_receive_buffer_index == packet_end_index+1) {
+        else if(current_receive_buffer_index == packet_end_index+1) {
             // Everything OK. Wait for response now
             log_debug("RS485: No more Data. Waiting for response");
             current_receive_buffer_index = 0;
             memset(receive_buffer, 0, RECEIVE_BUFFER_SIZE);
             return;
         }
-        if(current_receive_buffer_index > packet_end_index+1) {
+        else if(current_receive_buffer_index > packet_end_index+1) {
             // More data in the receive buffer
             log_debug("RS485: Potential partial data in the buffer. Verifying");
 
@@ -420,15 +415,13 @@ void verify_buffer(uint8_t* receive_buffer) {
             }
             return;
         }
-        // Undefined state, abort current request
-        disable_master_timer();
-
-        log_error("RS485: Undefined receive buffer state");
-
-        // Move on to next slave
-        seq_pop_poll();
-
-        return;
+        else {
+            // Undefined state
+            disable_master_timer();
+            log_error("RS485: Undefined receive buffer state");
+            seq_pop_poll();
+            return;
+        }
     }
 
     // Copy UID from the received packet
@@ -473,6 +466,7 @@ void verify_buffer(uint8_t* receive_buffer) {
             disable_master_timer();
             log_error("RS485: Wrong CRC16 checksum in received empty packet. Moving on");
             seq_pop_poll();
+            return;
         }
 
         disable_master_timer();
@@ -488,8 +482,6 @@ void verify_buffer(uint8_t* receive_buffer) {
         
         // Move on to next slave
         master_poll_slave();
-
-        return;
     }
     // Received data packet from the other side
     else if (uid_from_packet != 0 && receive_buffer[8] != 0) {
@@ -540,14 +532,12 @@ void verify_buffer(uint8_t* receive_buffer) {
         network_dispatch_response(&_red_rs485_extension.dispatch_packet);
         log_debug("RS485: Dispatched packet");
 
-        if(uid_from_packet != 0) {
-            stack_add_recipient(&_red_rs485_extension.base, uid_from_packet, receive_buffer[0]);
-            log_debug("RS485: Updated recipient");
-        }
+        stack_add_recipient(&_red_rs485_extension.base, uid_from_packet, receive_buffer[0]);
+        log_debug("RS485: Updated recipient");
 
         queue_packet = queue_peek(&_red_rs485_extension.slaves[master_current_slave_to_process].packet_queue);
     
-        // Replace head of slave queue with the ACK
+        // Replace head of slave queue with an ACK
         memset(queue_packet, 0, sizeof(RS485ExtensionPacket));
         queue_packet->tries_left = RS485_PACKET_TRIES_EMPTY;
         queue_packet->packet.header.length = 8;
@@ -559,10 +549,9 @@ void verify_buffer(uint8_t* receive_buffer) {
         log_debug("RS485: Sending ACK of the data packet");
 
         send_packet();
-
-        return;
     }
     else {
+        // Undefined packet
         disable_master_timer();
         log_error("RS485: Undefined packet");
         seq_pop_poll();
