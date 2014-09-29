@@ -45,7 +45,6 @@ int red_ethernet_extension_init(int extension) {
 
 	log_debug("Loading w5x00 kernel module for position %d", extension);
 
-	// We starting calling "rmmod w5x00".
 	// If the module was loaded before, we make sure that it is reloaded with the
 	// correct position and mac address.
 	if(delete_module("w5x00", 0) < 0) {
