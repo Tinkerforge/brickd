@@ -207,7 +207,7 @@ ifeq ($(WITH_RED_BRICK),yes)
 	                  redapid.c \
 	                  red_stack.c \
 	                  red_usb_gadget.c \
-					  red_extension.c \
+	                  red_extension.c \
 	                  red_rs485_extension.c \
 	                  red_ethernet_extension.c
 
