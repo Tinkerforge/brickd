@@ -148,8 +148,6 @@ static const uint8_t table_crc_lo[] = {
 };
 
 // Data structure definitions
-static I2CEEPROM i2c_eeprom;
-
 typedef struct {
 	Packet packet;
     uint8_t tries_left;
@@ -816,6 +814,7 @@ int red_rs485_extension_init(int extension) {
     int _eeprom_read_status;
     int phase = 0;
     bool cleanup_return_zero = false;
+	static I2CEEPROM i2c_eeprom;
 
 	log_info("RS485: Initializing extension subsystem");
 
