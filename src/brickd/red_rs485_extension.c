@@ -1078,7 +1078,6 @@ void red_rs485_extension_exit(void) {
 	// We can also free the queue and stack now, nobody will use them anymore
     hardware_remove_stack(&_red_rs485_extension.base);
     stack_destroy(&_red_rs485_extension.base);
-    i2c_eeprom_release(&i2c_eeprom);
 
 	// Close file descriptors
 	close(_red_rs485_serial_fd);
