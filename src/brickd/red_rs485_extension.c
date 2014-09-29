@@ -65,7 +65,7 @@
 #define RS485_EXTENSION_FUNCTION_CODE                                   100 // Custom modbus function code
 
 // Serial interface config stuffs
-#define RECEIVE_BUFFER_SIZE                                             1048576 //1MB, in bytes
+#define RECEIVE_BUFFER_SIZE                                             170 // 85x2 = 170 bytes
 #define RS485_EXTENSION_SERIAL_DEVICE                                   "/dev/ttyS0"
 #define RS485_EXTENSION_SERIAL_PARITY_NONE                              110
 #define RS485_EXTENSION_SERIAL_PARITY_EVEN                              101
@@ -73,6 +73,7 @@
 
 // Time related constants
 static unsigned long TIMEOUT = 0;
+static unsigned long MASTER_POLL_SLAVE_INTERVAL = 4000000;              // 4ms in nanoseconds
 static const uint32_t TIMEOUT_BYTES = 86;
 static uint64_t last_timer_enable_at_uS = 0;
 static uint64_t time_passed_from_last_timer_enable = 0;
@@ -194,6 +195,7 @@ static struct itimerspec master_timer;
 static bool _initialized = false;
 static uint8_t sent_ack_of_data_packet = 0;
 static uint8_t send_verify_flag = 0;
+static bool master_poll_interval = false;
 
 // RX GPIO pin definitions
 static GPIOPin _rx_pin; // Active low
@@ -217,6 +219,7 @@ void red_rs485_extension_exit(void);
 void pop_packet_from_slave_queue(void);
 bool is_current_request_empty(void);
 void seq_pop_poll(void);
+void arm_master_poll_slave_interval_timer(void);
 
 // CRC16 function
 uint16_t crc16(uint8_t *buffer, uint16_t buffer_length)
@@ -387,7 +390,10 @@ void verify_buffer(uint8_t* receive_buffer) {
             log_debug("RS485: Processed current request");
             ++_red_rs485_extension.slaves[master_current_slave_to_process].sequence;
             queue_pop(&_red_rs485_extension.slaves[master_current_slave_to_process].packet_queue, NULL);
-            master_poll_slave();
+
+            // Poll next slave after the configured timeout
+            arm_master_poll_slave_interval_timer();
+
             return;
         }
         else if(current_receive_buffer_index == packet_end_index+1) {
@@ -478,8 +484,8 @@ void verify_buffer(uint8_t* receive_buffer) {
         // Popping slave's packet queue
         queue_pop(&_red_rs485_extension.slaves[master_current_slave_to_process].packet_queue, NULL);
         
-        // Move on to next slave
-        master_poll_slave();
+        // Poll next slave after the configured timeout
+        arm_master_poll_slave_interval_timer();
     }
     // Received data packet from the other side
     else if (uid_from_packet != 0 && receive_buffer[8] != 0) {
@@ -569,7 +575,8 @@ void send_packet() {
     if(packet_to_send == NULL) {
         // Slave's packet queue is empty. Move on to next slave
         log_debug("RS485: Slave packet queue empty. Moving on");
-        master_poll_slave();
+        // Poll next slave after the configured timeout
+        arm_master_poll_slave_interval_timer();
         return;
     }
     
@@ -597,7 +604,8 @@ void send_packet() {
     if ((write(_red_rs485_serial_fd, &rs485_packet, sizeof(rs485_packet))) <= 0) {
         log_error("RS485: Error sending packet on interface, %s (%d)",
                   get_errno_name(errno), errno);
-        master_poll_slave();
+        // Poll next slave after the configured timeout
+        arm_master_poll_slave_interval_timer();
         return;
     }
 
@@ -652,9 +660,12 @@ void serial_data_available_handler(void* opaque) {
 	(void)opaque;
 
     // Check if there is space in the receive buffer
-    if(current_receive_buffer_index >= (RECEIVE_BUFFER_SIZE - RS485_PACKET_MAX_LENGTH)) {
-        log_warn("RS485: No more space in the receive buffer. Current request aborted");
-        master_poll_slave();
+    if(current_receive_buffer_index >= RECEIVE_BUFFER_SIZE) {
+        log_warn("RS485: No more space in the receive buffer. Aborting current request");
+
+        // Poll next slave after the configured timeout
+        arm_master_poll_slave_interval_timer();
+
         return;
     }
     // Put newly received bytes on the specific index in receive buffer
@@ -716,6 +727,29 @@ void master_timeout_handler(void* opaque) {
 
 	disable_master_timer();
 
+    if(master_poll_interval) {
+        /*
+         * For some unknown reason the timer randomly times out or this timeout function is called
+         * much long before the actual timeout. This is a fix to this problem
+         * until we find the real problem
+         */
+        time_passed_from_last_timer_enable = (microseconds() - last_timer_enable_at_uS) * 1000;
+
+        if (time_passed_from_last_timer_enable < MASTER_POLL_SLAVE_INTERVAL) {
+            master_timer.it_interval.tv_sec = 0;
+            master_timer.it_interval.tv_nsec = 0;
+            master_timer.it_value.tv_sec = 0;
+            master_timer.it_value.tv_nsec = MASTER_POLL_SLAVE_INTERVAL;
+            timerfd_settime(_master_timer_event, 0, &master_timer, NULL);
+            last_timer_enable_at_uS = microseconds();
+            return;
+        }
+        log_debug("RS485: Master poll slave interval timed out... time to poll next slave");
+        master_poll_interval = false;
+        master_poll_slave();
+        return;
+    }
+
     log_debug("RS485: Current request timed out. Moving on");
 
 	/*
@@ -729,18 +763,18 @@ void master_timeout_handler(void* opaque) {
         master_timer.it_interval.tv_sec = 0;
         master_timer.it_interval.tv_nsec = 0;
         master_timer.it_value.tv_sec = 0;
-        master_timer.it_value.tv_nsec = TIMEOUT - time_passed_from_last_timer_enable;
+        master_timer.it_value.tv_nsec = TIMEOUT;
         timerfd_settime(_master_timer_event, 0, &master_timer, NULL);
         last_timer_enable_at_uS = microseconds();
         return;
 	}
-
 	// Current request timedout. Move on to next slave
     if(is_current_request_empty()) {
         ++_red_rs485_extension.slaves[master_current_slave_to_process].sequence;
     }
     pop_packet_from_slave_queue();
-    master_poll_slave();
+    // Poll next slave after the configured timeout
+    arm_master_poll_slave_interval_timer();
 }
 
 void pop_packet_from_slave_queue() {
@@ -772,7 +806,21 @@ void seq_pop_poll() {
         ++_red_rs485_extension.slaves[master_current_slave_to_process].sequence;
     }
     pop_packet_from_slave_queue();
-    master_poll_slave();
+
+    // Poll next slave after the configured timeout
+    arm_master_poll_slave_interval_timer();
+}
+
+void arm_master_poll_slave_interval_timer() {
+    log_debug("RS485: Waiting before polling next slave");
+    master_poll_interval = true;
+
+    master_timer.it_interval.tv_sec = 0;
+    master_timer.it_interval.tv_nsec = 0;
+    master_timer.it_value.tv_sec = 0;
+    master_timer.it_value.tv_nsec = MASTER_POLL_SLAVE_INTERVAL;
+    timerfd_settime(_master_timer_event, 0, &master_timer, NULL);
+    last_timer_enable_at_uS = microseconds();
 }
 
 // New packet from brickd event loop is queued to be sent via RS485 interface
