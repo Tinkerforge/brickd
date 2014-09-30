@@ -54,6 +54,7 @@ typedef struct {
 #define FOREGROUND_ALL (FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE | FOREGROUND_INTENSITY)
 #define BACKGROUND_ALL (BACKGROUND_RED | BACKGROUND_GREEN | BACKGROUND_BLUE | BACKGROUND_INTENSITY)
 #define FOREGROUND_YELLOW (FOREGROUND_RED | FOREGROUND_GREEN)
+#define FOREGROUND_MAGENTA (FOREGROUND_RED | FOREGROUND_BLUE)
 #define FOREGROUND_WHITE (FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE)
 
 bool _log_debug_override_platform = false;
@@ -472,7 +473,7 @@ void log_apply_color_platform(LogLevel level, bool begin) {
 	if (begin) {
 		switch (level) {
 		case LOG_LEVEL_NONE:
-			attributes = log_prepare_color_attributes(FOREGROUND_BLUE | FOREGROUND_INTENSITY);
+			attributes = log_prepare_color_attributes(FOREGROUND_MAGENTA | FOREGROUND_INTENSITY);
 
 			break;
 
@@ -482,7 +483,8 @@ void log_apply_color_platform(LogLevel level, bool begin) {
 			break;
 
 		case LOG_LEVEL_WARN:
-			attributes = log_prepare_color_attributes(FOREGROUND_YELLOW | FOREGROUND_INTENSITY);
+			// FIXME: select blue or yellow depending on background color
+			attributes = log_prepare_color_attributes(FOREGROUND_BLUE | FOREGROUND_INTENSITY);
 
 			break;
 
