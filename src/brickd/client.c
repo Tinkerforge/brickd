@@ -134,7 +134,7 @@ static void client_handle_authenticate_request(Client *client, AuthenticateReque
 		response.header = request->header;
 		response.header.length = sizeof(response);
 
-		packet_header_set_error_code(&response.header, ERROR_CODE_OK);
+		packet_header_set_error_code(&response.header, PACKET_E_SUCCESS);
 
 		client_dispatch_response(client, NULL, (Packet *)&response, false, false);
 	}
@@ -142,7 +142,7 @@ static void client_handle_authenticate_request(Client *client, AuthenticateReque
 
 static void client_handle_request(Client *client, Packet *request) {
 	char packet_signature[PACKET_MAX_SIGNATURE_LENGTH];
-	ErrorCodeResponse response;
+	EmptyResponse response;
 
 	// handle requests meant for brickd
 	if (uint32_from_le(request->header.uid) == UID_BRICK_DAEMON) {
@@ -180,7 +180,7 @@ static void client_handle_request(Client *client, Packet *request) {
 			response.header.length = sizeof(response);
 
 			packet_header_set_error_code(&response.header,
-			                             ERROR_CODE_FUNCTION_NOT_SUPPORTED);
+			                             PACKET_E_FUNCTION_NOT_SUPPORTED);
 
 			client_dispatch_response(client, NULL, (Packet *)&response, false, false);
 		}
