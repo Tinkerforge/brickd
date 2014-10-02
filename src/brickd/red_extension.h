@@ -22,6 +22,39 @@
 #ifndef BRICKD_RED_EXTENSION_H
 #define BRICKD_RED_EXTENSION_H
 
+#include <stdint.h>
+
+#define EXTENSION_CONFIG_SIZE_MAX   256
+
+#define EXTENSION_RS485_SLAVES_MAX  32
+#define EXTENSION_ETHERNET_MAC_SIZE 6
+
+typedef struct {
+	int type;
+	int extension;
+
+	uint8_t buf[EXTENSION_CONFIG_SIZE_MAX];
+} ExtensionBaseConfig;
+
+typedef struct {
+	int type;
+	int extension;
+
+	uint32_t baudrate;
+	uint8_t parity;
+	uint8_t stopbits;
+	uint32_t address;
+	uint32_t slave_num;
+	uint32_t slave_address[EXTENSION_RS485_SLAVES_MAX];
+} ExtensionRS485Config;
+
+typedef struct {
+	int type;
+	int extension;
+
+	uint8_t mac[EXTENSION_ETHERNET_MAC_SIZE];
+} ExtensionEthernetConfig;
+
 int red_extension_init(void);
 void red_extension_exit(void);
 

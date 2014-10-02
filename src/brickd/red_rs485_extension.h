@@ -26,7 +26,13 @@
 
 #include <daemonlib/io.h>
 
-int red_rs485_extension_init(int extension);
+#include "red_extension.h"
+
+#define RS485_EXTENSION_SERIAL_PARITY_NONE 110
+#define RS485_EXTENSION_SERIAL_PARITY_EVEN 101
+#define RS485_EXTENSION_SERIAL_PARITY_ODD  111
+
+int red_rs485_extension_init(ExtensionRS485Config *rs485_config);
 void red_rs485_extension_exit(void);
 
 #endif // BRICKD_RS485_STACK_H
