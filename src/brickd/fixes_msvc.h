@@ -62,6 +62,7 @@ int fixed_putenv(char *string);
 #define vsnprintf(buffer, count, format, arguments) \
 	_vsnprintf_s(buffer, count, _TRUNCATE, format, arguments)
 #define strcasecmp _stricmp
+#define strncasecmp _strnicmp
 
 #endif // _MSC_VER
 
