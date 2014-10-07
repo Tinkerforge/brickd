@@ -155,7 +155,7 @@ static void LIBUSB_CALL log_forward_libusb_message(enum libusb_log_level level,
 	pipe_message.file[0] = '\0';
 	pipe_message.line = 0;
 
-	string_copy(pipe_message.function, function, sizeof(pipe_message.function));
+	string_copy(pipe_message.function, sizeof(pipe_message.function), function);
 
 	vsnprintf(pipe_message.message, sizeof(pipe_message.message), format, arguments);
 
@@ -550,9 +550,9 @@ void log_secondary_output_platform(struct timeval *timestamp,
 		pipe_message.timestamp = (uint64_t)timestamp->tv_sec * 1000000 + timestamp->tv_usec;
 		pipe_message.level = level;
 		pipe_message.category = category;
-		string_copy(pipe_message.file, file, sizeof(pipe_message.file));
+		string_copy(pipe_message.file, sizeof(pipe_message.file), file);
 		pipe_message.line = line;
-		string_copy(pipe_message.function, function, sizeof(pipe_message.function));
+		string_copy(pipe_message.function, sizeof(pipe_message.function), function);
 
 		log_send_pipe_message(&pipe_message);
 	}

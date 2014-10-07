@@ -547,7 +547,7 @@ static int generic_main(bool log_to_file, bool debug, bool libusb_debug) {
 				log_warn("Module file name '%s' is too short", filename);
 			} else {
 				filename[i - 3] = '\0';
-				string_append(filename, "log", sizeof(filename));
+				string_append(filename, sizeof(filename), "log");
 
 				log_file = fopen(filename, "a+");
 
@@ -943,7 +943,7 @@ int main(int argc, char **argv) {
 	}
 
 	_config_filename[i - 3] = '\0';
-	string_append(_config_filename, "ini", sizeof(_config_filename));
+	string_append(_config_filename, sizeof(_config_filename), "ini");
 
 	if (check_config) {
 		rc = config_check(_config_filename);

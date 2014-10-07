@@ -333,7 +333,7 @@ int client_create(Client *client, const char *name, IO *io,
                   ClientDestroyDoneFunction destroy_done) {
 	log_debug("Creating client from %s (handle: %d)", io->type, io->handle);
 
-	string_copy(client->name, name, sizeof(client->name));
+	string_copy(client->name, sizeof(client->name), name);
 
 	client->io = io;
 	client->disconnected = false;
