@@ -276,7 +276,7 @@ SectionEnd
 
 ;--------------------------------
 
-Section "Install/Update Serial Console Driver"
+Section "Install/Update RED Brick Serial Console Driver"
 
   Push "RED Brick Serial Console"
   Push "$INSTDIR\drivers\serial_console"
