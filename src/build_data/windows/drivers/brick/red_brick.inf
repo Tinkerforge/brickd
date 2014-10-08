@@ -2,18 +2,21 @@
 ; Copyright (c) 2010 libusb (GNU LGPL)
 
 [Strings]
-DeviceName = "Tinkerforge RED Brick"
-VendorName = "Tinkerforge"
-SourceName = "Tinkerforge RED Brick Install Disk"
-DeviceID   = "VID_16D0&PID_09E5&MI_00"
-DeviceGUID = "{9536B3B1-6077-4A3B-9BAC-7C2CFA8A2BF3}"
+DeviceName  = "Tinkerforge RED Brick"
+VendorName  = "Tinkerforge GmbH"
+DisplayName = "RED Brick Driver"
+SourceName  = "Tinkerforge RED Brick Install Disk"
+DeviceID    = "VID_16D0&PID_09E5&MI_00"
+DeviceGUID  = "{9536B3B1-6077-4A3B-9BAC-7C2CFA8A2BF3}"
 
 [Version]
-Signature = "$Windows NT$"
-Class     = "libusb (WinUSB) devices"
-ClassGuid = {78a1c341-4539-11d3-b88d-00c04fad5171}
-Provider  = "libusb.org"
-DriverVer = 07/14/2009,6.1.7600.16385
+Signature                = "$Windows NT$"
+Class                    = "libusb (WinUSB) devices"
+ClassGuid                = {78a1c341-4539-11d3-b88d-00c04fad5171}
+Provider                 = "libusb.org"
+CatalogFile              = red_brick.cat
+DriverVer                = 01/04/2013,6.1.7600.16385
+DriverPackageDisplayName = %DisplayName%
 
 [ClassInstall32]
 Addreg = WinUSBDeviceClassReg
@@ -23,15 +26,12 @@ HKR,,,0,"libusb (WinUSB) devices"
 HKR,,Icon,,-20
 
 [Manufacturer]
-%VendorName% = libusbDevice_WinUSB,NTx86,NTamd64,NTia64
+%VendorName% = libusbDevice_WinUSB,NTx86,NTamd64
 
 [libusbDevice_WinUSB.NTx86]
 %DeviceName% = USB_Install, USB\%DeviceID%
 
 [libusbDevice_WinUSB.NTamd64]
-%DeviceName% = USB_Install, USB\%DeviceID%
-
-[libusbDevice_WinUSB.NTia64]
 %DeviceName% = USB_Install, USB\%DeviceID%
 
 [USB_Install]
@@ -85,7 +85,3 @@ WdfCoInstaller01009.dll = 1,x86
 [SourceDisksFiles.amd64]
 WinUSBCoInstaller2.dll  = 1,amd64
 WdfCoInstaller01009.dll = 1,amd64
-
-[SourceDisksFiles.ia64]
-WinUSBCoInstaller2.dll  = 1,ia64
-WdfCoInstaller01009.dll = 1,ia64

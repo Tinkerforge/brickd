@@ -1,18 +1,20 @@
 ; serial_console.inf
 
 [Strings]
-DeviceName = "Tinkerforge RED Brick Serial Console"
-VendorName = "Tinkerforge"
-DeviceID   = "VID_16D0&PID_09E5&MI_01"
+DeviceName  = "RED Brick Serial Console"
+VendorName  = "Tinkerforge GmbH"
+DisplayName = "RED Brick Serial Console Driver"
+DeviceID    = "VID_16D0&PID_09E5&MI_01"
 
 [Version]
-Signature   = "$Windows NT$"
-Class       = Ports
-ClassGuid   = {4D36E978-E325-11CE-BFC1-08002BE10318}
-Provider    = %VendorName%
-LayoutFile  = layout.inf
-CatalogFile = serial_console.cat
-DriverVer   = 03/09/2011,2.0.0.0
+Signature                = "$Windows NT$"
+Class                    = Ports
+ClassGuid                = {4D36E978-E325-11CE-BFC1-08002BE10318}
+Provider                 = %VendorName%
+LayoutFile               = layout.inf
+CatalogFile              = serial_console.cat
+DriverVer                = 01/04/2013,2.0.0.0
+DriverPackageDisplayName = %DisplayName%
 
 [Manufacturer]
 %VendorName% = DeviceList,NTamd64
@@ -67,7 +69,9 @@ ErrorControl  = 1
 ServiceBinary = %12%\usbser.sys
 
 [SourceDisksFiles]
+
 [SourceDisksNames]
+
 [DeviceList]
 %DeviceName% = DriverInstall, USB\%DeviceID%
 
