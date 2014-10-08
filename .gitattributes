@@ -1,0 +1,5 @@
+# stop git from doing any line endings modifications on signed driver files.
+# the hashes of .inf files are stored in the .cat files and a line endings
+# change will make the file look modified to Windows, because the hash changed
+*.inf binary
+*.cat binary
