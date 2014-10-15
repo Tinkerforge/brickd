@@ -178,6 +178,9 @@ def build_linux_pkg():
     os.system('chown -R root:root dist/usr')
     os.system('chown -R root:root dist/etc')
 
+    os.rename('dist/etc/brickd-default.conf', 'dist/etc/brickd.conf')
+    os.remove('dist/etc/brickd-red-brick.conf')
+
     os.system('find dist -type d -exec chmod 0755 {} \;')
 
     os.chmod('dist/DEBIAN/conffiles', 0644)
