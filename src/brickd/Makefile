@@ -412,7 +412,11 @@ ifeq ($(PLATFORM),Linux)
 	$(E)$(INSTALL) -m 755 brickd $(bindir)
 
 	@echo "CP brickd.conf"
-	$(E)$(INSTALL) -m 644 ../build_data/linux/etc/brickd.conf $(sysconfdir)
+ifeq ($(WITH_RED_BRICK),yes)
+	$(E)$(INSTALL) -m 644 ../build_data/linux/etc/brickd-red-brick.conf $(sysconfdir)/brickd.conf
+else
+	$(E)$(INSTALL) -m 644 ../build_data/linux/etc/brickd-default.conf $(sysconfdir)/brickd.conf
+endif
 
 	@echo "CP brickd (init.d script)"
 	$(E)$(INSTALL) -m 755 ../build_data/linux/etc/init.d/brickd $(sysconfdir)/init.d
