@@ -41,7 +41,6 @@
 #define EXTENSION_EEPROM_TYPE_LOCATION 0
 #define EXTENSION_EEPROM_TYPE_SIZE 4
 
-
 #define EXTENSION_EEPROM_RS485_ADDRESS_LOCATION                  4
 #define EXTENSION_EEPROM_RS485_SLAVE_ADDRESSES_START_LOCATION    100
 #define EXTENSION_EEPROM_RS485_BAUDRATE_LOCATION                 400
@@ -60,7 +59,6 @@ typedef enum  {
 	EXTENSION_TYPE_WIFI = 3,
 	EXTENSION_TYPE_ETHERNET = 4
 } ExtensionType;
-
 
 #define EXTENSION_POS0_GPIO0  {GPIO_PORT_B, GPIO_PIN_13}
 #define EXTENSION_POS0_GPIO1  {GPIO_PORT_B, GPIO_PIN_14}
@@ -254,7 +252,7 @@ int red_extension_save_rs485_config_to_fs(ExtensionRS485Config *rs485_config) {
 	// Write config to filesystem
 	snprintf(buffer, sizeof(buffer), EXTENSION_CONFIG_PATH, rs485_config->extension);
 	if(conf_file_write(&conf_file, buffer) < 0) {
-		log_error("Could not write program config to '%s': %s (%d)",
+		log_error("Could not write config to '%s': %s (%d)",
 		          buffer, get_errno_name(errno), errno);
 
 		ret = -1;
@@ -344,6 +342,73 @@ int red_extension_read_rs485_config(I2CEEPROM *i2c_eeprom, ExtensionRS485Config 
 	return 0;
 }
 
+int red_extension_save_ethernet_config_to_fs(ExtensionEthernetConfig *ethernet_config) {
+	ConfFile conf_file;
+	ConfFileLine *line;
+	char buffer[1024];
+	int ret = 0;
+	uint8_t i = 0;
+
+	// Create file
+	if(conf_file_create(&conf_file) < 0) {
+		log_error("Could not create ethernet conf object: %s (%d)",
+		          get_errno_name(errno), errno);
+
+		return -1;
+	}
+
+	// Write comment
+	line = array_append(&conf_file.lines);
+	if (line == NULL) {
+		log_error("Could not add comment to ethernet conf file: %s (%d)",
+		          get_errno_name(errno), errno);
+
+		ret = -1;
+		goto cleanup;
+	}
+	line->raw = strdup(EXTENSION_CONFIG_COMMENT);
+	line->name = NULL;
+	line->value = NULL;
+
+	// Write options
+	snprintf(buffer, sizeof(buffer), "%d", ethernet_config->type);
+	if(conf_file_set_option_value(&conf_file, "type" , buffer) < 0) {
+		log_error("Could not set '%s' option for RS485: %s (%d)",
+		          "type", get_errno_name(errno), errno);
+
+		ret = -1;
+		goto cleanup;
+	}
+
+	snprintf(buffer, sizeof(buffer), "%02x", (unsigned char)ethernet_config->mac[0]);
+	for(i = 1; i < EXTENSION_ETHERNET_MAC_SIZE; i++) {
+		snprintf(buffer + strlen(buffer), sizeof(buffer)-strlen(buffer), ":%02x", (unsigned char)ethernet_config->mac[i]);
+	}
+
+	if(conf_file_set_option_value(&conf_file, "mac", buffer) < 0) {
+		log_error("Could not set '%s' option for Ethernet: %s (%d)",
+		          "mac", get_errno_name(errno), errno);
+
+		ret = -1;
+		goto cleanup;
+	}
+
+	// Write config to filesystem
+	snprintf(buffer, sizeof(buffer), EXTENSION_CONFIG_PATH, ethernet_config->extension);
+	if(conf_file_write(&conf_file, buffer) < 0) {
+		log_error("Could not write config to '%s': %s (%d)",
+		          buffer, get_errno_name(errno), errno);
+
+		ret = -1;
+		goto cleanup;
+	}
+
+cleanup:
+	conf_file_destroy(&conf_file);
+
+	return ret;
+}
+
 int red_extension_read_ethernet_config(I2CEEPROM *i2c_eeprom, ExtensionEthernetConfig *ethernet_config) {
 	if(i2c_eeprom_read(i2c_eeprom,
 	                   EXTENSION_EEPROM_ETHERNET_MAC_ADDRESS,
@@ -393,12 +458,21 @@ int red_extension_init(void) {
     		return -1;
     	}
 
-    	if((eeprom_length = red_extension_read_eeprom_from_fs(eeprom_buffer, i)) > 0) {
-    		log_info("Found new EEPROM config (length=%d) for extension %d", eeprom_length, i);
-    		if(i2c_eeprom_write(&i2c_eeprom, 0, eeprom_buffer, eeprom_length) < 0) {
-    			log_warn("Writing EEPROM config for extension %d failed", i);
+    	if((eeprom_length = red_extension_read_eeprom_from_fs(eeprom_buffer, i)) > 2) {
+    		int start_addr = eeprom_buffer[0] | (eeprom_buffer[1] << 8);
+
+    		if(eeprom_length + start_addr >= EEPROM_SIZE) {
+    			log_warn("Found malformed EEPROM config (start=%d, length=%d) for extension %d",
+    			         start_addr, eeprom_length, i);
     		} else {
-    			log_debug("Wrote EEPROM config (length=%d) for extension %d", eeprom_length, i);
+				log_info("Found new EEPROM config (start=%d, length=%d) for extension %d",
+				         start_addr, eeprom_length, i);
+				if(i2c_eeprom_write(&i2c_eeprom, start_addr, eeprom_buffer+2, eeprom_length-2) < 0) {
+					log_warn("Writing EEPROM config for extension %d failed", i);
+				} else {
+					log_debug("Wrote EEPROM config (start=%d, length=%d) for extension %d",
+					          start_addr, eeprom_length, i);
+				}
     		}
     	}
 
@@ -449,6 +523,10 @@ int red_extension_init(void) {
 				if(ret < 0) {
 					log_warn("Could not read Ethernet config, ignoring extension at position %d", i);
 					continue;
+				}
+
+				if(red_extension_save_ethernet_config_to_fs((ExtensionEthernetConfig *) &base_config[i]) < 0) {
+					log_warn("Could not save Ethernet config. Ethernet Extension at position %d will not show up in Brick Viewer", i);
 				}
 
 				break;
