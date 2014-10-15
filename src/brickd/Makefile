@@ -23,7 +23,7 @@ WITH_PROFILING ?= no
 WITH_DEBUG ?= no
 WITH_USB_REOPEN_ON_SIGUSR1 ?= yes
 WITH_PM_UTILS ?= check
-WITH_RED_BRICK ?= no
+WITH_RED_BRICK ?= check
 
 ## RULES ######################################################################
 
@@ -71,6 +71,21 @@ ifneq ($(findstring $(MAKEFLAGS),s),s)
 ifndef V
 	E := @
 endif
+endif
+
+ifeq ($(PLATFORM),Linux)
+ifeq ($(WITH_RED_BRICK),check)
+ifeq ($(shell hostname),red-brick)
+	# Linux and RED Brick
+	WITH_RED_BRICK := yes
+else
+	# Linux, but no RED Brick
+	WITH_RED_BRICK := no
+endif
+endif
+else
+	# not Linux, no RED Brick
+	WITH_RED_BRICK := no
 endif
 
 ifneq ($(PLATFORM),Windows)
