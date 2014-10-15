@@ -212,7 +212,8 @@ ifeq ($(WITH_RED_BRICK),yes)
 	                  red_ethernet_extension.c
 
 	SOURCES_DAEMONLIB += ../daemonlib/red_gpio.c \
-	                     ../daemonlib/red_i2c_eeprom.c
+	                     ../daemonlib/red_i2c_eeprom.c \
+	                     ../daemonlib/red_led.c
 endif
 
 SOURCES := $(SOURCES_DAEMONLIB) $(SOURCES_BRICKD)

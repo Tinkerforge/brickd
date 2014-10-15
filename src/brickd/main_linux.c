@@ -35,7 +35,10 @@
 #include <daemonlib/event.h>
 #include <daemonlib/log.h>
 #include <daemonlib/pid_file.h>
-#include <daemonlib/red_gpio.h>
+#ifdef BRICKD_WITH_RED_BRICK
+	#include <daemonlib/red_gpio.h>
+	#include <daemonlib/red_led.h>
+#endif
 #include <daemonlib/signal.h>
 #include <daemonlib/utils.h>
 
@@ -318,6 +321,9 @@ int main(int argc, char **argv) {
 	if (red_extension_init() < 0) {
 		goto error_red_extension;
 	}
+
+	red_led_set_trigger(RED_LED_GREEN, config_get_option_value("led_trigger.green")->red_led_trigger);
+	red_led_set_trigger(RED_LED_RED, config_get_option_value("led_trigger.red")->red_led_trigger);
 #endif
 
 	if (event_run(network_cleanup_clients_and_zombies) < 0) {

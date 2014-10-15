@@ -20,6 +20,9 @@
  */
 
 #include <daemonlib/config.h>
+#ifdef BRICKD_WITH_RED_BRICK
+	#include <daemonlib/red_led.h>
+#endif
 
 ConfigOption config_options[] = {
 	CONFIG_OPTION_STRING_INITIALIZER("listen.address", NULL, 1, -1, "0.0.0.0"),
@@ -39,5 +42,9 @@ ConfigOption config_options[] = {
 	CONFIG_OPTION_LOG_LEVEL_INITIALIZER("log_level.rs485", NULL, LOG_LEVEL_INFO),
 #endif
 	CONFIG_OPTION_LOG_LEVEL_INITIALIZER("log_level.other", NULL, LOG_LEVEL_INFO),
+#ifdef BRICKD_WITH_RED_BRICK
+	CONFIG_OPTION_RED_LED_TRIGGER_INITIALIZER("led_trigger.green", NULL, RED_LED_TRIGGER_HEARTBEAT),
+	CONFIG_OPTION_RED_LED_TRIGGER_INITIALIZER("led_trigger.red", NULL, RED_LED_TRIGGER_OFF),
+#endif
 	CONFIG_OPTION_NULL_INITIALIZER // end of list
 };
