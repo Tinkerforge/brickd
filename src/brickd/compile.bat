@@ -45,11 +45,13 @@
 
 %CC% /FI..\brickd\fixes_msvc.h^
  ..\daemonlib\array.c^
+ ..\daemonlib\base58.c^
  ..\daemonlib\config.c^
  ..\daemonlib\conf_file.c^
  ..\daemonlib\event.c^
  ..\daemonlib\io.c^
  ..\daemonlib\log.c^
+ ..\daemonlib\node.c^
  ..\daemonlib\packet.c^
  ..\daemonlib\pipe_winapi.c^
  ..\daemonlib\queue.c^

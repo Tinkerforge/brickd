@@ -146,11 +146,13 @@ else
 endif
 
 SOURCES_DAEMONLIB := $(call FIX_PATH,../daemonlib/array.c) \
+                     $(call FIX_PATH,../daemonlib/base58.c) \
                      $(call FIX_PATH,../daemonlib/config.c) \
                      $(call FIX_PATH,../daemonlib/conf_file.c) \
                      $(call FIX_PATH,../daemonlib/event.c) \
                      $(call FIX_PATH,../daemonlib/io.c) \
                      $(call FIX_PATH,../daemonlib/log.c) \
+                     $(call FIX_PATH,../daemonlib/node.c) \
                      $(call FIX_PATH,../daemonlib/packet.c) \
                      $(call FIX_PATH,../daemonlib/queue.c) \
                      $(call FIX_PATH,../daemonlib/socket.c) \

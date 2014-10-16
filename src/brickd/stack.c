@@ -36,6 +36,7 @@
 #include <string.h>
 
 #include <daemonlib/array.h>
+#include <daemonlib/base58.h>
 #include <daemonlib/log.h>
 #include <daemonlib/utils.h>
 

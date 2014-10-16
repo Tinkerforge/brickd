@@ -25,6 +25,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+#include <daemonlib/node.h>
 #include <daemonlib/packet.h>
 #include <daemonlib/timer.h>
 #include <daemonlib/utils.h>

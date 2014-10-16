@@ -31,9 +31,11 @@
 #endif
 
 #include <daemonlib/array.h>
+#include <daemonlib/base58.h>
 #include <daemonlib/config.h>
 #include <daemonlib/event.h>
 #include <daemonlib/log.h>
+#include <daemonlib/node.h>
 #include <daemonlib/packet.h>
 #include <daemonlib/socket.h>
 #include <daemonlib/utils.h>
@@ -255,8 +257,7 @@ static void network_drop_pending_requests(uint32_t uid) {
 
 	if (count > 0) {
 		log_warn("Dropped %d pending request(s) (uid: %s)",
-		         count,
-		         base58_encode(base58, uint32_from_le(uid)));
+		         count, base58_encode(base58, uint32_from_le(uid)));
 	}
 }
 

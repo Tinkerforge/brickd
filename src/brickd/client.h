@@ -32,6 +32,7 @@
 
 #include <daemonlib/array.h>
 #include <daemonlib/io.h>
+#include <daemonlib/node.h>
 #include <daemonlib/packet.h>
 #include <daemonlib/writer.h>
 

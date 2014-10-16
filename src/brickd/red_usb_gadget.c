@@ -43,6 +43,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 
+#include <daemonlib/base58.h>
 #include <daemonlib/event.h>
 #include <daemonlib/log.h>
 #include <daemonlib/utils.h>

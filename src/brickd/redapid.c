@@ -23,6 +23,7 @@
 #include <stdbool.h>
 #include <sys/un.h>
 
+#include <daemonlib/base58.h>
 #include <daemonlib/event.h>
 #include <daemonlib/log.h>
 #include <daemonlib/queue.h>

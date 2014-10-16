@@ -32,20 +32,21 @@
 #include <linux/spi/spidev.h>
 #include <sys/eventfd.h>
 
+#include <daemonlib/base58.h>
 #include <daemonlib/config.h>
-#include <daemonlib/threads.h>
+#include <daemonlib/event.h>
+#include <daemonlib/log.h>
 #include <daemonlib/packet.h>
 #include <daemonlib/pipe.h>
-#include <daemonlib/log.h>
 #include <daemonlib/red_gpio.h>
-#include <daemonlib/event.h>
+#include <daemonlib/threads.h>
 
-#include "network.h"
-#include "stack.h"
-#include "hardware.h"
-
-#include "red_usb_gadget.h"
 #include "red_stack.h"
+
+#include "hardware.h"
+#include "network.h"
+#include "red_usb_gadget.h"
+#include "stack.h"
 
 #define LOG_CATEGORY LOG_CATEGORY_SPI
 
