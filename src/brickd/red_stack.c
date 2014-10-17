@@ -32,6 +32,7 @@
 #include <linux/spi/spidev.h>
 #include <sys/eventfd.h>
 
+#include <daemonlib/config.h>
 #include <daemonlib/threads.h>
 #include <daemonlib/packet.h>
 #include <daemonlib/pipe.h>
@@ -128,6 +129,9 @@ static int              _red_stack_wait_for_reset_helper = 0;
 static int _red_stack_notification_event;
 static int _red_stack_reset_fd;
 static int _red_stack_reset_detected = 0;
+
+// delay between transfers in microseconds. configurable with brickd.conf option poll_delay.spi
+static int _red_stack_spi_poll_delay = 50;
 
 typedef enum {
 	RED_STACK_SLAVE_STATUS_ABSENT = 0,
@@ -621,8 +625,7 @@ static void red_stack_spi_thread(void *opaque) {
 				semaphore_acquire(&_red_stack_dispatch_packet_from_spi_semaphore);
 			}
 
-			// TODO: Get sleep time between transfers through RED Brick API with a minimum of 50us
-			SLEEP_NS(0, 1000*50);
+			SLEEP_NS(0, 1000*_red_stack_spi_poll_delay);
 		}
 
 		if(_red_stack.slave_num == 0) {
@@ -806,6 +809,8 @@ int red_stack_init(void) {
 	int phase = 0;
 
 	log_debug("Initializing RED Brick SPI Stack subsystem");
+
+	_red_stack_spi_poll_delay = config_get_option_value("poll_delay.spi")->integer;
 
 	if(gpio_sysfs_export(RED_STACK_RESET_PIN_GPIO_NUM) < 0) {
 		// Just issue a warning, RED Brick will work without reset interrupt

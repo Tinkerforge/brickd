@@ -37,6 +37,7 @@
 #include <linux/serial.h>
 #include <sys/ioctl.h>
 
+#include <daemonlib/config.h>
 #include <daemonlib/threads.h>
 #include <daemonlib/packet.h>
 #include <daemonlib/pipe.h>
@@ -60,9 +61,10 @@
 
 
 // Time related constants
-static unsigned long TIMEOUT = 0;
-static unsigned long MASTER_POLL_SLAVE_INTERVAL = 4000000;              // 4ms in nanoseconds
-static const uint32_t TIMEOUT_BYTES = 86;
+static uint64_t TIMEOUT = 0;
+// delay between polls in nanoseconds. configurable with brickd.conf option poll_delay.rs485 in microseconds
+static uint64_t MASTER_POLL_SLAVE_INTERVAL = 40000000;
+static uint32_t TIMEOUT_BYTES = 86;
 static uint64_t last_timer_enable_at_uS = 0;
 static uint64_t time_passed_from_last_timer_enable = 0;
 
@@ -847,6 +849,8 @@ int red_rs485_extension_init(ExtensionRS485Config *rs485_config) {
     bool cleanup_return_zero = false;
 
 	log_info("RS485: Initializing extension subsystem");
+
+	MASTER_POLL_SLAVE_INTERVAL = (uint64_t)config_get_option_value("poll_delay.rs485")->integer * 1000;
 
 	// Create base stack
 	if(stack_create(&_red_rs485_extension.base, "red_rs485_extension",
