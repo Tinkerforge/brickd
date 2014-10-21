@@ -37,7 +37,7 @@
 
 #define W5X00_PARAM_MAX_SIZE 150
 #define W5X00_MODULE_MAX_SIZE (1000*200)
-#define W5X00_MODULE_PATH "/root/w5x00.ko"
+#define W5X00_MODULE_PATH "/lib/modules/3.4.90+/kernel/drivers/net/ethernet/wiznet/w5x00.ko"
 
 #define EXTENSION_POS0_SELECT {GPIO_PORT_G, GPIO_PIN_9}
 #define EXTENSION_POS1_SELECT {GPIO_PORT_G, GPIO_PIN_13}
