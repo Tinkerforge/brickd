@@ -16,6 +16,7 @@ SOURCES=array.c \
 	base58.c \
 	config.c \
 	conf_file.c \
+	enum.c \
 	event.c \
 	event_winapi.c \
 	io.c \

@@ -48,6 +48,7 @@
  ..\daemonlib\base58.c^
  ..\daemonlib\config.c^
  ..\daemonlib\conf_file.c^
+ ..\daemonlib\enum.c^
  ..\daemonlib\event.c^
  ..\daemonlib\io.c^
  ..\daemonlib\log.c^
