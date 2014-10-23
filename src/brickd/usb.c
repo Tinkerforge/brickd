@@ -395,11 +395,11 @@ int usb_create_context(libusb_context **context) {
 		phase = 2;
 	}
 
+	phase = 3;
+
 	// register pollfd notifiers
 	libusb_set_pollfd_notifiers(*context, usb_add_pollfd, usb_remove_pollfd,
 	                            *context);
-
-	phase = 3;
 
 cleanup:
 	switch (phase) { // no breaks, all cases fall through intentionally

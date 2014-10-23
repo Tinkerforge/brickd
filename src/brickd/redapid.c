@@ -301,11 +301,11 @@ static void redapid_handle_reconnect(void *opaque) {
 		goto cleanup;
 	}
 
+	phase = 4;
+
 	_connected = true;
 
 	log_info("Connected to RED Brick API Daemon");
-
-	phase = 4;
 
 cleanup:
 	switch (phase) { // no breaks, all cases fall through intentionally
