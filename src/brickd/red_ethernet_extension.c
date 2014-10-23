@@ -27,7 +27,6 @@
 #include <stdio.h>
 #include <errno.h>
 
-//#include <linux/module.h>
 #include <daemonlib/log.h>
 #include <daemonlib/utils.h>
 #include <daemonlib/red_i2c_eeprom.h>
