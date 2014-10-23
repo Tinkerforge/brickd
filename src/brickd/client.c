@@ -24,6 +24,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <daemonlib/base58.h>
 #include <daemonlib/config.h>
 #include <daemonlib/event.h>
 #include <daemonlib/log.h>
@@ -34,6 +35,9 @@
 #include "hardware.h"
 #include "hmac.h"
 #include "network.h"
+#ifdef BRICKD_WITH_RED_BRICK
+	#include "red_usb_gadget.h"
+#endif
 #include "zombie.h"
 
 #define LOG_CATEGORY LOG_CATEGORY_NETWORK
@@ -479,3 +483,34 @@ cleanup:
 		pending_request_remove_and_free(pending_request);
 	}
 }
+
+#ifdef BRICKD_WITH_RED_BRICK
+
+void client_send_red_brick_enumerate(Client *client, EnumerationType type) {
+	EnumerateCallback enumerate_callback;
+	uint32_t uid = red_usb_gadget_get_uid(); // always little endian
+
+	memset(&enumerate_callback, 0, sizeof(enumerate_callback));
+
+	enumerate_callback.header.uid = uid;
+	enumerate_callback.header.length = sizeof(enumerate_callback);
+	enumerate_callback.header.function_id = CALLBACK_ENUMERATE;
+	packet_header_set_sequence_number(&enumerate_callback.header, 0);
+	packet_header_set_response_expected(&enumerate_callback.header, true);
+
+	base58_encode(enumerate_callback.uid, uint32_from_le(uid));
+	enumerate_callback.connected_uid[0] = '0';
+	enumerate_callback.position = '0';
+	enumerate_callback.hardware_version[0] = 1;
+	enumerate_callback.hardware_version[1] = 0;
+	enumerate_callback.hardware_version[2] = 0;
+	enumerate_callback.firmware_version[0] = 2;
+	enumerate_callback.firmware_version[1] = 0;
+	enumerate_callback.firmware_version[2] = 0;
+	enumerate_callback.device_identifier = uint16_to_le(RED_BRICK_DEVICE_IDENTIFIER);
+	enumerate_callback.enumeration_type = type;
+
+	client_dispatch_response(client, NULL, (Packet *)&enumerate_callback, true, false);
+}
+
+#endif

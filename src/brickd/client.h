@@ -95,4 +95,10 @@ void client_destroy(Client *client);
 void client_dispatch_response(Client *client, PendingRequest *pending_request,
                               Packet *response, bool force, bool ignore_authentication);
 
+#ifdef BRICKD_WITH_RED_BRICK
+
+void client_send_red_brick_enumerate(Client *client, EnumerationType type);
+
+#endif
+
 #endif // BRICKD_CLIENT_H

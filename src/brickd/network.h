@@ -38,4 +38,10 @@ void network_cleanup_clients_and_zombies(void);
 void network_client_expects_response(Client *client, Packet *request);
 void network_dispatch_response(Packet *response);
 
+#ifdef BRICKD_WITH_RED_BRICK
+
+void network_broadcast_red_brick_enumerate_disconnect(void);
+
+#endif
+
 #endif // BRICKD_NETWORK_H

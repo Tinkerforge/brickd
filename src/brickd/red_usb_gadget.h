@@ -29,6 +29,8 @@
 int red_usb_gadget_init(void);
 void red_usb_gadget_exit(void);
 
+void red_usb_gadget_announce_disconnect(void);
+
 uint32_t red_usb_gadget_get_uid(void);
 
 #endif // BRICKD_RED_USB_GADGET_H

@@ -330,6 +330,11 @@ int main(int argc, char **argv) {
 		goto error_run;
 	}
 
+#ifdef BRICKD_WITH_RED_BRICK
+	network_broadcast_red_brick_enumerate_disconnect();
+	red_usb_gadget_announce_disconnect();
+#endif
+
 	exit_code = EXIT_SUCCESS;
 
 error_run:

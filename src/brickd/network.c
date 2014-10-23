@@ -66,6 +66,7 @@ static void network_handle_accept(void *opaque) {
 	char port[NI_MAXSERV];
 	char buffer[NI_MAXHOST + NI_MAXSERV + 4]; // 4 == strlen("[]:") + 1
 	char *name = "<unknown>";
+	Client *client;
 
 	// accept new client socket
 	client_socket = socket_accept(server_socket, (struct sockaddr *)&address, &length);
@@ -95,10 +96,18 @@ static void network_handle_accept(void *opaque) {
 	}
 
 	// create new client
-	if (network_create_client(name, &client_socket->base) == NULL) {
+	client = network_create_client(name, &client_socket->base);
+
+	if (client == NULL) {
 		socket_destroy(client_socket);
 		free(client_socket);
+
+		return;
 	}
+
+#ifdef BRICKD_WITH_RED_BRICK
+	client_send_red_brick_enumerate(client, ENUMERATION_TYPE_CONNECTED);
+#endif
 }
 
 static const char *network_get_address_family_name(int family, bool report_dual_stack) {
@@ -541,3 +550,21 @@ void network_dispatch_response(Packet *response) {
 		          packet_get_response_signature(packet_signature, response));
 	}
 }
+
+#ifdef BRICKD_WITH_RED_BRICK
+
+void network_broadcast_red_brick_enumerate_disconnect(void) {
+	int i;
+	Client *client;
+
+	log_debug("Broadcasting enumerate-disconnected callback for RED Brick to %d client(s)",
+	          _clients.count);
+
+	for (i = 0; i < _clients.count; ++i) {
+		client = array_get(&_clients, i);
+
+		client_send_red_brick_enumerate(client, ENUMERATION_TYPE_DISCONNECTED);
+	}
+}
+
+#endif
