@@ -155,6 +155,34 @@ static int red_usb_gadget_connect(void) {
 }
 
 static void red_usb_gadget_disconnect() {
+	EnumerateCallback enumerate_callback;
+	
+	// send enumerate-disconnected callback
+	memset(&enumerate_callback, 0, sizeof(enumerate_callback));
+
+	enumerate_callback.header.uid = _uid;
+	enumerate_callback.header.length = sizeof(enumerate_callback);
+	enumerate_callback.header.function_id = CALLBACK_ENUMERATE;
+	packet_header_set_sequence_number(&enumerate_callback.header, 0);
+	packet_header_set_response_expected(&enumerate_callback.header, true);
+
+	base58_encode(enumerate_callback.uid, uint32_from_le(_uid));
+	enumerate_callback.connected_uid[0] = '0';
+	enumerate_callback.position = '0';
+	enumerate_callback.hardware_version[0] = 1;
+	enumerate_callback.hardware_version[1] = 0;
+	enumerate_callback.hardware_version[2] = 0;
+	enumerate_callback.firmware_version[0] = 2;
+	enumerate_callback.firmware_version[1] = 0;
+	enumerate_callback.firmware_version[2] = 0;
+	enumerate_callback.device_identifier = uint16_to_le(RED_BRICK_DEVICE_IDENTIFIER);
+	enumerate_callback.enumeration_type = ENUMERATION_TYPE_DISCONNECTED;
+
+	log_debug("Sending enumerate-disconnected callback for RED Brick to '%s'",
+	          G_RED_BRICK_DATA_FILENAME);
+
+	client_dispatch_response(_client, NULL, (Packet *)&enumerate_callback, true, false);
+
 	_client->destroy_done = NULL;
 	_client->disconnected = true;
 	_client = NULL;

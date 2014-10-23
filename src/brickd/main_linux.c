@@ -306,10 +306,6 @@ int main(int argc, char **argv) {
 		goto error_gpio;
 	}
 
-	if (red_usb_gadget_init() < 0) {
-		goto error_red_usb_gadget;
-	}
-
 	if (redapid_init() < 0) {
 		goto error_redapid;
 	}
@@ -320,6 +316,10 @@ int main(int argc, char **argv) {
 
 	if (red_extension_init() < 0) {
 		goto error_red_extension;
+	}
+
+	if (red_usb_gadget_init() < 0) {
+		goto error_red_usb_gadget;
 	}
 
 	red_led_set_trigger(RED_LED_GREEN, config_get_option_value("led_trigger.green")->red_led_trigger);
@@ -334,6 +334,9 @@ int main(int argc, char **argv) {
 
 error_run:
 #ifdef BRICKD_WITH_RED_BRICK
+	red_usb_gadget_exit();
+
+error_red_usb_gadget:
 	red_extension_exit();
 
 error_red_extension:
@@ -343,9 +346,6 @@ error_red_stack:
 	redapid_exit();
 
 error_redapid:
-	red_usb_gadget_exit();
-
-error_red_usb_gadget:
 	//gpio_exit();
 
 error_gpio:
