@@ -131,7 +131,7 @@ int red_extension_read_eeprom_from_fs(uint8_t *buffer, int extension) {
 	char file_name[128];
 	int length;
 
-	if(snprintf(file_name, 128, "/tmp/new_eeprom_extension_%d.conf", extension) < 0) {
+	if(robust_snprintf(file_name, sizeof(file_name), "/tmp/new_eeprom_extension_%d.conf", extension) < 0) {
 		return -1;
 	}
 
