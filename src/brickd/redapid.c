@@ -40,7 +40,7 @@
 #define LOG_CATEGORY LOG_CATEGORY_RED_BRICK
 
 #define RECONNECT_INTERVAL 2000000 // 2 seconds in microseconds
-#define SOCKET_FILENAME "/var/run/redapid.socket"
+#define SOCKET_FILENAME "/var/run/redapid-brickd.socket"
 
 typedef struct {
 	Stack base;
