@@ -50,10 +50,10 @@
 
 static Array _clients;
 static Array _zombies;
-static Socket _server_socket_plain;
-static Socket _server_socket_websocket;
-static bool _server_socket_plain_open = false;
-static bool _server_socket_websocket_open = false;
+static Socket _plain_server_socket;
+static bool _plain_server_socket_open = false;
+static Socket _websocket_server_socket;
+static bool _websocket_server_socket_open = false;
 static uint32_t _next_authentication_nonce = 0;
 static Node _pending_request_sentinel;
 
@@ -304,9 +304,9 @@ int network_init(void) {
 		return -1;
 	}
 
-	if (network_open_server_socket(&_server_socket_plain, plain_port,
+	if (network_open_server_socket(&_plain_server_socket, plain_port,
 	                               socket_create_allocated) >= 0) {
-		_server_socket_plain_open = true;
+		_plain_server_socket_open = true;
 	}
 
 	if (websocket_port != 0) {
@@ -314,13 +314,13 @@ int network_init(void) {
 			log_warn("WebSocket support is enabled without authentication");
 		}
 
-		if (network_open_server_socket(&_server_socket_websocket, websocket_port,
+		if (network_open_server_socket(&_websocket_server_socket, websocket_port,
 		                               websocket_create_allocated) >= 0) {
-			_server_socket_websocket_open = true;
+			_websocket_server_socket_open = true;
 		}
 	}
 
-	if (!_server_socket_plain_open && !_server_socket_websocket_open) {
+	if (!_plain_server_socket_open && !_websocket_server_socket_open) {
 		log_error("Could not open any socket to listen to");
 
 		array_destroy(&_zombies, (ItemDestroyFunction)zombie_destroy);
@@ -338,14 +338,14 @@ void network_exit(void) {
 	array_destroy(&_clients, (ItemDestroyFunction)client_destroy); // might call network_create_zombie
 	array_destroy(&_zombies, (ItemDestroyFunction)zombie_destroy);
 
-	if (_server_socket_plain_open) {
-		event_remove_source(_server_socket_plain.base.handle, EVENT_SOURCE_TYPE_GENERIC);
-		socket_destroy(&_server_socket_plain);
+	if (_plain_server_socket_open) {
+		event_remove_source(_plain_server_socket.base.handle, EVENT_SOURCE_TYPE_GENERIC);
+		socket_destroy(&_plain_server_socket);
 	}
 
-	if (_server_socket_websocket_open) {
-		event_remove_source(_server_socket_websocket.base.handle, EVENT_SOURCE_TYPE_GENERIC);
-		socket_destroy(&_server_socket_websocket);
+	if (_websocket_server_socket_open) {
+		event_remove_source(_websocket_server_socket.base.handle, EVENT_SOURCE_TYPE_GENERIC);
+		socket_destroy(&_websocket_server_socket);
 	}
 }
 
