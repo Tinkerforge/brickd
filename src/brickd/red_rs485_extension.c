@@ -239,7 +239,8 @@ int serial_interface_init(char* serial_interface) {
     struct serial_struct serial_config;
     tcgetattr(_red_rs485_serial_fd, &(serial_interface_config));
     memset(&serial_interface_config, 0, sizeof(serial_interface_config));
-        
+    memset(&serial_config, 0, sizeof(serial_config));
+
     // Control options
     serial_interface_config.c_cflag |= (CREAD | CLOCAL);
     serial_interface_config.c_cflag &= ~CSIZE;
