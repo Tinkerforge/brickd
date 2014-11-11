@@ -189,9 +189,6 @@ static bool master_poll_interval = false;
 // RX GPIO pin definitions
 static GPIOPin _rx_pin; // Active low
 
-// For iterations
-static int i = 0;
-
 // Function prototypes
 uint16_t crc16(uint8_t*, uint16_t);
 int serial_interface_init(char*);
@@ -213,6 +210,7 @@ uint16_t crc16(uint8_t *buffer, uint16_t buffer_length)
 {
     uint8_t crc_hi = 0xFF; // High CRC byte initialized 
     uint8_t crc_lo = 0xFF; // Low CRC byte initialized 
+    int i;
 
     // Pass through message buffer
     while (buffer_length--) {
@@ -339,6 +337,7 @@ void verify_buffer(uint8_t* receive_buffer) {
     uint16_t crc16_calculated;
     uint16_t crc16_on_packet;
     RS485ExtensionPacket* queue_packet;
+    int i;
 
     // Check if length byte is available
     if(current_receive_buffer_index < 8) {
@@ -813,6 +812,8 @@ void arm_master_poll_slave_interval_timer() {
 // New packet from brickd event loop is queued to be sent via RS485 interface
 void red_rs485_extension_dispatch_to_rs485(Stack *stack, Packet *request, Recipient *recipient) {
 	RS485ExtensionPacket* queued_request;
+	int i;
+
 	(void)stack;
 
     if(request->header.uid == 0 || recipient == NULL) {
@@ -826,9 +827,7 @@ void red_rs485_extension_dispatch_to_rs485(Stack *stack, Packet *request, Recipi
                       _red_rs485_extension.slaves[i].address,
                       packet_get_request_signature(packet_signature, request));
         }
-    }
-    else if (recipient != NULL) {
-
+    } else if (recipient != NULL) {
         for(i = 0; i < _red_rs485_extension.slave_num; i++) {
             if(_red_rs485_extension.slaves[i].address == recipient->opaque) {
                 queued_request = queue_push(&_red_rs485_extension.slaves[i].packet_queue);
@@ -847,6 +846,7 @@ void red_rs485_extension_dispatch_to_rs485(Stack *stack, Packet *request, Recipi
 int red_rs485_extension_init(ExtensionRS485Config *rs485_config) {
     int phase = 0;
     bool cleanup_return_zero = false;
+	int i;
 
 	log_info("RS485: Initializing extension subsystem");
 
@@ -878,12 +878,11 @@ int red_rs485_extension_init(ExtensionRS485Config *rs485_config) {
 	_red_rs485_extension.stopbits = rs485_config->stopbits;
 
 	if(rs485_config->address == 0) {
-		uint32_t slave;
-
 		_red_rs485_extension.slave_num = rs485_config->slave_num;
-		for(slave = 0; slave < rs485_config->slave_num; slave++) {
-			_red_rs485_extension.slaves[slave].address = rs485_config->slave_address[slave];
-			_red_rs485_extension.slaves[slave].sequence = 0;
+
+		for(i = 0; i < _red_rs485_extension.slave_num; i++) {
+			_red_rs485_extension.slaves[i].address = rs485_config->slave_address[i];
+			_red_rs485_extension.slaves[i].sequence = 0;
 
 			if(queue_create(&_red_rs485_extension.slaves[i].packet_queue, sizeof(RS485ExtensionPacket)) < 0) {
 				log_error("RS485: Could not create slave queue, %s (%d)",
@@ -987,6 +986,8 @@ cleanup:
 
 // Exit function called from central brickd code
 void red_rs485_extension_exit(void) {
+	int i;
+
 	if (!_initialized) {
 		return;
 	}
