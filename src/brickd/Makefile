@@ -19,8 +19,9 @@ CC ?= gcc
 WITH_LIBUDEV ?= check
 WITH_LIBUDEV_DLOPEN ?= no
 WITH_LOGGING ?= yes
-WITH_PROFILING ?= no
+WITH_EPOLL ?= check
 WITH_DEBUG ?= no
+WITH_PROFILING ?= no
 WITH_USB_REOPEN_ON_SIGUSR1 ?= yes
 WITH_PM_UTILS ?= check
 WITH_RED_BRICK ?= check
@@ -71,6 +72,16 @@ ifneq ($(findstring $(MAKEFLAGS),s),s)
 ifndef V
 	E := @
 endif
+endif
+
+ifeq ($(WITH_EPOLL),check)
+ifeq ($(PLATFORM),Linux)
+	WITH_EPOLL := yes
+else
+	WITH_EPOLL := no
+endif
+else
+	WITH_EPOLL := no
 endif
 
 ifeq ($(PLATFORM),Linux)
@@ -202,8 +213,13 @@ ifeq ($(PLATFORM),Windows)
 endif
 
 ifeq ($(PLATFORM),Linux)
-	SOURCES_DAEMONLIB += ../daemonlib/event_linux.c \
-	                     ../daemonlib/timer_linux.c
+ifeq ($(WITH_EPOLL),yes)
+	SOURCES_DAEMONLIB += ../daemonlib/event_linux.c
+else
+	SOURCES_DAEMONLIB += ../daemonlib/event_posix.c
+endif
+
+	SOURCES_DAEMONLIB += ../daemonlib/timer_linux.c
 
 	SOURCES_BRICKD += main_linux.c
 endif
@@ -350,6 +366,10 @@ ifeq ($(WITH_LOGGING),yes)
 	CFLAGS += -DDAEMONLIB_WITH_LOGGING
 endif
 
+ifeq ($(WITH_EPOLL),yes)
+	CFLAGS += -DDAEMONLIB_WITH_EPOLL
+endif
+
 ifeq ($(WITH_PROFILING),yes)
 	CFLAGS += -DBRICKD_WITH_PROFILING
 endif
@@ -373,8 +393,9 @@ $(info - libudev:   $(LIBUDEV_STATUS))
 $(info - pm-utils:  $(PM_UTILS_STATUS))
 $(info features:)
 $(info - logging:   $(WITH_LOGGING))
-$(info - profiling: $(WITH_PROFILING))
+$(info - epoll:     $(WITH_EPOLL))
 $(info - debug:     $(WITH_DEBUG))
+$(info - profiling: $(WITH_PROFILING))
 $(info - red-brick: $(WITH_RED_BRICK))
 $(info - hotplug:   $(HOTPLUG))
 endif
