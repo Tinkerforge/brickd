@@ -152,7 +152,7 @@ static void print_usage(void) {
 	       "  --help          Show this help\n"
 	       "  --version       Show version number\n"
 	       "  --check-config  Check config file for errors\n"
-	       "  --daemon        Run as daemon and write PID file\n"
+	       "  --daemon        Run as daemon and write log and PID file\n"
 	       "  --debug         Set all log levels to debug\n"
 	       "  --libusb-debug  Set libusb log level to debug\n");
 }
