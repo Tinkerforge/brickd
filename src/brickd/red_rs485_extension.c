@@ -686,6 +686,15 @@ void master_poll_slave() {
     if((queue_peek(&_red_rs485_extension.slaves[master_current_slave_to_process].packet_queue)) == NULL) {
         // Nothing to send in the slave's queue. So send a poll packet
         slave_queue_packet = queue_push(&_red_rs485_extension.slaves[master_current_slave_to_process].packet_queue);
+
+		if (slave_queue_packet == NULL) {
+			log_error("Could not push empty request to packet queue for slave %d: %s (%d)",
+			          _red_rs485_extension.slaves[master_current_slave_to_process].address,
+			          get_errno_name(errno), errno);
+
+			return;
+		}
+
         slave_queue_packet->tries_left = RS485_PACKET_TRIES_EMPTY;
         slave_queue_packet->packet.header.length = 8;
 
@@ -822,6 +831,16 @@ void red_rs485_extension_dispatch_to_rs485(Stack *stack, Packet *request, Recipi
 
         for(i = 0; i < _red_rs485_extension.slave_num; i++) {
             queued_request = queue_push(&_red_rs485_extension.slaves[i].packet_queue);
+
+			if (queued_request == NULL) {
+				log_error("Could not push request (%s) to packet queue for slave %d, dropping request: %s (%d)",
+				          packet_get_request_signature(packet_signature, request),
+				          _red_rs485_extension.slaves[i].address,
+				          get_errno_name(errno), errno);
+
+				return;
+			}
+
             queued_request->tries_left = RS485_PACKET_TRIES_DATA;
             memcpy(&queued_request->packet, request, request->header.length);
             log_debug("RS485: Broadcast... Packet is queued to be sent to slave %d. Function signature = (%s)",
@@ -832,6 +851,16 @@ void red_rs485_extension_dispatch_to_rs485(Stack *stack, Packet *request, Recipi
         for(i = 0; i < _red_rs485_extension.slave_num; i++) {
             if(_red_rs485_extension.slaves[i].address == recipient->opaque) {
                 queued_request = queue_push(&_red_rs485_extension.slaves[i].packet_queue);
+
+				if (queued_request == NULL) {
+					log_error("Could not push request (%s) to packet queue for slave %d, dropping request: %s (%d)",
+					          packet_get_request_signature(packet_signature, request),
+					          _red_rs485_extension.slaves[i].address,
+					          get_errno_name(errno), errno);
+
+					return;
+				}
+
                 queued_request->tries_left = RS485_PACKET_TRIES_DATA;
                 memcpy(&queued_request->packet, request, request->header.length);
                 log_debug("RS485: Packet is queued to be sent to slave %d over. Function signature = (%s)",
