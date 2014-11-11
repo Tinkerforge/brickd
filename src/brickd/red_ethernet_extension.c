@@ -111,6 +111,8 @@ int red_ethernet_extension_init(ExtensionEthernetConfig *ethernet_config) {
 
 	length = fread(buf_module, sizeof(char), W5X00_MODULE_MAX_SIZE, f);
 
+	fclose(f);
+
 	// We abort if the read was not successful or the buffer was not big enough
 	if(length < 0 || length == W5X00_MODULE_MAX_SIZE) {
 		log_error("Could not read %s (%d)", W5X00_MODULE_PATH, length);
