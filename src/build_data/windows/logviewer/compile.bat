@@ -9,11 +9,8 @@
 )
 
 @set CC=cl /nologo /c /MD /O2 /W4 /wd4200 /wd4214 /DWIN32_LEAN_AND_MEAN /DNDEBUG
-@set MC=mc
-@set RC=rc /dWIN32 /r
 @set LD=link /nologo /subsystem:windows /opt:ref /opt:icf /release
-@set AR=link /lib /nologo
-@set MT=mt /nologo
+@set RC=rc /dWIN32 /r
 
 @if defined DDKBUILDENV (
  set CC=%CC% /I%CRT_INC_PATH% /DBRICKD_WDK_BUILD
@@ -34,7 +31,6 @@
 %RC% /fologviewer.res logviewer.rc
 
 %LD% /out:logviewer.exe *.obj *.res advapi32.lib comctl32.lib comdlg32.lib user32.lib
-%MT% /manifest logviewer.manifest -outputresource:logviewer.exe
 
 @del *.obj *.res *.bin *.exp
 

@@ -20,6 +20,7 @@
  */
 
 #include <winver.h>
+#include <winuser.h>
 
 #include "version.h"
 #include "resources.h"
@@ -27,6 +28,8 @@
 IDI_ICON_EXE ICON DISCARDABLE "logviewer_exe.ico"
 IDI_ICON_32 ICON DISCARDABLE "logviewer_32.ico"
 IDI_ICON_16 ICON DISCARDABLE "logviewer_16.ico"
+
+CREATEPROCESS_MANIFEST_RESOURCE_ID RT_MANIFEST logviewer.exe.manifest
 
 VS_VERSION_INFO VERSIONINFO
  FILEVERSION VERSION_MAJOR,VERSION_MINOR,VERSION_RELEASE,0
