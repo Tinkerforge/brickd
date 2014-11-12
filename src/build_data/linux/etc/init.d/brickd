@@ -11,7 +11,7 @@
 
 # brickd (Brick Daemon)
 # Copyright (C) 2011-2012 Olaf Lüke <olaf@tinkerforge.com>
-# Copyright (C) 2013 Matthias Bolte <matthias@tinkerforge.com>
+# Copyright (C) 2013-2014 Matthias Bolte <matthias@tinkerforge.com>
 #
 # based on skeleton from Debian GNU/Linux
 #
@@ -30,54 +30,36 @@
 # Free Software Foundation, Inc., 59 Temple Place - Suite 330,
 # Boston, MA 02111-1307, USA.
 
-PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
+PATH=/bin:/usr/bin:/sbin:/usr/sbin
 DAEMON=/usr/bin/brickd
 OPTIONS=--daemon
-NAME=brickd
-PIDFILE=/var/run/$NAME.pid
-DESC="Brick Daemon"
+PIDFILE=/var/run/brickd.pid
 
-test -f $DAEMON || exit 0
+test -x $DAEMON || exit 0
 
-set -e
+. /lib/lsb/init-functions
 
 case "$1" in
   start)
-	echo -n "Starting $DESC: "
-	start-stop-daemon --verbose --pidfile $PIDFILE --exec $DAEMON --start -- $OPTIONS
+	log_daemon_msg "Starting Brick Daemon" "brickd"
+	start_daemon -p $PIDFILE $DAEMON $OPTIONS
+	log_end_msg $?
 	;;
   stop)
-	echo -n "Stopping $DESC: "
-	start-stop-daemon --verbose --pidfile $PIDFILE --stop
+	log_daemon_msg "Stopping Brick Daemon" "brickd"
+	killproc -p $PIDFILE $DAEMON
+	log_end_msg $?
 	;;
   restart|force-reload)
-	echo "Restarting $DESC: "
-	start-stop-daemon --verbose --pidfile $PIDFILE --stop
+	$0 stop
 	sleep 1
-	start-stop-daemon --verbose --pidfile $PIDFILE --exec $DAEMON --start -- $OPTIONS
+	$0 start
 	;;
   status)
-	echo -n "Status of $DESC: "
-	if [ -n "${PIDFILE:-}" -a -r "$PIDFILE" ]; then
-		PID=`cat "$PIDFILE"`
-		if [ -n "${PID:-}" ]; then
-			if $(kill -0 "${PID:-}" 2> /dev/null); then
-				echo "running (pid $PID)"
-			elif ps "${PID:-}" > /dev/null 2>&1; then
-				echo "running (pid $PID)"
-			else
-				echo "stopped"
-			fi
-		else
-			echo "stopped"
-		fi
-	else
-		echo "stopped"
-	fi
+	status_of_proc -p $PIDFILE $DAEMON "brickd" && exit 0 || exit $?
 	;;
   *)
-	N=/etc/init.d/$NAME
-	echo "Usage: $N {start|stop|restart|force-reload|status}" >&2
+	echo "Usage: /etc/init.d/brickd {start|stop|restart|force-reload|status}" >&2
 	exit 1
 	;;
 esac
