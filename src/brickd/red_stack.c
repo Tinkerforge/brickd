@@ -569,6 +569,8 @@ static void red_stack_spi_thread(void *opaque) {
 			_red_stack_spi_thread_running = true;
 		}
 
+		// Ignore resets that we received in the meantime to prevent race conditions.
+		_red_stack_reset_detected = 0;
 		while(_red_stack_spi_thread_running) {
 			REDStackSlave *slave = &_red_stack.slaves[stack_address_cycle];
 			REDStackPacket *request = NULL;
@@ -792,15 +794,12 @@ static void red_stack_reset_handler(void *opaque) {
 	lseek(_red_stack_reset_fd, 0, SEEK_SET);
 	if (read(_red_stack_reset_fd, buf, 2) < 0) {} // ignore return value
 
-	if(_red_stack_spi_thread_running == false) {
-		return;
-	}
-
 	_red_stack_reset_detected++;
 	log_debug("Reset button press detected (%d since last reset)", _red_stack_reset_detected);
 
 	_red_stack_spi_thread_running = false;
 
+	// If there is no slave we have to wake up the spi thread
 	if(_red_stack.slave_num == 0) {
 		pthread_mutex_lock(&_red_stack_wait_for_reset_mutex);
 		_red_stack_wait_for_reset_helper = 1;
