@@ -23,10 +23,29 @@
 #ifndef BRICKD_VERSION_H
 #define BRICKD_VERSION_H
 
+// the version number will be printed if the --version option is present. it
+// will also be included in some initial log messages and used as version of
+// the Debian package. therefore, it has to follow the Debian package version
+// number format:
+//
+// [<epoch>:]<upstream-version>[-<debian-revision>]
+//
+// we don't want to set an <epoch> nor a <debian-revision>. therefore, our part
+// (the <upstream-version>) can neither contain a : (colon) nor a - (hyphen) as
+// this would make Debian interpret the version number wrong. the only allowed
+// characters are [a-zA-Z0-9+.~]. see the Debian manual for more details:
+//
+// https://www.debian.org/doc/debian-policy/ch-controlfields.html#s-f-Version
+
 #define VERSION_MAJOR 2
 #define VERSION_MINOR 1
 #define VERSION_RELEASE 1
-#define VERSION_SUFFIX_STRING ""
+
+#ifdef BRICKD_WITH_RED_BRICK
+	#define VERSION_SUFFIX_STRING "+redbrick"
+#else
+	#define VERSION_SUFFIX_STRING ""
+#endif
 
 #define INT_TO_STRING_(x) #x
 #define INT_TO_STRING(x) INT_TO_STRING_(x)
