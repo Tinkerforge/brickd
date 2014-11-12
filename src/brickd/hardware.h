@@ -34,4 +34,6 @@ int hardware_remove_stack(Stack *stack);
 
 void hardware_dispatch_request(Packet *request);
 
+void hardware_announce_disconnect(void);
+
 #endif // BRICKD_HARDWARE_H

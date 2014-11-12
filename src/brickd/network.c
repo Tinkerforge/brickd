@@ -553,7 +553,7 @@ void network_dispatch_response(Packet *response) {
 
 #ifdef BRICKD_WITH_RED_BRICK
 
-void network_broadcast_red_brick_enumerate_disconnect(void) {
+void network_announce_red_brick_disconnect(void) {
 	int i;
 	Client *client;
 

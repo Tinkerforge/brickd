@@ -267,7 +267,7 @@ void red_usb_gadget_exit(void) {
 	file_destroy(&_state_file);
 }
 
-void red_usb_gadget_announce_disconnect(void) {
+void red_usb_gadget_announce_red_brick_disconnect(void) {
 	if (_client == NULL) {
 		return;
 	}

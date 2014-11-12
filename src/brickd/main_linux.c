@@ -331,8 +331,9 @@ int main(int argc, char **argv) {
 	}
 
 #ifdef BRICKD_WITH_RED_BRICK
-	network_broadcast_red_brick_enumerate_disconnect();
-	red_usb_gadget_announce_disconnect();
+	hardware_announce_disconnect();
+	network_announce_red_brick_disconnect();
+	red_usb_gadget_announce_red_brick_disconnect();
 #endif
 
 	exit_code = EXIT_SUCCESS;

@@ -29,7 +29,7 @@
 int red_usb_gadget_init(void);
 void red_usb_gadget_exit(void);
 
-void red_usb_gadget_announce_disconnect(void);
+void red_usb_gadget_announce_red_brick_disconnect(void);
 
 uint32_t red_usb_gadget_get_uid(void);
 

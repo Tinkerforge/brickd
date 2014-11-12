@@ -151,3 +151,14 @@ void hardware_dispatch_request(Packet *request) {
 		}
 	}
 }
+
+void hardware_announce_disconnect(void) {
+	int i;
+	Stack *stack;
+
+	for (i = 0; i < _stacks.count; ++i) {
+		stack = *(Stack **)array_get(&_stacks, i);
+
+		stack_announce_disconnect(stack);
+	}
+}
