@@ -660,7 +660,6 @@ static void red_stack_reset(void) {
 	SLEEP_NS(0, 1000*1000*100); // Clear reset pin for 100ms to force reset
 	gpio_output_set(_red_stack_reset_stack_pin);
 	SLEEP_NS(1, 1000*1000*500); // Wait 1.5s so slaves can start properly
-	gpio_output_clear(_red_stack_reset_stack_pin);
 
 	// Change mux back to interrupt, so we can see if a human presses reset
 	gpio_mux_configure(_red_stack_reset_stack_pin, GPIO_MUX_6);
