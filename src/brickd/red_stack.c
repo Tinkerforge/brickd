@@ -170,7 +170,7 @@ typedef struct {
 
 static REDStack _red_stack;
 
-static const GPIOPin _red_stack_reset_stack_pin = {GPIO_PORT_G, GPIO_PIN_4}; // TODO: Change to PB4 in final version
+static const GPIOPin _red_stack_reset_stack_pin = {GPIO_PORT_B, GPIO_PIN_5};
 static const GPIOPin _red_stack_master_high_pin = {GPIO_PORT_B, GPIO_PIN_11};
 static const GPIOPin _red_stack_slave_select_pins[RED_STACK_SPI_MAX_SLAVES] = {
 	{GPIO_PORT_C, GPIO_PIN_8},
@@ -660,8 +660,8 @@ static void red_stack_reset(void) {
 	SLEEP_NS(1, 1000*1000*500); // Wait 1.5s so slaves can start properly
 	gpio_output_clear(_red_stack_reset_stack_pin);
 
-	// Change mux back to input, so we can see if a human presses reset
-	gpio_mux_configure(_red_stack_reset_stack_pin, GPIO_MUX_INPUT);
+	// Change mux back to interrupt, so we can see if a human presses reset
+	gpio_mux_configure(_red_stack_reset_stack_pin, GPIO_MUX_6);
 }
 
 static int red_stack_init_spi(void) {
@@ -792,6 +792,10 @@ static void red_stack_reset_handler(void *opaque) {
 	lseek(_red_stack_reset_fd, 0, SEEK_SET);
 	if (read(_red_stack_reset_fd, buf, 2) < 0) {} // ignore return value
 
+	if(_red_stack_spi_thread_running == false) {
+		return;
+	}
+
 	_red_stack_reset_detected++;
 	log_debug("Reset button press detected (%d since last reset)", _red_stack_reset_detected);
 
@@ -822,6 +826,10 @@ int red_stack_init(void) {
 			// Just issue a warning, RED Brick will work without reset interrupt
 			log_warn("Could not retrieve fd for GPIO %s in sysfs, disabling reset interrupt",
 			         RED_STACK_RESET_PIN_GPIO_NAME);
+		} else {
+			// If everything worked we can set the interrupt to falling.
+			// We ignore the return value here, it may work despite error.
+			gpio_sysfs_set_edge(RED_STACK_RESET_PIN_GPIO_NAME, "falling");
 		}
 	}
 
