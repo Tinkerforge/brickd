@@ -145,6 +145,7 @@ def build_linux_pkg():
         os.system('CC=gcc WITH_LIBUDEV=yes WITH_LIBUDEV_DLOPEN=yes WITH_PM_UTILS=yes make')
 
     version = check_output(['./brickd', '--version']).replace('\n', '').replace(' ', '-')
+    red_brick = version.endswith('+redbrick')
 
     dist_dir = os.path.join(os.getcwd(), 'dist')
     if os.path.exists(dist_dir):
@@ -169,6 +170,13 @@ def build_linux_pkg():
 
     os.system('cp ../../changelog dist/usr/share/doc/brickd/')
 
+    if red_brick:
+        os.rename('dist/etc/brickd-red-brick.conf', 'dist/etc/brickd.conf')
+        os.remove('dist/etc/brickd-default.conf')
+    else:
+        os.rename('dist/etc/brickd-default.conf', 'dist/etc/brickd.conf')
+        os.remove('dist/etc/brickd-red-brick.conf')
+
     os.system('gzip -9 dist/usr/share/doc/brickd/changelog')
     os.system('gzip -9 dist/usr/share/man/man8/brickd.8')
     os.system('gzip -9 dist/usr/share/man/man5/brickd.conf.5')
@@ -177,9 +185,6 @@ def build_linux_pkg():
 
     os.system('chown -R root:root dist/usr')
     os.system('chown -R root:root dist/etc')
-
-    os.rename('dist/etc/brickd-default.conf', 'dist/etc/brickd.conf')
-    os.remove('dist/etc/brickd-red-brick.conf')
 
     os.system('find dist -type d -exec chmod 0755 {} \;')
 
