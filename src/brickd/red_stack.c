@@ -889,8 +889,16 @@ int red_stack_init(void) {
 
 	phase = 5;
 
+	if(red_stack_init_spi() < 0) {
+		goto cleanup;
+	}
+
     // Add reset interrupt as event source
 	if(_red_stack_reset_fd > 0) {
+		char buf[2];
+		lseek(_red_stack_reset_fd, 0, SEEK_SET);
+		if (read(_red_stack_reset_fd, buf, 2) < 0) {} // ignore return value
+
 		if(event_add_source(_red_stack_reset_fd, EVENT_SOURCE_TYPE_GENERIC,
 		                    EVENT_PRIO | EVENT_ERROR, red_stack_reset_handler, NULL) < 0) {
 			log_error("Could not add reset fd event");
@@ -900,18 +908,8 @@ int red_stack_init(void) {
 
 	phase = 6;
 
-	if(red_stack_init_spi() < 0) {
-		goto cleanup;
-	}
-
-	phase = 7;
-
 cleanup:
 	switch (phase) { // no breaks, all cases fall through intentionally
-	case 6:
-		if(_red_stack_reset_fd > 0) {
-			event_remove_source(_red_stack_reset_fd, EVENT_SOURCE_TYPE_GENERIC);
-		}
 	case 5:
 		for(i = 0; i < RED_STACK_SPI_MAX_SLAVES; i++) {
 			mutex_destroy(&_red_stack.slaves[i].packet_queue_mutex);
@@ -938,7 +936,7 @@ cleanup:
 		break;
 	}
 
-	return phase == 7 ? 0 : -1;
+	return phase == 6 ? 0 : -1;
 }
 
 void red_stack_exit(void) {
