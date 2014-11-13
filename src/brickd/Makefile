@@ -380,6 +380,9 @@ endif
 
 ifeq ($(WITH_RED_BRICK),yes)
 	CFLAGS += -DBRICKD_WITH_RED_BRICK
+
+	# link with -lrt for clock_gettime (RED Brick doesn't have glibc 2.17)
+	LIBS += -lrt
 endif
 
 ifeq ($(PLATFORM),Windows)
