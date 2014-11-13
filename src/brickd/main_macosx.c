@@ -168,7 +168,7 @@ int main(int argc, char **argv) {
 		goto error_event;
 	}
 
-	if (signal_init(handle_sigusr1) < 0) {
+	if (signal_init(NULL, handle_sigusr1) < 0) {
 		goto error_signal;
 	}
 

@@ -429,6 +429,9 @@ ifeq ($(PLATFORM),Linux)
 	@echo "MD $(sysconfdir)/init.d"
 	$(E)$(INSTALL) -d -m 755 $(sysconfdir)/init.d
 
+	@echo "MD $(sysconfdir)/logrotate.d"
+	$(E)$(INSTALL) -d -m 755 $(sysconfdir)/logrotate.d
+
 	@echo "MD $(localstatedir)/log"
 	$(E)$(INSTALL) -d -m 755 $(localstatedir)/log
 
@@ -459,6 +462,9 @@ endif
 
 	@echo "CP brickd (init.d script)"
 	$(E)$(INSTALL) -m 755 ../build_data/linux/etc/init.d/brickd $(sysconfdir)/init.d
+
+	@echo "CP brickd (logrotate.d script)"
+	$(E)$(INSTALL) -m 644 ../build_data/linux/etc/logrotate.d/brickd $(sysconfdir)/logrotate.d
 
 	@echo "CP brickd.8 (manpage)"
 	$(E)$(INSTALL) -m 644 ../build_data/linux/usr/share/man/man8/brickd.8 $(datadir)/man/man8

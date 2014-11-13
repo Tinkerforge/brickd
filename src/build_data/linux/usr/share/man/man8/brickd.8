@@ -45,6 +45,9 @@ Enable libusb log output. Only works if libusb was compiled with log output
 enabled.
 .SH SIGNALS
 On reception of
+.B SIGHUP
+brickd will close and reopen its log file.
+On reception of
 .B SIGUSR1
 brickd will scan for added or removed USB devices. This is only useful if brickd
 has no other means to detect USB hotplug on its own. That is the case if brickd
@@ -57,9 +60,9 @@ The system wide configuration file. See
 .IR brickd.conf (5)
 for further details.
 .IP "\fI/var/log/brickd.log\fR" 4
-Per system wide log file.
+The system wide log file.
 .IP "\fI/var/run/brickd.pid\fR" 4
-Per system wide PID file.
+The system wide PID file.
 .SS "When run as \fBnon-root\fP"
 .IP "\fI~/.brickd/brickd.conf\fR" 4
 Per user configuration file. See

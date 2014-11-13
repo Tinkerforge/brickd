@@ -1,2 +1,3 @@
 /etc/brickd.conf
 /etc/init.d/brickd
+/etc/logrotate.d/brickd

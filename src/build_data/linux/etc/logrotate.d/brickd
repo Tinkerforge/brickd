@@ -1,0 +1,12 @@
+/var/log/brickd.log {
+	rotate 7
+	weekly
+	minsize 100k
+	missingok
+	notifempty
+	compress
+	delaycompress
+	postrotate
+		killall -q -HUP brickd || true
+	endscript
+}
