@@ -646,7 +646,7 @@ int event_run_platform(Array *event_sources, bool *running, EventCleanupFunction
 		if (ready == handled) {
 			log_debug("Handled all ready %s event sources",
 			          event_get_source_type_name(EVENT_SOURCE_TYPE_GENERIC, false));
-		} else {
+		} else if (*running) {
 			log_warn("Handled only %d of %d ready %s event source(s)",
 			         handled, ready,
 			         event_get_source_type_name(EVENT_SOURCE_TYPE_GENERIC, false));
