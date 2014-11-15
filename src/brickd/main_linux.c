@@ -333,8 +333,8 @@ int main(int argc, char **argv) {
 		goto error_red_usb_gadget;
 	}
 
-	red_led_set_trigger(RED_LED_GREEN, config_get_option_value("led_trigger.green")->red_led_trigger);
-	red_led_set_trigger(RED_LED_RED, config_get_option_value("led_trigger.red")->red_led_trigger);
+	red_led_set_trigger(RED_LED_GREEN, config_get_option_value("led_trigger.green")->symbol);
+	red_led_set_trigger(RED_LED_RED, config_get_option_value("led_trigger.red")->symbol);
 #endif
 
 	if (event_run(network_cleanup_clients_and_zombies) < 0) {

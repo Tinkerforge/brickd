@@ -20,22 +20,45 @@
  */
 
 #include <daemonlib/config.h>
+#include <daemonlib/enum.h>
 #ifdef BRICKD_WITH_RED_BRICK
 	#include <daemonlib/red_led.h>
 #endif
 
-ConfigOption config_options[] = {
-	CONFIG_OPTION_STRING_INITIALIZER("listen.address", NULL, 1, -1, "0.0.0.0"),
-	CONFIG_OPTION_INTEGER_INITIALIZER("listen.plain_port", "listen.port", 1, UINT16_MAX, 4223),
-	CONFIG_OPTION_INTEGER_INITIALIZER("listen.websocket_port", NULL, 0, UINT16_MAX, 0), // default to enable: 4280
-	CONFIG_OPTION_BOOLEAN_INITIALIZER("listen.dual_stack", NULL, false),
-	CONFIG_OPTION_STRING_INITIALIZER("authentication.secret", NULL, 0, 64, NULL),
-	CONFIG_OPTION_LOG_LEVEL_INITIALIZER("log.level", NULL, LOG_LEVEL_INFO),
 #ifdef BRICKD_WITH_RED_BRICK
-	CONFIG_OPTION_RED_LED_TRIGGER_INITIALIZER("led_trigger.green", NULL, RED_LED_TRIGGER_HEARTBEAT),
-	CONFIG_OPTION_RED_LED_TRIGGER_INITIALIZER("led_trigger.red", NULL, RED_LED_TRIGGER_OFF),
-	CONFIG_OPTION_INTEGER_INITIALIZER("poll_delay.spi", NULL, 50, INT32_MAX, 50), // microseconds
-	CONFIG_OPTION_INTEGER_INITIALIZER("poll_delay.rs485", NULL, 50, INT32_MAX, 4000), // microseconds
+
+static EnumValueName _red_led_trigger_enum_value_names[] = {
+	{ RED_LED_TRIGGER_CPU,       "cpu" },
+	{ RED_LED_TRIGGER_GPIO,      "gpio" },
+	{ RED_LED_TRIGGER_HEARTBEAT, "heartbeat" },
+	{ RED_LED_TRIGGER_MMC,       "mmc" },
+	{ RED_LED_TRIGGER_OFF,       "off" },
+	{ RED_LED_TRIGGER_ON,        "on" },
+	{ -1,                        NULL }
+};
+
+static int config_parse_red_led_trigger(const char *string, int *value) {
+	return enum_get_value(_red_led_trigger_enum_value_names, string, value, true);
+}
+
+static const char *config_format_red_led_trigger(int value) {
+	return enum_get_name(_red_led_trigger_enum_value_names, value, "<unknown>");
+}
+
+#endif
+
+ConfigOption config_options[] = {
+	CONFIG_OPTION_STRING_INITIALIZER("listen.address", 1, -1, "0.0.0.0"),
+	CONFIG_OPTION_INTEGER_INITIALIZER("listen.plain_port", 1, UINT16_MAX, 4223),
+	CONFIG_OPTION_INTEGER_INITIALIZER("listen.websocket_port", 0, UINT16_MAX, 0), // default to enable: 4280
+	CONFIG_OPTION_BOOLEAN_INITIALIZER("listen.dual_stack", false),
+	CONFIG_OPTION_STRING_INITIALIZER("authentication.secret", 0, 64, NULL),
+	CONFIG_OPTION_SYMBOL_INITIALIZER("log.level", config_parse_log_level, config_format_log_level, LOG_LEVEL_INFO),
+#ifdef BRICKD_WITH_RED_BRICK
+	CONFIG_OPTION_SYMBOL_INITIALIZER("led_trigger.green", config_parse_red_led_trigger, config_format_red_led_trigger, RED_LED_TRIGGER_HEARTBEAT),
+	CONFIG_OPTION_SYMBOL_INITIALIZER("led_trigger.red", config_parse_red_led_trigger, config_format_red_led_trigger, RED_LED_TRIGGER_OFF),
+	CONFIG_OPTION_INTEGER_INITIALIZER("poll_delay.spi", 50, INT32_MAX, 50), // microseconds
+	CONFIG_OPTION_INTEGER_INITIALIZER("poll_delay.rs485", 50, INT32_MAX, 4000), // microseconds
 #endif
 	CONFIG_OPTION_NULL_INITIALIZER // end of list
 };
