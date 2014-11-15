@@ -457,8 +457,9 @@ static BOOL WINAPI console_ctrl_handler(DWORD ctrl_type) {
 	return TRUE;
 }
 
-// NOTE: this function needs to call RegisterServiceCtrlHandlerEx and
-// SetServiceStatus in all circumstances if brickd is running as service
+// NOTE: RegisterServiceCtrlHandlerEx (via service_init) and SetServiceStatus
+//       (via service_set_status) need to be called in all circumstances if
+//       brickd is running as service
 static int generic_main(bool log_to_file, bool debug, bool libusb_debug) {
 	int exit_code = EXIT_FAILURE;
 	const char *mutex_name = "Global\\Tinkerforge-Brick-Daemon-Single-Instance";
@@ -861,6 +862,8 @@ static void print_version(void) {
 	}
 }
 
+// NOTE: generic_main (directly or via service_run) needs to be called in all
+//       circumstances if brickd is running as service
 int main(int argc, char **argv) {
 	int i;
 	bool help = false;

@@ -118,6 +118,13 @@ int main(int argc, char **argv) {
 
 	config_init(CONFIG_FILENAME);
 
+	if (config_has_error()) {
+		fprintf(stderr, "Error(s) occurred while reading config file '%s'\n",
+		        CONFIG_FILENAME);
+
+		goto error_config;
+	}
+
 	log_init();
 	log_set_debug_override(debug);
 
@@ -132,14 +139,7 @@ int main(int argc, char **argv) {
 	}
 
 	if (pid_fd < 0) {
-		goto error_log;
-	}
-
-	if (config_has_error()) {
-		log_error("Error(s) occurred while reading config file '%s'",
-		          CONFIG_FILENAME);
-
-		goto error_config;
+		goto error_pid_file;
 	}
 
 	if (daemon) {
@@ -204,14 +204,14 @@ error_signal:
 error_event:
 	log_info("Brick Daemon %s stopped", VERSION_STRING);
 
-error_config:
-error_log:
-	log_exit();
-
+error_pid_file:
 	if (pid_fd >= 0) {
 		pid_file_release(PID_FILENAME, pid_fd);
 	}
 
+	log_exit();
+
+error_config:
 	config_exit();
 
 	return exit_code;
