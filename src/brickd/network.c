@@ -46,8 +46,6 @@
 #include "websocket.h"
 #include "zombie.h"
 
-#define LOG_CATEGORY LOG_CATEGORY_NETWORK
-
 static Array _clients;
 static Array _zombies;
 static Socket _plain_server_socket;

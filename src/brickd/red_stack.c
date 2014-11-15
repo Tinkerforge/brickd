@@ -1,6 +1,7 @@
 /*
  * brickd
  * Copyright (C) 2014 Olaf Lüke <olaf@tinkerforge.com>
+ * Copyright (C) 2014 Matthias Bolte <matthias@tinkerforge.com>
  *
  * red_stack.c: SPI stack support for RED Brick
  *
@@ -35,6 +36,7 @@
 #include <daemonlib/base58.h>
 #include <daemonlib/config.h>
 #include <daemonlib/event.h>
+#include <daemonlib/io.h>
 #include <daemonlib/log.h>
 #include <daemonlib/packet.h>
 #include <daemonlib/pipe.h>
@@ -47,8 +49,6 @@
 #include "network.h"
 #include "red_usb_gadget.h"
 #include "stack.h"
-
-#define LOG_CATEGORY LOG_CATEGORY_SPI
 
 // We use the Pearson Hash for fast hashing
 // See: http://en.wikipedia.org/wiki/Pearson_hashing

@@ -33,8 +33,6 @@
 #include "base64.h"
 #include "sha1.h"
 
-#define LOG_CATEGORY LOG_CATEGORY_WEBSOCKET
-
 extern int socket_receive_platform(Socket *socket, void *buffer, int length);
 extern int socket_send_platform(Socket *socket, void *buffer, int length);
 

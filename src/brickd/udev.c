@@ -70,8 +70,6 @@
 
 #include "usb.h"
 
-#define LOG_CATEGORY LOG_CATEGORY_HOTPLUG
-
 #ifdef BRICKD_WITH_LIBUDEV_DLOPEN
 
 struct udev;

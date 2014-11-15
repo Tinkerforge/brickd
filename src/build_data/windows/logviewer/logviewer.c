@@ -262,8 +262,8 @@ static int create_event_list_view(void) {
 	                                    LVS_EX_FULLROWSELECT, LVS_EX_FULLROWSELECT);
 
 	if (insert_list_view_column(_event_list_view, 0, 120, "Timestamp") < 0 ||
-	    insert_list_view_column(_event_list_view, 1,  50, "Level") < 0 ||
-	    insert_list_view_column(_event_list_view, 2, 790, "Message") < 0) {
+	    insert_list_view_column(_event_list_view, 1,  60, "Level") < 0 ||
+	    insert_list_view_column(_event_list_view, 2, 780, "Message") < 0) {
 		return -1;
 	}
 
@@ -301,11 +301,10 @@ static int create_debug_list_view(void) {
 	                                    LVS_EX_FULLROWSELECT, LVS_EX_FULLROWSELECT);
 
 	if (insert_list_view_column(_debug_list_view, 0, 160, "Timestamp") < 0 ||
-	    insert_list_view_column(_debug_list_view, 1,  50, "Level") < 0 ||
-	    insert_list_view_column(_debug_list_view, 2,  60, "Category") < 0 ||
-	    insert_list_view_column(_debug_list_view, 3, 130, "File/Function") < 0 ||
-	    insert_list_view_column(_debug_list_view, 4,  35, "#") < 0 ||
-	    insert_list_view_column(_debug_list_view, 5, 525, "Message") < 0) {
+	    insert_list_view_column(_debug_list_view, 1,  60, "Level") < 0 ||
+	    insert_list_view_column(_debug_list_view, 2, 140, "Filename/Function") < 0 ||
+	    insert_list_view_column(_debug_list_view, 3,  45, "Line") < 0 ||
+	    insert_list_view_column(_debug_list_view, 4, 555, "Message") < 0) {
 		return -1;
 	}
 
@@ -345,9 +344,8 @@ static void append_event_item(const char *timestamp, const char *level,
 }
 
 static void append_debug_item(const char *timestamp, const char *level,
-                              const char *category, const char *file,
-                              const char *line, const char *function,
-                              const char *message) {
+                              const char *filename, const char *line,
+                              const char *function, const char *message) {
 	SCROLLINFO si;
 	LVITEM lvi;
 
@@ -368,18 +366,14 @@ static void append_debug_item(const char *timestamp, const char *level,
 	ListView_SetItem(_debug_list_view, &lvi);
 
 	lvi.iSubItem = 2;
-	lvi.pszText = (char *)category;
+	lvi.pszText = (char *)(*filename != '\0' ? filename : function);
 	ListView_SetItem(_debug_list_view, &lvi);
 
 	lvi.iSubItem = 3;
-	lvi.pszText = (char *)(*file != '\0' ? file : function);
-	ListView_SetItem(_debug_list_view, &lvi);
-
-	lvi.iSubItem = 4;
 	lvi.pszText = (char *)line;
 	ListView_SetItem(_debug_list_view, &lvi);
 
-	lvi.iSubItem = 5;
+	lvi.iSubItem = 4;
 	lvi.pszText = (char *)message;
 	ListView_SetItem(_debug_list_view, &lvi);
 
@@ -416,29 +410,11 @@ static void format_timestamp(uint64_t seconds, int microseconds, char *buffer, i
 }
 
 typedef enum {
-	LOG_LEVEL_NONE = 0,
-	LOG_LEVEL_ERROR,
+	LOG_LEVEL_ERROR = 0,
 	LOG_LEVEL_WARN,
 	LOG_LEVEL_INFO,
 	LOG_LEVEL_DEBUG
 } LogLevel;
-
-// keep in sync with daemonlib/log.h
-typedef enum {
-	LOG_CATEGORY_EVENT = 0,
-	LOG_CATEGORY_USB,
-	LOG_CATEGORY_NETWORK,
-	LOG_CATEGORY_HOTPLUG,
-	LOG_CATEGORY_HARDWARE,
-	LOG_CATEGORY_WEBSOCKET,
-	LOG_CATEGORY_RED_BRICK,
-	LOG_CATEGORY_SPI,
-	LOG_CATEGORY_RS485,
-	LOG_CATEGORY_API,
-	LOG_CATEGORY_OBJECT,
-	LOG_CATEGORY_OTHER,
-	LOG_CATEGORY_LIBUSB = 255
-} LogCategory;
 
 #pragma pack(push)
 #pragma pack(1)
@@ -447,8 +423,7 @@ typedef struct {
 	uint16_t length;
 	uint64_t timestamp; // in microseconds
 	uint8_t level;
-	uint8_t category;
-	char file[256];
+	char filename[256];
 	int line;
 	char function[256];
 	char message[1024];
@@ -461,7 +436,7 @@ static void append_debug_meta_message(const char *message) {
 
 	format_timestamp(time(NULL), 0, timestamp, sizeof(timestamp), "-", " ", ":");
 
-	append_debug_item(timestamp, "Meta", "Meta", "", "", "", message);
+	append_debug_item(timestamp, "Meta", "", "", "", message);
 }
 
 static void append_debug_pipe_message(LogPipeMessage *pipe_message) {
@@ -469,33 +444,20 @@ static void append_debug_pipe_message(LogPipeMessage *pipe_message) {
 	uint64_t seconds = pipe_message->timestamp / 1000000;
 	int microseconds = pipe_message->timestamp % 1000000;
 	const char *level = "<unknown>";
-	const char *category = "<unknown>";
 	char line[64];
 
 	format_timestamp(seconds, microseconds, timestamp, sizeof(timestamp), "-", " ", ":");
 
 	switch (pipe_message->level) {
-	case LOG_LEVEL_NONE:  level = "None";  break;
 	case LOG_LEVEL_ERROR: level = "Error"; break;
 	case LOG_LEVEL_WARN:  level = "Warn";  break;
 	case LOG_LEVEL_INFO:  level = "Info";  break;
 	case LOG_LEVEL_DEBUG: level = "Debug"; break;
 	}
 
-	switch (pipe_message->category) {
-	case LOG_CATEGORY_EVENT:     category = "Event";     break;
-	case LOG_CATEGORY_USB:       category = "USB";       break;
-	case LOG_CATEGORY_NETWORK:   category = "Network";   break;
-	case LOG_CATEGORY_HOTPLUG:   category = "Hotplug";   break;
-	case LOG_CATEGORY_HARDWARE:  category = "Hardware";  break;
-	case LOG_CATEGORY_WEBSOCKET: category = "WebSocket"; break;
-	case LOG_CATEGORY_OTHER:     category = "Other";     break;
-	case LOG_CATEGORY_LIBUSB:    category = "libusb";    break;
-	}
-
 	_snprintf(line, sizeof(line), "%d", pipe_message->line);
 
-	append_debug_item(timestamp, level, category, pipe_message->file, line,
+	append_debug_item(timestamp, level, pipe_message->filename, line,
 	                  pipe_message->function, pipe_message->message);
 }
 
@@ -547,7 +509,7 @@ static DWORD WINAPI read_named_pipe(void *opaque) {
 
 			if (bytes_read == sizeof(pipe_message) && pipe_message.length == sizeof(pipe_message)) {
 				// enforce that strings are NUL-terminated
-				pipe_message.file[sizeof(pipe_message.file) - 1] = '\0';
+				pipe_message.filename[sizeof(pipe_message.filename) - 1] = '\0';
 				pipe_message.function[sizeof(pipe_message.function) - 1] = '\0';
 				pipe_message.message[sizeof(pipe_message.message) - 1] = '\0';
 
@@ -738,8 +700,8 @@ static void save_event_log(void) {
 }
 
 static void save_debug_log(void) {
-	char filename_timestamp[MAX_TIMESTAMP_LEN];
-	char filename[_MAX_PATH];
+	char save_timestamp[MAX_TIMESTAMP_LEN];
+	char save_filename[_MAX_PATH];
 	char *filters = "Log Files (*.log, *.txt)\0*.log;*.txt\0\0";
 	OPENFILENAME ofn = {0};
 	FILE *fp;
@@ -748,26 +710,24 @@ static void save_debug_log(void) {
 	char timestamp[128];
 	LVITEM lvi_level;
 	char level[64];
-	LVITEM lvi_category;
-	char category[64];
-	LVITEM lvi_file;
-	char file[256];
+	LVITEM lvi_filename;
+	char filename[256];
 	LVITEM lvi_line;
 	char line[64];
 	LVITEM lvi_message;
 	char message[1024];
 	int i;
 
-	format_timestamp(time(NULL), -1, filename_timestamp, sizeof(filename_timestamp), "", "_", "");
-	_snprintf(filename, sizeof(filename), "brickd_debug_%s.log", filename_timestamp);
+	format_timestamp(time(NULL), -1, save_timestamp, sizeof(save_timestamp), "", "_", "");
+	_snprintf(save_filename, sizeof(save_filename), "brickd_debug_%s.log", save_timestamp);
 
 	ofn.lStructSize = sizeof(OPENFILENAME);
 	ofn.hwndOwner = _hwnd;
 	ofn.hInstance = _hinstance;
 	ofn.lpstrFilter = filters;
-	ofn.lpstrFile = filename;
+	ofn.lpstrFile = save_filename;
 	ofn.lpstrDefExt = "log";
-	ofn.nMaxFile = sizeof(filename);
+	ofn.nMaxFile = sizeof(save_filename);
 	ofn.lpstrTitle = "Save Live Debug Log";
 	ofn.Flags = OFN_EXPLORER | OFN_OVERWRITEPROMPT;
 
@@ -775,10 +735,10 @@ static void save_debug_log(void) {
 		return;
 	}
 
-	fp = fopen(filename, "wb");
+	fp = fopen(save_filename, "wb");
 
 	if (fp == NULL) {
-		report_error("Could not write to '%s'", filename);
+		report_error("Could not write to '%s'", save_filename);
 	}
 
 	count = ListView_GetItemCount(_debug_list_view);
@@ -793,22 +753,17 @@ static void save_debug_log(void) {
 	lvi_level.pszText = level;
 	lvi_level.cchTextMax = sizeof(level) - 1;
 
-	lvi_category.iSubItem = 2;
-	lvi_category.mask = LVIF_TEXT;
-	lvi_category.pszText = category;
-	lvi_category.cchTextMax = sizeof(category) - 1;
+	lvi_filename.iSubItem = 2;
+	lvi_filename.mask = LVIF_TEXT;
+	lvi_filename.pszText = filename;
+	lvi_filename.cchTextMax = sizeof(filename) - 1;
 
-	lvi_file.iSubItem = 3;
-	lvi_file.mask = LVIF_TEXT;
-	lvi_file.pszText = file;
-	lvi_file.cchTextMax = sizeof(file) - 1;
-
-	lvi_line.iSubItem = 4;
+	lvi_line.iSubItem = 3;
 	lvi_line.mask = LVIF_TEXT;
 	lvi_line.pszText = line;
 	lvi_line.cchTextMax = sizeof(line) - 1;
 
-	lvi_message.iSubItem = 5;
+	lvi_message.iSubItem = 4;
 	lvi_message.mask = LVIF_TEXT;
 	lvi_message.pszText = message;
 	lvi_message.cchTextMax = sizeof(message) - 1;
@@ -816,8 +771,7 @@ static void save_debug_log(void) {
 	for (i = 0; i < count; ++i) {
 		lvi_timestamp.iItem = i;
 		lvi_level.iItem = i;
-		lvi_category.iItem = i;
-		lvi_file.iItem = i;
+		lvi_filename.iItem = i;
 		lvi_line.iItem = i;
 		lvi_message.iItem = i;
 
@@ -829,12 +783,8 @@ static void save_debug_log(void) {
 			strcpy(level, "unknown");
 		}
 
-		if (!ListView_GetItem(_debug_list_view, &lvi_category)) {
-			strcpy(category, "unknown");
-		}
-
-		if (!ListView_GetItem(_debug_list_view, &lvi_file)) {
-			strcpy(file, "unknown");
+		if (!ListView_GetItem(_debug_list_view, &lvi_filename)) {
+			strcpy(filename, "unknown");
 		}
 
 		if (!ListView_GetItem(_debug_list_view, &lvi_line)) {
@@ -845,7 +795,7 @@ static void save_debug_log(void) {
 			strcpy(message, "<unknown>");
 		}
 
-		fprintf(fp, "%s <%s> <%s|%s:%s> %s\r\n", timestamp, level, category, file, line, message);
+		fprintf(fp, "%s <%s> <%s:%s> %s\r\n", timestamp, level, filename, line, message);
 	}
 
 	fclose(fp);

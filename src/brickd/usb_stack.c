@@ -39,8 +39,6 @@
 #include "usb.h"
 #include "usb_transfer.h"
 
-#define LOG_CATEGORY LOG_CATEGORY_USB
-
 #define MAX_READ_TRANSFERS 10
 #define MAX_WRITE_TRANSFERS 10
 #define MAX_QUEUED_WRITES 32768

@@ -58,4 +58,4 @@ typedef struct {
 int red_extension_init(void);
 void red_extension_exit(void);
 
-#endif
+#endif // BRICKD_RED_EXTENSION_H

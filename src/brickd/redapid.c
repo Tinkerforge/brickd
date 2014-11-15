@@ -37,8 +37,6 @@
 #include "red_usb_gadget.h"
 #include "stack.h"
 
-#define LOG_CATEGORY LOG_CATEGORY_RED_BRICK
-
 #define RECONNECT_INTERVAL 2000000 // 2 seconds in microseconds
 #define SOCKET_FILENAME "/var/run/redapid-brickd.socket"
 

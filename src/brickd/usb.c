@@ -35,8 +35,6 @@
 #include "network.h"
 #include "usb_transfer.h"
 
-#define LOG_CATEGORY LOG_CATEGORY_USB
-
 static bool _libusb_debug = false;
 static libusb_context *_context = NULL;
 static Array _usb_stacks;

@@ -47,11 +47,10 @@
 #include <daemonlib/red_i2c_eeprom.h>
 
 #include "red_rs485_extension.h"
+
 #include "network.h"
 #include "stack.h"
 #include "hardware.h"
-
-#define LOG_CATEGORY LOG_CATEGORY_RS485
 
 #define RS485_EXTENSION_FUNCTION_CODE                                   100 // Custom modbus function code
 

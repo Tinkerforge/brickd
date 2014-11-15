@@ -1,5 +1,5 @@
 .\" Process this file with: groff -man -Tascii brickd.8
-.TH BRICKD 8 2014-01-30 Tinkerforge
+.TH BRICKD 8 2014-11-15 Tinkerforge
 .\" Turn off justification for nroff. Always turn off hyphenation.
 .if n .ad l
 .nh
@@ -20,7 +20,7 @@ TCP/IP and WebSocket communication itself is encapsulated in API bindings
 available for various programming languages.
 .PP
 Bricks connected to USB are identified using their vendor ID (16D0) and product
-ID (063D).
+IDs (063D and 09E5).
 .PP
 By default, brickd binds to 0.0.0.0 (IPv4) and listens on port 4223 for
 incoming TCP/IP connections. Listening for incoming WebSocket connections is
@@ -39,7 +39,7 @@ Check configuration file for errors, print the result and exit.
 .IP "\fB\-\-daemon\fR" 4
 Run as daemon and write PID and log file.
 .IP "\fB\-\-debug\fR" 4
-Set all log levels to debug, overriding configuration file values.
+Set log level to debug, overriding configuration file value.
 .IP "\fB\-\-libusb-debug\fR" 4
 Enable libusb log output. Only works if libusb was compiled with log output
 enabled.

@@ -1,6 +1,5 @@
 /*
  * brickd
- *
  * Copyright (C) 2014 Olaf Lüke <olaf@tinkerforge.com>
  *
  * red_ethernet_extension.h: Ethernet extension support for RED Brick
@@ -29,4 +28,4 @@ void red_ethernet_extension_rmmod(void);
 int red_ethernet_extension_init(ExtensionEthernetConfig *ethernet_config);
 void red_ethernet_extension_exit(void);
 
-#endif
+#endif // BRICKD_RED_ETHERNET_EXTENSION_H

@@ -1,5 +1,5 @@
 .\" Process this file with: groff -man -Tascii brickd.conf.5
-.TH BRICKD.CONF 5 2014-01-30 Tinkerforge
+.TH BRICKD.CONF 5 2014-11-15 Tinkerforge
 .\" Turn off justification for nroff. Always turn off hyphenation.
 .if n .ad l
 .nh
@@ -32,7 +32,7 @@ is discarded. Internal whitespace within a parameter value is used as-is.
 The values following the equals sign in parameters are all either strings (no
 quotes needed) or integers.
 .SH PARAMETERS
-.SS Network connectivity
+.SS Network Connectivity
 The parameters with
 .B listen
 prefix control how
@@ -60,7 +60,7 @@ or the hostname given as
 gets resolved to a IPv6 address then this option controls if dual-stack mode
 gets enabled (\fIon\fR) or disabled (\fIoff\fR) on the socket bound to that
 address. The default value is \fIoff\fR.
-.SS Network authentication
+.SS Network Authentication
 The Tinkerforge Protocol supports authentication on a per-connection basis.
 By default authentication is disabled for backward compatibility. If it is
 enabled then an IP Connection has to prove to
@@ -73,41 +73,21 @@ An empty secret means that authentication is disabled. If the secret is longer
 than 64 characters then
 .BR brickd (8)
 will complain and refuse to start. The default value is empty (disabled).
-.SS Log level per category
-The log output of
+.SS Logging
+Each log message of
 .BR brickd (8)
-is divided into different categories. The visibility of log messages can be
-controlled individually for each category using the parameters with
-.B log_level
-prefix.
+has a certain severity level attached to it. The visibility of log messages is
+controlled by their severity levels.
+.IP "\fBlog.level\fR" 4
+Log messages with a severity level above or equal to the configured level are
+shown, all other log messages are ignored.
 
 Valid values are \fIerror\fR, \fIwarn\fR, \fIinfo\fR and \fIdebug\fR. The
-default value is \fIinfo\fR. It means that log messages on error, warn and
-info level are shown, but messages on debug level are ignored. This can be
+default value is \fIinfo\fR. It means that log messages on error, warn and info
+level are shown, but messages on debug level are ignored. This can be
 overridden with the
 .B --debug
 command line option of \fBbrickd\fR(8).
-.IP "\fBlog_level.event\fR" 4
-Controlls the visibility of log messages from the event subsystem.
-.IP "\fBlog_level.usb\fR" 4
-Controlls the visibility of log messages from the USB subsystem.
-.IP "\fBlog_level.network\fR" 4
-Controlls the visibility of log messages from the network subsystem.
-.IP "\fBlog_level.hotplug\fR" 4
-Controlls the visibility of log messages from the (USB) hotplug subsystem.
-.IP "\fBlog_level.hardware\fR" 4
-Controlls the visibility of log messages from the hardware subsystem.
-.IP "\fBlog_level.websocket\fR" 4
-Controlls the visibility of log messages from the WebSocket subsystem.
-.IP "\fBlog_level.red_brick\fR" 4
-Controlls the visibility of log messages from the RED Brick subsystem.
-.IP "\fBlog_level.spi\fR" 4
-Controlls the visibility of log messages from the (RED Brick) SPI subsystem.
-.IP "\fBlog_level.rs485\fR" 4
-Controlls the visibility of log messages from the (RED Brick) RS485 subsystem.
-.IP "\fBlog_level.other\fR" 4
-Controlls the visibility of log messages that do not fit into any of the
-categories listed above.
 .SH FILES
 \fI/etc/brickd.conf\fR or \fI~/.brickd/brickd.conf\fR
 .SH BUGS

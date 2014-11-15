@@ -64,8 +64,6 @@ BOOL WINAPI Process32Next(HANDLE hSnapshot, PROCESSENTRY32 *lppe);
 #include "usb.h"
 #include "version.h"
 
-#define LOG_CATEGORY LOG_CATEGORY_OTHER
-
 static const GUID GUID_DEVINTERFACE_USB_DEVICE =
 { 0xA5DCBF10L, 0x6530, 0x11D2, { 0x90, 0x1F, 0x00, 0xC0, 0x4F, 0xB9, 0x51, 0xED } };
 
@@ -475,6 +473,8 @@ static int generic_main(bool log_to_file, bool debug, bool libusb_debug) {
 	DEV_BROADCAST_DEVICEINTERFACE notification_filter;
 	HDEVNOTIFY notification_handle;
 
+	log_set_debug_override(debug);
+
 	mutex_handle = OpenMutex(SYNCHRONIZE, FALSE, mutex_name);
 
 	if (mutex_handle == NULL) {
@@ -571,16 +571,6 @@ static int generic_main(bool log_to_file, bool debug, bool libusb_debug) {
 		log_warn("Could not set console control handler: %s (%d)",
 		         get_errno_name(rc), rc);
 	}
-
-	log_set_debug_override(debug);
-
-	log_set_level(LOG_CATEGORY_EVENT, config_get_option_value("log_level.event")->log_level);
-	log_set_level(LOG_CATEGORY_USB, config_get_option_value("log_level.usb")->log_level);
-	log_set_level(LOG_CATEGORY_NETWORK, config_get_option_value("log_level.network")->log_level);
-	log_set_level(LOG_CATEGORY_HOTPLUG, config_get_option_value("log_level.hotplug")->log_level);
-	log_set_level(LOG_CATEGORY_HARDWARE, config_get_option_value("log_level.hardware")->log_level);
-	log_set_level(LOG_CATEGORY_WEBSOCKET, config_get_option_value("log_level.websocket")->log_level);
-	log_set_level(LOG_CATEGORY_OTHER, config_get_option_value("log_level.other")->log_level);
 
 	if (config_has_error()) {
 		log_error("Error(s) occurred while reading config file '%s'",

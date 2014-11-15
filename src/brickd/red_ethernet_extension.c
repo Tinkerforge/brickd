@@ -1,7 +1,7 @@
 /*
  * brickd
- *
  * Copyright (C) 2014 Olaf Lüke <olaf@tinkerforge.com>
+ * Copyright (C) 2014 Matthias Bolte <matthias@tinkerforge.com>
  *
  * red_ethernet_extension.c: Ethernet extension support for RED Brick
  *
@@ -20,19 +20,17 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
+#include <errno.h>
+#include <stdio.h>
+
+#include <daemonlib/log.h>
+#include <daemonlib/red_i2c_eeprom.h>
+#include <daemonlib/red_gpio.h>
+#include <daemonlib/utils.h>
+
 #include "red_ethernet_extension.h"
 
 #include "red_extension.h"
-
-#include <stdio.h>
-#include <errno.h>
-
-#include <daemonlib/log.h>
-#include <daemonlib/utils.h>
-#include <daemonlib/red_i2c_eeprom.h>
-#include <daemonlib/red_gpio.h>
-
-#define LOG_CATEGORY LOG_CATEGORY_RED_BRICK
 
 #define W5X00_PARAM_MAX_SIZE 150
 #define W5X00_MODULE_MAX_SIZE (1000*200)

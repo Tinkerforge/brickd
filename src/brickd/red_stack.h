@@ -22,8 +22,6 @@
 #ifndef BRICKD_RED_STACK_H
 #define BRICKD_RED_STACK_H
 
-#include <daemonlib/io.h>
-
 int red_stack_init(void);
 void red_stack_exit(void);
 

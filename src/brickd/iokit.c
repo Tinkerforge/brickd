@@ -38,8 +38,6 @@
 
 #include "usb.h"
 
-#define LOG_CATEGORY LOG_CATEGORY_OTHER
-
 static Pipe _notification_pipe;
 static Thread _poll_thread;
 static bool _running = false;

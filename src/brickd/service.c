@@ -27,8 +27,6 @@
 
 #include "service.h"
 
-#define LOG_CATEGORY LOG_CATEGORY_OTHER
-
 static char *_service_name = "Brick Daemon";
 static char *_service_description = "Brick Daemon is a bridge between USB devices (Bricks) and TCP/IP sockets. It can be used to read out and control Bricks.";
 static char *_event_log_key_name = "SYSTEM\\CurrentControlSet\\Services\\EventLog\\Application\\Brick Daemon";

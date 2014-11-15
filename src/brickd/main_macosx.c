@@ -43,8 +43,6 @@
 #include "usb.h"
 #include "version.h"
 
-#define LOG_CATEGORY LOG_CATEGORY_OTHER
-
 #define CONFIG_FILENAME (SYSCONFDIR "/brickd.conf")
 #define PID_FILENAME (LOCALSTATEDIR "/run/brickd.pid")
 #define LOG_FILENAME (LOCALSTATEDIR "/log/brickd.log")
@@ -57,7 +55,7 @@ static void print_usage(void) {
 	       "  --help          Show this help\n"
 	       "  --version       Show version number\n"
 	       "  --check-config  Check config file for errors\n"
-	       "  --daemon        Run as daemon and write log and PID file\n"
+	       "  --daemon        Run as daemon and write PID and log file\n"
 	       "  --debug         Set all log levels to debug\n"
 	       "  --libusb-debug  Set libusb log level to debug\n");
 }
@@ -121,6 +119,7 @@ int main(int argc, char **argv) {
 	config_init(CONFIG_FILENAME);
 
 	log_init();
+	log_set_debug_override(debug);
 
 	if (daemon) {
 		pid_fd = daemon_start(LOG_FILENAME, PID_FILENAME, false);
@@ -136,16 +135,6 @@ int main(int argc, char **argv) {
 		goto error_log;
 	}
 
-	log_set_debug_override(debug);
-
-	log_set_level(LOG_CATEGORY_EVENT, config_get_option_value("log_level.event")->log_level);
-	log_set_level(LOG_CATEGORY_USB, config_get_option_value("log_level.usb")->log_level);
-	log_set_level(LOG_CATEGORY_NETWORK, config_get_option_value("log_level.network")->log_level);
-	log_set_level(LOG_CATEGORY_HOTPLUG, config_get_option_value("log_level.hotplug")->log_level);
-	log_set_level(LOG_CATEGORY_HARDWARE, config_get_option_value("log_level.hardware")->log_level);
-	log_set_level(LOG_CATEGORY_WEBSOCKET, config_get_option_value("log_level.websocket")->log_level);
-	log_set_level(LOG_CATEGORY_OTHER, config_get_option_value("log_level.other")->log_level);
-
 	if (config_has_error()) {
 		log_error("Error(s) occurred while reading config file '%s'",
 		          CONFIG_FILENAME);
@@ -160,8 +149,8 @@ int main(int argc, char **argv) {
 	}
 
 	if (config_has_warning()) {
-		log_error("Warning(s) in config file '%s', run with --check-config option for details",
-		          CONFIG_FILENAME);
+		log_warn("Warning(s) in config file '%s', run with --check-config option for details",
+		         CONFIG_FILENAME);
 	}
 
 	if (event_init() < 0) {

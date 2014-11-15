@@ -43,8 +43,6 @@
 #include "network.h"
 #include "stack.h"
 
-#define LOG_CATEGORY LOG_CATEGORY_HARDWARE
-
 int stack_create(Stack *stack, const char *name,
                  StackDispatchRequestFunction dispatch_request) {
 	string_copy(stack->name, sizeof(stack->name), name);

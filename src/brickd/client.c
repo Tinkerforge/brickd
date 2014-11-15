@@ -40,8 +40,6 @@
 #endif
 #include "zombie.h"
 
-#define LOG_CATEGORY LOG_CATEGORY_NETWORK
-
 #define UID_BRICK_DAEMON 1
 
 static void client_handle_get_authentication_nonce_request(Client *client, GetAuthenticationNonceRequest *request) {

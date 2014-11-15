@@ -28,8 +28,6 @@
 
 #include "client.h"
 
-#define LOG_CATEGORY LOG_CATEGORY_NETWORK
-
 static uint32_t _next_id = 0;
 
 static void zombie_handle_timeout(void *opaque) {

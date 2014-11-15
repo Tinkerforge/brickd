@@ -1,6 +1,7 @@
 /*
  * brickd
  * Copyright (C) 2014 Olaf Lüke <olaf@tinkerforge.com>
+ * Copyright (C) 2014 Matthias Bolte <matthias@tinkerforge.com>
  *
  * red_extension.c: Extension initialization for RED Brick
  *
@@ -19,21 +20,19 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
+#include <errno.h>
+#include <stdio.h>
+#include <string.h>
+
+#include <daemonlib/conf_file.h>
+#include <daemonlib/log.h>
+#include <daemonlib/red_i2c_eeprom.h>
+#include <daemonlib/red_gpio.h>
 
 #include "red_extension.h"
 
 #include "red_rs485_extension.h"
 #include "red_ethernet_extension.h"
-
-#include <errno.h>
-#include <string.h>
-#include <stdio.h>
-#include <daemonlib/red_i2c_eeprom.h>
-#include <daemonlib/red_gpio.h>
-#include <daemonlib/log.h>
-#include <daemonlib/conf_file.h>
-
-#define LOG_CATEGORY LOG_CATEGORY_RED_BRICK
 
 #define EEPROM_SIZE 8192
 

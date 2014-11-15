@@ -33,16 +33,13 @@
 
 #include "log_messages.h"
 
-#define LOG_CATEGORY LOG_CATEGORY_OTHER
-
 #include <daemonlib/packed_begin.h>
 
 typedef struct {
 	uint16_t length;
 	uint64_t timestamp; // in microseconds
 	uint8_t level;
-	uint8_t category;
-	char file[256];
+	char filename[256];
 	int line;
 	char function[256];
 	char message[1024];
@@ -54,7 +51,6 @@ typedef struct {
 #define FOREGROUND_ALL (FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE | FOREGROUND_INTENSITY)
 #define BACKGROUND_ALL (BACKGROUND_RED | BACKGROUND_GREEN | BACKGROUND_BLUE | BACKGROUND_INTENSITY)
 #define FOREGROUND_YELLOW (FOREGROUND_RED | FOREGROUND_GREEN)
-#define FOREGROUND_MAGENTA (FOREGROUND_RED | FOREGROUND_BLUE)
 #define FOREGROUND_WHITE (FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE)
 
 bool _log_debug_override_platform = false;
@@ -129,7 +125,7 @@ static void LIBUSB_CALL log_forward_libusb_message(enum libusb_log_level level,
 	struct timeval timestamp;
 	LogPipeMessage pipe_message;
 
-	if (!_named_pipe_connected) {
+	if (!_named_pipe_connected || level == LIBUSB_LOG_LEVEL_NONE) {
 		return;
 	}
 
@@ -143,16 +139,13 @@ static void LIBUSB_CALL log_forward_libusb_message(enum libusb_log_level level,
 
 	switch (level) {
 	default:
-	case LIBUSB_LOG_LEVEL_NONE:    pipe_message.level = LOG_LEVEL_NONE;  break;
 	case LIBUSB_LOG_LEVEL_ERROR:   pipe_message.level = LOG_LEVEL_ERROR; break;
 	case LIBUSB_LOG_LEVEL_WARNING: pipe_message.level = LOG_LEVEL_WARN;  break;
 	case LIBUSB_LOG_LEVEL_INFO:    pipe_message.level = LOG_LEVEL_INFO;  break;
 	case LIBUSB_LOG_LEVEL_DEBUG:   pipe_message.level = LOG_LEVEL_DEBUG; break;
 	}
 
-	pipe_message.category = LOG_CATEGORY_LIBUSB;
-
-	pipe_message.file[0] = '\0';
+	pipe_message.filename[0] = '\0';
 	pipe_message.line = 0;
 
 	string_copy(pipe_message.function, sizeof(pipe_message.function), function);
@@ -472,11 +465,6 @@ void log_apply_color_platform(LogLevel level, bool begin) {
 
 	if (begin) {
 		switch (level) {
-		case LOG_LEVEL_NONE:
-			attributes = log_prepare_color_attributes(FOREGROUND_MAGENTA | FOREGROUND_INTENSITY);
-
-			break;
-
 		case LOG_LEVEL_ERROR:
 			attributes = log_prepare_color_attributes(FOREGROUND_RED | FOREGROUND_INTENSITY);
 
@@ -506,9 +494,8 @@ void log_apply_color_platform(LogLevel level, bool begin) {
 }
 
 // NOTE: assumes that _mutex (in log.c) is locked
-void log_secondary_output_platform(struct timeval *timestamp,
-                                   LogCategory category, LogLevel level,
-                                   const char *file, int line,
+void log_secondary_output_platform(struct timeval *timestamp, LogLevel level,
+                                   const char *filename, int line,
                                    const char *function, const char *format,
                                    va_list arguments) {
 	WORD type = 0;
@@ -549,8 +536,7 @@ void log_secondary_output_platform(struct timeval *timestamp,
 		pipe_message.length = sizeof(pipe_message);
 		pipe_message.timestamp = (uint64_t)timestamp->tv_sec * 1000000 + timestamp->tv_usec;
 		pipe_message.level = level;
-		pipe_message.category = category;
-		string_copy(pipe_message.file, sizeof(pipe_message.file), file);
+		string_copy(pipe_message.filename, sizeof(pipe_message.filename), filename);
 		pipe_message.line = line;
 		string_copy(pipe_message.function, sizeof(pipe_message.function), function);
 

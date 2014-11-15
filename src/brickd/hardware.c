@@ -31,8 +31,6 @@
 
 #include "stack.h"
 
-#define LOG_CATEGORY LOG_CATEGORY_HARDWARE
-
 static Array _stacks;
 
 int hardware_init(void) {

@@ -33,8 +33,6 @@
 #include <daemonlib/threads.h>
 #include <daemonlib/utils.h>
 
-#define LOG_CATEGORY LOG_CATEGORY_EVENT
-
 #define USBI_POLLIN 0x0001
 #define USBI_POLLOUT 0x0004
 
