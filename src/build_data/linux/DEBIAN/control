@@ -4,7 +4,7 @@ Section: electronics
 Maintainer: Olaf Lüke <olaf@tinkerforge.com>
 Architecture: <<BRICKD_ARCHITECTURE>>
 Priority: optional
-Installed-Size: 142
+Installed-Size: 195
 Depends: libc6, libusb-1.0-0, libudev1 | libudev0, pm-utils
 Recommends: logrotate
 Description: Tinkerforge Brick Daemon
