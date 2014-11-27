@@ -542,7 +542,9 @@ static void red_stack_spi_handle_reset(void) {
 
 		// Unfortunately we have to discard all of the queued packets.
 		// we can't be sure that the packets are for the correct slave after a reset.
-		while(queue_peek(&_red_stack.slaves[slave].packet_to_spi_queue) != NULL);
+		while(queue_peek(&_red_stack.slaves[slave].packet_to_spi_queue) != NULL) {
+			queue_pop(&_red_stack.slaves[slave].packet_to_spi_queue, NULL);
+		}
 	}
 }
 
