@@ -1,6 +1,7 @@
 *.p
 *.o
 src/daemonlib
+src/brickd/codesign_identity
 src/brickd/dist
 src/brickd/objfre_wxp_x86
 src/brickd/brickd

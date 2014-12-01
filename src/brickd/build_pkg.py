@@ -79,7 +79,8 @@ def build_macosx_pkg():
     os.system('install_name_tool -change @executable_path/../build_data/macosx/libusb/libusb-1.0.dylib @executable_path/libusb-1.0.dylib {0}'.format(os.path.join(macos_dir, 'brickd')))
 
     print 'signing...'
-    codesign_command = 'codesign --force --verify --verbose --sign "${{CODESIGN_IDENTITY}}" {0}'
+    # NOTE: codesign_identity contains "Developer ID Application: ..."
+    codesign_command = 'codesign --force --verify --verbose --sign "`cat codesign_identity`" {0}'
 
     os.system(codesign_command.format(install_app_dir))
     os.system(codesign_command.format(os.path.join(macos_dir, 'libusb-1.0.dylib')))
