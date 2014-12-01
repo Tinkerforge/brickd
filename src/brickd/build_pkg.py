@@ -100,6 +100,7 @@ def build_windows_pkg():
     os.makedirs(dist_dir)
 
     os.system('compile.bat')
+    os.system('C:\\codesign\\sign.bat dist\\brickd.exe')
 
     version = check_output(['dist\\brickd.exe', '--version']).replace('\r\n', '')
 
@@ -126,7 +127,11 @@ def build_windows_pkg():
     os.system('"C:\\Program Files\\NSIS\\makensis.exe" dist\\nsis\\brickd_installer.nsi')
 
     dist_nsis_dir = os.path.join(dist_dir, 'nsis')
-    shutil.move(os.path.join(dist_nsis_dir, 'brickd_windows_{0}.exe'.format(version.replace('.', '_'))), os.getcwd())
+    installer = 'brickd_windows_{0}.exe'.format(version.replace('.', '_'))
+
+    shutil.move(os.path.join(dist_nsis_dir, installer), os.getcwd())
+
+    os.system('C:\\codesign\\sign.bat ' + installer)
 
 
 def build_linux_pkg():
