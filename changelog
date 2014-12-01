@@ -84,3 +84,9 @@
        Fix crash if client with pending responses disconnects
        Fix possible mismatch while handling responses for identical requests
        Avoid broadcasting unexpected responses in most cases
+2.2.0: Add RED Brick support
+       Colorize log messages
+       Detect and drop pending requests that will never get a response
+       Windows installer and drivers are signed now
+       Enable logrotate for brickd.log on Linux
+       Remove all categories from logging system

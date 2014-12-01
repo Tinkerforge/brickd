@@ -38,8 +38,8 @@
 // https://www.debian.org/doc/debian-policy/ch-controlfields.html#s-f-Version
 
 #define VERSION_MAJOR 2
-#define VERSION_MINOR 1
-#define VERSION_RELEASE 1
+#define VERSION_MINOR 2
+#define VERSION_RELEASE 0
 
 #ifdef BRICKD_WITH_RED_BRICK
 	#define VERSION_SUFFIX_STRING "+redbrick"
