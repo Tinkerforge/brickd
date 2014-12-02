@@ -100,7 +100,9 @@ def build_windows_pkg():
     os.makedirs(dist_dir)
 
     os.system('compile.bat')
-    os.system('C:\\codesign\\sign.bat dist\\brickd.exe')
+
+    if os.path.exists('C:\\codesign\\sign.bat'):
+        os.system('C:\\codesign\\sign.bat dist\\brickd.exe')
 
     version = check_output(['dist\\brickd.exe', '--version']).replace('\r\n', '')
 
@@ -131,7 +133,8 @@ def build_windows_pkg():
 
     shutil.move(os.path.join(dist_nsis_dir, installer), os.getcwd())
 
-    os.system('C:\\codesign\\sign.bat ' + installer)
+    if os.path.exists('C:\\codesign\\sign.bat'):
+        os.system('C:\\codesign\\sign.bat ' + installer)
 
 
 def build_linux_pkg():
