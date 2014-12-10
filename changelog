@@ -91,3 +91,4 @@
        Mac OS X installer signed on Mac OS X 10.10 to make it pass the Gatekeeper again
        Enable logrotate for brickd.log on Linux
        Remove all categories from logging system
+       Handle partial writes if outgoing socket buffer is almost full
