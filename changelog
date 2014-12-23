@@ -92,3 +92,4 @@
        Enable logrotate for brickd.log on Linux
        Remove all categories from logging system
        Handle partial writes if outgoing socket buffer is almost full
+2.2.1: Improve RED Brick hotplug handling on Windows

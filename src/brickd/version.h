@@ -39,12 +39,12 @@
 
 #define VERSION_MAJOR 2
 #define VERSION_MINOR 2
-#define VERSION_RELEASE 0
+#define VERSION_RELEASE 1
 
 #ifdef BRICKD_WITH_RED_BRICK
 	#define VERSION_SUFFIX_STRING "+redbrick"
 #else
-	#define VERSION_SUFFIX_STRING ""
+	#define VERSION_SUFFIX_STRING "-beta1"
 #endif
 
 #define INT_TO_STRING_(x) #x
