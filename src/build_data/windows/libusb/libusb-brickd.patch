@@ -142,7 +142,7 @@ index cb0e32a..b4f00f7 100644
 +  libusb_set_log_function
 +  libusb_set_log_function@4 = libusb_set_log_function
 diff --git a/libusb/libusb-1.0.rc b/libusb/libusb-1.0.rc
-index 3dce6d5..4491327 100644
+index 3dce6d5..82f619c 100644
 --- a/libusb/libusb-1.0.rc
 +++ b/libusb/libusb-1.0.rc
 @@ -49,7 +49,7 @@ BEGIN
@@ -150,7 +150,7 @@ index 3dce6d5..4491327 100644
  			VALUE "OriginalFilename", "libusb-1.0.dll\0"
  			VALUE "PrivateBuild", "\0"
 -			VALUE "ProductName", "libusb-1.0\0"
-+			VALUE "ProductName", "libusb-1.0-8facad00ea66e0609d93ad8aa4e174a6e7be8b3c-tf-10\0"
++			VALUE "ProductName", "libusb-1.0-8facad00ea66e0609d93ad8aa4e174a6e7be8b3c-tf-11\0"
  			VALUE "ProductVersion", LIBUSB_VERSIONSTRING
  			VALUE "SpecialBuild", "\0"
  		END
@@ -271,10 +271,25 @@ index deed206..294dbe8 100644
  void init_polling(void);
  void exit_polling(void);
 diff --git a/libusb/os/windows_usb.c b/libusb/os/windows_usb.c
-index e130bc9..9eb8661 100644
+index e130bc9..370e01e 100644
 --- a/libusb/os/windows_usb.c
 +++ b/libusb/os/windows_usb.c
-@@ -1140,6 +1140,11 @@ static int init_device(struct libusb_device* dev, struct libusb_device* parent_d
+@@ -1098,6 +1098,14 @@ static int init_device(struct libusb_device* dev, struct libusb_device* parent_d
+ 	struct libusb_device* tmp_dev;
+ 	unsigned i;
+ 
++	if (strncmp(device_id, "\\\\.\\USB#VID_16D0&PID_09E5&MI_01", 31) == 0 && port_number > 1) {
++		// the second function (MI_01) of the RED Brick seems to be reported on
++		// the wrong port number, try to fix this
++		usbi_dbg("trying to fix port number %u for %s", port_number, device_id);
++
++		--port_number;
++	}
++
+ 	if ((dev == NULL) || (parent_dev == NULL)) {
+ 		return LIBUSB_ERROR_NOT_FOUND;
+ 	}
+@@ -1140,6 +1148,11 @@ static int init_device(struct libusb_device* dev, struct libusb_device* parent_d
  	}
  	memset(&conn_info, 0, sizeof(conn_info));
  	if (priv->depth != 0) {	// Not a HCD hub
@@ -286,7 +301,32 @@ index e130bc9..9eb8661 100644
  		handle = CreateFileA(parent_priv->path, GENERIC_WRITE, FILE_SHARE_WRITE, NULL, OPEN_EXISTING,
  			FILE_FLAG_OVERLAPPED, NULL);
  		if (handle == INVALID_HANDLE_VALUE) {
-@@ -2091,6 +2096,10 @@ static void windows_transfer_callback(struct usbi_transfer *itransfer, uint32_t
+@@ -1197,6 +1210,15 @@ static int init_device(struct libusb_device* dev, struct libusb_device* parent_d
+ 	usbi_dbg("(bus: %d, addr: %d, depth: %d, port: %d): '%s'",
+ 		dev->bus_number, dev->device_address, priv->depth, priv->port, device_id);
+ 
++	if (strncmp(device_id, "\\\\.\\USB#VID_16D0&PID_09E5&MI_", 29) == 0) {
++		// don't add interfaces of the composite RED Brick devices to the
++		// device list. this will just result in the device list containing
++		// the device multiple times, which will confuse brickd
++		usbi_dbg("hiding composite device function from devices list: %s", device_id);
++
++		return LIBUSB_ERROR_NO_DEVICE;
++	}
++
+ 	return LIBUSB_SUCCESS;
+ }
+ 
+@@ -1400,7 +1422,7 @@ static int windows_get_device_list(struct libusb_context *ctx, struct discovered
+ 	}
+ 
+ 	for (pass = 0; ((pass < nb_guids) && (r == LIBUSB_SUCCESS)); pass++) {
+-//#define ENUM_DEBUG
++#define ENUM_DEBUG
+ #ifdef ENUM_DEBUG
+ 		const char *passname[] = { "HCD", "HUB", "GEN", "DEV", "HID", "EXT" };
+ 		usbi_dbg("\n#### PROCESSING %ss %s", passname[(pass<=HID_PASS)?pass:HID_PASS+1],
+@@ -2091,6 +2113,10 @@ static void windows_transfer_callback(struct usbi_transfer *itransfer, uint32_t
  			status = LIBUSB_TRANSFER_CANCELLED;
  		}
  		break;
@@ -297,7 +337,7 @@ index e130bc9..9eb8661 100644
  	default:
  		usbi_err(ITRANSFER_CTX(itransfer), "detected I/O error %d: %s", io_result, windows_error_str(io_result));
  		status = LIBUSB_TRANSFER_ERROR;
-@@ -2166,7 +2175,7 @@ static int windows_handle_events(struct libusb_context *ctx, struct pollfd *fds,
+@@ -2166,7 +2192,7 @@ static int windows_handle_events(struct libusb_context *ctx, struct pollfd *fds,
  			windows_handle_callback(transfer, io_result, io_size);
  		} else {
  			usbi_err(ctx, "could not find a matching transfer for fd %x", fds[i]);
