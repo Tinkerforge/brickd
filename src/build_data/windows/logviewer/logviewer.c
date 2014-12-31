@@ -43,8 +43,8 @@ static HWND _current_list_view = NULL;
 static PBYTE _record_buffer = NULL;
 static int _debug_connected = 0;
 
-#define MAX_TIMESTAMP_LEN (26 + 1) // yyyy-mm-dd hh:mm:ss.uuuuuu
-#define MAX_RECORD_BUFFER_SIZE 0x10000 // 64K
+#define MAX_TIMESTAMP_LENGTH (26 + 1) // yyyy-mm-dd hh:mm:ss.uuuuuu
+#define MAX_RECORD_BUFFER_SIZE 0x10000 // 64k
 
 static void report_error(const char *format, ...) {
 	char message[1024 + 1];
@@ -174,6 +174,7 @@ static int init_common_controls(void) {
 
 	if (!InitCommonControlsEx(&icex)) {
 		report_error("Could not initialize common controls");
+
 		return -1;
 	}
 
@@ -193,6 +194,7 @@ static int insert_list_view_column(HWND list_view, int sub_item, int width,
 
 	if (ListView_InsertColumn(list_view, sub_item, &lvc) < 0) {
 		report_error("Could not insert list view column");
+
 		return -1;
 	}
 
@@ -226,7 +228,8 @@ static int create_status_bar(void) {
 		return -1;
 	}
 
-	SendMessage(_status_bar, SB_SETPARTS, sizeof(widths) / sizeof(int), (LPARAM)widths);
+	SendMessage(_status_bar, SB_SETPARTS,
+	            sizeof(widths) / sizeof(int), (LPARAM)widths);
 
 	return 0;
 }
@@ -259,7 +262,8 @@ static int create_event_list_view(void) {
 	}
 
 	ListView_SetExtendedListViewStyleEx(_event_list_view,
-	                                    LVS_EX_FULLROWSELECT, LVS_EX_FULLROWSELECT);
+	                                    LVS_EX_FULLROWSELECT,
+	                                    LVS_EX_FULLROWSELECT);
 
 	if (insert_list_view_column(_event_list_view, 0, 120, "Timestamp") < 0 ||
 	    insert_list_view_column(_event_list_view, 1,  60, "Level") < 0 ||
@@ -298,7 +302,8 @@ static int create_debug_list_view(void) {
 	}
 
 	ListView_SetExtendedListViewStyleEx(_debug_list_view,
-	                                    LVS_EX_FULLROWSELECT, LVS_EX_FULLROWSELECT);
+	                                    LVS_EX_FULLROWSELECT,
+	                                    LVS_EX_FULLROWSELECT);
 
 	if (insert_list_view_column(_debug_list_view, 0, 160, "Timestamp") < 0 ||
 	    insert_list_view_column(_debug_list_view, 1,  60, "Level") < 0 ||
@@ -432,7 +437,7 @@ typedef struct {
 #pragma pack(pop)
 
 static void append_debug_meta_message(const char *message) {
-	char timestamp[MAX_TIMESTAMP_LEN];
+	char timestamp[MAX_TIMESTAMP_LENGTH];
 
 	format_timestamp(time(NULL), 0, timestamp, sizeof(timestamp), "-", " ", ":");
 
@@ -440,13 +445,14 @@ static void append_debug_meta_message(const char *message) {
 }
 
 static void append_debug_pipe_message(LogPipeMessage *pipe_message) {
-	char timestamp[MAX_TIMESTAMP_LEN];
+	char timestamp[MAX_TIMESTAMP_LENGTH];
 	uint64_t seconds = pipe_message->timestamp / 1000000;
 	int microseconds = pipe_message->timestamp % 1000000;
 	const char *level = "<unknown>";
 	char line[64];
 
-	format_timestamp(seconds, microseconds, timestamp, sizeof(timestamp), "-", " ", ":");
+	format_timestamp(seconds, microseconds, timestamp, sizeof(timestamp),
+	                 "-", " ", ":");
 
 	switch (pipe_message->level) {
 	case LOG_LEVEL_ERROR: level = "Error"; break;
@@ -479,7 +485,8 @@ static DWORD WINAPI read_named_pipe(void *opaque) {
 		update_status_bar();
 
 		for (;;) {
-			hpipe = CreateFile(pipe_name, GENERIC_READ | GENERIC_WRITE, 0, NULL, OPEN_EXISTING, 0, NULL);
+			hpipe = CreateFile(pipe_name, GENERIC_READ | GENERIC_WRITE, 0,
+			                   NULL, OPEN_EXISTING, 0, NULL);
 
 			if (hpipe != INVALID_HANDLE_VALUE) {
 				break;
@@ -507,7 +514,8 @@ static DWORD WINAPI read_named_pipe(void *opaque) {
 				break;
 			}
 
-			if (bytes_read == sizeof(pipe_message) && pipe_message.length == sizeof(pipe_message)) {
+			if (bytes_read == sizeof(pipe_message) &&
+			    pipe_message.length == sizeof(pipe_message)) {
 				// enforce that strings are NUL-terminated
 				pipe_message.filename[sizeof(pipe_message.filename) - 1] = '\0';
 				pipe_message.function[sizeof(pipe_message.function) - 1] = '\0';
@@ -571,7 +579,7 @@ static void read_event_log(void) {
 		} else {
 			PBYTE record = _record_buffer;
 			PBYTE end_of_records = _record_buffer + bytes_read;
-			char timestamp[MAX_TIMESTAMP_LEN];
+			char timestamp[MAX_TIMESTAMP_LENGTH];
 			const char *level;
 			const char *message;
 
@@ -622,10 +630,10 @@ static void read_event_log(void) {
 }
 
 static void save_event_log(void) {
-	char filename_timestamp[MAX_TIMESTAMP_LEN];
+	char filename_timestamp[MAX_TIMESTAMP_LENGTH];
 	char filename[_MAX_PATH];
 	char *filters = "Log Files (*.log, *.txt)\0*.log;*.txt\0\0";
-	OPENFILENAME ofn = {0};
+	OPENFILENAME ofn;
 	FILE *fp;
 	int count;
 	LVITEM lvi_timestamp;
@@ -639,7 +647,9 @@ static void save_event_log(void) {
 	format_timestamp(time(NULL), -1, filename_timestamp, sizeof(filename_timestamp), "", "_", "");
 	_snprintf(filename, sizeof(filename), "brickd_event_%s.log", filename_timestamp);
 
-	ofn.lStructSize = sizeof(OPENFILENAME);
+	memset(&ofn, 0, sizeof(ofn));
+
+	ofn.lStructSize = sizeof(ofn);
 	ofn.hwndOwner = _hwnd;
 	ofn.hInstance = _hinstance;
 	ofn.lpstrFilter = filters;
@@ -700,10 +710,10 @@ static void save_event_log(void) {
 }
 
 static void save_debug_log(void) {
-	char save_timestamp[MAX_TIMESTAMP_LEN];
+	char save_timestamp[MAX_TIMESTAMP_LENGTH];
 	char save_filename[_MAX_PATH];
 	char *filters = "Log Files (*.log, *.txt)\0*.log;*.txt\0\0";
-	OPENFILENAME ofn = {0};
+	OPENFILENAME ofn;
 	FILE *fp;
 	int count;
 	LVITEM lvi_timestamp;
@@ -721,7 +731,9 @@ static void save_debug_log(void) {
 	format_timestamp(time(NULL), -1, save_timestamp, sizeof(save_timestamp), "", "_", "");
 	_snprintf(save_filename, sizeof(save_filename), "brickd_debug_%s.log", save_timestamp);
 
-	ofn.lStructSize = sizeof(OPENFILENAME);
+	memset(&ofn, 0, sizeof(ofn));
+
+	ofn.lStructSize = sizeof(ofn);
 	ofn.hwndOwner = _hwnd;
 	ofn.hInstance = _hinstance;
 	ofn.lpstrFilter = filters;
