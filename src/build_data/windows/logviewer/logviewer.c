@@ -130,7 +130,7 @@ static void set_view_menu_item_state(UINT item, UINT state) {
 
 static void update_status_bar_message_count() {
 	int count = ListView_GetItemCount(_current_list_view);
-	char buffer[64];
+	char buffer[128];
 
 	_snprintf(buffer, sizeof(buffer), "%d Message%s", count, count == 1 ? "" : "s");
 
@@ -207,7 +207,7 @@ enum {
 
 static int create_status_bar(void) {
 	int rc;
-	int widths[] = {110, 240, -1};
+	int widths[] = {175, 350, -1};
 
 	_status_bar = CreateWindowEx(0,
 	                             STATUSCLASSNAME,
@@ -852,8 +852,8 @@ static LRESULT CALLBACK window_proc(HWND hwnd, UINT msg,
 
 	case WM_GETMINMAXINFO:
 		info = (MINMAXINFO *)lparam;
-		info->ptMinTrackSize.x = 400;
-		info->ptMinTrackSize.y = 300;
+		info->ptMinTrackSize.x = 525;
+		info->ptMinTrackSize.y = 400;
 		break;
 
 	case WM_TIMER:
