@@ -280,18 +280,19 @@ static void handle_device_event(DWORD event_type,
 		return;
 	}
 
-	sprintf(guid, "{%08X-%04X-%04X-%02X%02X-%02X%02X%02X%02X%02X%02X}",
-	        event_data->dbcc_classguid.Data1,
-	        event_data->dbcc_classguid.Data2,
-	        event_data->dbcc_classguid.Data3,
-	        event_data->dbcc_classguid.Data4[0],
-	        event_data->dbcc_classguid.Data4[1],
-	        event_data->dbcc_classguid.Data4[2],
-	        event_data->dbcc_classguid.Data4[3],
-	        event_data->dbcc_classguid.Data4[4],
-	        event_data->dbcc_classguid.Data4[5],
-	        event_data->dbcc_classguid.Data4[6],
-	        event_data->dbcc_classguid.Data4[7]);
+	snprintf(guid, sizeof(guid),
+	         "{%08X-%04X-%04X-%02X%02X-%02X%02X%02X%02X%02X%02X}",
+	         event_data->dbcc_classguid.Data1,
+	         event_data->dbcc_classguid.Data2,
+	         event_data->dbcc_classguid.Data3,
+	         event_data->dbcc_classguid.Data4[0],
+	         event_data->dbcc_classguid.Data4[1],
+	         event_data->dbcc_classguid.Data4[2],
+	         event_data->dbcc_classguid.Data4[3],
+	         event_data->dbcc_classguid.Data4[4],
+	         event_data->dbcc_classguid.Data4[5],
+	         event_data->dbcc_classguid.Data4[6],
+	         event_data->dbcc_classguid.Data4[7]);
 
 	switch (event_type) {
 	case DBT_DEVICEARRIVAL:
