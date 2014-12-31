@@ -471,6 +471,8 @@ static void append_debug_pipe_message(LogPipeMessage *pipe_message) {
 static DWORD WINAPI read_named_pipe(void *opaque) {
 	const char *pipe_name = "\\\\.\\pipe\\tinkerforge-brick-daemon-debug-log";
 	HANDLE hpipe;
+	DWORD current_error;
+	DWORD last_error;
 	DWORD mode = PIPE_READMODE_MESSAGE;
 	LogPipeMessage pipe_message;
 	DWORD bytes_read;
@@ -481,6 +483,7 @@ static DWORD WINAPI read_named_pipe(void *opaque) {
 
 	for (;;) {
 		_debug_connected = 0;
+		last_error = ERROR_SUCCESS;
 
 		update_status_bar();
 
@@ -491,6 +494,14 @@ static DWORD WINAPI read_named_pipe(void *opaque) {
 			if (hpipe != INVALID_HANDLE_VALUE) {
 				break;
 			}
+
+			current_error = GetLastError();
+
+			if (current_error != last_error && current_error == ERROR_ACCESS_DENIED) {
+				append_debug_meta_message("Access was denied, try running logviewer.exe as administrator");
+			}
+
+			last_error = current_error;
 
 			Sleep(250);
 		}
