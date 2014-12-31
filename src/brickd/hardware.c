@@ -31,6 +31,8 @@
 
 #include "stack.h"
 
+static LogSource _log_source = LOG_SOURCE_INITIALIZER;
+
 static Array _stacks;
 
 int hardware_init(void) {

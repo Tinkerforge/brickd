@@ -64,6 +64,8 @@ BOOL WINAPI Process32Next(HANDLE hSnapshot, PROCESSENTRY32 *lppe);
 #include "usb.h"
 #include "version.h"
 
+static LogSource _log_source = LOG_SOURCE_INITIALIZER;
+
 // general USB device GUID, applies to all Bricks. for the RED Brick this only
 // applies to the composite device itself, but not to its functions
 static const GUID GUID_DEVINTERFACE_USB_DEVICE =
@@ -549,7 +551,7 @@ static BOOL WINAPI console_ctrl_handler(DWORD ctrl_type) {
 // NOTE: RegisterServiceCtrlHandlerEx (via service_init) and SetServiceStatus
 //       (via service_set_status) need to be called in all circumstances if
 //       brickd is running as service
-static int generic_main(bool log_to_file, bool debug, bool libusb_debug) {
+static int generic_main(bool log_to_file, const char *debug_filter, bool libusb_debug) {
 	int exit_code = EXIT_FAILURE;
 	const char *mutex_name = "Global\\Tinkerforge-Brick-Daemon-Single-Instance";
 	HANDLE mutex_handle = NULL;
@@ -562,8 +564,6 @@ static int generic_main(bool log_to_file, bool debug, bool libusb_debug) {
 	WSADATA wsa_data;
 	DEV_BROADCAST_DEVICEINTERFACE notification_filter;
 	HDEVNOTIFY notification_handle;
-
-	log_set_debug_override(debug);
 
 	mutex_handle = OpenMutex(SYNCHRONIZE, FALSE, mutex_name);
 
@@ -675,6 +675,10 @@ static int generic_main(bool log_to_file, bool debug, bool libusb_debug) {
 		log_info("Brick Daemon %s started (as service)", VERSION_STRING);
 	} else {
 		log_info("Brick Daemon %s started", VERSION_STRING);
+	}
+
+	if (debug_filter != NULL) {
+		log_enable_debug_override(debug_filter);
 	}
 
 	if (config_has_warning()) {
@@ -864,14 +868,18 @@ error:
 static void WINAPI service_main(DWORD argc, LPTSTR *argv) {
 	DWORD i;
 	bool log_to_file = false;
-	bool debug = false;
+	const char *debug_filter = NULL;
 	bool libusb_debug = false;
 
 	for (i = 1; i < argc; ++i) {
 		if (strcmp(argv[i], "--log-to-file") == 0) {
 			log_to_file = true;
 		} else if (strcmp(argv[i], "--debug") == 0) {
-			debug = true;
+			if (i + 1 < argc && strncmp(argv[i + 1], "--", 2) != 0) {
+				debug_filter = argv[++i];
+			} else {
+				debug_filter = "";
+			}
 		} else if (strcmp(argv[i], "--libusb-debug") == 0) {
 			libusb_debug = true;
 		} else {
@@ -879,10 +887,10 @@ static void WINAPI service_main(DWORD argc, LPTSTR *argv) {
 		}
 	}
 
-	generic_main(log_to_file, debug, libusb_debug);
+	generic_main(log_to_file, debug_filter, libusb_debug);
 }
 
-static int service_run(bool log_to_file, bool debug, bool libusb_debug) {
+static int service_run(bool log_to_file, const char *debug_filter, bool libusb_debug) {
 	SERVICE_TABLE_ENTRY service_table[2];
 	int rc;
 
@@ -905,7 +913,7 @@ static int service_run(bool log_to_file, bool debug, bool libusb_debug) {
 			_run_as_service = false;
 			_pause_before_exit = started_by_explorer(true);
 
-			return generic_main(log_to_file, debug, libusb_debug);
+			return generic_main(log_to_file, debug_filter, libusb_debug);
 		} else {
 			log_error("Could not start service control dispatcher: %s (%d)",
 			          get_errno_name(rc), rc);
@@ -924,18 +932,18 @@ static int service_run(bool log_to_file, bool debug, bool libusb_debug) {
 static void print_usage(void) {
 	printf("Usage:\n"
 	       "  brickd [--help|--version|--check-config|--install|--uninstall|--console]\n"
-	       "         [--log-to-file] [--debug] [--libusb-debug]\n"
+	       "         [--log-to-file] [--debug [<filter>]] [--libusb-debug]\n"
 	       "\n"
 	       "Options:\n"
-	       "  --help          Show this help\n"
-	       "  --version       Show version number\n"
-	       "  --check-config  Check config file for errors\n"
-	       "  --install       Register as a service and start it\n"
-	       "  --uninstall     Stop service and unregister it\n"
-	       "  --console       Force start as console application\n"
-	       "  --log-to-file   Write log messages to file\n"
-	       "  --debug         Set all log levels to debug\n"
-	       "  --libusb-debug  Set libusb log level to debug\n");
+	       "  --help              Show this help\n"
+	       "  --version           Show version number\n"
+	       "  --check-config      Check config file for errors\n"
+	       "  --install           Register as a service and start it\n"
+	       "  --uninstall         Stop service and unregister it\n"
+	       "  --console           Force start as console application\n"
+	       "  --log-to-file       Write log messages to file\n"
+	       "  --debug [<filter>]  Set log level to debug and apply optional filter\n"
+	       "  --libusb-debug      Set libusb log level to debug\n");
 
 	if (started_by_explorer(false)) {
 		printf("\nPress any key to exit...\n");
@@ -963,7 +971,7 @@ int main(int argc, char **argv) {
 	bool uninstall = false;
 	bool console = false;
 	bool log_to_file = false;
-	bool debug = false;
+	const char *debug_filter = NULL;
 	bool libusb_debug = false;
 	int rc;
 
@@ -985,7 +993,11 @@ int main(int argc, char **argv) {
 		} else if (strcmp(argv[i], "--log-to-file") == 0) {
 			log_to_file = true;
 		} else if (strcmp(argv[i], "--debug") == 0) {
-			debug = true;
+			if (i + 1 < argc && strncmp(argv[i + 1], "--", 2) != 0) {
+				debug_filter = argv[++i];
+			} else {
+				debug_filter = "";
+			}
 		} else if (strcmp(argv[i], "--libusb-debug") == 0) {
 			libusb_debug = true;
 		} else {
@@ -1047,7 +1059,7 @@ int main(int argc, char **argv) {
 	}
 
 	if (install) {
-		if (service_install(log_to_file, debug) < 0) {
+		if (service_install(log_to_file, debug_filter) < 0) {
 			return EXIT_FAILURE;
 		}
 	} else if (uninstall) {
@@ -1065,9 +1077,9 @@ int main(int argc, char **argv) {
 			_run_as_service = false;
 			_pause_before_exit = started_by_explorer(true);
 
-			return generic_main(log_to_file, debug, libusb_debug);
+			return generic_main(log_to_file, debug_filter, libusb_debug);
 		} else {
-			return service_run(log_to_file, debug, libusb_debug);
+			return service_run(log_to_file, debug_filter, libusb_debug);
 		}
 	}
 

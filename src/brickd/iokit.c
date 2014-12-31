@@ -38,6 +38,8 @@
 
 #include "usb.h"
 
+static LogSource _log_source = LOG_SOURCE_INITIALIZER;
+
 static Pipe _notification_pipe;
 static Thread _poll_thread;
 static bool _running = false;

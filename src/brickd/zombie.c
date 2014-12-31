@@ -28,6 +28,8 @@
 
 #include "client.h"
 
+static LogSource _log_source = LOG_SOURCE_INITIALIZER;
+
 static uint32_t _next_id = 0;
 
 static void zombie_handle_timeout(void *opaque) {

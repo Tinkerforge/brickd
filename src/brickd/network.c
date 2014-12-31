@@ -46,6 +46,8 @@
 #include "websocket.h"
 #include "zombie.h"
 
+static LogSource _log_source = LOG_SOURCE_INITIALIZER;
+
 static Array _clients;
 static Array _zombies;
 static Socket _plain_server_socket;

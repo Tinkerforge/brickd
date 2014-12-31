@@ -30,27 +30,29 @@
 #include <string.h>
 #include <fcntl.h>
 #include <linux/types.h>
-#include <sys/eventfd.h>
-#include <time.h>
-#include <sys/timerfd.h>
-#include <termios.h>
 #include <linux/serial.h>
+#include <sys/eventfd.h>
+#include <sys/timerfd.h>
 #include <sys/ioctl.h>
+#include <time.h>
+#include <termios.h>
 
 #include <daemonlib/config.h>
-#include <daemonlib/threads.h>
+#include <daemonlib/event.h>
+#include <daemonlib/log.h>
 #include <daemonlib/packet.h>
 #include <daemonlib/pipe.h>
-#include <daemonlib/log.h>
 #include <daemonlib/red_gpio.h>
-#include <daemonlib/event.h>
 #include <daemonlib/red_i2c_eeprom.h>
+#include <daemonlib/threads.h>
 
 #include "red_rs485_extension.h"
 
+#include "hardware.h"
 #include "network.h"
 #include "stack.h"
-#include "hardware.h"
+
+static LogSource _log_source = LOG_SOURCE_INITIALIZER;
 
 #define RS485_EXTENSION_FUNCTION_CODE                                   100 // Custom modbus function code
 

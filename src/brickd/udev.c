@@ -70,6 +70,8 @@
 
 #include "usb.h"
 
+static LogSource _log_source = LOG_SOURCE_INITIALIZER;
+
 #ifdef BRICKD_WITH_LIBUDEV_DLOPEN
 
 struct udev;

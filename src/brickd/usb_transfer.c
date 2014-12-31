@@ -28,6 +28,8 @@
 #include "stack.h"
 #include "usb.h"
 
+static LogSource _log_source = LOG_SOURCE_INITIALIZER;
+
 static const char *usb_transfer_get_type_name(USBTransferType type, bool upper) {
 	switch (type) {
 	case USB_TRANSFER_TYPE_READ:  return upper ? "Read" : "read";

@@ -50,6 +50,8 @@
 #include "red_usb_gadget.h"
 #include "stack.h"
 
+static LogSource _log_source = LOG_SOURCE_INITIALIZER;
+
 // We use the Pearson Hash for fast hashing
 // See: http://en.wikipedia.org/wiki/Pearson_hashing
 // the permutation table is taken from the original paper:

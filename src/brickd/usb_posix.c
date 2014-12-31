@@ -77,6 +77,8 @@
 
 #include "usb.h"
 
+static LogSource _log_source = LOG_SOURCE_INITIALIZER;
+
 // if compiled with a hotplug capable libusb then don't use dlopen to probe
 #if (defined(LIBUSB_API_VERSION)  && (LIBUSB_API_VERSION  >= 0x01000102)) || \
     (defined(LIBUSBX_API_VERSION) && (LIBUSBX_API_VERSION >= 0x01000102))

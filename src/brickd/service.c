@@ -27,6 +27,8 @@
 
 #include "service.h"
 
+static LogSource _log_source = LOG_SOURCE_INITIALIZER;
+
 static char *_service_name = "Brick Daemon";
 static char *_service_description = "Brick Daemon is a bridge between USB devices (Bricks) and TCP/IP sockets. It can be used to read out and control Bricks.";
 static char *_event_log_key_name = "SYSTEM\\CurrentControlSet\\Services\\EventLog\\Application\\Brick Daemon";
@@ -140,7 +142,7 @@ char *service_get_name(void) {
 	return _service_name;
 }
 
-int service_install(bool log_to_file, bool debug) {
+int service_install(bool log_to_file, const char *debug_filter) {
 	SC_HANDLE service_control_manager;
 	int rc;
 	char filename[1024];
@@ -148,18 +150,23 @@ int service_install(bool log_to_file, bool debug) {
 	DWORD types = EVENTLOG_ERROR_TYPE | EVENTLOG_WARNING_TYPE;
 	SC_HANDLE service;
 	SERVICE_DESCRIPTION description;
-	LPCTSTR debug_argv[2];
+	LPCTSTR buffer[3];
 	DWORD argc = 0;
 	LPCTSTR *argv = NULL;
 
 	if (log_to_file) {
-		debug_argv[argc++] = "--log-to-file";
-		argv = debug_argv;
+		buffer[argc++] = "--log-to-file";
+		argv = buffer;
 	}
 
-	if (debug) {
-		debug_argv[argc++] = "--debug";
-		argv = debug_argv;
+	if (debug_filter != NULL) {
+		buffer[argc++] = "--debug";
+
+		if (*debug_filter != '\0') {
+			buffer[argc++] = debug_filter;
+		}
+
+		argv = buffer;
 	}
 
 	if (GetModuleFileName(NULL, filename, sizeof(filename)) == 0) {
@@ -267,11 +274,11 @@ int service_install(bool log_to_file, bool debug) {
 	} else {
 		// FIXME: query status and wait until service is really started
 
-		if (log_to_file && debug) {
+		if (log_to_file && debug_filter != NULL) {
 			printf("Started '%s' service with --log-to-file and --debug option\n", _service_name);
 		} else if (log_to_file) {
 			printf("Started '%s' service with --log-to-file option\n", _service_name);
-		} else if (debug) {
+		} else if (debug_filter != NULL) {
 			printf("Started '%s' service with --debug option\n", _service_name);
 		} else {
 			printf("Started '%s' service\n", _service_name);

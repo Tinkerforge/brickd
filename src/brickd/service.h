@@ -29,7 +29,7 @@ int service_is_running(void);
 void service_set_status(DWORD status, DWORD exit_code);
 SERVICE_STATUS_HANDLE service_get_status_handle(void);
 char *service_get_name(void);
-int service_install(bool log_to_file, bool debug);
+int service_install(bool log_to_file, const char *debug_filter);
 int service_uninstall(void);
 
 #endif // BRICKD_SERVICE_H

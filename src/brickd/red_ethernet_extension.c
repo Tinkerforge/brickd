@@ -32,6 +32,8 @@
 
 #include "red_extension.h"
 
+static LogSource _log_source = LOG_SOURCE_INITIALIZER;
+
 #define W5X00_PARAM_MAX_SIZE 150
 #define W5X00_MODULE_MAX_SIZE (1000*200)
 #define W5X00_MODULE_PATH "/lib/modules/3.4.90+/kernel/drivers/net/ethernet/wiznet/w5x00.ko"

@@ -33,6 +33,8 @@
 #include <daemonlib/threads.h>
 #include <daemonlib/utils.h>
 
+static LogSource _log_source = LOG_SOURCE_INITIALIZER;
+
 #define USBI_POLLIN 0x0001
 #define USBI_POLLOUT 0x0004
 

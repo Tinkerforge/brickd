@@ -34,6 +34,8 @@
 #include "red_rs485_extension.h"
 #include "red_ethernet_extension.h"
 
+static LogSource _log_source = LOG_SOURCE_INITIALIZER;
+
 #define EEPROM_SIZE 8192
 
 #define EXTENSION_NUM_MAX 2

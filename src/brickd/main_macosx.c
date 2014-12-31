@@ -43,21 +43,24 @@
 #include "usb.h"
 #include "version.h"
 
+static LogSource _log_source = LOG_SOURCE_INITIALIZER;
+
 #define CONFIG_FILENAME (SYSCONFDIR "/brickd.conf")
 #define PID_FILENAME (LOCALSTATEDIR "/run/brickd.pid")
 #define LOG_FILENAME (LOCALSTATEDIR "/log/brickd.log")
 
 static void print_usage(void) {
 	printf("Usage:\n"
-	       "  brickd [--help|--version|--check-config|--daemon] [--debug] [--libusb-debug]\n"
+	       "  brickd [--help|--version|--check-config|--daemon] [--debug [<filter>]]\n"
+	       "         [--libusb-debug]\n"
 	       "\n"
 	       "Options:\n"
-	       "  --help          Show this help\n"
-	       "  --version       Show version number\n"
-	       "  --check-config  Check config file for errors\n"
-	       "  --daemon        Run as daemon and write PID and log file\n"
-	       "  --debug         Set all log levels to debug\n"
-	       "  --libusb-debug  Set libusb log level to debug\n");
+	       "  --help              Show this help\n"
+	       "  --version           Show version number\n"
+	       "  --check-config      Check config file for errors\n"
+	       "  --daemon            Run as daemon and write PID and log file\n"
+	       "  --debug [<filter>]  Set log level to debug and apply optional filter\n"
+	       "  --libusb-debug      Set libusb log level to debug\n");
 }
 
 static void handle_sigusr1(void) {
@@ -75,7 +78,7 @@ int main(int argc, char **argv) {
 	bool version = false;
 	bool check_config = false;
 	bool daemon = false;
-	bool debug = false;
+	const char *debug_filter = NULL;
 	bool libusb_debug = false;
 	int pid_fd = -1;
 
@@ -89,7 +92,11 @@ int main(int argc, char **argv) {
 		} else if (strcmp(argv[i], "--daemon") == 0) {
 			daemon = true;
 		} else if (strcmp(argv[i], "--debug") == 0) {
-			debug = true;
+			if (i + 1 < argc && strncmp(argv[i + 1], "--", 2) != 0) {
+				debug_filter = argv[++i];
+			} else {
+				debug_filter = "";
+			}
 		} else if (strcmp(argv[i], "--libusb-debug") == 0) {
 			libusb_debug = true;
 		} else {
@@ -126,7 +133,6 @@ int main(int argc, char **argv) {
 	}
 
 	log_init();
-	log_set_debug_override(debug);
 
 	if (daemon) {
 		pid_fd = daemon_start(LOG_FILENAME, PID_FILENAME, false);
@@ -146,6 +152,10 @@ int main(int argc, char **argv) {
 		log_info("Brick Daemon %s started (daemonized)", VERSION_STRING);
 	} else {
 		log_info("Brick Daemon %s started", VERSION_STRING);
+	}
+
+	if (debug_filter != NULL) {
+		log_enable_debug_override(debug_filter);
 	}
 
 	if (config_has_warning()) {

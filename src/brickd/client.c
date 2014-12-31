@@ -40,6 +40,8 @@
 #endif
 #include "zombie.h"
 
+static LogSource _log_source = LOG_SOURCE_INITIALIZER;
+
 #define UID_BRICK_DAEMON 1
 
 static void client_handle_get_authentication_nonce_request(Client *client, GetAuthenticationNonceRequest *request) {

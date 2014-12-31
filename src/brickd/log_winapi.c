@@ -33,15 +33,21 @@
 
 #include "log_messages.h"
 
+static LogSource _log_source = LOG_SOURCE_INITIALIZER;
+
 #include <daemonlib/packed_begin.h>
+
+typedef enum { // bitmask
+	LOG_PIPE_MESSAGE_FLAG_LIBUSB = 0x0001
+} LogPipeMessageFlag;
 
 typedef struct {
 	uint16_t length;
+	uint8_t flags;
 	uint64_t timestamp; // in microseconds
 	uint8_t level;
-	char filename[256];
+	char source[128];
 	int line;
-	char function[256];
 	char message[1024];
 } LogPipeMessage;
 
@@ -52,8 +58,6 @@ typedef struct {
 #define BACKGROUND_ALL (BACKGROUND_RED | BACKGROUND_GREEN | BACKGROUND_BLUE | BACKGROUND_INTENSITY)
 #define FOREGROUND_YELLOW (FOREGROUND_RED | FOREGROUND_GREEN)
 #define FOREGROUND_WHITE (FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE)
-
-bool _log_debug_override_platform = false;
 
 static HANDLE _console = NULL;
 static WORD _default_attributes = 0;
@@ -135,7 +139,9 @@ static void LIBUSB_CALL log_forward_libusb_message(enum libusb_log_level level,
 	}
 
 	pipe_message.length = sizeof(pipe_message);
+	pipe_message.flags = LOG_PIPE_MESSAGE_FLAG_LIBUSB;
 	pipe_message.timestamp = (uint64_t)timestamp.tv_sec * 1000000 + timestamp.tv_usec;
+	pipe_message.line = -1;
 
 	switch (level) {
 	default:
@@ -145,19 +151,15 @@ static void LIBUSB_CALL log_forward_libusb_message(enum libusb_log_level level,
 	case LIBUSB_LOG_LEVEL_DEBUG:   pipe_message.level = LOG_LEVEL_DEBUG; break;
 	}
 
-	pipe_message.filename[0] = '\0';
-	pipe_message.line = 0;
-
-	string_copy(pipe_message.function, sizeof(pipe_message.function), function);
-
-	vsnprintf(pipe_message.message, sizeof(pipe_message.message), format, arguments);
+	string_copy(pipe_message.source, sizeof(pipe_message.source), function);
+	vsnprintf(pipe_message.message, sizeof(pipe_message.message), format,
+	          arguments);
 
 	log_send_pipe_message(&pipe_message);
 }
 
 static void log_set_named_pipe_connected(bool connected) {
 	_named_pipe_connected = connected;
-	_log_debug_override_platform = connected;
 
 	libusb_set_log_function(connected ? log_forward_libusb_message : NULL);
 }
@@ -493,11 +495,18 @@ void log_apply_color_platform(LogLevel level, bool begin) {
 	}
 }
 
+bool log_is_message_included_platform(LogLevel level) {
+	if (_named_pipe_connected) {
+		return true;
+	}
+
+	return level == LOG_LEVEL_ERROR || level == LOG_LEVEL_WARN;
+}
+
 // NOTE: assumes that _mutex (in log.c) is locked
 void log_secondary_output_platform(struct timeval *timestamp, LogLevel level,
-                                   const char *filename, int line,
-                                   const char *function, const char *format,
-                                   va_list arguments) {
+                                   LogSource *source, int line,
+                                   const char *format, va_list arguments) {
 	WORD type = 0;
 	DWORD event_id = 0;
 	LPCSTR insert_strings[1] = {NULL};
@@ -534,11 +543,12 @@ void log_secondary_output_platform(struct timeval *timestamp, LogLevel level,
 
 	if (_named_pipe_connected) {
 		pipe_message.length = sizeof(pipe_message);
+		pipe_message.flags = 0;
 		pipe_message.timestamp = (uint64_t)timestamp->tv_sec * 1000000 + timestamp->tv_usec;
 		pipe_message.level = level;
-		string_copy(pipe_message.filename, sizeof(pipe_message.filename), filename);
 		pipe_message.line = line;
-		string_copy(pipe_message.function, sizeof(pipe_message.function), function);
+
+		string_copy(pipe_message.source, sizeof(pipe_message.source), source->name);
 
 		log_send_pipe_message(&pipe_message);
 	}

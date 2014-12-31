@@ -53,6 +53,8 @@
 #include "file.h"
 #include "network.h"
 
+static LogSource _log_source = LOG_SOURCE_INITIALIZER;
+
 #define G_RED_BRICK_STATE_FILENAME "/proc/g_red_brick_state"
 #define G_RED_BRICK_DATA_FILENAME "/dev/g_red_brick_data"
 

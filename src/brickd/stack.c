@@ -43,6 +43,8 @@
 #include "network.h"
 #include "stack.h"
 
+static LogSource _log_source = LOG_SOURCE_INITIALIZER;
+
 int stack_create(Stack *stack, const char *name,
                  StackDispatchRequestFunction dispatch_request) {
 	string_copy(stack->name, sizeof(stack->name), name);

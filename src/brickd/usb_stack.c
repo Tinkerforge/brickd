@@ -39,6 +39,8 @@
 #include "usb.h"
 #include "usb_transfer.h"
 
+static LogSource _log_source = LOG_SOURCE_INITIALIZER;
+
 #define MAX_READ_TRANSFERS 10
 #define MAX_WRITE_TRANSFERS 10
 #define MAX_QUEUED_WRITES 32768
