@@ -923,12 +923,12 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
 	wc.cbClsExtra = 0;
 	wc.cbWndExtra = 0;
 	wc.hInstance = hInstance;
-	wc.hIcon = LoadIcon(hInstance, MAKEINTRESOURCE(IDI_ICON_32));
+	wc.hIcon = NULL;
 	wc.hCursor = LoadCursor(NULL, IDC_ARROW);
 	wc.hbrBackground = (HBRUSH)(COLOR_WINDOW + 1);
 	wc.lpszMenuName = NULL;
 	wc.lpszClassName = class_name;
-	wc.hIconSm = LoadIcon(hInstance, MAKEINTRESOURCE(IDI_ICON_16));
+	wc.hIconSm = NULL;
 
     if (!RegisterClassEx(&wc)) {
 		rc = GetLastError();
@@ -962,6 +962,9 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
 
 		return 0;
 	}
+
+	SendMessage(_hwnd, WM_SETICON, ICON_BIG,
+	            (LPARAM)LoadIcon(hInstance, MAKEINTRESOURCE(IDI_ICON)));
 
 	create_menu();
 
