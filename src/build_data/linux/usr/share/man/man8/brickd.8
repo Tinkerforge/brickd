@@ -7,7 +7,7 @@
 brickd \- Tinkerforge Brick Daemon
 .SH SYNOPSIS
 .B brickd
-[--help|--version|--check-config|--daemon] [--debug] [--libusb-debug]
+[--help|--version|--check-config|--daemon] [--debug [<filter>]] [--libusb-debug]
 .SH DESCRIPTION
 The
 .B brickd
@@ -38,8 +38,13 @@ Print version number and exit.
 Check configuration file for errors, print the result and exit.
 .IP "\fB\-\-daemon\fR" 4
 Run as daemon and write PID and log file.
-.IP "\fB\-\-debug\fR" 4
-Set log level to debug, overriding configuration file value.
+.IP "\fB\-\-debug\fR [<filter>]" 4
+Set log severity level to \fIdebug\fR, overriding the configuration file
+value. See
+.IR brickd.conf (5)
+for further details. Also takes an optional comma separated list of filter
+statements that allow to control the visibility of debug messages (FIXME: Add
+more details about filter statements).
 .IP "\fB\-\-libusb-debug\fR" 4
 Enable libusb log output. Only works if libusb was compiled with log output
 enabled.

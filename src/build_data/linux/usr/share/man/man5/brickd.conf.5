@@ -72,7 +72,8 @@ The authentication secret is an ASCII encoded string with up to 64 characters.
 An empty secret means that authentication is disabled. If the secret is longer
 than 64 characters then
 .BR brickd (8)
-will complain and refuse to start. The default value is empty (disabled).
+will complain and refuse to start. The default value is an empty string
+(disabled).
 .SS Logging
 Each log message of
 .BR brickd (8)
@@ -80,14 +81,20 @@ has a certain severity level attached to it. The visibility of log messages is
 controlled by their severity levels.
 .IP "\fBlog.level\fR" 4
 Log messages with a severity level above or equal to the configured level are
-shown, all other log messages are ignored.
+included in the log output, all other log messages are excluded.
 
-Valid values are \fIerror\fR, \fIwarn\fR, \fIinfo\fR and \fIdebug\fR. The
+Valid levels are \fIerror\fR, \fIwarn\fR, \fIinfo\fR and \fIdebug\fR. The
 default value is \fIinfo\fR. It means that log messages on error, warn and info
 level are shown, but messages on debug level are ignored. This can be
 overridden with the
 .B --debug
-command line option of \fBbrickd\fR(8).
+command line option of \fBbrickd\fR(8) that sets the severity level to
+\fIdebug\fR.
+.IP "\fBlog.debug_filter\fR" 4
+If \fBlog.level\fR is set to \fIdebug\fR then the visibility of debug
+messages can be controlled by a comma separated list of filter statements
+(FIXME: Add more details about filter statements). The default value is an
+empty string (all message are included).
 .SH FILES
 \fI/etc/brickd.conf\fR or \fI~/.brickd/brickd.conf\fR
 .SH BUGS
