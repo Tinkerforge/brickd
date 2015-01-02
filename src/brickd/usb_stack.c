@@ -132,7 +132,8 @@ static void usb_stack_write_callback(USBTransfer *usb_transfer) {
 	Packet *request;
 	char packet_signature[PACKET_MAX_SIGNATURE_LENGTH];
 
-	if (usb_transfer->usb_stack->write_queue.count > 0) {
+	if (usb_transfer->usb_stack->active &&
+	    usb_transfer->usb_stack->write_queue.count > 0) {
 		request = queue_peek(&usb_transfer->usb_stack->write_queue);
 
 		memcpy(&usb_transfer->packet, request, request->header.length);
@@ -165,6 +166,14 @@ static int usb_stack_dispatch_request(Stack *stack, Packet *request,
 	uint32_t requests_to_drop;
 
 	(void)recipient;
+
+	if (!usb_stack->active) {
+		log_debug("Cannot dispatch request (%s) to inactive %s, dropping request",
+		          packet_get_request_signature(packet_signature, request),
+		          usb_stack->base.name);
+
+		return 0;
+	}
 
 	// find free write transfer
 	for (i = 0; i < usb_stack->write_transfers.count; ++i) {
@@ -242,6 +251,7 @@ int usb_stack_create(USBStack *usb_stack, uint8_t bus_number, uint8_t device_add
 	usb_stack->connected = true;
 	usb_stack->active = false;
 	usb_stack->expecting_short_A1_response = false;
+	usb_stack->expecting_read_stall_before_removal = false;
 
 	// create stack base
 	snprintf(preliminary_name, sizeof(preliminary_name),
@@ -300,6 +310,7 @@ int usb_stack_create(USBStack *usb_stack, uint8_t bus_number, uint8_t device_add
 
 			usb_stack->interface_number = USB_BRICK_INTERFACE;
 			usb_stack->expecting_short_A1_response = false;
+			usb_stack->expecting_read_stall_before_removal = false;
 		} else if (descriptor.idVendor == USB_RED_BRICK_VENDOR_ID &&
 		           descriptor.idProduct == USB_RED_BRICK_PRODUCT_ID) {
 			if (descriptor.bcdDevice < USB_RED_BRICK_DEVICE_RELEASE) {
@@ -311,6 +322,11 @@ int usb_stack_create(USBStack *usb_stack, uint8_t bus_number, uint8_t device_add
 
 			usb_stack->interface_number = USB_RED_BRICK_INTERFACE;
 			usb_stack->expecting_short_A1_response = true;
+#ifdef _WIN32
+			usb_stack->expecting_read_stall_before_removal = true;
+#else
+			usb_stack->expecting_read_stall_before_removal = false;
+#endif
 		} else {
 			log_warn("Found non-Brick USB device (bus: %u, device: %u, vendor: 0x%04X, product: 0x%04X) with address collision, ignoring USB device",
 			         usb_stack->bus_number, usb_stack->device_address,

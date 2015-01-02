@@ -45,8 +45,9 @@ typedef struct {
 	Queue write_queue;
 	uint32_t dropped_requests;
 	bool connected;
-	bool active;
+	bool active; // only active USB stacks can handle USB transfers
 	bool expecting_short_A1_response;
+	bool expecting_read_stall_before_removal;
 } USBStack;
 
 int usb_stack_create(USBStack *usb_stack, uint8_t bus_number, uint8_t device_address);

@@ -70,7 +70,7 @@ static void LIBUSB_CALL usb_transfer_wrapper(struct libusb_transfer *handle) {
 	usb_transfer->completed = true;
 
 	if (handle->status == LIBUSB_TRANSFER_CANCELLED) {
-		log_debug("%s transfer %p for %s was cancelled",
+		log_debug("%s transfer %p for %s was canceled",
 		          usb_transfer_get_type_name(usb_transfer->type, true), usb_transfer,
 		          usb_transfer->usb_stack->base.name);
 
@@ -82,11 +82,27 @@ static void LIBUSB_CALL usb_transfer_wrapper(struct libusb_transfer *handle) {
 
 		return;
 	} else if (handle->status == LIBUSB_TRANSFER_STALL) {
-		// FIXME: maybe use libusb_clear_halt to clear halt condition?
+		// unplugging a RED Brick from Windows results in a stalled transfer
+		// followed by read transfers returning garbage data and transfer
+		// submission errors. all this happens before the unplug event for
+		// the device is received. avoid logging pointless error messages
+		// about garbage data and transfer submission errors by detecting this
+		// condition here and deactivating the device
+		if (usb_transfer->usb_stack->expecting_read_stall_before_removal &&
+		    usb_transfer->type == USB_TRANSFER_TYPE_READ) {
+			usb_transfer->usb_stack->active = false;
+			usb_transfer->usb_stack->expecting_read_stall_before_removal = false;
 
-		log_debug("%s transfer %p for %s got stalled",
-		          usb_transfer_get_type_name(usb_transfer->type, true), usb_transfer,
-		          usb_transfer->usb_stack->base.name);
+			log_debug("%s transfer %p for %s got stalled as expected before device removal, deactivating device",
+			          usb_transfer_get_type_name(usb_transfer->type, true),
+			          usb_transfer, usb_transfer->usb_stack->base.name);
+		} else {
+			log_warn("%s transfer %p for %s got stalled",
+			         usb_transfer_get_type_name(usb_transfer->type, true), usb_transfer,
+			         usb_transfer->usb_stack->base.name);
+
+			// FIXME: maybe use libusb_clear_halt to clear halt condition?
+		}
 
 		return;
 	} else if (handle->status != LIBUSB_TRANSFER_COMPLETED) {
