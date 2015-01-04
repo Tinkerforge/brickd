@@ -1,7 +1,7 @@
 /*
  * brickd
  * Copyright (C) 2014 Olaf Lüke <olaf@tinkerforge.com>
- * Copyright (C) 2014 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2014-2015 Matthias Bolte <matthias@tinkerforge.com>
  *
  * red_ethernet_extension.c: Ethernet extension support for RED Brick
  *
@@ -46,9 +46,9 @@ extern int init_module(void *module_image, unsigned long len,
 extern int delete_module(const char *name, int flags);
 
 void red_ethernet_extension_rmmod(void) {
-	if(delete_module("w5x00", 0) < 0) {
+	if (delete_module("w5x00", 0) < 0) {
 		// ENOENT = w5x00 was not loaded (which is OK)
-		if(errno != ENOENT) {
+		if (errno != ENOENT) {
 			log_warn("Could not remove kernel module: %s (%d)",
 					get_errno_name(errno), errno);
 
@@ -71,23 +71,28 @@ int red_ethernet_extension_init(ExtensionEthernetConfig *ethernet_config) {
 	// Mux SPI CS pins again. They have been overwritten by I2C select!
 	pin.port_index = GPIO_PORT_G;
 
-	switch(ethernet_config->extension) {
-		case 1:
-			param_pin_reset     = 20;
-			param_pin_interrupt = 21;
-			param_select        = 1;
-			pin.pin_index       = GPIO_PIN_13; // CS1
-			break;
+	switch (ethernet_config->extension) {
+	case 1:
+		param_pin_reset     = 20;
+		param_pin_interrupt = 21;
+		param_select        = 1;
+		pin.pin_index       = GPIO_PIN_13; // CS1
 
-		default:
-			log_warn("Unsupported extension position (%d), assuming position 0", ethernet_config->extension);
-			// Fallthrough
-		case 0:
-			param_pin_reset     = 15;
-			param_pin_interrupt = 17;
-			param_select        = 0;
-			pin.pin_index       = GPIO_PIN_9; // CS0
-			break;
+		break;
+
+	default:
+		log_warn("Unsupported extension position (%d), assuming position 0",
+		         ethernet_config->extension);
+
+		// Fallthrough
+
+	case 0:
+		param_pin_reset     = 15;
+		param_pin_interrupt = 17;
+		param_select        = 0;
+		pin.pin_index       = GPIO_PIN_9; // CS0
+
+		break;
 	}
 
 	gpio_mux_configure(pin, GPIO_MUX_2);
@@ -103,9 +108,10 @@ int red_ethernet_extension_init(ExtensionEthernetConfig *ethernet_config) {
 	          ethernet_config->extension,
 	          buf_param);
 
-	if((f = fopen(W5X00_MODULE_PATH, "rb")) == NULL) {
+	if ((f = fopen(W5X00_MODULE_PATH, "rb")) == NULL) {
 		log_error("Could not read w5x00 kernel module: %s (%d)",
 		          get_errno_name(errno), errno);
+
 		return -1;
 	}
 
@@ -114,14 +120,16 @@ int red_ethernet_extension_init(ExtensionEthernetConfig *ethernet_config) {
 	fclose(f);
 
 	// We abort if the read was not successful or the buffer was not big enough
-	if(length < 0 || length == W5X00_MODULE_MAX_SIZE) {
+	if (length < 0 || length == W5X00_MODULE_MAX_SIZE) {
 		log_error("Could not read %s (%d)", W5X00_MODULE_PATH, length);
+
 		return -1;
 	}
 
-	if(init_module(buf_module, length, buf_param) < 0) {
+	if (init_module(buf_module, length, buf_param) < 0) {
 		log_error("Could not initialize w5x00 kernel module (length %d): %s (%d)",
 		          length, get_errno_name(errno), errno);
+
 		return -1;
 	}
 

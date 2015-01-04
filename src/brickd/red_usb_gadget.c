@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2014 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2014-2015 Matthias Bolte <matthias@tinkerforge.com>
  *
  * red_usb_gadget.c: RED Brick USB gadget interface
  *
@@ -132,7 +132,7 @@ static int red_usb_gadget_connect(void) {
 	return 0;
 }
 
-static void red_usb_gadget_disconnect() {
+static void red_usb_gadget_disconnect(void) {
 	_client->destroy_done = NULL;
 	_client->disconnected = true;
 	_client = NULL;

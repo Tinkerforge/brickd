@@ -1,7 +1,7 @@
 /*
  * brickd
  * Copyright (C) 2014 Olaf Lüke <olaf@tinkerforge.com>
- * Copyright (C) 2014 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2014-2015 Matthias Bolte <matthias@tinkerforge.com>
  *
  * websocket.c: Miniature WebSocket server implementation
  *
@@ -84,17 +84,20 @@ int websocket_answer_handshake_ok(Websocket *websocket, char *key, int length) {
 	int ret;
 
 	ret = socket_send_platform(&websocket->base, WEBSOCKET_ANSWER_STRING_1, strlen(WEBSOCKET_ANSWER_STRING_1));
-	if(ret < 0) {
+
+	if (ret < 0) {
 		return ret;
 	}
 
 	ret = socket_send_platform(&websocket->base, key, length);
-	if(ret < 0) {
+
+	if (ret < 0) {
 		return ret;
 	}
 
 	ret = socket_send_platform(&websocket->base, WEBSOCKET_ANSWER_STRING_2, strlen(WEBSOCKET_ANSWER_STRING_2));
-	if(ret < 0) {
+
+	if (ret < 0) {
 		return ret;
 	}
 
@@ -110,13 +113,13 @@ int websocket_parse_handshake_line(Websocket *websocket, char *line, int length)
 	int k;
 
 	// Find "\r\n"
-	for(i = 0; i < length; i++) {
-		if(line[i] == ' ' || line[i] == '\t') {
+	for (i = 0; i < length; i++) {
+		if (line[i] == ' ' || line[i] == '\t') {
 			continue;
 		}
 
-		if(line[i] == '\r' && line[i+1] == '\n') {
-			if(websocket->state < WEBSOCKET_STATE_HANDSHAKE_FOUND_KEY) {
+		if (line[i] == '\r' && line[i+1] == '\n') {
+			if (websocket->state < WEBSOCKET_STATE_HANDSHAKE_FOUND_KEY) {
 				return websocket_answer_handshake_error(websocket);
 			}
 
@@ -144,11 +147,11 @@ int websocket_parse_handshake_line(Websocket *websocket, char *line, int length)
 	}
 
 	// Find "Sec-WebSocket-Key"
-	if(strcasestr(line, WEBSOCKET_CLIENT_KEY_STRING) != NULL) {
+	if (strcasestr(line, WEBSOCKET_CLIENT_KEY_STRING) != NULL) {
 		memset(websocket->client_key, 0, WEBSOCKET_CLIENT_KEY_LENGTH);
 
-		for(i = strlen(WEBSOCKET_CLIENT_KEY_STRING), k = 0; i < length; i++) {
-			if(line[i] != ' ' && line[i] != '\n' && line[i] != '\r') {
+		for (i = strlen(WEBSOCKET_CLIENT_KEY_STRING), k = 0; i < length; i++) {
+			if (line[i] != ' ' && line[i] != '\n' && line[i] != '\r') {
 				websocket->client_key[k++] = line[i];
 			}
 		}
@@ -164,18 +167,19 @@ int websocket_parse_handshake_line(Websocket *websocket, char *line, int length)
 int websocket_parse_handshake(Websocket *websocket, char *handshake_part, int length) {
 	int i;
 
-	if(length <= 0) {
+	if (length <= 0) {
 		return length;
 	}
 
-	for(i = 0; i < length; i++) {
+	for (i = 0; i < length; i++) {
 		// If line > WEBSOCKET_MAX_LINE_LENGTH we just read over it until we find '\n'
 		// The lines we are interested in can't be that long
-		if(websocket->line_index < WEBSOCKET_MAX_LINE_LENGTH-1) {
+		if (websocket->line_index < WEBSOCKET_MAX_LINE_LENGTH-1) {
 			websocket->line[websocket->line_index] = handshake_part[i];
 			websocket->line_index++;
 		}
-		if(handshake_part[i] == '\n') {
+
+		if (handshake_part[i] == '\n') {
 			int ret;
 			ret = websocket_parse_handshake_line(websocket, websocket->line, websocket->line_index);
 			memset(websocket->line, 0, WEBSOCKET_MAX_LINE_LENGTH);
@@ -216,19 +220,23 @@ int websocket_parse_header(Websocket *websocket, uint8_t *buffer, int length) {
 		                 websocket->frame.masking_key[2],
 		                 websocket->frame.masking_key[3]);
 
-		if(mask != 1) {
+		if (mask != 1) {
 			log_error("WebSocket frame has invalid mask (%d)", mask);
-			return -1;
-		}
-		if(payload_length == 126 || payload_length == 127) {
-			log_error("WebSocket frame with extended payload length not supported (%d)", payload_length);
+
 			return -1;
 		}
 
-		switch(opcode) {
+		if (payload_length == 126 || payload_length == 127) {
+			log_error("WebSocket frame with extended payload length not supported (%d)", payload_length);
+
+			return -1;
+		}
+
+		switch (opcode) {
 		case WEBSOCKET_OPCODE_CONTINUATION_FRAME:
 		case WEBSOCKET_OPCODE_TEXT_FRAME:
 			log_error("WebSocket opcodes 'continuation' and 'text' not supported");
+
 			return -1;
 
 		case WEBSOCKET_OPCODE_BINARY_FRAME: {
@@ -236,7 +244,8 @@ int websocket_parse_header(Websocket *websocket, uint8_t *buffer, int length) {
 			websocket->frame_index = 0;
 			websocket->to_read = payload_length;
 			websocket->state = WEBSOCKET_STATE_WEBSOCKET_HEADER_DONE;
-			if(length - to_copy > 0) {
+
+			if (length - to_copy > 0) {
 				memmove(buffer, buffer + to_copy, length - to_copy);
 
 				return websocket_parse_data(websocket, buffer, length - to_copy);
@@ -247,19 +256,23 @@ int websocket_parse_header(Websocket *websocket, uint8_t *buffer, int length) {
 
 		case WEBSOCKET_OPCODE_CLOSE_FRAME:
 			log_debug("WebSocket opcode 'close frame'");
+
 			return 0;
 
 		case WEBSOCKET_OPCODE_PING_FRAME:
 			log_error("WebSocket opcode 'ping' not supported");
+
 			return -1;
 
 		case WEBSOCKET_OPCODE_PONG_FRAME:
 			log_error("WebSocket opcode 'pong' not supported");
+
 			return -1;
 		}
 	}
 
 	log_error("Unknown WebSocket opcode (%d)", websocket_frame_get_opcode(&websocket->frame.header));
+
 	return -1;
 }
 
@@ -267,29 +280,33 @@ int websocket_parse_data(Websocket *websocket, uint8_t *buffer, int length) {
 	int i;
 	int length_recursive_add = 0;
 	int to_read = MIN(length, websocket->to_read);
-	for(i = 0; i < to_read; i++) {
-		buffer[i] ^= websocket->frame.masking_key[websocket->mask_index];
 
+	for (i = 0; i < to_read; i++) {
+		buffer[i] ^= websocket->frame.masking_key[websocket->mask_index];
 		websocket->mask_index++;
-		if(websocket->mask_index >= WEBSOCKET_MASK_LENGTH) {
+
+		if (websocket->mask_index >= WEBSOCKET_MASK_LENGTH) {
 			websocket->mask_index = 0;
 		}
 	}
 
 	websocket->to_read -= to_read;
-	if(websocket->to_read < 0) {
+
+	if (websocket->to_read < 0) {
 		log_error("WebSocket length mismatch (%d)", websocket->to_read);
+
 		return -1;
-	} else if(websocket->to_read == 0) {
+	} else if (websocket->to_read == 0) {
 		websocket->state = WEBSOCKET_STATE_HANDSHAKE_DONE;
 		websocket->mask_index = 0;
 		websocket->frame_index = 0;
 	}
 
-	if(length > to_read) {
+	if (length > to_read) {
 		length_recursive_add = websocket_parse(websocket, buffer + to_read, length - to_read);
-		if(length_recursive_add < 0) {
-			if(length_recursive_add == IO_CONTINUE) {
+
+		if (length_recursive_add < 0) {
+			if (length_recursive_add == IO_CONTINUE) {
 				length_recursive_add = 0;
 			} else {
 				return length_recursive_add;
@@ -301,7 +318,7 @@ int websocket_parse_data(Websocket *websocket, uint8_t *buffer, int length) {
 }
 
 int websocket_parse(Websocket *websocket, void *buffer, int length) {
-	switch(websocket->state) {
+	switch (websocket->state) {
 	case WEBSOCKET_STATE_WAIT_FOR_HANDSHAKE:
 	case WEBSOCKET_STATE_HANDSHAKE_FOUND_KEY:
 		return websocket_parse_handshake(websocket, buffer, length);

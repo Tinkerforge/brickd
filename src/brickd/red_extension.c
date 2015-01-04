@@ -1,7 +1,7 @@
 /*
  * brickd
  * Copyright (C) 2014 Olaf Lüke <olaf@tinkerforge.com>
- * Copyright (C) 2014 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2014-2015 Matthias Bolte <matthias@tinkerforge.com>
  *
  * red_extension.c: Extension initialization for RED Brick
  *
@@ -120,7 +120,8 @@ static ExtensionType _red_extension_type[EXTENSION_NUM_MAX] = {EXTENSION_TYPE_NO
 
 static void red_extension_configure_pin(ExtensionPinConfiguration *config, int extension) {
 	gpio_mux_configure(config->pin[extension], config->mux);
-	if(config->value == 0) {
+
+	if (config->value == 0) {
 		gpio_output_clear(config->pin[extension]);
 	} else {
 		gpio_output_set(config->pin[extension]); // This should enable pull-up in case of input
@@ -132,18 +133,20 @@ int red_extension_read_eeprom_from_fs(uint8_t *buffer, int extension) {
 	char file_name[128];
 	int length;
 
-	if(robust_snprintf(file_name, sizeof(file_name), "/tmp/new_eeprom_extension_%d.conf", extension) < 0) {
+	if (robust_snprintf(file_name, sizeof(file_name), "/tmp/new_eeprom_extension_%d.conf", extension) < 0) {
 		return -1;
 	}
 
-	if((f = fopen(file_name, "rb")) == NULL) {
+	if ((f = fopen(file_name, "rb")) == NULL) {
 		return -1;
 	} else {
 		length = fread(buffer, 1, EEPROM_SIZE, f);
-		if(fclose(f) < 0) {
+
+		if (fclose(f) < 0) {
 			log_warn("Could not close file %s", file_name);
 		}
-		if(remove(file_name) < 0) {
+
+		if (remove(file_name) < 0) {
 			log_warn("Could not delete file %s", file_name);
 		}
 
@@ -159,7 +162,7 @@ int red_extension_save_rs485_config_to_fs(ExtensionRS485Config *rs485_config) {
 	uint8_t i = 0;
 
 	// Create file
-	if(conf_file_create(&conf_file) < 0) {
+	if (conf_file_create(&conf_file) < 0) {
 		log_error("Could not create rs485 conf object: %s (%d)",
 		          get_errno_name(errno), errno);
 
@@ -168,63 +171,76 @@ int red_extension_save_rs485_config_to_fs(ExtensionRS485Config *rs485_config) {
 
 	// Write comment
 	line = array_append(&conf_file.lines);
+
 	if (line == NULL) {
 		log_error("Could not add comment to RS485 conf file: %s (%d)",
 		          get_errno_name(errno), errno);
 
 		ret = -1;
+
 		goto cleanup;
 	}
+
 	line->raw = strdup(EXTENSION_CONFIG_COMMENT);
 	line->name = NULL;
 	line->value = NULL;
 
 	// Write options
 	snprintf(buffer, sizeof(buffer), "%d", rs485_config->type);
-	if(conf_file_set_option_value(&conf_file, "type" , buffer) < 0) {
+
+	if (conf_file_set_option_value(&conf_file, "type" , buffer) < 0) {
 		log_error("Could not set '%s' option for RS485: %s (%d)",
 		          "type", get_errno_name(errno), errno);
 
 		ret = -1;
+
 		goto cleanup;
 	}
 
 	snprintf(buffer, sizeof(buffer), "%d", rs485_config->address);
-	if(conf_file_set_option_value(&conf_file, "address" , buffer) < 0) {
+
+	if (conf_file_set_option_value(&conf_file, "address" , buffer) < 0) {
 		log_error("Could not set '%s' option for RS485: %s (%d)",
 		          "address", get_errno_name(errno), errno);
 
 		ret = -1;
+
 		goto cleanup;
 	}
 
 	snprintf(buffer, sizeof(buffer), "%d", rs485_config->slave_address[0]);
-	for(i = 1; i < rs485_config->slave_num; i++) {
-		if(rs485_config->slave_address[i] == 0) {
+
+	for (i = 1; i < rs485_config->slave_num; i++) {
+		if (rs485_config->slave_address[i] == 0) {
 			break;
 		}
+
 		snprintf(buffer + strlen(buffer), sizeof(buffer)-strlen(buffer), ", %d", rs485_config->slave_address[i]);
 	}
 
-	if(conf_file_set_option_value(&conf_file, "slave_address" , buffer) < 0) {
+	if (conf_file_set_option_value(&conf_file, "slave_address" , buffer) < 0) {
 		log_error("Could not set '%s' option for RS485: %s (%d)",
 		          "slave_address", get_errno_name(errno), errno);
 
 		ret = -1;
+
 		goto cleanup;
 	}
 
 	snprintf(buffer, sizeof(buffer), "%d", rs485_config->baudrate);
-	if(conf_file_set_option_value(&conf_file, "baudrate" , buffer) < 0) {
+
+	if (conf_file_set_option_value(&conf_file, "baudrate" , buffer) < 0) {
 		log_error("Could not set '%s' option for RS485: %s (%d)",
 		          "baudrate", get_errno_name(errno), errno);
 
 		ret = -1;
+
 		goto cleanup;
 	}
 
 	snprintf(buffer, sizeof(buffer), "%c", rs485_config->parity);
-	if(conf_file_set_option_value(&conf_file, "parity" , buffer) < 0) {
+
+	if (conf_file_set_option_value(&conf_file, "parity" , buffer) < 0) {
 		log_error("Could not set '%s' option for RS485: %s (%d)",
 		          "parity", get_errno_name(errno), errno);
 
@@ -233,7 +249,8 @@ int red_extension_save_rs485_config_to_fs(ExtensionRS485Config *rs485_config) {
 	}
 
 	snprintf(buffer, sizeof(buffer), "%d", rs485_config->slave_num);
-	if(conf_file_set_option_value(&conf_file, "slave_num" , buffer) < 0) {
+
+	if (conf_file_set_option_value(&conf_file, "slave_num" , buffer) < 0) {
 		log_error("Could not set '%s' option for RS485: %s (%d)",
 		          "slave_num", get_errno_name(errno), errno);
 
@@ -242,21 +259,25 @@ int red_extension_save_rs485_config_to_fs(ExtensionRS485Config *rs485_config) {
 	}
 
 	snprintf(buffer, sizeof(buffer), "%d", rs485_config->stopbits);
-	if(conf_file_set_option_value(&conf_file, "stopbits" , buffer) < 0) {
+
+	if (conf_file_set_option_value(&conf_file, "stopbits" , buffer) < 0) {
 		log_error("Could not set '%s' option for RS485: %s (%d)",
 		          "stopbits", get_errno_name(errno), errno);
 
 		ret = -1;
+
 		goto cleanup;
 	}
 
 	// Write config to filesystem
 	snprintf(buffer, sizeof(buffer), EXTENSION_CONFIG_PATH, rs485_config->extension);
-	if(conf_file_write(&conf_file, buffer) < 0) {
+
+	if (conf_file_write(&conf_file, buffer) < 0) {
 		log_error("Could not write config to '%s': %s (%d)",
 		          buffer, get_errno_name(errno), errno);
 
 		ret = -1;
+
 		goto cleanup;
 	}
 
@@ -270,57 +291,65 @@ int red_extension_read_rs485_config(I2CEEPROM *i2c_eeprom, ExtensionRS485Config 
 	uint8_t buf[4];
 
 	// Config: ADDRESS
-	if(i2c_eeprom_read(i2c_eeprom, EXTENSION_EEPROM_RS485_ADDRESS_LOCATION, buf, 4) < 4) {
+	if (i2c_eeprom_read(i2c_eeprom, EXTENSION_EEPROM_RS485_ADDRESS_LOCATION, buf, 4) < 4) {
 		log_error("RS485: Could not read config ADDRESS from EEPROM");
+
 		return -1;
 	}
 
 	rs485_config->address = (buf[0] << 0) | (buf[1] << 8) | (buf[2] << 16) | (buf[3] << 24);
 
 	// Config: BAUDRATE
-	if(i2c_eeprom_read(i2c_eeprom, EXTENSION_EEPROM_RS485_BAUDRATE_LOCATION, buf, 4) < 4) {
+	if (i2c_eeprom_read(i2c_eeprom, EXTENSION_EEPROM_RS485_BAUDRATE_LOCATION, buf, 4) < 4) {
 		log_error("RS485: Could not read config BAUDRATE from EEPROM");
+
 		return -1;
 	}
 
 	rs485_config->baudrate = (buf[0] << 0) | (buf[1] << 8) | (buf[2] << 16) | (buf[3] << 24);
 
-	if(rs485_config->baudrate < 8) {
+	if (rs485_config->baudrate < 8) {
 		log_error("RS485: Configured baudrate is too low");
+
 		return -1;
 	}
 
 	// Config: PARITY
-	if(i2c_eeprom_read(i2c_eeprom, EXTENSION_EEPROM_RS485_PARTIY_LOCATION, buf, 1) < 1) {
+	if (i2c_eeprom_read(i2c_eeprom, EXTENSION_EEPROM_RS485_PARTIY_LOCATION, buf, 1) < 1) {
 		log_error("RS485: Could not read config PARITY from EEPROM");
+
 		return -1;
 	}
 
-	if(buf[0] == RS485_EXTENSION_SERIAL_PARITY_NONE) {
+	if (buf[0] == RS485_EXTENSION_SERIAL_PARITY_NONE) {
 		rs485_config->parity = RS485_EXTENSION_SERIAL_PARITY_NONE;
-	} else if(buf[0] == RS485_EXTENSION_SERIAL_PARITY_EVEN){
+	} else if (buf[0] == RS485_EXTENSION_SERIAL_PARITY_EVEN){
 		rs485_config->parity = RS485_EXTENSION_SERIAL_PARITY_EVEN;
 	} else {
 		rs485_config->parity = RS485_EXTENSION_SERIAL_PARITY_ODD;
 	}
 
 	// Config: STOPBITS
-	if(i2c_eeprom_read(i2c_eeprom, EXTENSION_EEPROM_RS485_STOPBITS_LOCATION, buf, 1) < 1) {
+	if (i2c_eeprom_read(i2c_eeprom, EXTENSION_EEPROM_RS485_STOPBITS_LOCATION, buf, 1) < 1) {
 		log_error("RS485: Could not read config STOPBITS from EEPROM");
+
 		return -1;
 	}
+
 	rs485_config->stopbits = buf[0];
 
 	// Config (if master): SLAVE ADDRESSES
-	if(rs485_config->address == 0) {
+	if (rs485_config->address == 0) {
 		rs485_config->slave_num = 0;
 		uint16_t current_eeprom_location = EXTENSION_EEPROM_RS485_SLAVE_ADDRESSES_START_LOCATION;
 		uint32_t current_slave_address;
 
 		rs485_config->slave_address[0] = 0;
-		while(rs485_config->slave_num < EXTENSION_RS485_SLAVES_MAX) {
+
+		while (rs485_config->slave_num < EXTENSION_RS485_SLAVES_MAX) {
 			// Config: SLAVE ADDRESS
-			if(i2c_eeprom_read(i2c_eeprom, current_eeprom_location, buf, 4) < 4) {
+
+			if (i2c_eeprom_read(i2c_eeprom, current_eeprom_location, buf, 4) < 4) {
 				log_error("RS485: Could not read config SLAVE ADDRESSES from EEPROM");
 				return -1;
 			}
@@ -328,7 +357,8 @@ int red_extension_read_rs485_config(I2CEEPROM *i2c_eeprom, ExtensionRS485Config 
 			current_slave_address = (buf[0] << 0) | (buf[1] << 8) | (buf[2] << 16) | (buf[3] << 24);
 
 			rs485_config->slave_address[rs485_config->slave_num] = current_slave_address;
-			if(current_slave_address == 0) {
+
+			if (current_slave_address == 0) {
 				break;
 			}
 
@@ -337,6 +367,7 @@ int red_extension_read_rs485_config(I2CEEPROM *i2c_eeprom, ExtensionRS485Config 
 		}
 	} else {
 		log_error("RS485: Only master mode supported");
+
 		return -1;
 	}
 
@@ -351,7 +382,7 @@ int red_extension_save_ethernet_config_to_fs(ExtensionEthernetConfig *ethernet_c
 	uint8_t i = 0;
 
 	// Create file
-	if(conf_file_create(&conf_file) < 0) {
+	if (conf_file_create(&conf_file) < 0) {
 		log_error("Could not create ethernet conf object: %s (%d)",
 		          get_errno_name(errno), errno);
 
@@ -360,20 +391,24 @@ int red_extension_save_ethernet_config_to_fs(ExtensionEthernetConfig *ethernet_c
 
 	// Write comment
 	line = array_append(&conf_file.lines);
+
 	if (line == NULL) {
 		log_error("Could not add comment to ethernet conf file: %s (%d)",
 		          get_errno_name(errno), errno);
 
 		ret = -1;
+
 		goto cleanup;
 	}
+
 	line->raw = strdup(EXTENSION_CONFIG_COMMENT);
 	line->name = NULL;
 	line->value = NULL;
 
 	// Write options
 	snprintf(buffer, sizeof(buffer), "%d", ethernet_config->type);
-	if(conf_file_set_option_value(&conf_file, "type" , buffer) < 0) {
+
+	if (conf_file_set_option_value(&conf_file, "type" , buffer) < 0) {
 		log_error("Could not set '%s' option for RS485: %s (%d)",
 		          "type", get_errno_name(errno), errno);
 
@@ -382,25 +417,29 @@ int red_extension_save_ethernet_config_to_fs(ExtensionEthernetConfig *ethernet_c
 	}
 
 	snprintf(buffer, sizeof(buffer), "%02x", (unsigned char)ethernet_config->mac[0]);
-	for(i = 1; i < EXTENSION_ETHERNET_MAC_SIZE; i++) {
+
+	for (i = 1; i < EXTENSION_ETHERNET_MAC_SIZE; i++) {
 		snprintf(buffer + strlen(buffer), sizeof(buffer)-strlen(buffer), ":%02x", (unsigned char)ethernet_config->mac[i]);
 	}
 
-	if(conf_file_set_option_value(&conf_file, "mac", buffer) < 0) {
+	if (conf_file_set_option_value(&conf_file, "mac", buffer) < 0) {
 		log_error("Could not set '%s' option for Ethernet: %s (%d)",
 		          "mac", get_errno_name(errno), errno);
 
 		ret = -1;
+
 		goto cleanup;
 	}
 
 	// Write config to filesystem
 	snprintf(buffer, sizeof(buffer), EXTENSION_CONFIG_PATH, ethernet_config->extension);
-	if(conf_file_write(&conf_file, buffer) < 0) {
+
+	if (conf_file_write(&conf_file, buffer) < 0) {
 		log_error("Could not write config to '%s': %s (%d)",
 		          buffer, get_errno_name(errno), errno);
 
 		ret = -1;
+
 		goto cleanup;
 	}
 
@@ -411,10 +450,10 @@ cleanup:
 }
 
 int red_extension_read_ethernet_config(I2CEEPROM *i2c_eeprom, ExtensionEthernetConfig *ethernet_config) {
-	if(i2c_eeprom_read(i2c_eeprom,
-	                   EXTENSION_EEPROM_ETHERNET_MAC_ADDRESS,
-	                   ethernet_config->mac,
-	                   EXTENSION_ETHERNET_MAC_SIZE) < EXTENSION_ETHERNET_MAC_SIZE) {
+	if (i2c_eeprom_read(i2c_eeprom,
+	                    EXTENSION_EEPROM_ETHERNET_MAC_ADDRESS,
+	                    ethernet_config->mac,
+	                    EXTENSION_ETHERNET_MAC_SIZE) < EXTENSION_ETHERNET_MAC_SIZE) {
 		log_warn("Can't read MAC address, using default address");
 		ethernet_config->mac[0] = 0x40;
 		ethernet_config->mac[1] = 0xD8;
@@ -430,58 +469,60 @@ int red_extension_read_ethernet_config(I2CEEPROM *i2c_eeprom, ExtensionEthernetC
 }
 
 int red_extension_init(void) {
-    uint8_t buf[4];
-    int i, j, ret;
-    ExtensionBaseConfig base_config[2];
+	uint8_t buf[4];
+	int i, j, ret;
+	ExtensionBaseConfig base_config[2];
 
-    // First we remove the Ethernet Extension kernel module (if there is one)
-    // to make sure that there isn't a collision between SPI select and I2C select.
-    red_ethernet_extension_rmmod();
+	// First we remove the Ethernet Extension kernel module (if there is one)
+	// to make sure that there isn't a collision between SPI select and I2C select.
+	red_ethernet_extension_rmmod();
 
-    // Then we deselect all EEPROMS
-    for(i = 0; i < EXTENSION_NUM_MAX; i++) {
-		for(j = 0; j < extension_startup.num_configs; j++) {
+	// Then we deselect all EEPROMS
+	for (i = 0; i < EXTENSION_NUM_MAX; i++) {
+		for (j = 0; j < extension_startup.num_configs; j++) {
 			red_extension_configure_pin(&extension_startup.config[j], i);
 		}
-    }
+	}
 
-    // Now we can try to find the configurations
-    for(i = 0; i < EXTENSION_NUM_MAX; i++) {
-    	I2CEEPROM i2c_eeprom;
-    	log_debug("Checking for presence of Extension at position %d", i);
-    	int eeprom_length = 0;
-    	uint8_t eeprom_buffer[EEPROM_SIZE];
+	// Now we can try to find the configurations
+	for (i = 0; i < EXTENSION_NUM_MAX; i++) {
+		I2CEEPROM i2c_eeprom;
+		log_debug("Checking for presence of Extension at position %d", i);
+		int eeprom_length = 0;
+		uint8_t eeprom_buffer[EEPROM_SIZE];
 
 		base_config[i].extension = i;
 		base_config[i].type = EXTENSION_TYPE_NONE;
 
-    	if(i2c_eeprom_init(&i2c_eeprom, i) < 0) {
-    		return -1;
-    	}
+		if (i2c_eeprom_init(&i2c_eeprom, i) < 0) {
+			return -1;
+		}
 
-    	if((eeprom_length = red_extension_read_eeprom_from_fs(eeprom_buffer, i)) > 2) {
-    		int start_addr = eeprom_buffer[0] | (eeprom_buffer[1] << 8);
+		if ((eeprom_length = red_extension_read_eeprom_from_fs(eeprom_buffer, i)) > 2) {
+			int start_addr = eeprom_buffer[0] | (eeprom_buffer[1] << 8);
 
-    		if(eeprom_length + start_addr >= EEPROM_SIZE) {
-    			log_warn("Found malformed EEPROM config (start=%d, length=%d) for extension %d",
-    			         start_addr, eeprom_length, i);
-    		} else {
+			if (eeprom_length + start_addr >= EEPROM_SIZE) {
+				log_warn("Found malformed EEPROM config (start=%d, length=%d) for extension %d",
+				         start_addr, eeprom_length, i);
+			} else {
 				log_info("Found new EEPROM config (start=%d, length=%d) for extension %d",
 				         start_addr, eeprom_length, i);
-				if(i2c_eeprom_write(&i2c_eeprom, start_addr, eeprom_buffer+2, eeprom_length-2) < 0) {
+
+				if (i2c_eeprom_write(&i2c_eeprom, start_addr, eeprom_buffer+2, eeprom_length-2) < 0) {
 					log_warn("Writing EEPROM config for extension %d failed", i);
 				} else {
 					log_debug("Wrote EEPROM config (start=%d, length=%d) for extension %d",
 					          start_addr, eeprom_length, i);
 				}
-    		}
-    	}
+			}
+		}
 
-		if(i2c_eeprom_read(&i2c_eeprom,
-		                   EXTENSION_EEPROM_TYPE_LOCATION,
-		                   buf,
-		                   EXTENSION_EEPROM_TYPE_SIZE) < EXTENSION_EEPROM_TYPE_SIZE) {
+		if (i2c_eeprom_read(&i2c_eeprom,
+		                    EXTENSION_EEPROM_TYPE_LOCATION,
+		                    buf,
+		                    EXTENSION_EEPROM_TYPE_SIZE) < EXTENSION_EEPROM_TYPE_SIZE) {
 			log_info("Could not find Extension at position %d", i);
+
 			continue;
 		}
 
@@ -491,102 +532,106 @@ int red_extension_init(void) {
 		// Or that we currently don't support (WIFI), we will log it, but try to
 		// continue finding extensions. We can support an extension at position 1 if
 		// there is an unsupported extension at position 0.
-		if(base_config[i].type == EXTENSION_TYPE_NONE) {
+		if (base_config[i].type == EXTENSION_TYPE_NONE) {
 			log_warn("Could not find Extension at position %d (Type None)", i);
 			continue;
 		}
 
-		if((base_config[i].type != EXTENSION_TYPE_ETHERNET) && (base_config[i].type != EXTENSION_TYPE_RS485)) {
+		if ((base_config[i].type != EXTENSION_TYPE_ETHERNET) && (base_config[i].type != EXTENSION_TYPE_RS485)) {
 			log_warn("Extension at position %d not supported (type %d)", i, base_config[i].type);
 			continue;
 		}
 
-		switch(base_config[i].type) {
-			case EXTENSION_TYPE_RS485:
-				ret = red_extension_read_rs485_config(&i2c_eeprom, (ExtensionRS485Config *) &base_config[i]);
-				i2c_eeprom_release(&i2c_eeprom);
+		switch (base_config[i].type) {
+		case EXTENSION_TYPE_RS485:
+			ret = red_extension_read_rs485_config(&i2c_eeprom, (ExtensionRS485Config *) &base_config[i]);
+			i2c_eeprom_release(&i2c_eeprom);
 
-				if(ret < 0) {
-					log_warn("Could not read RS485 config, ignoring extension at position %d", i);
-					continue;
-				}
+			if (ret < 0) {
+				log_warn("Could not read RS485 config, ignoring extension at position %d", i);
 
-				if(red_extension_save_rs485_config_to_fs((ExtensionRS485Config *) &base_config[i]) < 0) {
-					log_warn("Could not save RS485 config. RS485 Extension at position %d will not show up in Brick Viewer", i);
-				}
+				continue;
+			}
 
-				break;
+			if (red_extension_save_rs485_config_to_fs((ExtensionRS485Config *) &base_config[i]) < 0) {
+				log_warn("Could not save RS485 config. RS485 Extension at position %d will not show up in Brick Viewer", i);
+			}
 
-			case EXTENSION_TYPE_ETHERNET:
-				ret = red_extension_read_ethernet_config(&i2c_eeprom, (ExtensionEthernetConfig *) &base_config[i]);
-				i2c_eeprom_release(&i2c_eeprom);
+			break;
 
-				if(ret < 0) {
-					log_warn("Could not read Ethernet config, ignoring extension at position %d", i);
-					continue;
-				}
+		case EXTENSION_TYPE_ETHERNET:
+			ret = red_extension_read_ethernet_config(&i2c_eeprom, (ExtensionEthernetConfig *) &base_config[i]);
+			i2c_eeprom_release(&i2c_eeprom);
 
-				if(red_extension_save_ethernet_config_to_fs((ExtensionEthernetConfig *) &base_config[i]) < 0) {
-					log_warn("Could not save Ethernet config. Ethernet Extension at position %d will not show up in Brick Viewer", i);
-				}
+			if (ret < 0) {
+				log_warn("Could not read Ethernet config, ignoring extension at position %d", i);
 
-				break;
+				continue;
+			}
+
+			if (red_extension_save_ethernet_config_to_fs((ExtensionEthernetConfig *) &base_config[i]) < 0) {
+				log_warn("Could not save Ethernet config. Ethernet Extension at position %d will not show up in Brick Viewer", i);
+			}
+
+			break;
 		}
-    }
+	}
 
-    // Configure the pins and initialize extensions
-    for(i = 0; i < EXTENSION_NUM_MAX; i++) {
-    	switch(base_config[i].type) {
-			case EXTENSION_TYPE_RS485:
-				log_info("Found RS485 Extension at position %d", i);
+	// Configure the pins and initialize extensions
+	for (i = 0; i < EXTENSION_NUM_MAX; i++) {
+		switch (base_config[i].type) {
+		case EXTENSION_TYPE_RS485:
+			log_info("Found RS485 Extension at position %d", i);
 
-				for(j = 0; j < extension_rs485_pin_config.num_configs; j++) {
-					red_extension_configure_pin(&extension_rs485_pin_config.config[j], i);
-				}
+			for (j = 0; j < extension_rs485_pin_config.num_configs; j++) {
+				red_extension_configure_pin(&extension_rs485_pin_config.config[j], i);
+			}
 
-				if(red_rs485_extension_init((ExtensionRS485Config *) &base_config[i]) < 0) {
-					continue;
-				}
+			if (red_rs485_extension_init((ExtensionRS485Config *) &base_config[i]) < 0) {
+				continue;
+			}
 
-				_red_extension_type[i] = EXTENSION_TYPE_RS485;
-				break;
+			_red_extension_type[i] = EXTENSION_TYPE_RS485;
+			break;
 
-			case EXTENSION_TYPE_ETHERNET:
-				log_info("Found Ethernet Extension at position %d", i);
+		case EXTENSION_TYPE_ETHERNET:
+			log_info("Found Ethernet Extension at position %d", i);
 
-				for(j = 0; j < extension_ethernet_pin_config.num_configs; j++) {
-					red_extension_configure_pin(&extension_ethernet_pin_config.config[j], i);
-				}
+			for (j = 0; j < extension_ethernet_pin_config.num_configs; j++) {
+				red_extension_configure_pin(&extension_ethernet_pin_config.config[j], i);
+			}
 
-				if(red_ethernet_extension_init((ExtensionEthernetConfig *) &base_config[i]) < 0) {
-					continue;
-				}
+			if (red_ethernet_extension_init((ExtensionEthernetConfig *) &base_config[i]) < 0) {
+				continue;
+			}
 
-				_red_extension_type[i] = EXTENSION_TYPE_ETHERNET;
-				break;
-    	}
-    }
+			_red_extension_type[i] = EXTENSION_TYPE_ETHERNET;
+			break;
+		}
+	}
 
-    return 0;
+	return 0;
 }
 
 void red_extension_exit(void) {
-    int i;
+	int i;
 
-    for(i = 0; i < EXTENSION_NUM_MAX; i++) {
-		switch(_red_extension_type[i]) {
-			case EXTENSION_TYPE_RS485:
-				red_rs485_extension_exit();
-				break;
+	for (i = 0; i < EXTENSION_NUM_MAX; i++) {
+		switch (_red_extension_type[i]) {
+		case EXTENSION_TYPE_RS485:
+			red_rs485_extension_exit();
 
-			case EXTENSION_TYPE_ETHERNET:
-				red_ethernet_extension_exit();
-				break;
+			break;
 
-			default:
-				break; // Nothing to do here
+		case EXTENSION_TYPE_ETHERNET:
+			red_ethernet_extension_exit();
+
+			break;
+
+		default:
+			break; // Nothing to do here
 		}
 
 		_red_extension_type[i] = EXTENSION_TYPE_NONE;
-    }
+	}
 }

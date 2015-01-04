@@ -1,7 +1,7 @@
 /*
  * brickd
  * Copyright (C) 2014 Olaf Lüke <olaf@tinkerforge.com>
- * Copyright (C) 2014 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2014-2015 Matthias Bolte <matthias@tinkerforge.com>
  *
  * red_stack.c: SPI stack support for RED Brick
  *
@@ -192,13 +192,13 @@ static const char *_red_stack_spi_device = "/dev/spidev0.0";
 	t.tv_sec = (s); \
 	t.tv_nsec = (ns); \
 	clock_nanosleep(CLOCK_MONOTONIC, 0, &t, NULL); \
-}while(0)
+} while(0)
 
 #define PRINT_TIME(str) do { \
 	struct timespec t; \
 	clock_gettime(CLOCK_MONOTONIC, &t); \
 	printf(str ": %lds %ldms %ldus %ldns\n", t.tv_sec, t.tv_nsec/(1000*1000), t.tv_nsec/1000, t.tv_nsec); \
-}while(0)
+} while(0)
 
 
 // * Packet structure:
@@ -218,7 +218,8 @@ static const char *_red_stack_spi_device = "/dev/spidev0.0";
 
 static void red_stack_increase_master_sequence_number(REDStackSlave *slave) {
 	slave->sequence_number_master += 1;
-	if(slave->sequence_number_master > RED_STACK_SPI_INFO_SEQUENCE_MASTER_MASK) {
+
+	if (slave->sequence_number_master > RED_STACK_SPI_INFO_SEQUENCE_MASTER_MASK) {
 		slave->sequence_number_master = 0;
 	}
 }
@@ -226,9 +227,11 @@ static void red_stack_increase_master_sequence_number(REDStackSlave *slave) {
 // Get "red_stack_dispatch_from_spi" called from main brickd event thread
 static int red_stack_spi_request_dispatch_response_event(void) {
 	eventfd_t ev = 1;
-	if(eventfd_write(_red_stack_notification_event, ev) < 0) {
+
+	if (eventfd_write(_red_stack_notification_event, ev) < 0) {
 		log_error("Could not write to red stack spi notification event: %s (%d)",
 		          get_errno_name(errno), errno);
+
 		return -1;
 	}
 
@@ -237,14 +240,14 @@ static int red_stack_spi_request_dispatch_response_event(void) {
 
 // Calculates a Pearson Hash for the given data
 static uint8_t red_stack_spi_calculate_pearson_hash(const uint8_t *data, const uint8_t length) {
-    uint8_t i;
-    uint8_t checksum = 0;
+	uint8_t i;
+	uint8_t checksum = 0;
 
-    for(i = 0; i < length; i++) {
+	for (i = 0; i < length; i++) {
 		checksum = _red_stack_spi_pearson_permutation[checksum ^ data[i]];
-    }
+	}
 
-    return checksum;
+	return checksum;
 }
 
 static void red_stack_spi_select(REDStackSlave *slave) {
@@ -270,53 +273,54 @@ static int red_stack_spi_transceive_message(REDStackPacket *packet_send, Packet 
 	uint8_t sequence_number_master = 0xFF;
 	uint8_t sequence_number_slave = 0xFF;
 
-    uint8_t tx[RED_STACK_SPI_PACKET_SIZE] = {0};
-    uint8_t rx[RED_STACK_SPI_PACKET_SIZE] = {0};
+	uint8_t tx[RED_STACK_SPI_PACKET_SIZE] = {0};
+	uint8_t rx[RED_STACK_SPI_PACKET_SIZE] = {0};
 
-    // We assume that we don't receive anything. If we receive a packet the
-    // length will be overwritten again
-    packet_recv->header.length = 0;
+	// We assume that we don't receive anything. If we receive a packet the
+	// length will be overwritten again
+	packet_recv->header.length = 0;
 
-    // Preamble is always the same
-    tx[RED_STACK_SPI_PREAMBLE] = RED_STACK_SPI_PREAMBLE_VALUE;
+	// Preamble is always the same
+	tx[RED_STACK_SPI_PREAMBLE] = RED_STACK_SPI_PREAMBLE_VALUE;
 
-    if(packet_send == NULL) {
-    	// If packet_send is NULL
-    	// we send a message with empty payload (4 byte)
-        tx[RED_STACK_SPI_LENGTH] = RED_STACK_SPI_PACKET_EMPTY_SIZE;
-        retval = RED_STACK_TRANSCEIVE_RESULT_SEND_NONE;
-    } else if(slave->status == RED_STACK_SLAVE_STATUS_AVAILABLE) {
-    	length = packet_send->packet.header.length;
-    	if(length > sizeof(Packet)) {
-    		retval |= RED_STACK_TRANSCEIVE_RESULT_SEND_ERROR;
+	if (packet_send == NULL) {
+		// If packet_send is NULL
+		// we send a message with empty payload (4 byte)
+		tx[RED_STACK_SPI_LENGTH] = RED_STACK_SPI_PACKET_EMPTY_SIZE;
+		retval = RED_STACK_TRANSCEIVE_RESULT_SEND_NONE;
+	} else if (slave->status == RED_STACK_SLAVE_STATUS_AVAILABLE) {
+		length = packet_send->packet.header.length;
+
+		if (length > sizeof(Packet)) {
+			retval |= RED_STACK_TRANSCEIVE_RESULT_SEND_ERROR;
 			log_error("Send length is greater then allowed (actual: %d > maximum: %d)",
 			          length, (int)sizeof(Packet));
-    		goto ret;
-    	}
+			goto ret;
+		}
 
-    	retval = RED_STACK_TRANSCEIVE_DATA_SEND;
+		retval = RED_STACK_TRANSCEIVE_DATA_SEND;
 
-        tx[RED_STACK_SPI_LENGTH] = length + RED_STACK_SPI_PACKET_EMPTY_SIZE;
-    	memcpy(tx+2, &packet_send->packet, length);
-    } else {
-    	retval = RED_STACK_TRANSCEIVE_RESULT_SEND_ERROR;
-    	log_error("Slave with stack address %d is not present in stack", slave->stack_address);
-    	goto ret;
-    }
+		tx[RED_STACK_SPI_LENGTH] = length + RED_STACK_SPI_PACKET_EMPTY_SIZE;
+		memcpy(tx+2, &packet_send->packet, length);
+	} else {
+		retval = RED_STACK_TRANSCEIVE_RESULT_SEND_ERROR;
+		log_error("Slave with stack address %d is not present in stack", slave->stack_address);
+		goto ret;
+	}
 
-    length = tx[RED_STACK_SPI_LENGTH];
+	length = tx[RED_STACK_SPI_LENGTH];
 
-    // Set master and slave sequence number
+	// Set master and slave sequence number
 	tx[RED_STACK_SPI_INFO(length)] = slave->sequence_number_master | slave->sequence_number_slave;
 
-   	// Calculate checksum
-   	tx[RED_STACK_SPI_CHECKSUM(length)] = red_stack_spi_calculate_pearson_hash(tx, length-1);
+	// Calculate checksum
+	tx[RED_STACK_SPI_CHECKSUM(length)] = red_stack_spi_calculate_pearson_hash(tx, length-1);
 
-    struct spi_ioc_transfer spi_transfer = {
-        .tx_buf = (unsigned long)&tx,
-        .rx_buf = (unsigned long)&rx,
-        .len = RED_STACK_SPI_PACKET_SIZE,
-    };
+	struct spi_ioc_transfer spi_transfer = {
+		.tx_buf = (unsigned long)&tx,
+		.rx_buf = (unsigned long)&rx,
+		.len = RED_STACK_SPI_PACKET_SIZE,
+	};
 
 	red_stack_spi_select(slave);
 	rc = ioctl(_red_stack_spi_fd, SPI_IOC_MESSAGE(1), &spi_transfer);
@@ -332,7 +336,7 @@ static int red_stack_spi_transceive_message(REDStackPacket *packet_send, Packet 
 
 	length_send = rc;
 
-	if(length_send != RED_STACK_SPI_PACKET_SIZE) {
+	if (length_send != RED_STACK_SPI_PACKET_SIZE) {
 		// Overwrite current return status with error,
 		// it seems ioctl itself didn't work.
 		retval = RED_STACK_TRANSCEIVE_RESULT_SEND_ERROR | RED_STACK_TRANSCEIVE_RESULT_READ_ERROR;
@@ -341,9 +345,7 @@ static int red_stack_spi_transceive_message(REDStackPacket *packet_send, Packet 
 		goto ret;
 	}
 
-
-
-	if(rx[RED_STACK_SPI_PREAMBLE] != RED_STACK_SPI_PREAMBLE_VALUE) {
+	if (rx[RED_STACK_SPI_PREAMBLE] != RED_STACK_SPI_PREAMBLE_VALUE) {
 		// Do not log by default, an "unproper preamble" is part of the protocol
 		// if the slave is too busy to fill the DMA buffers fast enough
 		// log_error("Received packet without proper preamble (actual: %d != expected: %d)",
@@ -355,9 +357,9 @@ static int red_stack_spi_transceive_message(REDStackPacket *packet_send, Packet 
 	// Check length
 	length = rx[RED_STACK_SPI_LENGTH];
 
-	if((length != RED_STACK_SPI_PACKET_EMPTY_SIZE) &&
-	   ((length < (RED_STACK_SPI_PACKET_EMPTY_SIZE + sizeof(PacketHeader))) ||
-	    (length > RED_STACK_SPI_PACKET_SIZE))) {
+	if ((length != RED_STACK_SPI_PACKET_EMPTY_SIZE) &&
+	    ((length < (RED_STACK_SPI_PACKET_EMPTY_SIZE + sizeof(PacketHeader))) ||
+	     (length > RED_STACK_SPI_PACKET_SIZE))) {
 		log_error("Received packet with malformed length: %d", length);
 		retval = (retval & (~RED_STACK_TRANSCEIVE_RESULT_MASK_READ)) | RED_STACK_TRANSCEIVE_RESULT_READ_ERROR;
 		goto ret;
@@ -365,7 +367,8 @@ static int red_stack_spi_transceive_message(REDStackPacket *packet_send, Packet 
 
 	// Calculate and check checksum
 	checksum = red_stack_spi_calculate_pearson_hash(rx, length-1);
-	if(checksum != rx[RED_STACK_SPI_CHECKSUM(length)]) {
+
+	if (checksum != rx[RED_STACK_SPI_CHECKSUM(length)]) {
 		log_error("Received packet with wrong checksum (actual: %x != expected: %x)",
 		          checksum, rx[RED_STACK_SPI_CHECKSUM(length)]);
 		retval = (retval & (~RED_STACK_TRANSCEIVE_RESULT_MASK_READ)) | RED_STACK_TRANSCEIVE_RESULT_READ_ERROR;
@@ -374,9 +377,10 @@ static int red_stack_spi_transceive_message(REDStackPacket *packet_send, Packet 
 
 	// If we send data and the master sequence number matches to the one
 	// set in the packet we know that the slave received the packet!
-	if((packet_send != NULL) /*&& (packet_send->status == RED_STACK_PACKET_STATUS_SEQUENCE_NUMBER_SET)*/) {
+	if ((packet_send != NULL) /*&& (packet_send->status == RED_STACK_PACKET_STATUS_SEQUENCE_NUMBER_SET)*/) {
 		sequence_number_master = rx[RED_STACK_SPI_INFO(length)] & RED_STACK_SPI_INFO_SEQUENCE_MASTER_MASK;
-		if(sequence_number_master == slave->sequence_number_master) {
+
+		if (sequence_number_master == slave->sequence_number_master) {
 			retval = (retval & (~RED_STACK_TRANSCEIVE_RESULT_MASK_SEND)) | RED_STACK_TRANSCEIVE_RESULT_SEND_OK;
 
 			// Increase sequence number for next packet
@@ -388,15 +392,16 @@ static int red_stack_spi_transceive_message(REDStackPacket *packet_send, Packet 
 		red_stack_increase_master_sequence_number(slave);
 	}
 
-
 	// If the slave sequence number matches we already processed this packet
 	sequence_number_slave = rx[RED_STACK_SPI_INFO(length)] & RED_STACK_SPI_INFO_SEQUENCE_SLAVE_MASK;
-	if(sequence_number_slave == slave->sequence_number_slave) {
+
+	if (sequence_number_slave == slave->sequence_number_slave) {
 		retval = (retval & (~RED_STACK_TRANSCEIVE_RESULT_MASK_READ)) | RED_STACK_TRANSCEIVE_RESULT_READ_NONE;
 	} else {
 		// Otherwise we save the new sequence number
 		slave->sequence_number_slave = sequence_number_slave;
-		if(length == RED_STACK_SPI_PACKET_EMPTY_SIZE) {
+
+		if (length == RED_STACK_SPI_PACKET_EMPTY_SIZE) {
 			// Do not log by default, will produce 2000 log entries per second
 			// log_packet_debug("Received empty packet over SPI (w/ header)");
 			retval = (retval & (~RED_STACK_TRANSCEIVE_RESULT_MASK_READ)) | RED_STACK_TRANSCEIVE_RESULT_READ_NONE;
@@ -416,7 +421,7 @@ ret:
 
 // Creates the "routing table", which is just the
 // array of REDStackSlave structures.
-static void red_stack_spi_create_routing_table() {
+static void red_stack_spi_create_routing_table(void) {
 	char base58[BASE58_MAX_LENGTH];
 	int tries, ret, i;
 	uint8_t stack_address = 0;
@@ -424,95 +429,98 @@ static void red_stack_spi_create_routing_table() {
 
 	log_debug("Starting to discover SPI stack slaves");
 
-    while(stack_address < RED_STACK_SPI_MAX_SLAVES) {
-    	REDStackSlave *slave = &_red_stack.slaves[stack_address];
+	while (stack_address < RED_STACK_SPI_MAX_SLAVES) {
+		REDStackSlave *slave = &_red_stack.slaves[stack_address];
 
-    	Packet packet;
-    	StackEnumerateResponse *response;
+		Packet packet;
+		StackEnumerateResponse *response;
 
-    	REDStackPacket red_stack_packet = {
-    		slave,
-        	{{
-        		0,   // UID 0
-        		sizeof(StackEnumerateRequest),
-        		FUNCTION_STACK_ENUMERATE,
-        		0x08, // Return expected
-        		0
-        	}, {0}, {0}},
-        	RED_STACK_PACKET_STATUS_ADDED,
-    	};
+		REDStackPacket red_stack_packet = {
+			slave,
+			{{
+				0,   // UID 0
+				sizeof(StackEnumerateRequest),
+				FUNCTION_STACK_ENUMERATE,
+				0x08, // Return expected
+				0
+			}, {0}, {0}},
+			RED_STACK_PACKET_STATUS_ADDED,
+		};
 
-    	// We have to assume that the slave is available
-    	slave->status = RED_STACK_SLAVE_STATUS_AVAILABLE;
+		// We have to assume that the slave is available
+		slave->status = RED_STACK_SLAVE_STATUS_AVAILABLE;
 
-    	// Send stack enumerate request
-    	for(tries = 0; tries < RED_STACK_SPI_ROUTING_TRIES; tries++) {
-    		ret = red_stack_spi_transceive_message(&red_stack_packet, &packet, slave);
+		// Send stack enumerate request
+		for (tries = 0; tries < RED_STACK_SPI_ROUTING_TRIES; tries++) {
+			ret = red_stack_spi_transceive_message(&red_stack_packet, &packet, slave);
 
-    		if((ret & RED_STACK_TRANSCEIVE_RESULT_MASK_SEND) == RED_STACK_TRANSCEIVE_RESULT_SEND_OK) {
-    			break;
-    		}
-    		SLEEP_NS(0, RED_STACK_SPI_ROUTING_WAIT); // Give slave some more time
-    	}
+			if ((ret & RED_STACK_TRANSCEIVE_RESULT_MASK_SEND) == RED_STACK_TRANSCEIVE_RESULT_SEND_OK) {
+				break;
+			}
 
-    	if(tries == RED_STACK_SPI_ROUTING_TRIES) {
-    		// Slave does not seem to be available,
-    		slave->status = RED_STACK_SLAVE_STATUS_ABSENT;
-    		// This means that there can't be any more slaves above
-    		// and we are actually done here already!
-    		break;
-    	}
+			SLEEP_NS(0, RED_STACK_SPI_ROUTING_WAIT); // Give slave some more time
+		}
 
-    	// Receive stack enumerate response
-    	for(tries = 0; tries < RED_STACK_SPI_ROUTING_TRIES; tries++) {
-    		// We first check if we already received an answer before we try again
-    		if((ret & RED_STACK_TRANSCEIVE_RESULT_MASK_READ) == RED_STACK_TRANSCEIVE_RESULT_READ_OK) {
-    			break;
-    		}
+		if (tries == RED_STACK_SPI_ROUTING_TRIES) {
+			// Slave does not seem to be available,
+			slave->status = RED_STACK_SLAVE_STATUS_ABSENT;
+			// This means that there can't be any more slaves above
+			// and we are actually done here already!
+			break;
+		}
 
-    		// Here we sleep before transceive so that there is some time
-    		// between the sending of stack enumerate and the receiving
-    		// of the answer
-    		SLEEP_NS(0, RED_STACK_SPI_ROUTING_WAIT); // Give slave some more time
+		// Receive stack enumerate response
+		for (tries = 0; tries < RED_STACK_SPI_ROUTING_TRIES; tries++) {
+			// We first check if we already received an answer before we try again
+			if ((ret & RED_STACK_TRANSCEIVE_RESULT_MASK_READ) == RED_STACK_TRANSCEIVE_RESULT_READ_OK) {
+				break;
+			}
 
-    		ret = red_stack_spi_transceive_message(NULL, &packet, slave);
-    	}
+			// Here we sleep before transceive so that there is some time
+			// between the sending of stack enumerate and the receiving
+			// of the answer
+			SLEEP_NS(0, RED_STACK_SPI_ROUTING_WAIT); // Give slave some more time
 
-    	if(tries == RED_STACK_SPI_ROUTING_TRIES) {
-    		// Slave does not seem to be available,
-    		slave->status = RED_STACK_SLAVE_STATUS_ABSENT;
-    		// This means that there can't be any more slaves above
-    		// and we are actually done here already!
-    		break;
-    	}
+			ret = red_stack_spi_transceive_message(NULL, &packet, slave);
+		}
 
-    	response = (StackEnumerateResponse *)&packet;
+		if (tries == RED_STACK_SPI_ROUTING_TRIES) {
+			// Slave does not seem to be available,
+			slave->status = RED_STACK_SLAVE_STATUS_ABSENT;
+			// This means that there can't be any more slaves above
+			// and we are actually done here already!
+			break;
+		}
 
-    	for(i = 0; i < PACKET_MAX_STACK_ENUMERATE_UIDS; i++) {
-    		if(response->uids[i] != 0) {
-    			uid_counter++;
-    			stack_add_recipient(&_red_stack.base, response->uids[i], stack_address);
-    			log_debug("Found UID number %d of slave %d with UID %s",
-    			          i, stack_address,
-    			          base58_encode(base58, uint32_from_le(response->uids[i])));
-    		} else {
-    			break;
-    		}
-    	}
+		response = (StackEnumerateResponse *)&packet;
 
-    	stack_address++;
-    }
-    _red_stack.slave_num = stack_address;
+		for (i = 0; i < PACKET_MAX_STACK_ENUMERATE_UIDS; i++) {
+			if (response->uids[i] != 0) {
+				uid_counter++;
+				stack_add_recipient(&_red_stack.base, response->uids[i], stack_address);
+				log_debug("Found UID number %d of slave %d with UID %s",
+				          i, stack_address,
+				          base58_encode(base58, uint32_from_le(response->uids[i])));
+			} else {
+				break;
+			}
+		}
+
+		stack_address++;
+	}
+
+	_red_stack.slave_num = stack_address;
 
 	log_info("SPI stack slave discovery done. Found %d slave(s) with %d UID(s) in total",
 	         stack_address, uid_counter);
 }
 
 static void red_stack_spi_insert_position(REDStackSlave *slave) {
-	if(_red_stack.packet_from_spi.header.function_id == CALLBACK_ENUMERATE ||
-	   _red_stack.packet_from_spi.header.function_id == FUNCTION_GET_IDENTITY) {
+	if (_red_stack.packet_from_spi.header.function_id == CALLBACK_ENUMERATE ||
+	    _red_stack.packet_from_spi.header.function_id == FUNCTION_GET_IDENTITY) {
 		EnumerateCallback *enum_cb = (EnumerateCallback *)&_red_stack.packet_from_spi;
-		if(enum_cb->position == '0') {
+
+		if (enum_cb->position == '0') {
 			enum_cb->position = '0' + slave->stack_address + 1;
 			base58_encode(enum_cb->connected_uid, uint32_from_le(red_usb_gadget_get_uid()));
 		}
@@ -528,15 +536,17 @@ static void red_stack_spi_handle_reset(void) {
 	log_info("Starting reinitialization of SPI slaves");
 
 	// Someone pressed reset we have to wait until he stops pressing
-	while(gpio_input(_red_stack_reset_stack_pin) == 0) {
+	while (gpio_input(_red_stack_reset_stack_pin) == 0) {
 		// Wait 100us and check again. We wait as long as the user presses the button
 		SLEEP_NS(0, 1000*100);
 	}
+
 	SLEEP_NS(1, 1000*1000*500); // Wait 1.5s so slaves can start properly
 
 	// Reinitialize slaves
 	_red_stack.slave_num = 0;
-	for(slave = 0; slave < RED_STACK_SPI_MAX_SLAVES; slave++) {
+
+	for (slave = 0; slave < RED_STACK_SPI_MAX_SLAVES; slave++) {
 		_red_stack.slaves[slave].stack_address = slave;
 		_red_stack.slaves[slave].status = RED_STACK_SLAVE_STATUS_ABSENT;
 		_red_stack.slaves[slave].sequence_number_master = 1;
@@ -544,7 +554,7 @@ static void red_stack_spi_handle_reset(void) {
 
 		// Unfortunately we have to discard all of the queued packets.
 		// we can't be sure that the packets are for the correct slave after a reset.
-		while(queue_peek(&_red_stack.slaves[slave].packet_to_spi_queue) != NULL) {
+		while (queue_peek(&_red_stack.slaves[slave].packet_to_spi_queue) != NULL) {
 			queue_pop(&_red_stack.slaves[slave].packet_to_spi_queue, NULL);
 		}
 	}
@@ -569,13 +579,15 @@ static void red_stack_spi_thread(void *opaque) {
 		red_stack_spi_create_routing_table();
 
 		_red_stack_spi_thread_running = false;
-		if(_red_stack.slave_num > 0) {
+
+		if (_red_stack.slave_num > 0) {
 			_red_stack_spi_thread_running = true;
 		}
 
 		// Ignore resets that we received in the meantime to prevent race conditions.
 		_red_stack_reset_detected = 0;
-		while(_red_stack_spi_thread_running) {
+
+		while (_red_stack_spi_thread_running) {
 			REDStackSlave *slave = &_red_stack.slaves[stack_address_cycle];
 			REDStackPacket *request = NULL;
 			memset(&_red_stack.packet_from_spi, 0, sizeof(Packet));
@@ -589,24 +601,23 @@ static void red_stack_spi_thread(void *opaque) {
 			mutex_unlock(&(slave->packet_queue_mutex));
 
 			stack_address_cycle++;
-			if(stack_address_cycle >= _red_stack.slave_num) {
+
+			if (stack_address_cycle >= _red_stack.slave_num) {
 				stack_address_cycle = 0;
 			}
 
 			// Set request if we have a packet to send
-			if(packet_to_spi != NULL) {
+			if (packet_to_spi != NULL) {
 				log_packet_debug("Packet will now be send over SPI (%s)",
 				                 packet_get_request_signature(packet_signature, &packet_to_spi->packet));
 
 				request = packet_to_spi;
 			}
 
-			ret = red_stack_spi_transceive_message(request,
-												   &_red_stack.packet_from_spi,
-												   slave);
+			ret = red_stack_spi_transceive_message(request, &_red_stack.packet_from_spi, slave);
 
-			if((ret & RED_STACK_TRANSCEIVE_RESULT_MASK_SEND) == RED_STACK_TRANSCEIVE_RESULT_SEND_OK) {
-				if((!((ret & RED_STACK_TRANSCEIVE_RESULT_MASK_READ) == RED_STACK_TRANSCEIVE_RESULT_READ_ERROR))) {
+			if ((ret & RED_STACK_TRANSCEIVE_RESULT_MASK_SEND) == RED_STACK_TRANSCEIVE_RESULT_SEND_OK) {
+				if ((!((ret & RED_STACK_TRANSCEIVE_RESULT_MASK_READ) == RED_STACK_TRANSCEIVE_RESULT_READ_ERROR))) {
 					// If we send a packet it must have come from the queue, so we can
 					// pop it from the queue now.
 					// If the sending didn't work (for whatever reason), we don't pop it
@@ -619,7 +630,7 @@ static void red_stack_spi_thread(void *opaque) {
 
 			// If we received a packet, we will dispatch it immediately.
 			// We have some time until we try the next SPI communication anyway.
-			if((ret & RED_STACK_TRANSCEIVE_RESULT_MASK_READ) == RED_STACK_TRANSCEIVE_RESULT_READ_OK) {
+			if ((ret & RED_STACK_TRANSCEIVE_RESULT_MASK_READ) == RED_STACK_TRANSCEIVE_RESULT_READ_OK) {
 				// TODO: Check again if packet is valid?
 				// We did already check the hash.
 
@@ -635,20 +646,22 @@ static void red_stack_spi_thread(void *opaque) {
 			SLEEP_NS(0, 1000*_red_stack_spi_poll_delay);
 		}
 
-		if(_red_stack.slave_num == 0) {
+		if (_red_stack.slave_num == 0) {
 			pthread_mutex_lock(&_red_stack_wait_for_reset_mutex);
 			// Use helper to be save against spurious wakeups
 			_red_stack_wait_for_reset_helper = 0;
-			while(_red_stack_wait_for_reset_helper == 0) {
+
+			while (_red_stack_wait_for_reset_helper == 0) {
 				pthread_cond_wait(&_red_stack_wait_for_reset_cond, &_red_stack_wait_for_reset_mutex);
 			}
+
 			pthread_mutex_unlock(&_red_stack_wait_for_reset_mutex);
 		}
 
-		if(_red_stack_reset_detected > 0) {
+		if (_red_stack_reset_detected > 0) {
 			red_stack_spi_handle_reset();
 		}
-	} while(_red_stack_reset_detected > 0);
+	} while (_red_stack_reset_detected > 0);
 }
 
 
@@ -682,7 +695,7 @@ static int red_stack_init_spi(void) {
 	gpio_output_clear(_red_stack_master_high_pin);
 
 	// Initialize slaves
-	for(slave = 0; slave < RED_STACK_SPI_MAX_SLAVES; slave++) {
+	for (slave = 0; slave < RED_STACK_SPI_MAX_SLAVES; slave++) {
 		_red_stack.slaves[slave].stack_address = slave;
 		_red_stack.slaves[slave].status = RED_STACK_SLAVE_STATUS_ABSENT;
 		_red_stack.slaves[slave].slave_select_pin = _red_stack_slave_select_pins[slave];
@@ -699,27 +712,27 @@ static int red_stack_init_spi(void) {
 
 	// Open spidev
 	_red_stack_spi_fd = open(_red_stack_spi_device, O_RDWR);
-	if(_red_stack_spi_fd < 0) {
+	if (_red_stack_spi_fd < 0) {
 		log_error("Could not open %s", _red_stack_spi_device);
 		return -1;
 	}
 
-	if(ioctl(_red_stack_spi_fd, SPI_IOC_WR_MODE, &mode) < 0) {
+	if (ioctl(_red_stack_spi_fd, SPI_IOC_WR_MODE, &mode) < 0) {
 		log_error("Could not configure SPI mode");
 		return -1;
 	}
 
-	if(ioctl(_red_stack_spi_fd, SPI_IOC_WR_MAX_SPEED_HZ, &max_speed_hz) < 0) {
+	if (ioctl(_red_stack_spi_fd, SPI_IOC_WR_MAX_SPEED_HZ, &max_speed_hz) < 0) {
 		log_error("Could not configure SPI max speed");
 		return -1;
 	}
 
-	if(ioctl(_red_stack_spi_fd, SPI_IOC_WR_BITS_PER_WORD, &bits_per_word) < 0) {
+	if (ioctl(_red_stack_spi_fd, SPI_IOC_WR_BITS_PER_WORD, &bits_per_word) < 0) {
 		log_error("Could not configure SPI bits per word");
 		return -1;
 	}
 
-	if(ioctl(_red_stack_spi_fd, SPI_IOC_WR_LSB_FIRST, &lsb_first) < 0) {
+	if (ioctl(_red_stack_spi_fd, SPI_IOC_WR_LSB_FIRST, &lsb_first) < 0) {
 		log_error("Could not configure SPI lsb first");
 		return -1;
 	}
@@ -734,11 +747,13 @@ static int red_stack_init_spi(void) {
 // New packet from SPI stack is send into brickd event loop
 static void red_stack_dispatch_from_spi(void *opaque) {
 	eventfd_t ev;
+
 	(void)opaque;
 
-	if(eventfd_read(_red_stack_notification_event, &ev) < 0) {
+	if (eventfd_read(_red_stack_notification_event, &ev) < 0) {
 		log_error("Could not read from SPI notification event: %s (%d)",
 		          get_errno_name(errno), errno);
+
 		return;
 	}
 
@@ -746,18 +761,19 @@ static void red_stack_dispatch_from_spi(void *opaque) {
 	// and allow SPI thread to run again.
 	network_dispatch_response(&_red_stack.packet_from_spi);
 	semaphore_release(&_red_stack_dispatch_packet_from_spi_semaphore);
-
 }
 
 // New packet from brickd event loop is queued to be written to stack via SPI
 static int red_stack_dispatch_to_spi(Stack *stack, Packet *request, Recipient *recipient) {
 	REDStackPacket *queued_request;
+
 	(void)stack;
 
-	if(request->header.uid == 0) {
+	if (request->header.uid == 0) {
 		// UID = 0 -> Broadcast to all UIDs
 		uint8_t is;
-		for(is = 0; is < _red_stack.slave_num; is++) {
+
+		for (is = 0; is < _red_stack.slave_num; is++) {
 			mutex_lock(&_red_stack.slaves[is].packet_queue_mutex);
 			queued_request = queue_push(&_red_stack.slaves[is].packet_to_spi_queue);
 			queued_request->status = RED_STACK_PACKET_STATUS_ADDED;
@@ -802,7 +818,7 @@ static void red_stack_reset_handler(void *opaque) {
 	_red_stack_spi_thread_running = false;
 
 	// If there is no slave we have to wake up the spi thread
-	if(_red_stack.slave_num == 0) {
+	if (_red_stack.slave_num == 0) {
 		pthread_mutex_lock(&_red_stack_wait_for_reset_mutex);
 		_red_stack_wait_for_reset_helper = 1;
 		pthread_cond_signal(&_red_stack_wait_for_reset_cond);
@@ -818,12 +834,12 @@ int red_stack_init(void) {
 
 	_red_stack_spi_poll_delay = config_get_option_value("poll_delay.spi")->integer;
 
-	if(gpio_sysfs_export(RED_STACK_RESET_PIN_GPIO_NUM) < 0) {
+	if (gpio_sysfs_export(RED_STACK_RESET_PIN_GPIO_NUM) < 0) {
 		// Just issue a warning, RED Brick will work without reset interrupt
 		log_warn("Could not export GPIO %d in sysfs, disabling reset interrupt",
 		         RED_STACK_RESET_PIN_GPIO_NUM);
 	} else {
-		if((_red_stack_reset_fd = gpio_sysfs_get_value_fd(RED_STACK_RESET_PIN_GPIO_NAME)) < 0) {
+		if ((_red_stack_reset_fd = gpio_sysfs_get_value_fd(RED_STACK_RESET_PIN_GPIO_NAME)) < 0) {
 			// Just issue a warning, RED Brick will work without reset interrupt
 			log_warn("Could not retrieve fd for GPIO %s in sysfs, disabling reset interrupt",
 			         RED_STACK_RESET_PIN_GPIO_NAME);
@@ -835,7 +851,7 @@ int red_stack_init(void) {
 	}
 
 	// create base stack
-	if(stack_create(&_red_stack.base, "red_stack", red_stack_dispatch_to_spi) < 0) {
+	if (stack_create(&_red_stack.base, "red_stack", red_stack_dispatch_to_spi) < 0) {
 		log_error("Could not create base stack for RED Brick SPI Stack: %s (%d)",
 		          get_errno_name(errno), errno);
 
@@ -845,15 +861,16 @@ int red_stack_init(void) {
 	phase = 1;
 
 	// add to stacks array
-	if(hardware_add_stack(&_red_stack.base) < 0) {
+	if (hardware_add_stack(&_red_stack.base) < 0) {
 		goto cleanup;
 	}
 
 	phase = 2;
 
-	if((_red_stack_notification_event = eventfd(0, 0)) < 0) {
+	if ((_red_stack_notification_event = eventfd(0, 0)) < 0) {
 		log_error("Could not create red stack notification event: %s (%d)",
 		          get_errno_name(errno), errno);
+
 		goto cleanup;
 	}
 
@@ -861,48 +878,52 @@ int red_stack_init(void) {
 
 	// Add notification pipe as event source.
 	// Event is used to dispatch packets.
-	if(event_add_source(_red_stack_notification_event, EVENT_SOURCE_TYPE_GENERIC,
-	                    EVENT_READ, red_stack_dispatch_from_spi, NULL) < 0) {
+	if (event_add_source(_red_stack_notification_event, EVENT_SOURCE_TYPE_GENERIC,
+	                     EVENT_READ, red_stack_dispatch_from_spi, NULL) < 0) {
 		log_error("Could not add red stack notification pipe as event source");
+
 		goto cleanup;
 	}
 
 	phase = 4;
 
 	// Initialize SPI packet queues
-	for(i = 0; i < RED_STACK_SPI_MAX_SLAVES; i++) {
-		if(queue_create(&_red_stack.slaves[i].packet_to_spi_queue, sizeof(REDStackPacket)) < 0) {
+	for (i = 0; i < RED_STACK_SPI_MAX_SLAVES; i++) {
+		if (queue_create(&_red_stack.slaves[i].packet_to_spi_queue, sizeof(REDStackPacket)) < 0) {
 			log_error("Could not create SPI queue %d: %s (%d)",
-					  i, get_errno_name(errno), errno);
+			          i, get_errno_name(errno), errno);
+
 			goto cleanup;
 		}
 	}
 
-	if(semaphore_create(&_red_stack_dispatch_packet_from_spi_semaphore) < 0) {
+	if (semaphore_create(&_red_stack_dispatch_packet_from_spi_semaphore) < 0) {
 		log_error("Could not create SPI request semaphore: %s (%d)",
 		          get_errno_name(errno), errno);
+
 		goto cleanup;
 	}
 
-	for(i = 0; i < RED_STACK_SPI_MAX_SLAVES; i++) {
+	for (i = 0; i < RED_STACK_SPI_MAX_SLAVES; i++) {
 		mutex_create(&_red_stack.slaves[i].packet_queue_mutex);
 	}
 
 	phase = 5;
 
-	if(red_stack_init_spi() < 0) {
+	if (red_stack_init_spi() < 0) {
 		goto cleanup;
 	}
 
-    // Add reset interrupt as event source
-	if(_red_stack_reset_fd > 0) {
+	// Add reset interrupt as event source
+	if (_red_stack_reset_fd > 0) {
 		char buf[2];
 		lseek(_red_stack_reset_fd, 0, SEEK_SET);
 		if (read(_red_stack_reset_fd, buf, 2) < 0) {} // ignore return value
 
-		if(event_add_source(_red_stack_reset_fd, EVENT_SOURCE_TYPE_GENERIC,
-		                    EVENT_PRIO | EVENT_ERROR, red_stack_reset_handler, NULL) < 0) {
+		if (event_add_source(_red_stack_reset_fd, EVENT_SOURCE_TYPE_GENERIC,
+		                     EVENT_PRIO | EVENT_ERROR, red_stack_reset_handler, NULL) < 0) {
 			log_error("Could not add reset fd event");
+
 			goto cleanup;
 		}
 	}
@@ -912,13 +933,14 @@ int red_stack_init(void) {
 cleanup:
 	switch (phase) { // no breaks, all cases fall through intentionally
 	case 5:
-		for(i = 0; i < RED_STACK_SPI_MAX_SLAVES; i++) {
+		for (i = 0; i < RED_STACK_SPI_MAX_SLAVES; i++) {
 			mutex_destroy(&_red_stack.slaves[i].packet_queue_mutex);
 		}
+
 		semaphore_destroy(&_red_stack_dispatch_packet_from_spi_semaphore);
 
 	case 4:
-		for(i--; i >= 0; i--) {
+		for (i--; i >= 0; i--) {
 			queue_destroy(&_red_stack.slaves[i].packet_to_spi_queue, NULL);
 		}
 
@@ -948,7 +970,7 @@ void red_stack_exit(void) {
 	event_remove_source(_red_stack_notification_event, EVENT_SOURCE_TYPE_GENERIC);
 
 	// Make sure that Thread shuts down properly
-	if(_red_stack_spi_thread_running) {
+	if (_red_stack_spi_thread_running) {
 		_red_stack_spi_thread_running = false;
 		// Write in eventfd to make sure that we are not blocking the Thread
 		eventfd_t ev = 1;
@@ -959,18 +981,18 @@ void red_stack_exit(void) {
 	}
 
 	// Thread is not running anymore, we make sure that all slaves are deselected
-	for(slave = 0; slave < RED_STACK_SPI_MAX_SLAVES; slave++) {
+	for (slave = 0; slave < RED_STACK_SPI_MAX_SLAVES; slave++) {
 		red_stack_spi_deselect(&_red_stack.slaves[slave]);
 	}
 
 	// We can also free the queue and stack now, nobody will use them anymore
-	for(i = 0; i < RED_STACK_SPI_MAX_SLAVES; i++) {
+	for (i = 0; i < RED_STACK_SPI_MAX_SLAVES; i++) {
 		queue_destroy(&_red_stack.slaves[i].packet_to_spi_queue, NULL);
 	}
 	hardware_remove_stack(&_red_stack.base);
 	stack_destroy(&_red_stack.base);
 
-	for(i = 0; i < RED_STACK_SPI_MAX_SLAVES; i++) {
+	for (i = 0; i < RED_STACK_SPI_MAX_SLAVES; i++) {
 		mutex_destroy(&_red_stack.slaves[i].packet_queue_mutex);
 	}
 	semaphore_destroy(&_red_stack_dispatch_packet_from_spi_semaphore);

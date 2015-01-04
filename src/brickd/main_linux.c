@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2012-2014 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2012-2015 Matthias Bolte <matthias@tinkerforge.com>
  *
  * main_linux.c: Brick Daemon starting point for Linux
  *
@@ -58,9 +58,9 @@
 
 static LogSource _log_source = LOG_SOURCE_INITIALIZER;
 
-static char _config_filename[1024] = SYSCONFDIR "/brickd.conf";
-static char _pid_filename[1024] = LOCALSTATEDIR "/run/brickd.pid";
-static char _log_filename[1024] = LOCALSTATEDIR "/log/brickd.log";
+static char _config_filename[1024] = SYSCONFDIR"/brickd.conf";
+static char _pid_filename[1024] = LOCALSTATEDIR"/run/brickd.pid";
+static char _log_filename[1024] = LOCALSTATEDIR"/log/brickd.log";
 
 static int prepare_paths(void) {
 	char *home;
