@@ -118,7 +118,7 @@ static void event_poll_usb_events(void *opaque) {
 	for (;;) {
 		semaphore_acquire(&_usb_poll_resume);
 
-		log_debug("Resumed USB poll thread");
+		log_event_debug("Resumed USB poll thread");
 
 		if (!_usb_poll_running) {
 			goto cleanup;
@@ -173,9 +173,9 @@ static void event_poll_usb_events(void *opaque) {
 		}
 
 		// start to poll
-		log_debug("Starting to poll on %d %s event source(s)",
-		          _usb_poll_pollfds.count - 1,
-		          event_get_source_type_name(EVENT_SOURCE_TYPE_USB, false));
+		log_event_debug("Starting to poll on %d %s event source(s)",
+		                _usb_poll_pollfds.count - 1,
+		                event_get_source_type_name(EVENT_SOURCE_TYPE_USB, false));
 
 	retry:
 		ready = usbi_poll((struct usbi_pollfd *)_usb_poll_pollfds.bytes,
@@ -203,7 +203,7 @@ static void event_poll_usb_events(void *opaque) {
 		pollfd = array_get(&_usb_poll_pollfds, 0);
 
 		if (pollfd->revents != 0) {
-			log_debug("Received suspend signal");
+			log_event_debug("Received suspend signal");
 
 			--ready; // remove the suspend pipe
 		}
@@ -212,8 +212,8 @@ static void event_poll_usb_events(void *opaque) {
 			goto suspend;
 		}
 
-		log_debug("Poll returned %d %s event source(s) as ready", ready,
-		          event_get_source_type_name(EVENT_SOURCE_TYPE_USB, false));
+		log_event_debug("Poll returned %d %s event source(s) as ready", ready,
+		                event_get_source_type_name(EVENT_SOURCE_TYPE_USB, false));
 
 		_usb_poll_pollfds_ready = ready;
 
@@ -225,7 +225,7 @@ static void event_poll_usb_events(void *opaque) {
 		}
 
 	suspend:
-		log_debug("Suspending USB poll thread");
+		log_event_debug("Suspending USB poll thread");
 
 		semaphore_release(&_usb_poll_suspend);
 	}
@@ -296,8 +296,8 @@ static void event_forward_usb_events(void *opaque) {
 	}
 
 	if (_usb_poll_pollfds_ready == handled) {
-		log_debug("Handled all ready %s event sources",
-		          event_get_source_type_name(EVENT_SOURCE_TYPE_USB, false));
+		log_event_debug("Handled all ready %s event sources",
+		                event_get_source_type_name(EVENT_SOURCE_TYPE_USB, false));
 	} else {
 		log_warn("Handled only %d of %d ready %s event source(s)",
 		         handled, _usb_poll_pollfds_ready,
@@ -558,9 +558,9 @@ int event_run_platform(Array *event_sources, bool *running, EventCleanupFunction
 		}
 
 		// start to select
-		log_debug("Starting to select on %d + %d + %d %s event source(s)",
-		          _socket_read_set->count, _socket_write_set->count, _socket_error_set->count,
-		          event_get_source_type_name(EVENT_SOURCE_TYPE_GENERIC, false));
+		log_event_debug("Starting to select on %d + %d + %d %s event source(s)",
+		                _socket_read_set->count, _socket_write_set->count, _socket_error_set->count,
+		                event_get_source_type_name(EVENT_SOURCE_TYPE_GENERIC, false));
 
 		semaphore_release(&_usb_poll_resume);
 
@@ -571,7 +571,7 @@ int event_run_platform(Array *event_sources, bool *running, EventCleanupFunction
 		ready = select(0, fd_read_set, fd_write_set, fd_error_set, NULL);
 
 		if (_usb_poll_running) {
-			log_debug("Sending suspend signal to USB poll thread");
+			log_event_debug("Sending suspend signal to USB poll thread");
 
 			if (usbi_write(_usb_poll_suspend_pipe[1], &byte, 1) < 0) {
 				log_error("Could not write to USB suspend pipe");
@@ -607,8 +607,8 @@ int event_run_platform(Array *event_sources, bool *running, EventCleanupFunction
 		}
 
 		// handle select result
-		log_debug("Select returned %d %s event source(s) as ready", ready,
-		          event_get_source_type_name(EVENT_SOURCE_TYPE_GENERIC, false));
+		log_event_debug("Select returned %d %s event source(s) as ready",
+		                ready, event_get_source_type_name(EVENT_SOURCE_TYPE_GENERIC, false));
 
 		handled = 0;
 
@@ -646,8 +646,8 @@ int event_run_platform(Array *event_sources, bool *running, EventCleanupFunction
 		}
 
 		if (ready == handled) {
-			log_debug("Handled all ready %s event sources",
-			          event_get_source_type_name(EVENT_SOURCE_TYPE_GENERIC, false));
+			log_event_debug("Handled all ready %s event sources",
+			                event_get_source_type_name(EVENT_SOURCE_TYPE_GENERIC, false));
 		} else if (*running) {
 			log_warn("Handled only %d of %d ready %s event source(s)",
 			         handled, ready,

@@ -398,13 +398,13 @@ static int red_stack_spi_transceive_message(REDStackPacket *packet_send, Packet 
 		slave->sequence_number_slave = sequence_number_slave;
 		if(length == RED_STACK_SPI_PACKET_EMPTY_SIZE) {
 			// Do not log by default, will produce 2000 log entries per second
-			// log_debug("Received empty packet over SPI (w/ header)");
+			// log_packet_debug("Received empty packet over SPI (w/ header)");
 			retval = (retval & (~RED_STACK_TRANSCEIVE_RESULT_MASK_READ)) | RED_STACK_TRANSCEIVE_RESULT_READ_NONE;
 		} else {
 			// Everything seems OK, we can copy to buffer
 			memcpy(packet_recv, rx+2, length - RED_STACK_SPI_PACKET_EMPTY_SIZE);
-			log_debug("Received packet over SPI (%s)",
-					  packet_get_response_signature(packet_signature, packet_recv));
+			log_packet_debug("Received packet over SPI (%s)",
+			                 packet_get_response_signature(packet_signature, packet_recv));
 			retval = (retval & (~RED_STACK_TRANSCEIVE_RESULT_MASK_READ)) | RED_STACK_TRANSCEIVE_RESULT_READ_OK;
 			retval |= RED_STACK_TRANSCEIVE_DATA_RECEIVED;
 		}
@@ -595,8 +595,8 @@ static void red_stack_spi_thread(void *opaque) {
 
 			// Set request if we have a packet to send
 			if(packet_to_spi != NULL) {
-				log_debug("Packet will now be send over SPI (%s)",
-						  packet_get_request_signature(packet_signature, &packet_to_spi->packet));
+				log_packet_debug("Packet will now be send over SPI (%s)",
+				                 packet_get_request_signature(packet_signature, &packet_to_spi->packet));
 
 				request = packet_to_spi;
 			}
@@ -765,9 +765,8 @@ static int red_stack_dispatch_to_spi(Stack *stack, Packet *request, Recipient *r
 			memcpy(&queued_request->packet, request, request->header.length);
 			mutex_unlock(&_red_stack.slaves[is].packet_queue_mutex);
 
-			log_debug("Request is queued to be broadcast to slave %d (%s)",
-			          is,
-			          packet_get_request_signature(packet_signature, request));
+			log_packet_debug("Request is queued to be broadcast to slave %d (%s)",
+			                 is, packet_get_request_signature(packet_signature, request));
 		}
 	} else if (recipient != NULL) {
 		// Get slave for recipient opaque (== stack_address)
@@ -780,9 +779,9 @@ static int red_stack_dispatch_to_spi(Stack *stack, Packet *request, Recipient *r
 		memcpy(&queued_request->packet, request, request->header.length);
 		mutex_unlock(&(slave->packet_queue_mutex));
 
-		log_debug("Packet is queued to be send to slave %d over SPI (%s)",
-		          slave->stack_address,
-		          packet_get_request_signature(packet_signature, request));
+		log_packet_debug("Packet is queued to be send to slave %d over SPI (%s)",
+		                 slave->stack_address,
+		                 packet_get_request_signature(packet_signature, request));
 	}
 
 	return 0;

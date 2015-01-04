@@ -3,7 +3,7 @@
  * Copyright (C) 2014 Olaf Lüke <olaf@tinkerforge.com>
  * Copyright (C) 2014 Matthias Bolte <matthias@tinkerforge.com>
  *
- * websocket.c: Miniature websocket server implementation
+ * websocket.c: Miniature WebSocket server implementation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -195,7 +195,7 @@ int websocket_parse_header(Websocket *websocket, uint8_t *buffer, int length) {
 	int to_copy = MIN(length, websocket_frame_length - websocket->frame_index);
 
 	if (to_copy <= 0) {
-		log_error("Websocket frame index has invalid value (%d)", websocket->frame_index);
+		log_error("WebSocket frame index has invalid value (%d)", websocket->frame_index);
 		return -1;
 	}
 
@@ -209,26 +209,26 @@ int websocket_parse_header(Websocket *websocket, uint8_t *buffer, int length) {
 		int payload_length = websocket_frame_get_payload_length(&websocket->frame.header);
 		int mask = websocket_frame_get_mask(&websocket->frame.header);
 
-		log_debug("Websocket header received (fin: %d, opc: %d, len: %d, key: [%d %d %d %d])",
-		          fin, opcode, payload_length,
-		          websocket->frame.masking_key[0],
-		          websocket->frame.masking_key[1],
-		          websocket->frame.masking_key[2],
-		          websocket->frame.masking_key[3]);
+		log_packet_debug("WebSocket header received (fin: %d, opc: %d, len: %d, key: [%d %d %d %d])",
+		                 fin, opcode, payload_length,
+		                 websocket->frame.masking_key[0],
+		                 websocket->frame.masking_key[1],
+		                 websocket->frame.masking_key[2],
+		                 websocket->frame.masking_key[3]);
 
 		if(mask != 1) {
-			log_error("Websocket frame has invalid mask (%d)", mask);
+			log_error("WebSocket frame has invalid mask (%d)", mask);
 			return -1;
 		}
 		if(payload_length == 126 || payload_length == 127) {
-			log_error("Websocket frame with extended payload length not supported (%d)", payload_length);
+			log_error("WebSocket frame with extended payload length not supported (%d)", payload_length);
 			return -1;
 		}
 
 		switch(opcode) {
 		case WEBSOCKET_OPCODE_CONTINUATION_FRAME:
 		case WEBSOCKET_OPCODE_TEXT_FRAME:
-			log_error("Websocket opcodes 'continuation' and 'text' not supported");
+			log_error("WebSocket opcodes 'continuation' and 'text' not supported");
 			return -1;
 
 		case WEBSOCKET_OPCODE_BINARY_FRAME: {
@@ -246,20 +246,20 @@ int websocket_parse_header(Websocket *websocket, uint8_t *buffer, int length) {
 		}
 
 		case WEBSOCKET_OPCODE_CLOSE_FRAME:
-			log_debug("Websocket opcode 'close frame'");
+			log_debug("WebSocket opcode 'close frame'");
 			return 0;
 
 		case WEBSOCKET_OPCODE_PING_FRAME:
-			log_error("Websocket opcode 'ping' not supported");
+			log_error("WebSocket opcode 'ping' not supported");
 			return -1;
 
 		case WEBSOCKET_OPCODE_PONG_FRAME:
-			log_error("Websocket opcode 'pong' not supported");
+			log_error("WebSocket opcode 'pong' not supported");
 			return -1;
 		}
 	}
 
-	log_error("Unknown websocket opcode (%d)", websocket_frame_get_opcode(&websocket->frame.header));
+	log_error("Unknown WebSocket opcode (%d)", websocket_frame_get_opcode(&websocket->frame.header));
 	return -1;
 }
 
@@ -278,7 +278,7 @@ int websocket_parse_data(Websocket *websocket, uint8_t *buffer, int length) {
 
 	websocket->to_read -= to_read;
 	if(websocket->to_read < 0) {
-		log_error("Websocket length mismatch (%d)", websocket->to_read);
+		log_error("WebSocket length mismatch (%d)", websocket->to_read);
 		return -1;
 	} else if(websocket->to_read == 0) {
 		websocket->state = WEBSOCKET_STATE_HANDSHAKE_DONE;
@@ -313,7 +313,7 @@ int websocket_parse(Websocket *websocket, void *buffer, int length) {
 		return websocket_parse_data(websocket, buffer, length);
 	}
 
-	log_error("In invalid websocket state (%d)", websocket->state);
+	log_error("In invalid WebSocket state (%d)", websocket->state);
 
 	return -1;
 }

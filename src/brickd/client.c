@@ -198,9 +198,9 @@ static void client_handle_request(Client *client, Packet *request) {
 		// ...then dispatch it to the hardware
 		hardware_dispatch_request(request);
 	} else {
-		log_debug("Client ("CLIENT_SIGNATURE_FORMAT") is not authenticated, dropping request (%s)",
-		          client_expand_signature(client),
-		          packet_get_request_signature(packet_signature, request));
+		log_packet_debug("Client ("CLIENT_SIGNATURE_FORMAT") is not authenticated, dropping request (%s)",
+		                 client_expand_signature(client),
+		                 packet_get_request_signature(packet_signature, request));
 	}
 }
 
@@ -272,12 +272,12 @@ static void client_handle_read(void *opaque) {
 		}
 
 		if (client->request.header.function_id == FUNCTION_DISCONNECT_PROBE) {
-			log_debug("Received disconnect probe from client ("CLIENT_SIGNATURE_FORMAT"), dropping request",
-			          client_expand_signature(client));
+			log_packet_debug("Received disconnect probe from client ("CLIENT_SIGNATURE_FORMAT"), dropping request",
+			                 client_expand_signature(client));
 		} else {
-			log_debug("Received request (%s) from client ("CLIENT_SIGNATURE_FORMAT")",
-			          packet_get_request_signature(packet_signature, &client->request),
-			          client_expand_signature(client));
+			log_packet_debug("Received request (%s) from client ("CLIENT_SIGNATURE_FORMAT")",
+			                 packet_get_request_signature(packet_signature, &client->request),
+			                 client_expand_signature(client));
 
 			client_handle_request(client, &client->request);
 		}
@@ -416,8 +416,8 @@ void client_dispatch_response(Client *client, PendingRequest *pending_request,
 	if (!ignore_authentication &&
 	    client->authentication_state != CLIENT_AUTHENTICATION_STATE_DISABLED &&
 	    client->authentication_state != CLIENT_AUTHENTICATION_STATE_DONE) {
-		log_debug("Ignoring non-authenticated client ("CLIENT_SIGNATURE_FORMAT")",
-		          client_expand_signature(client));
+		log_packet_debug("Ignoring non-authenticated client ("CLIENT_SIGNATURE_FORMAT")",
+		                 client_expand_signature(client));
 
 		goto cleanup;
 	}
@@ -460,20 +460,20 @@ void client_dispatch_response(Client *client, PendingRequest *pending_request,
 		}
 
 		if (force) {
-			log_debug("Forced to %s response to client ("CLIENT_SIGNATURE_FORMAT")",
-			          enqueued ? "enqueue" : "send", client_expand_signature(client));
+			log_packet_debug("Forced to %s response to client ("CLIENT_SIGNATURE_FORMAT")",
+			                 enqueued ? "enqueue" : "send", client_expand_signature(client));
 		} else {
 #ifdef BRICKD_WITH_PROFILING
 			elapsed = microseconds() - pending_request->arrival_time;
 
-			log_debug("%s response to client ("CLIENT_SIGNATURE_FORMAT"), was requested %u.%03u msec ago, %d request(s) still pending",
-			          enqueued ? "Enqueued" : "Sent", client_expand_signature(client),
-			          (unsigned int)(elapsed / 1000), (unsigned int)(elapsed % 1000),
-			          client->pending_request_count - 1);
+			log_packet_debug("%s response to client ("CLIENT_SIGNATURE_FORMAT"), was requested %u.%03u msec ago, %d request(s) still pending",
+			                 enqueued ? "Enqueued" : "Sent", client_expand_signature(client),
+			                 (unsigned int)(elapsed / 1000), (unsigned int)(elapsed % 1000),
+			                 client->pending_request_count - 1);
 #else
-			log_debug("%s response to client ("CLIENT_SIGNATURE_FORMAT"), %d request(s) still pending",
-			          enqueued ? "Enqueued" : "Sent", client_expand_signature(client),
-			          client->pending_request_count - 1);
+			log_packet_debug("%s response to client ("CLIENT_SIGNATURE_FORMAT"), %d request(s) still pending",
+			                 enqueued ? "Enqueued" : "Sent", client_expand_signature(client),
+			                 client->pending_request_count - 1);
 #endif
 		}
 	}

@@ -115,10 +115,10 @@ static void usb_stack_read_callback(USBTransfer *usb_transfer) {
 		return;
 	}
 
-	log_debug("Received %s (%s) from %s",
-	          packet_get_response_type(&usb_transfer->packet),
-	          packet_get_response_signature(packet_signature, &usb_transfer->packet),
-	          usb_transfer->usb_stack->base.name);
+	log_packet_debug("Received %s (%s) from %s",
+	                 packet_get_response_type(&usb_transfer->packet),
+	                 packet_get_response_signature(packet_signature, &usb_transfer->packet),
+	                 usb_transfer->usb_stack->base.name);
 
 	if (stack_add_recipient(&usb_transfer->usb_stack->base,
 	                        usb_transfer->packet.header.uid, 0) < 0) {
@@ -149,10 +149,10 @@ static void usb_stack_write_callback(USBTransfer *usb_transfer) {
 
 		queue_pop(&usb_transfer->usb_stack->write_queue, NULL);
 
-		log_debug("Sent queued request (%s) to %s, %d request(s) left in write queue",
-		          packet_get_request_signature(packet_signature, &usb_transfer->packet),
-		          usb_transfer->usb_stack->base.name,
-		          usb_transfer->usb_stack->write_queue.count);
+		log_packet_debug("Sent queued request (%s) to %s, %d request(s) left in write queue",
+		                 packet_get_request_signature(packet_signature, &usb_transfer->packet),
+		                 usb_transfer->usb_stack->base.name,
+		                 usb_transfer->usb_stack->write_queue.count);
 	}
 }
 
@@ -195,8 +195,8 @@ static int usb_stack_dispatch_request(Stack *stack, Packet *request,
 	}
 
 	// no free write transfer available, push request to write queue
-	log_debug("Could not find a free write transfer for %s, pushing request to write queue (count: %d +1)",
-	          usb_stack->base.name, usb_stack->write_queue.count);
+	log_packet_debug("Could not find a free write transfer for %s, pushing request to write queue (count: %d +1)",
+	                 usb_stack->base.name, usb_stack->write_queue.count);
 
 	if (usb_stack->write_queue.count >= MAX_QUEUED_WRITES) {
 		requests_to_drop = usb_stack->write_queue.count - MAX_QUEUED_WRITES + 1;

@@ -128,9 +128,9 @@ int stack_dispatch_request(Stack *stack, Packet *request, bool force) {
 	}
 
 	if (force) {
-		log_debug("Forced to sent request to %s", stack->name);
+		log_packet_debug("Forced to sent request to %s", stack->name);
 	} else {
-		log_debug("Sent request to %s", stack->name);
+		log_packet_debug("Sent request to %s", stack->name);
 	}
 
 	return 1;

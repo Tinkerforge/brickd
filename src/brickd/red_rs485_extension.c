@@ -343,7 +343,7 @@ void verify_buffer(uint8_t* receive_buffer) {
 
     // Check if length byte is available
     if(current_receive_buffer_index < 8) {
-        log_debug("RS485: Partial packet recieved. Length byte not available");
+        log_packet_debug("RS485: Partial packet received. Length byte not available");
         return;
     }
 
@@ -352,7 +352,7 @@ void verify_buffer(uint8_t* receive_buffer) {
 
     // Check if complete packet is available
     if(current_receive_buffer_index <= packet_end_index) {
-        log_debug("RS485: Partial packet recieved");
+        log_packet_debug("RS485: Partial packet received");
         return;
     }
 
@@ -370,12 +370,12 @@ void verify_buffer(uint8_t* receive_buffer) {
 
         // Send verify successful. Reset flag
         send_verify_flag = 0;
-        log_debug("RS485: Send verification done");
+        log_packet_debug("RS485: Send verification done");
 
         if(sent_ack_of_data_packet) {
             // Request processing done. Move on to next slave
             disable_master_timer();
-            log_debug("RS485: Processed current request");
+            log_packet_debug("RS485: Processed current request");
             ++_red_rs485_extension.slaves[master_current_slave_to_process].sequence;
             queue_pop(&_red_rs485_extension.slaves[master_current_slave_to_process].packet_queue, NULL);
 
@@ -386,14 +386,14 @@ void verify_buffer(uint8_t* receive_buffer) {
         }
         else if(current_receive_buffer_index == packet_end_index+1) {
             // Everything OK. Wait for response now
-            log_debug("RS485: No more Data. Waiting for response");
+            log_packet_debug("RS485: No more Data. Waiting for response");
             current_receive_buffer_index = 0;
             memset(receive_buffer, 0, RECEIVE_BUFFER_SIZE);
             return;
         }
         else if(current_receive_buffer_index > packet_end_index+1) {
             // More data in the receive buffer
-            log_debug("RS485: Potential partial data in the buffer. Verifying");
+            log_packet_debug("RS485: Potential partial data in the buffer. Verifying");
 
             memmove(&receive_buffer[0],
                     &receive_buffer[packet_end_index+1],
@@ -463,8 +463,7 @@ void verify_buffer(uint8_t* receive_buffer) {
 
         disable_master_timer();
 
-        log_debug("RS485: Received empty packet");
-        log_debug("RS485: Processed current request");
+        log_packet_debug("RS485: Received empty packet");
 
         // Updating sequence number
         ++_red_rs485_extension.slaves[master_current_slave_to_process].sequence;
@@ -516,16 +515,14 @@ void verify_buffer(uint8_t* receive_buffer) {
             return;
         }
 
-        log_debug("RS485: Data packet received");
+        log_packet_debug("RS485: Data packet received");
 
         // Send message into brickd dispatcher
         memset(&_red_rs485_extension.dispatch_packet, 0, sizeof(Packet));
         memcpy(&_red_rs485_extension.dispatch_packet, &receive_buffer[3], receive_buffer[RS485_PACKET_LENGTH_INDEX]);
         network_dispatch_response(&_red_rs485_extension.dispatch_packet);
-        log_debug("RS485: Dispatched packet");
 
         stack_add_recipient(&_red_rs485_extension.base, uid_from_packet, receive_buffer[0]);
-        log_debug("RS485: Updated recipient");
 
         queue_packet = queue_peek(&_red_rs485_extension.slaves[master_current_slave_to_process].packet_queue);
     
@@ -538,7 +535,7 @@ void verify_buffer(uint8_t* receive_buffer) {
         sent_ack_of_data_packet = 1;
         memset(receive_buffer, 0, RECEIVE_BUFFER_SIZE);
 
-        log_debug("RS485: Sending ACK of the data packet");
+        log_packet_debug("RS485: Sending ACK of the data packet");
 
         send_packet();
     }
@@ -562,7 +559,7 @@ void send_packet() {
 
     if(packet_to_send == NULL) {
         // Slave's packet queue is empty. Move on to next slave
-        log_debug("RS485: Slave packet queue empty. Moving on");
+        log_packet_debug("RS485: Slave packet queue empty. Moving on");
         // Poll next slave after the configured timeout
         arm_master_poll_slave_interval_timer();
         return;
@@ -603,7 +600,7 @@ void send_packet() {
     // Set send verify flag
     send_verify_flag = 1;
 
-    log_debug("RS485: Sent packet");
+    log_packet_debug("RS485: Sent packet");
 
     // Start the master timer
     master_timer.it_interval.tv_sec = 0;
@@ -699,17 +696,17 @@ void master_poll_slave() {
         slave_queue_packet->tries_left = RS485_PACKET_TRIES_EMPTY;
         slave_queue_packet->packet.header.length = 8;
 
-        log_debug("RS485: Sending empty packet to slave ID = %d, Sequence number = %d", 
-                 _red_rs485_extension.slaves[master_current_slave_to_process].address,
-                 _red_rs485_extension.slaves[master_current_slave_to_process].sequence);
+        log_packet_debug("RS485: Sending empty packet to slave ID = %d, Sequence number = %d",
+                         _red_rs485_extension.slaves[master_current_slave_to_process].address,
+                         _red_rs485_extension.slaves[master_current_slave_to_process].sequence);
 
         // The timer will be fired by the send function
         send_packet();
     }
     else {
-        log_debug("RS485: Sending packet from queue to slave ID = %d, Sequence number = %d", 
-                  _red_rs485_extension.slaves[master_current_slave_to_process].address,
-                  _red_rs485_extension.slaves[master_current_slave_to_process].sequence);
+        log_packet_debug("RS485: Sending packet from queue to slave ID = %d, Sequence number = %d",
+                         _red_rs485_extension.slaves[master_current_slave_to_process].address,
+                         _red_rs485_extension.slaves[master_current_slave_to_process].sequence);
 
         // Slave's packet queue if not empty. Send the packet that is at the head of the queue
 
@@ -828,7 +825,7 @@ void red_rs485_extension_dispatch_to_rs485(Stack *stack, Packet *request, Recipi
 	(void)stack;
 
     if(request->header.uid == 0 || recipient == NULL) {
-        log_debug("RS485: Broadcasting to all available slaves");
+        log_packet_debug("RS485: Broadcasting to all available slaves");
 
         for(i = 0; i < _red_rs485_extension.slave_num; i++) {
             queued_request = queue_push(&_red_rs485_extension.slaves[i].packet_queue);
@@ -844,9 +841,9 @@ void red_rs485_extension_dispatch_to_rs485(Stack *stack, Packet *request, Recipi
 
             queued_request->tries_left = RS485_PACKET_TRIES_DATA;
             memcpy(&queued_request->packet, request, request->header.length);
-            log_debug("RS485: Broadcast... Packet is queued to be sent to slave %d. Function signature = (%s)",
-                      _red_rs485_extension.slaves[i].address,
-                      packet_get_request_signature(packet_signature, request));
+            log_packet_debug("RS485: Broadcast... Packet is queued to be sent to slave %d. Function signature = (%s)",
+                             _red_rs485_extension.slaves[i].address,
+                             packet_get_request_signature(packet_signature, request));
         }
     } else if (recipient != NULL) {
         for(i = 0; i < _red_rs485_extension.slave_num; i++) {
@@ -864,9 +861,9 @@ void red_rs485_extension_dispatch_to_rs485(Stack *stack, Packet *request, Recipi
 
                 queued_request->tries_left = RS485_PACKET_TRIES_DATA;
                 memcpy(&queued_request->packet, request, request->header.length);
-                log_debug("RS485: Packet is queued to be sent to slave %d over. Function signature = (%s)",
-                          _red_rs485_extension.slaves[i].address,
-                          packet_get_request_signature(packet_signature, request));
+                log_packet_debug("RS485: Packet is queued to be sent to slave %d over. Function signature = (%s)",
+                                 _red_rs485_extension.slaves[i].address,
+                                 packet_get_request_signature(packet_signature, request));
                 break;
             }
         }

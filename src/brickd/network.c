@@ -472,9 +472,9 @@ void network_client_expects_response(Client *client, Packet *request) {
 	pending_request->arrival_time = microseconds();
 #endif
 
-	log_debug("Added pending request (%s) for client ("CLIENT_SIGNATURE_FORMAT")",
-	          packet_get_request_signature(packet_signature, request),
-	          client_expand_signature(client));
+	log_packet_debug("Added pending request (%s) for client ("CLIENT_SIGNATURE_FORMAT")",
+	                 packet_get_request_signature(packet_signature, request),
+	                 client_expand_signature(client));
 }
 
 void network_dispatch_response(Packet *response) {
@@ -496,17 +496,17 @@ void network_dispatch_response(Packet *response) {
 		}
 
 		if (_clients.count == 0) {
-			log_debug("No clients connected, dropping %s (%s)",
-			          packet_get_response_type(response),
-			          packet_get_response_signature(packet_signature, response));
+			log_packet_debug("No clients connected, dropping %s (%s)",
+			                 packet_get_response_type(response),
+			                 packet_get_response_signature(packet_signature, response));
 
 			return;
 		}
 
-		log_debug("Broadcasting %s (%s) to %d client(s)",
-		          packet_get_response_type(response),
-		          packet_get_response_signature(packet_signature, response),
-		          _clients.count);
+		log_packet_debug("Broadcasting %s (%s) to %d client(s)",
+		                 packet_get_response_type(response),
+		                 packet_get_response_signature(packet_signature, response),
+		                 _clients.count);
 
 		for (i = 0; i < _clients.count; ++i) {
 			client = array_get(&_clients, i);
@@ -514,9 +514,9 @@ void network_dispatch_response(Packet *response) {
 			client_dispatch_response(client, NULL, response, true, false);
 		}
 	} else if (_clients.count + _zombies.count > 0) {
-		log_debug("Dispatching response (%s) to %d client(s) and %d zombies(s)",
-		          packet_get_response_signature(packet_signature, response),
-		          _clients.count, _zombies.count);
+		log_packet_debug("Dispatching response (%s) to %d client(s) and %d zombies(s)",
+		                 packet_get_response_signature(packet_signature, response),
+		                 _clients.count, _zombies.count);
 
 		pending_request_global_node = _pending_request_sentinel.next;
 
@@ -546,8 +546,8 @@ void network_dispatch_response(Packet *response) {
 			client_dispatch_response(client, NULL, response, true, false);
 		}
 	} else {
-		log_debug("No clients/zombies connected, dropping response (%s)",
-		          packet_get_response_signature(packet_signature, response));
+		log_packet_debug("No clients/zombies connected, dropping response (%s)",
+		                 packet_get_response_signature(packet_signature, response));
 	}
 }
 

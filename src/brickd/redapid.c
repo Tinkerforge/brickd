@@ -142,9 +142,9 @@ static void redapid_handle_read(void *opaque) {
 			break;
 		}
 
-		log_debug("Received %s (%s) from RED Brick API Daemon",
-		          packet_get_response_type(&_redapid.response),
-		          packet_get_response_signature(packet_signature, &_redapid.response));
+		log_packet_debug("Received %s (%s) from RED Brick API Daemon",
+		                 packet_get_response_type(&_redapid.response),
+		                 packet_get_response_signature(packet_signature, &_redapid.response));
 
 		stack_add_recipient(&_redapid.base, _redapid.response.header.uid, 0);
 
@@ -171,8 +171,8 @@ static int redapid_dispatch_request(Stack *stack, Packet *request,
 	if (request->header.function_id == FUNCTION_ENUMERATE) {
 		uid = red_usb_gadget_get_uid();
 
-		log_debug("Received enumerate request, sending enumerate-avialable callback for RED Brick [%s]",
-		          base58_encode(base58, uint32_from_le(uid)));
+		log_packet_debug("Received enumerate request, sending enumerate-avialable callback for RED Brick [%s]",
+		                 base58_encode(base58, uint32_from_le(uid)));
 
 		// respond with enumerate-connected callback
 		memset(&enumerate_callback, 0, sizeof(enumerate_callback));
@@ -204,10 +204,10 @@ static int redapid_dispatch_request(Stack *stack, Packet *request,
 			return -1;
 		}
 
-		log_debug("%s request to RED Brick API Daemon",
-		          enqueued ? "Enqueued" : "Sent");
+		log_packet_debug("%s request to RED Brick API Daemon",
+		                 enqueued ? "Enqueued" : "Sent");
 	} else {
-		log_debug("Not connected to RED Brick API Daemon, ignoring request");
+		log_packet_debug("Not connected to RED Brick API Daemon, ignoring request");
 	}
 
 	return 0;

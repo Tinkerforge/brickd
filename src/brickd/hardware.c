@@ -101,16 +101,16 @@ void hardware_dispatch_request(Packet *request) {
 	bool dispatched = false;
 
 	if (_stacks.count == 0) {
-		log_debug("No stacks connected, dropping request (%s)",
-		          packet_get_request_signature(packet_signature, request));
+		log_packet_debug("No stacks connected, dropping request (%s)",
+		                 packet_get_request_signature(packet_signature, request));
 
 		return;
 	}
 
 	if (request->header.uid == 0) {
-		log_debug("Broadcasting request (%s) to %d stack(s)",
-		          packet_get_request_signature(packet_signature, request),
-		          _stacks.count);
+		log_packet_debug("Broadcasting request (%s) to %d stack(s)",
+		                 packet_get_request_signature(packet_signature, request),
+		                 _stacks.count);
 
 		// broadcast to all stacks
 		for (i = 0; i < _stacks.count; ++i) {
@@ -119,9 +119,9 @@ void hardware_dispatch_request(Packet *request) {
 			stack_dispatch_request(stack, request, true);
 		}
 	} else {
-		log_debug("Dispatching request (%s) to %d stack(s)",
-		          packet_get_request_signature(packet_signature, request),
-		          _stacks.count);
+		log_packet_debug("Dispatching request (%s) to %d stack(s)",
+		                 packet_get_request_signature(packet_signature, request),
+		                 _stacks.count);
 
 		// dispatch to all stacks, not only the first one that might claim to
 		// know the UID
@@ -141,7 +141,7 @@ void hardware_dispatch_request(Packet *request) {
 			return;
 		}
 
-		log_debug("Broadcasting request because UID is currently unknown");
+		log_packet_debug("Broadcasting request because UID is currently unknown");
 
 		// broadcast to all stacks, as no stack claimed to know the UID
 		for (i = 0; i < _stacks.count; ++i) {
