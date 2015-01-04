@@ -198,7 +198,7 @@ void init_rxe_pin_state(int);
 void serial_data_available_handler(void*);
 void master_poll_slave(void);
 void master_timeout_handler(void*);
-void red_rs485_extension_dispatch_to_rs485(Stack*, Packet*, Recipient*);
+int red_rs485_extension_dispatch_to_rs485(Stack*, Packet*, Recipient*);
 void disable_master_timer(void);
 void pop_packet_from_slave_queue(void);
 bool is_current_request_empty(void);
@@ -838,7 +838,7 @@ void arm_master_poll_slave_interval_timer(void) {
 }
 
 // New packet from brickd event loop is queued to be sent via RS485 interface
-void red_rs485_extension_dispatch_to_rs485(Stack *stack, Packet *request, Recipient *recipient) {
+int red_rs485_extension_dispatch_to_rs485(Stack *stack, Packet *request, Recipient *recipient) {
 	RS485ExtensionPacket* queued_request;
 	int i;
 
@@ -856,7 +856,7 @@ void red_rs485_extension_dispatch_to_rs485(Stack *stack, Packet *request, Recipi
 				          _red_rs485_extension.slaves[i].address,
 				          get_errno_name(errno), errno);
 
-				return;
+				return -1;
 			}
 
 			queued_request->tries_left = RS485_PACKET_TRIES_DATA;
@@ -877,7 +877,7 @@ void red_rs485_extension_dispatch_to_rs485(Stack *stack, Packet *request, Recipi
 					          _red_rs485_extension.slaves[i].address,
 					          get_errno_name(errno), errno);
 
-					return;
+					return -1;
 				}
 
 				queued_request->tries_left = RS485_PACKET_TRIES_DATA;
@@ -891,6 +891,8 @@ void red_rs485_extension_dispatch_to_rs485(Stack *stack, Packet *request, Recipi
 			}
 		}
 	}
+
+	return 0;
 }
 
 // Init function called from central brickd code
@@ -905,7 +907,7 @@ int red_rs485_extension_init(ExtensionRS485Config *rs485_config) {
 
 	// Create base stack
 	if (stack_create(&_red_rs485_extension.base, "red_rs485_extension",
-					(StackDispatchRequestFunction)red_rs485_extension_dispatch_to_rs485) < 0) {
+	                 red_rs485_extension_dispatch_to_rs485) < 0) {
 		log_error("Could not create base stack for extension, %s (%d)",
 		          get_errno_name(errno), errno);
 
