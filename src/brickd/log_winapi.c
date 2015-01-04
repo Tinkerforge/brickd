@@ -376,11 +376,11 @@ void log_init_platform(FILE *file) {
 			rc = ERRNO_WINAPI_OFFSET + GetLastError();
 
 			// ERROR_PIPE_BUSY/ERROR_ACCESS_DENIED means pipe already exists
-			if (rc == ERRNO_WINAPI_OFFSET + ERROR_PIPE_BUSY ||
-			    rc == ERRNO_WINAPI_OFFSET + ERROR_ACCESS_DENIED) {
-				log_warn("Could not create named pipe: %s (%d)",
-				         get_errno_name(rc), rc);
-			} else {
+			// because another instance of brickd is already running. no point
+			// in logging this cases on debug level here, as log level is still
+			// at the default info level yet. so just ignore these two cases
+			if (rc != ERRNO_WINAPI_OFFSET + ERROR_PIPE_BUSY &&
+			    rc != ERRNO_WINAPI_OFFSET + ERROR_ACCESS_DENIED) {
 				log_error("Could not create named pipe: %s (%d)",
 				          get_errno_name(rc), rc);
 			}
