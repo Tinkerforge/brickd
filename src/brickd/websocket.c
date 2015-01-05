@@ -35,8 +35,55 @@
 
 static LogSource _log_source = LOG_SOURCE_INITIALIZER;
 
+extern void socket_destroy_platform(Socket *socket);
 extern int socket_receive_platform(Socket *socket, void *buffer, int length);
 extern int socket_send_platform(Socket *socket, void *buffer, int length);
+
+typedef struct {
+	void *buffer;
+	int length;
+} WebsocketQueuedData;
+
+static void websocket_free_queued_data(void *item) {
+	WebsocketQueuedData *queued_data = item;
+
+	free(queued_data->buffer);
+}
+
+static int websocket_send_frame(Websocket *websocket, void *buffer, int length) {
+	WebsocketFrameWithPayload frame;
+
+	if (length > WEBSOCKET_MAX_UNEXTENDED_PAYLOAD_DATA_LENGTH) {
+		// currently length should never exceed 80 (the current maximum packet
+		// size). so this is just a safeguard for possible later changes to the
+		// maximum packet size that might require adjustments here.
+		errno = E2BIG;
+
+		return -1;
+	}
+
+	frame.header.opcode_rsv_fin = 0;
+	frame.header.payload_length_mask = 0;
+	websocket_frame_set_fin(&frame.header, 1);
+	websocket_frame_set_opcode(&frame.header, 2);
+	websocket_frame_set_mask(&frame.header, 0);
+	websocket_frame_set_payload_length(&frame.header, length);
+	memcpy(frame.payload_data, buffer, length);
+
+	return socket_send_platform((Socket *)websocket, &frame, sizeof(WebsocketFrameHeader) + length);
+}
+
+static void websocket_send_queued_data(Websocket *websocket) {
+	WebsocketQueuedData *queued_data;
+
+	while (websocket->send_queue.count > 0) {
+		queued_data = queue_peek(&websocket->send_queue);
+
+		websocket_send_frame(websocket, queued_data->buffer, queued_data->length);
+
+		queue_pop(&websocket->send_queue, websocket_free_queued_data);
+	}
+}
 
 int websocket_frame_get_opcode(WebsocketFrameHeader *header) {
 	return header->opcode_rsv_fin & 0xF;
@@ -110,6 +157,7 @@ int websocket_parse_handshake_line(Websocket *websocket, char *line, int length)
 	uint8_t digest[SHA1_DIGEST_LENGTH];
 	char base64[WEBSOCKET_BASE64_DIGEST_LENGTH];
 	int base64_length;
+	int rc;
 	int k;
 
 	// Find "\r\n"
@@ -119,7 +167,7 @@ int websocket_parse_handshake_line(Websocket *websocket, char *line, int length)
 		}
 
 		if (line[i] == '\r' && line[i+1] == '\n') {
-			if (websocket->state < WEBSOCKET_STATE_HANDSHAKE_FOUND_KEY) {
+			if (websocket->state < WEBSOCKET_STATE_FOUND_HANDSHAKE_KEY) {
 				return websocket_answer_handshake_error(websocket);
 			}
 
@@ -135,12 +183,21 @@ int websocket_parse_handshake_line(Websocket *websocket, char *line, int length)
 
 			if (base64_length < 0) {
 				log_error("Base64 encoding failed");
+
 				return -1;
 			}
 
 			websocket->state = WEBSOCKET_STATE_HANDSHAKE_DONE;
 
-			return websocket_answer_handshake_ok(websocket, base64, base64_length);
+			rc = websocket_answer_handshake_ok(websocket, base64, base64_length);
+
+			if (rc < 0) {
+				return rc;
+			}
+
+			websocket_send_queued_data(websocket);
+
+			return IO_CONTINUE;
 		} else {
 			break;
 		}
@@ -156,7 +213,7 @@ int websocket_parse_handshake_line(Websocket *websocket, char *line, int length)
 			}
 		}
 
-		websocket->state = WEBSOCKET_STATE_HANDSHAKE_FOUND_KEY;
+		websocket->state = WEBSOCKET_STATE_FOUND_HANDSHAKE_KEY;
 
 		return IO_CONTINUE;
 	}
@@ -239,11 +296,11 @@ int websocket_parse_header(Websocket *websocket, uint8_t *buffer, int length) {
 
 			return -1;
 
-		case WEBSOCKET_OPCODE_BINARY_FRAME: {
+		case WEBSOCKET_OPCODE_BINARY_FRAME:
 			websocket->mask_index = 0;
 			websocket->frame_index = 0;
 			websocket->to_read = payload_length;
-			websocket->state = WEBSOCKET_STATE_WEBSOCKET_HEADER_DONE;
+			websocket->state = WEBSOCKET_STATE_HEADER_DONE;
 
 			if (length - to_copy > 0) {
 				memmove(buffer, buffer + to_copy, length - to_copy);
@@ -252,7 +309,6 @@ int websocket_parse_header(Websocket *websocket, uint8_t *buffer, int length) {
 			}
 
 			return IO_CONTINUE;
-		}
 
 		case WEBSOCKET_OPCODE_CLOSE_FRAME:
 			log_debug("WebSocket opcode 'close frame'");
@@ -320,13 +376,13 @@ int websocket_parse_data(Websocket *websocket, uint8_t *buffer, int length) {
 int websocket_parse(Websocket *websocket, void *buffer, int length) {
 	switch (websocket->state) {
 	case WEBSOCKET_STATE_WAIT_FOR_HANDSHAKE:
-	case WEBSOCKET_STATE_HANDSHAKE_FOUND_KEY:
+	case WEBSOCKET_STATE_FOUND_HANDSHAKE_KEY:
 		return websocket_parse_handshake(websocket, buffer, length);
 
 	case WEBSOCKET_STATE_HANDSHAKE_DONE:
 		return websocket_parse_header(websocket, buffer, length);
 
-	case WEBSOCKET_STATE_WEBSOCKET_HEADER_DONE:
+	case WEBSOCKET_STATE_HEADER_DONE:
 		return websocket_parse_data(websocket, buffer, length);
 	}
 
@@ -344,6 +400,7 @@ int websocket_create(Websocket *websocket) {
 	}
 
 	websocket->base.base.type = "WebSocket";
+	websocket->base.destroy = websocket_destroy;
 	websocket->base.receive = websocket_receive;
 	websocket->base.send = websocket_send;
 
@@ -354,6 +411,10 @@ int websocket_create(Websocket *websocket) {
 	memset(&websocket->frame, 0, sizeof(WebsocketFrame));
 	memset(websocket->line, 0, WEBSOCKET_MAX_LINE_LENGTH);
 	memset(websocket->client_key, 0, WEBSOCKET_CLIENT_KEY_LENGTH);
+
+	if (queue_create(&websocket->send_queue, sizeof(WebsocketQueuedData)) < 0) {
+		return -1;
+	}
 
 	return 0;
 }
@@ -377,6 +438,14 @@ Socket *websocket_create_allocated(void) {
 	return &websocket->base;
 }
 
+void websocket_destroy(Socket *socket) {
+	Websocket *websocket = (Websocket *)socket;
+
+	queue_destroy(&websocket->send_queue, websocket_free_queued_data);
+
+	socket_destroy_platform(socket);
+}
+
 // sets errno on error
 int websocket_receive(Socket *socket, void *buffer, int length) {
 	Websocket *websocket = (Websocket *)socket;
@@ -392,24 +461,33 @@ int websocket_receive(Socket *socket, void *buffer, int length) {
 
 // sets errno on error
 int websocket_send(Socket *socket, void *buffer, int length) {
-	WebsocketFrameWithPayload frame;
+	Websocket *websocket = (Websocket *)socket;
+	WebsocketQueuedData *queued_data;
 
-	if (length > WEBSOCKET_MAX_UNEXTENDED_PAYLOAD_DATA_LENGTH) {
-		// currently length should never exceed 80 (the current maximum packet
-		// size). so this is just a safeguard for possible later changes to the
-		// maximum packet size that might require adjustments here.
-		errno = E2BIG;
-
-		return -1;
+	if (websocket->state == WEBSOCKET_STATE_HANDSHAKE_DONE ||
+	    websocket->state == WEBSOCKET_STATE_HEADER_DONE) {
+		return websocket_send_frame(websocket, buffer, length);
 	}
 
-	frame.header.opcode_rsv_fin = 0;
-	frame.header.payload_length_mask = 0;
-	websocket_frame_set_fin(&frame.header, 1);
-	websocket_frame_set_opcode(&frame.header, 2);
-	websocket_frame_set_mask(&frame.header, 0);
-	websocket_frame_set_payload_length(&frame.header, length);
-	memcpy(frame.payload_data, buffer, length);
+	// initial handshake not finished yet
+	if (length > 0) {
+		queued_data = queue_push(&websocket->send_queue);
 
-	return socket_send_platform(socket, &frame, sizeof(WebsocketFrameHeader) + length);
+		if (queued_data == NULL) {
+			return -1;
+		}
+
+		queued_data->buffer = malloc(length);
+		queued_data->length = length;
+
+		if (queued_data->buffer == NULL) {
+			errno = ENOMEM;
+
+			return -1;
+		}
+
+		memcpy(queued_data->buffer, buffer, length);
+	}
+
+	return length;
 }

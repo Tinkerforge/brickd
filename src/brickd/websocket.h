@@ -1,7 +1,7 @@
 /*
  * brickd
  * Copyright (C) 2014 Olaf Lüke <olaf@tinkerforge.com>
- * Copyright (C) 2014 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2014-2015 Matthias Bolte <matthias@tinkerforge.com>
  *
  * websocket.h: Miniature websocket server implementation
  *
@@ -25,6 +25,7 @@
 
 #include <stdint.h>
 
+#include <daemonlib/queue.h>
 #include <daemonlib/socket.h>
 
 #define WEBSOCKET_MAX_LINE_LENGTH 100 // Line length > 100 are not interesting for us
@@ -85,9 +86,9 @@ typedef struct {
 
 typedef enum {
 	WEBSOCKET_STATE_WAIT_FOR_HANDSHAKE = 0,
-	WEBSOCKET_STATE_HANDSHAKE_FOUND_KEY,
+	WEBSOCKET_STATE_FOUND_HANDSHAKE_KEY,
 	WEBSOCKET_STATE_HANDSHAKE_DONE,
-	WEBSOCKET_STATE_WEBSOCKET_HEADER_DONE
+	WEBSOCKET_STATE_HEADER_DONE
 } WebsocketState;
 
 typedef struct {
@@ -105,6 +106,8 @@ typedef struct {
 	int mask_index;
 
 	int to_read;
+
+	Queue send_queue;
 } Websocket;
 
 int websocket_frame_get_opcode(WebsocketFrameHeader *header);
@@ -126,6 +129,7 @@ int websocket_parse(Websocket *websocket, void *buffer, int length);
 
 int websocket_create(Websocket *websocket);
 Socket *websocket_create_allocated(void);
+void websocket_destroy(Socket *socket);
 int websocket_receive(Socket *socket, void *buffer, int length);
 int websocket_send(Socket *socket, void *buffer, int length);
 
