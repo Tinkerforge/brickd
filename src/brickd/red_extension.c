@@ -494,7 +494,7 @@ int red_extension_init(void) {
 		base_config[i].extension = i;
 		base_config[i].type = EXTENSION_TYPE_NONE;
 
-		if (i2c_eeprom_init(&i2c_eeprom, i) < 0) {
+		if (i2c_eeprom_create(&i2c_eeprom, i) < 0) {
 			return -1;
 		}
 
@@ -545,7 +545,7 @@ int red_extension_init(void) {
 		switch (base_config[i].type) {
 		case EXTENSION_TYPE_RS485:
 			ret = red_extension_read_rs485_config(&i2c_eeprom, (ExtensionRS485Config *) &base_config[i]);
-			i2c_eeprom_release(&i2c_eeprom);
+			i2c_eeprom_destroy(&i2c_eeprom);
 
 			if (ret < 0) {
 				log_warn("Could not read RS485 config, ignoring extension at position %d", i);
@@ -561,7 +561,7 @@ int red_extension_init(void) {
 
 		case EXTENSION_TYPE_ETHERNET:
 			ret = red_extension_read_ethernet_config(&i2c_eeprom, (ExtensionEthernetConfig *) &base_config[i]);
-			i2c_eeprom_release(&i2c_eeprom);
+			i2c_eeprom_destroy(&i2c_eeprom);
 
 			if (ret < 0) {
 				log_warn("Could not read Ethernet config, ignoring extension at position %d", i);
