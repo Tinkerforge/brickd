@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2014 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2014-2015 Matthias Bolte <matthias@tinkerforge.com>
  *
  * node_test.c: Tests for the Node type
  *
@@ -23,7 +23,7 @@
 #include <stdlib.h>
 
 #include <daemonlib/macros.h>
-#include <daemonlib/utils.h>
+#include <daemonlib/node.h>
 
 typedef struct {
 	Node node;

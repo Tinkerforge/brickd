@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2014 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2014-2015 Matthias Bolte <matthias@tinkerforge.com>
  *
  * base58_test.c: Tests for the Base58 de/encoder
  *
@@ -24,6 +24,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <daemonlib/base58.h>
 #include <daemonlib/utils.h>
 
 int test1(void) {

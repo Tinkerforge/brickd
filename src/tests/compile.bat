@@ -63,6 +63,7 @@ rem @set LD=link /nologo /debug
  ip_connection.c^
  brick_master.c^
  ..\brickd\fixes_msvc.c^
+ ..\daemonlib\base58.c^
  ..\daemonlib\utils.c
 
 %LD% /out:throughput_test.exe *.obj *.res ws2_32.lib
@@ -98,6 +99,7 @@ rem @set LD=link /nologo /debug
 
 %CC% base58_test.c^
  ..\brickd\fixes_msvc.c^
+ ..\daemonlib\base58.c^
  ..\daemonlib\utils.c
 
 %LD% /out:base58_test.exe *.obj ws2_32.lib
@@ -110,7 +112,7 @@ rem @set LD=link /nologo /debug
 
 %CC% node_test.c^
  ..\brickd\fixes_msvc.c^
- ..\daemonlib\utils.c
+ ..\daemonlib\node.c
 
 %LD% /out:node_test.exe *.obj ws2_32.lib
 
@@ -124,6 +126,7 @@ rem @set LD=link /nologo /debug
  ..\brickd\fixes_msvc.c^
  ..\daemonlib\conf_file.c^
  ..\daemonlib\array.c^
+ ..\daemonlib\base58.c^
  ..\daemonlib\utils.c
 
 %LD% /out:conf_file_test.exe *.obj ws2_32.lib
