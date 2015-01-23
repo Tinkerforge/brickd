@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2014 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2014-2015 Matthias Bolte <matthias@tinkerforge.com>
  *
  * redapid.c: RED Brick API Daemon interface
  *
@@ -56,6 +56,7 @@ static REDBrickAPIDaemon _redapid;
 static Timer _reconnect_timer;
 static bool _connected = false;
 static bool _connect_error_warning = false;
+uint8_t _redapid_version[3] = { 2, 0, 0 };
 
 static void redapid_disconnect(bool reconnect) {
 	writer_destroy(&_redapid.request_writer);
@@ -186,12 +187,12 @@ static int redapid_dispatch_request(Stack *stack, Packet *request,
 		base58_encode(enumerate_callback.uid, uint32_from_le(uid));
 		enumerate_callback.connected_uid[0] = '0';
 		enumerate_callback.position = '0';
-		enumerate_callback.hardware_version[0] = 1;
+		enumerate_callback.hardware_version[0] = 1; // FIXME
 		enumerate_callback.hardware_version[1] = 0;
 		enumerate_callback.hardware_version[2] = 0;
-		enumerate_callback.firmware_version[0] = 2;
-		enumerate_callback.firmware_version[1] = 0;
-		enumerate_callback.firmware_version[2] = 0;
+		enumerate_callback.firmware_version[0] = _redapid_version[0];
+		enumerate_callback.firmware_version[1] = _redapid_version[1];
+		enumerate_callback.firmware_version[2] = _redapid_version[2];
 		enumerate_callback.device_identifier = uint16_to_le(RED_BRICK_DEVICE_IDENTIFIER);
 		enumerate_callback.enumeration_type = ENUMERATION_TYPE_AVAILABLE;
 
@@ -323,10 +324,69 @@ cleanup:
 	}
 }
 
+static int redapid_read_version(void) {
+	FILE *fp;
+	char buffer[256];
+	char *p;
+	int version[3];
+
+	// FIXME: this is not the best way to do it. the redapid binary that will
+	//        be executed by popen might not be the same redapid binary that
+	//        will handle the connection. the best solution would be to call
+	//        get-identity over the UNIX socket, but that's not easy to do in
+	//        the current request/response handling architecture
+	fp = popen("redapid --version", "r");
+
+	if (fp == NULL) {
+		return -1;
+	}
+
+	if (fgets(buffer, sizeof(buffer), fp) == NULL) {
+		pclose(fp);
+
+		return -1;
+	}
+
+	pclose(fp);
+
+	// major
+	if (parse_int(buffer, &p, 10, &version[0]) < 0) {
+		return -1;
+	}
+
+	if (*p != '.') {
+		return -1;
+	}
+
+	// minor
+	if (parse_int(p + 1, &p, 10, &version[1]) < 0) {
+		return -1;
+	}
+
+	if (*p != '.') {
+		return -1;
+	}
+
+	// release
+	if (parse_int(p + 1, &p, 10, &version[2]) < 0) {
+		return -1;
+	}
+
+	_redapid_version[0] = version[0];
+	_redapid_version[1] = version[1];
+	_redapid_version[2] = version[2];
+
+	return 0;
+}
+
 int redapid_init(void) {
 	int phase = 0;
 
 	log_debug("Initializing RED Brick API subsystem");
+
+	if (redapid_read_version() < 0) {
+		log_warn("Could not read redapid version number, using 2.0.0 instead");
+	}
 
 	// create base stack
 	if (stack_create(&_redapid.base, "redapid", redapid_dispatch_request) < 0) {

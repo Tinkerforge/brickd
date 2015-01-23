@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2012-2014 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2012-2015 Matthias Bolte <matthias@tinkerforge.com>
  * Copyright (C) 2014 Olaf Lüke <olaf@tinkerforge.com>
  *
  * client.c: Client specific functions
@@ -41,6 +41,8 @@
 #include "zombie.h"
 
 static LogSource _log_source = LOG_SOURCE_INITIALIZER;
+
+extern uint8_t _redapid_version[3];
 
 #define UID_BRICK_DAEMON 1
 
@@ -501,12 +503,12 @@ void client_send_red_brick_enumerate(Client *client, EnumerationType type) {
 	base58_encode(enumerate_callback.uid, uint32_from_le(uid));
 	enumerate_callback.connected_uid[0] = '0';
 	enumerate_callback.position = '0';
-	enumerate_callback.hardware_version[0] = 1;
+	enumerate_callback.hardware_version[0] = 1; // FIXME
 	enumerate_callback.hardware_version[1] = 0;
 	enumerate_callback.hardware_version[2] = 0;
-	enumerate_callback.firmware_version[0] = 2;
-	enumerate_callback.firmware_version[1] = 0;
-	enumerate_callback.firmware_version[2] = 0;
+	enumerate_callback.firmware_version[0] = _redapid_version[0];
+	enumerate_callback.firmware_version[1] = _redapid_version[1];
+	enumerate_callback.firmware_version[2] = _redapid_version[2];
 	enumerate_callback.device_identifier = uint16_to_le(RED_BRICK_DEVICE_IDENTIFIER);
 	enumerate_callback.enumeration_type = type;
 
