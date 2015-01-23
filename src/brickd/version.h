@@ -44,7 +44,7 @@
 #ifdef BRICKD_WITH_RED_BRICK
 	#define VERSION_SUFFIX_STRING "+redbrick"
 #else
-	#define VERSION_SUFFIX_STRING "-beta1"
+	#define VERSION_SUFFIX_STRING ""
 #endif
 
 #define INT_TO_STRING_(x) #x
