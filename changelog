@@ -95,3 +95,5 @@
 2.2.1: Improve RED Brick hotplug detection and error handling on Windows
        Add debug filter to fine-tune debug output
        Wait for WebSocket handshake completion before sending data
+       Use redapid version as RED Brick firmware version
+       Don't send packet twice after partial write
