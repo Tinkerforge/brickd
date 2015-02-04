@@ -22,6 +22,7 @@
 
 #include <errno.h>
 #include <stdio.h>
+#include <sys/utsname.h>
 
 #include <daemonlib/log.h>
 #include <daemonlib/red_i2c_eeprom.h>
@@ -34,9 +35,9 @@
 
 static LogSource _log_source = LOG_SOURCE_INITIALIZER;
 
+#define W5X00_PATH_MAX_SIZE 256
 #define W5X00_PARAM_MAX_SIZE 150
 #define W5X00_MODULE_MAX_SIZE (1000*200)
-#define W5X00_MODULE_PATH "/lib/modules/3.4.90+/kernel/drivers/net/ethernet/wiznet/w5x00.ko"
 
 #define EXTENSION_POS0_SELECT {GPIO_PORT_G, GPIO_PIN_9}
 #define EXTENSION_POS1_SELECT {GPIO_PORT_G, GPIO_PIN_13}
@@ -59,9 +60,11 @@ void red_ethernet_extension_rmmod(void) {
 }
 
 int red_ethernet_extension_init(ExtensionEthernetConfig *ethernet_config) {
+	struct utsname uts;
 	FILE *f;
-	char buf_module[W5X00_MODULE_MAX_SIZE];
+	char buf_path[W5X00_PATH_MAX_SIZE + 1] = {0};
 	char buf_param[W5X00_PARAM_MAX_SIZE + 1] = {0};
+	char buf_module[W5X00_MODULE_MAX_SIZE];
 	int param_pin_reset;
 	int param_pin_interrupt;
 	int param_select;
@@ -97,6 +100,18 @@ int red_ethernet_extension_init(ExtensionEthernetConfig *ethernet_config) {
 
 	gpio_mux_configure(pin, GPIO_MUX_2);
 
+	if (uname(&uts) < 0) {
+		log_error("Could not get kernel information: %s (%d)",
+		          get_errno_name(errno), errno);
+
+		return -1;
+	}
+
+	snprintf(buf_path,
+	         W5X00_PATH_MAX_SIZE,
+	         "/lib/modules/%s/kernel/drivers/net/ethernet/wiznet/w5x00.ko",
+	         uts.release);
+
 	snprintf(buf_param,
 	         W5X00_PARAM_MAX_SIZE,
 	         "param_pin_reset=%d param_pin_interrupt=%d param_select=%d param_mac=%d,%d,%d,%d,%d,%d",
@@ -108,7 +123,7 @@ int red_ethernet_extension_init(ExtensionEthernetConfig *ethernet_config) {
 	          ethernet_config->extension,
 	          buf_param);
 
-	if ((f = fopen(W5X00_MODULE_PATH, "rb")) == NULL) {
+	if ((f = fopen(buf_path, "rb")) == NULL) {
 		log_error("Could not read w5x00 kernel module: %s (%d)",
 		          get_errno_name(errno), errno);
 
@@ -121,7 +136,7 @@ int red_ethernet_extension_init(ExtensionEthernetConfig *ethernet_config) {
 
 	// We abort if the read was not successful or the buffer was not big enough
 	if (length < 0 || length == W5X00_MODULE_MAX_SIZE) {
-		log_error("Could not read %s (%d)", W5X00_MODULE_PATH, length);
+		log_error("Could not read %s (%d)", buf_path, length);
 
 		return -1;
 	}
