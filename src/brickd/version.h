@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2012-2014 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2012-2015 Matthias Bolte <matthias@tinkerforge.com>
  * Copyright (C) 2014 Olaf Lüke <olaf@tinkerforge.com>
  *
  * version.h: Version information
@@ -42,7 +42,7 @@
 #define VERSION_RELEASE 1
 
 #ifdef BRICKD_WITH_RED_BRICK
-	#define VERSION_SUFFIX_STRING "+redbrick"
+	#define VERSION_SUFFIX_STRING "~hf1+redbrick"
 #else
 	#define VERSION_SUFFIX_STRING ""
 #endif
