@@ -1,4 +1,4 @@
-This is a special version of libusbx for brickd build on Mac OS X 10.6.
+This is a special version of libusb for brickd build on Mac OS X 10.6.
 
 Based on libusb's github.com commit 25e82765978bef1189cb810d454165f76451a4bf
 (libusb version 1.0.18 plus some fixes) with the libusb-brickd.patch
