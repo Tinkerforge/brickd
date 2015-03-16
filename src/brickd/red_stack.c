@@ -966,6 +966,11 @@ void red_stack_exit(void) {
 	int i;
 	int slave;
 
+	// Remove reset interrupt as event source
+	if (_red_stack_reset_fd > 0) {
+		event_remove_source(_red_stack_reset_fd, EVENT_SOURCE_TYPE_GENERIC);
+	}
+
 	// Remove event as possible poll source
 	event_remove_source(_red_stack_notification_event, EVENT_SOURCE_TYPE_GENERIC);
 
