@@ -92,11 +92,11 @@ def build_macosx_pkg():
         shutil.rmtree(dist_path)
 
     print('compiling')
-    system('make clean')
-    system('CC=gcc make')
+    system('cd brickd; make clean')
+    system('cd brickd; env CC=gcc make')
 
     print('copying installer')
-    installer_path = os.path.join(root_path, '..', 'build_data', 'macosx', 'installer')
+    installer_path = os.path.join(root_path, 'build_data', 'macosx', 'installer')
     shutil.copytree(installer_path, dist_path)
 
     print('copying brickd binary')
@@ -104,15 +104,15 @@ def build_macosx_pkg():
     contents_path = os.path.join(brickd_app_path, 'Contents')
     macos_path = os.path.join(contents_path, 'MacOS')
     os.makedirs(macos_path)
-    shutil.copy('brickd', macos_path)
+    shutil.copy('brickd/brickd', macos_path)
 
     print('creating Info.plist from template')
-    version = check_output(['./brickd', '--version']).replace('\n', '')
+    version = check_output(['./brickd/brickd', '--version']).replace('\n', '')
     plist_path = os.path.join(contents_path, 'Info.plist')
     specialize_template(plist_path, plist_path, {'<<VERSION>>': version})
 
     print('copying and patching libusb')
-    libusb_path = os.path.join(root_path, '..', 'build_data', 'macosx', 'libusb', 'libusb-1.0.dylib')
+    libusb_path = os.path.join(root_path, 'build_data', 'macosx', 'libusb', 'libusb-1.0.dylib')
     shutil.copy(libusb_path, macos_path)
     system('install_name_tool -id @executable_path/libusb-1.0.dylib {0}'.format(os.path.join(macos_path, 'libusb-1.0.dylib')))
     system('install_name_tool -change @executable_path/../build_data/macosx/libusb/libusb-1.0.dylib @executable_path/libusb-1.0.dylib {0}'.format(os.path.join(macos_path, 'brickd')))
@@ -147,14 +147,14 @@ def build_windows_pkg():
     os.makedirs(dist_path)
 
     print('compiling')
-    system('compile.bat')
+    system('cd brickd && compile.bat')
 
     if os.path.exists('X:\\sign.bat'):
         system('X:\\sign.bat dist\\brickd.exe')
 
     print('creating NSIS script from template')
     version = check_output(['dist\\brickd.exe', '--version']).replace('\r\n', '')
-    build_data_path = os.path.join(root_path, '..', 'build_data', 'windows')
+    build_data_path = os.path.join(root_path, 'build_data', 'windows')
     nsis_template_path = os.path.join(build_data_path, 'nsis', 'brickd_installer.nsi.template')
     nsis_path = os.path.join(dist_path, 'nsis', 'brickd_installer.nsi')
     os.makedirs(os.path.join(dist_path, 'nsis'))
@@ -196,24 +196,24 @@ def build_linux_pkg():
     architecture = check_output(['dpkg', '--print-architecture']).replace('\n', '')
 
     print('compiling for ' + architecture)
-    system('make clean')
+    system('cd brickd; make clean')
 
     if architecture == 'i386':
-        system('CC=gcc WITH_LIBUDEV=yes WITH_LIBUDEV_DLOPEN=yes WITH_PM_UTILS=yes CFLAGS=-march=i386 make')
+        system('cd brickd; env CC=gcc WITH_LIBUDEV=yes WITH_LIBUDEV_DLOPEN=yes WITH_PM_UTILS=yes CFLAGS=-march=i386 make')
     else:
-        system('CC=gcc WITH_LIBUDEV=yes WITH_LIBUDEV_DLOPEN=yes WITH_PM_UTILS=yes make')
+        system('cd brickd; env CC=gcc WITH_LIBUDEV=yes WITH_LIBUDEV_DLOPEN=yes WITH_PM_UTILS=yes make')
 
     print('copying build data')
-    build_data_path = os.path.join(root_path, '..', 'build_data', 'linux')
+    build_data_path = os.path.join(root_path, 'build_data', 'linux')
     shutil.copytree(build_data_path, dist_path)
 
     print('copying brickd binary')
     bin_path = os.path.join(dist_path, 'usr', 'bin')
     os.makedirs(bin_path)
-    shutil.copy('brickd', bin_path)
+    shutil.copy('brickd/brickd', bin_path)
 
     print('creating DEBIAN/control from template')
-    version = check_output(['./brickd', '--version']).replace('\n', '').replace(' ', '-')
+    version = check_output(['./brickd/brickd', '--version']).replace('\n', '').replace(' ', '-')
     installed_size = int(check_output(['du', '-s', '--exclude', 'dist/DEBIAN', 'dist']).split('\t')[0])
     control_path = os.path.join(dist_path, 'DEBIAN', 'control')
     specialize_template(control_path, control_path,
@@ -223,7 +223,7 @@ def build_linux_pkg():
 
     print('preparing files')
     system('objcopy --strip-debug --strip-unneeded dist/usr/bin/brickd')
-    system('cp ../../changelog dist/usr/share/doc/brickd/')
+    system('cp ../changelog dist/usr/share/doc/brickd/')
 
     if version.endswith('+redbrick'):
         os.rename('dist/etc/brickd-red-brick.conf', 'dist/etc/brickd.conf')
@@ -270,7 +270,7 @@ def build_linux_pkg():
     system('lintian --pedantic brickd-{0}_{1}.deb'.format(version, architecture))
 
     print('cleaning up')
-    system('make clean')
+    system('cd brickd; make clean')
 
 
 # run 'python build_pkg.py' to build the windows/linux/macosx package

@@ -94,9 +94,9 @@
 
 @del *.obj *.res *.bin *.exp *.manifest
 
-@if not exist dist mkdir dist
-copy brickd.exe dist\
-copy ..\build_data\windows\libusb\libusb-1.0.dll dist\
+@if not exist ..\dist mkdir ..\dist
+copy brickd.exe ..\dist\
+copy ..\build_data\windows\libusb\libusb-1.0.dll ..\dist\
 
 :done
 @endlocal

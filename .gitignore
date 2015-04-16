@@ -1,13 +1,13 @@
 *.p
 *.o
-src/daemonlib
-src/brickd/codesign_identity
-src/brickd/dist
 src/brickd/objfre_wxp_x86
 src/brickd/brickd
 src/brickd/brickd.exe
 src/brickd/log_messages.h
 src/brickd/log_messages.rc
+src/codesign_identity
+src/daemonlib
+src/dist
 src/oacr_tmp
 src/tests/*_test
 src/tests/*_test.exe
