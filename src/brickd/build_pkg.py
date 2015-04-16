@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 brickd (Brick Daemon)
-Copyright (C) 2012-2014 Matthias Bolte <matthias@tinkerforge.com>
+Copyright (C) 2012-2015 Matthias Bolte <matthias@tinkerforge.com>
 Copyright (C) 2011 Olaf Lüke <olaf@tinkerforge.com>
 Copyright (C) 2011 Bastian Nordmeyer <bastian@tinkerforge.com>
 
@@ -30,172 +30,215 @@ import subprocess
 import re
 import glob
 
-def check_output(*popenargs, **kwargs):
+
+def system(command):
+    if os.system(command) != 0:
+        sys.exit(1)
+
+
+def check_output(*args, **kwargs):
     if 'stdout' in kwargs:
-        raise ValueError('stdout argument not allowed, it will be overridden.')
-    process = subprocess.Popen(stdout=subprocess.PIPE, *popenargs, **kwargs)
-    output, unused_err = process.communicate()
-    retcode = process.poll()
-    if retcode:
-        cmd = kwargs.get("args")
-        if cmd is None:
-            cmd = popenargs[0]
-        raise subprocess.CalledProcessError(retcode, cmd, output=output)
+        raise ValueError('stdout argument not allowed, it will be overridden')
+
+    process = subprocess.Popen(stdout=subprocess.PIPE, *args, **kwargs)
+    output, error = process.communicate()
+    exit_code = process.poll()
+
+    if exit_code != 0:
+        command = kwargs.get('args')
+
+        if command == None:
+            command = args[0]
+
+        raise subprocess.CalledProcessError(exit_code, command, output=output)
+
     return output
 
-def build_macosx_pkg():
-    os.system('make clean')
-    os.system('CC=gcc make')
 
-    version = check_output(['./brickd', '--version']).replace('\n', '')
-
-    dist_dir = os.path.join(os.getcwd(), 'dist')
-    if os.path.exists(dist_dir):
-        shutil.rmtree(dist_dir)
-
-    installer_dir = os.path.join(os.getcwd(), '..', 'build_data', 'macosx', 'installer')
-    shutil.copytree(installer_dir, dist_dir)
-
-    install_app_dir = os.path.join(os.getcwd(), 'dist', 'INSTALL.app')
-    brickd_app_dir = os.path.join(os.getcwd(), 'dist', 'data', 'brickd.app')
-
-    contents_dir = os.path.join(brickd_app_dir, 'Contents')
-    macos_dir = os.path.join(contents_dir, 'MacOS')
-    os.makedirs(macos_dir)
-    shutil.copy('brickd', macos_dir)
-
-    plist_name = os.path.join(contents_dir, 'Info.plist')
+def specialize_template(template_filename, destination_filename, replacements):
+    template_file = open(template_filename, 'rb')
     lines = []
-    for line in file(plist_name, 'rb').readlines():
-        line = line.replace('<<BRICKD_VERSION>>', version)
+    replaced = set()
+
+    for line in template_file.readlines():
+        for key in replacements:
+            replaced_line = line.replace(key, replacements[key])
+
+            if replaced_line != line:
+                replaced.add(key)
+
+            line = replaced_line
+
         lines.append(line)
-    file(plist_name, 'wb').writelines(lines)
 
-    libusb_path = os.path.join(os.getcwd(), '..', 'build_data', 'macosx', 'libusb', 'libusb-1.0.dylib')
+    template_file.close()
 
-    shutil.copy(libusb_path, macos_dir)
+    if replaced != set(replacements.keys()):
+        raise Exception('Not all replacements for {0} have been applied'.format(template_filename))
 
-    os.system('install_name_tool -id @executable_path/libusb-1.0.dylib {0}'.format(os.path.join(macos_dir, 'libusb-1.0.dylib')))
-    os.system('install_name_tool -change @executable_path/../build_data/macosx/libusb/libusb-1.0.dylib @executable_path/libusb-1.0.dylib {0}'.format(os.path.join(macos_dir, 'brickd')))
+    destination_file = open(destination_filename, 'wb')
+    destination_file.writelines(lines)
+    destination_file.close()
 
-    print 'signing...'
+
+def build_macosx_pkg():
+    print('building brickd disk image')
+    root_path = os.getcwd()
+
+    print('removing old build directories')
+    dist_path = os.path.join(root_path, 'dist')
+
+    if os.path.exists(dist_path):
+        shutil.rmtree(dist_path)
+
+    print('compiling')
+    system('make clean')
+    system('CC=gcc make')
+
+    print('copying installer')
+    installer_path = os.path.join(root_path, '..', 'build_data', 'macosx', 'installer')
+    shutil.copytree(installer_path, dist_path)
+
+    print('copying brickd binary')
+    brickd_app_path = os.path.join(dist_path, 'data', 'brickd.app')
+    contents_path = os.path.join(brickd_app_path, 'Contents')
+    macos_path = os.path.join(contents_path, 'MacOS')
+    os.makedirs(macos_path)
+    shutil.copy('brickd', macos_path)
+
+    print('creating Info.plist from template')
+    version = check_output(['./brickd', '--version']).replace('\n', '')
+    plist_path = os.path.join(contents_path, 'Info.plist')
+    specialize_template(plist_path, plist_path, {'<<VERSION>>': version})
+
+    print('copying and patching libusb')
+    libusb_path = os.path.join(root_path, '..', 'build_data', 'macosx', 'libusb', 'libusb-1.0.dylib')
+    shutil.copy(libusb_path, macos_path)
+    system('install_name_tool -id @executable_path/libusb-1.0.dylib {0}'.format(os.path.join(macos_path, 'libusb-1.0.dylib')))
+    system('install_name_tool -change @executable_path/../build_data/macosx/libusb/libusb-1.0.dylib @executable_path/libusb-1.0.dylib {0}'.format(os.path.join(macos_path, 'brickd')))
+
+    print('signing brickd binary')
     # NOTE: codesign_identity contains "Developer ID Application: ..."
     codesign_command = 'codesign --force --verify --verbose --sign "`cat codesign_identity`" {0}'
+    install_app_path = os.path.join(dist_path, 'INSTALL.app')
+    system(codesign_command.format(install_app_path))
+    system(codesign_command.format(os.path.join(macos_path, 'libusb-1.0.dylib')))
+    system(codesign_command.format(brickd_app_path))
 
-    os.system(codesign_command.format(install_app_dir))
-    os.system(codesign_command.format(os.path.join(macos_dir, 'libusb-1.0.dylib')))
-    os.system(codesign_command.format(brickd_app_dir))
+    print('building disk image')
+    dmg_name = 'brickd_macos_{0}.dmg'.format(version.replace('.', '_'))
 
-    rc = os.system('./build_dmg.sh')
+    if os.path.exists(dmg_name):
+        os.remove(dmg_name)
 
-    if rc != 0:
-        print "============================================="
-        print "   Run ./build_dmg.sh to create .dmg file"
-        print "============================================="
+    system('hdiutil create -fs HFS+ -volname "Brickd-{0}" -srcfolder dist {1}'.format(version, dmg_name))
+
 
 def build_windows_pkg():
-    dist_dir = os.path.join(os.getcwd(), 'dist')
-    if os.path.exists(dist_dir):
-        shutil.rmtree(dist_dir)
-    os.makedirs(dist_dir)
+    print('building brickd NSIS installer')
+    root_path = os.getcwd()
 
-    os.system('compile.bat')
+    print('removing old build directories')
+    dist_path = os.path.join(root_path, 'dist')
+
+    if os.path.exists(dist_path):
+        shutil.rmtree(dist_path)
+
+    os.makedirs(dist_path)
+
+    print('compiling')
+    system('compile.bat')
 
     if os.path.exists('X:\\sign.bat'):
-        os.system('X:\\sign.bat dist\\brickd.exe')
+        system('X:\\sign.bat dist\\brickd.exe')
 
+    print('creating NSIS script from template')
     version = check_output(['dist\\brickd.exe', '--version']).replace('\r\n', '')
+    build_data_path = os.path.join(root_path, '..', 'build_data', 'windows')
+    nsis_template_path = os.path.join(build_data_path, 'nsis', 'brickd_installer.nsi.template')
+    nsis_path = os.path.join(dist_path, 'nsis', 'brickd_installer.nsi')
+    os.makedirs(os.path.join(dist_path, 'nsis'))
+    specialize_template(nsis_template_path, nsis_path,
+                        {'<<BRICKD_DOT_VERSION>>': version,
+                         '<<BRICKD_UNDERSCORE_VERSION>>': version.replace('.', '_')})
 
-    nsis_dir = os.path.join(os.getcwd(), 'dist', 'nsis')
-    os.makedirs(nsis_dir)
-    lines = []
-    for line in file('../build_data/Windows/nsis/brickd_installer.nsi.template', 'rb').readlines():
-        line = line.replace('<<BRICKD_DOT_VERSION>>', version)
-        line = line.replace('<<BRICKD_UNDERSCORE_VERSION>>', version.replace('.', '_'))
-        lines.append(line)
-    file('dist/nsis/brickd_installer.nsi', 'wb').writelines(lines)
+    print('copying build data')
+    drivers_path = os.path.join(build_data_path, 'drivers')
+    dist_drivers_path = os.path.join(dist_path, 'drivers')
+    shutil.copytree(drivers_path, dist_drivers_path)
+    shutil.copy(os.path.join(build_data_path, 'readme.txt'), dist_path)
+    shutil.copy(os.path.join(build_data_path, 'brickd.ini'), dist_path)
+    shutil.copy(os.path.join(build_data_path, 'logviewer', 'logviewer.exe'), dist_path)
 
-    build_data_dir = os.path.join(os.getcwd(), '..', 'build_data', 'windows')
-    drivers_dir = os.path.join(build_data_dir, 'drivers')
-    logviewer_dir = os.path.join(build_data_dir, 'logviewer')
-    dist_dir = os.path.join(os.getcwd(), 'dist')
-    dist_drivers_dir = os.path.join(dist_dir, 'drivers')
-
-    shutil.copytree(drivers_dir, dist_drivers_dir)
-    shutil.copy(os.path.join(build_data_dir, 'readme.txt'), dist_dir)
-    shutil.copy(os.path.join(build_data_dir, 'brickd.ini'), dist_dir)
-    shutil.copy(os.path.join(logviewer_dir, 'logviewer.exe'), dist_dir)
-
-    os.system('"C:\\Program Files\\NSIS\\makensis.exe" dist\\nsis\\brickd_installer.nsi')
-
-    dist_nsis_dir = os.path.join(dist_dir, 'nsis')
+    print('building NSIS installer')
+    system('"C:\\Program Files\\NSIS\\makensis.exe" dist\\nsis\\brickd_installer.nsi')
     installer = 'brickd_windows_{0}.exe'.format(version.replace('.', '_'))
 
-    shutil.move(os.path.join(dist_nsis_dir, installer), os.getcwd())
+    if os.path.exists(installer):
+        os.unlink(installer)
+
+    shutil.move(os.path.join(dist_path, 'nsis', installer), root_path)
 
     if os.path.exists('X:\\sign.bat'):
-        os.system('X:\\sign.bat ' + installer)
+        system('X:\\sign.bat ' + installer)
 
 
 def build_linux_pkg():
-    if os.geteuid() != 0:
-        sys.stderr.write("build_pkg for Linux has to be started as root, exiting\n")
-        sys.exit(1)
+    print('building brickd Debian package')
+    root_path = os.getcwd()
+
+    print('removing old build directories')
+    dist_path = os.path.join(root_path, 'dist')
+
+    if os.path.exists(dist_path):
+        shutil.rmtree(dist_path)
 
     architecture = check_output(['dpkg', '--print-architecture']).replace('\n', '')
 
-    print 'Building version for ' + architecture
-
-    os.system('make clean')
+    print('compiling for ' + architecture)
+    system('make clean')
 
     if architecture == 'i386':
-        os.system('CC=gcc WITH_LIBUDEV=yes WITH_LIBUDEV_DLOPEN=yes WITH_PM_UTILS=yes CFLAGS=-march=i386 make')
+        system('CC=gcc WITH_LIBUDEV=yes WITH_LIBUDEV_DLOPEN=yes WITH_PM_UTILS=yes CFLAGS=-march=i386 make')
     else:
-        os.system('CC=gcc WITH_LIBUDEV=yes WITH_LIBUDEV_DLOPEN=yes WITH_PM_UTILS=yes make')
+        system('CC=gcc WITH_LIBUDEV=yes WITH_LIBUDEV_DLOPEN=yes WITH_PM_UTILS=yes make')
 
+    print('copying build data')
+    build_data_path = os.path.join(root_path, '..', 'build_data', 'linux')
+    shutil.copytree(build_data_path, dist_path)
+
+    print('copying brickd binary')
+    bin_path = os.path.join(dist_path, 'usr', 'bin')
+    os.makedirs(bin_path)
+    shutil.copy('brickd', bin_path)
+
+    print('creating DEBIAN/control from template')
     version = check_output(['./brickd', '--version']).replace('\n', '').replace(' ', '-')
-    red_brick = version.endswith('+redbrick')
+    installed_size = int(check_output(['du', '-s', '--exclude', 'dist/DEBIAN', 'dist']).split('\t')[0])
+    control_path = os.path.join(dist_path, 'DEBIAN', 'control')
+    specialize_template(control_path, control_path,
+                        {'<<VERSION>>': version,
+                         '<<ARCHITECTURE>>': architecture,
+                         '<<INSTALLED_SIZE>>': str(installed_size)})
 
-    dist_dir = os.path.join(os.getcwd(), 'dist')
-    if os.path.exists(dist_dir):
-        shutil.rmtree(dist_dir)
+    print('preparing files')
+    system('objcopy --strip-debug --strip-unneeded dist/usr/bin/brickd')
+    system('cp ../../changelog dist/usr/share/doc/brickd/')
 
-    build_data_dir = os.path.join(os.getcwd(), '..', 'build_data', 'linux')
-    shutil.copytree(build_data_dir, dist_dir)
-
-    bin_dir = os.path.join(os.getcwd(), 'dist', 'usr', 'bin')
-    os.makedirs(bin_dir)
-    shutil.copy('brickd', bin_dir)
-
-    control_name = os.path.join(os.getcwd(), 'dist', 'DEBIAN', 'control')
-    lines = []
-    for line in file(control_name, 'rb').readlines():
-        line = line.replace('<<BRICKD_VERSION>>', version)
-        line = line.replace('<<BRICKD_ARCHITECTURE>>', architecture)
-        lines.append(line)
-    file(control_name, 'wb').writelines(lines)
-
-    os.system('objcopy --strip-debug --strip-unneeded dist/usr/bin/brickd')
-
-    os.system('cp ../../changelog dist/usr/share/doc/brickd/')
-
-    if red_brick:
+    if version.endswith('+redbrick'):
         os.rename('dist/etc/brickd-red-brick.conf', 'dist/etc/brickd.conf')
         os.remove('dist/etc/brickd-default.conf')
     else:
         os.rename('dist/etc/brickd-default.conf', 'dist/etc/brickd.conf')
         os.remove('dist/etc/brickd-red-brick.conf')
 
-    os.system('gzip -9 dist/usr/share/doc/brickd/changelog')
-    os.system('gzip -9 dist/usr/share/man/man8/brickd.8')
-    os.system('gzip -9 dist/usr/share/man/man5/brickd.conf.5')
+    system('gzip -9 dist/usr/share/doc/brickd/changelog')
+    system('gzip -9 dist/usr/share/man/man8/brickd.8')
+    system('gzip -9 dist/usr/share/man/man5/brickd.conf.5')
 
-    os.system('cd dist; find usr -type f -exec md5sum {} \; >> DEBIAN/md5sums')
+    system('cd dist; find usr -type f -exec md5sum {} \; >> DEBIAN/md5sums')
 
-    os.system('chown -R root:root dist/usr')
-    os.system('chown -R root:root dist/etc')
-
-    os.system('find dist -type d -exec chmod 0755 {} \;')
+    system('find dist -type d -exec chmod 0755 {} \;')
 
     os.chmod('dist/DEBIAN/conffiles', 0644)
     os.chmod('dist/DEBIAN/md5sums', 0644)
@@ -204,27 +247,38 @@ def build_linux_pkg():
     os.chmod('dist/DEBIAN/prerm', 0755)
     os.chmod('dist/DEBIAN/postrm', 0755)
 
+    os.chmod('dist/usr/bin/brickd', 0755)
     os.chmod('dist/etc/brickd.conf', 0644)
     os.chmod('dist/etc/init.d/brickd', 0755)
     os.chmod('dist/etc/logrotate.d/brickd', 0644)
+    os.chmod('dist/usr/share/doc/brickd/changelog.gz', 0644)
     os.chmod('dist/usr/share/doc/brickd/copyright', 0644)
     os.chmod('dist/usr/share/man/man8/brickd.8.gz', 0644)
     os.chmod('dist/usr/share/man/man5/brickd.conf.5.gz', 0644)
     os.chmod('dist/usr/lib/pm-utils/sleep.d/42brickd', 0755)
 
-    print 'Packaging...'
-    os.system('dpkg -b dist brickd-' + version + '_' + architecture + '.deb')
+    print('changing owner to root')
+    system('sudo chown -R root:root dist')
 
-    print 'Checking...'
-    os.system('lintian --allow-root --pedantic brickd-' + version + '_' + architecture + '.deb')
+    print('building Debian package')
+    system('dpkg -b dist brickd-{0}_{1}.deb'.format(version, architecture))
 
-    os.system('make clean')
+    print('changing owner back to original user')
+    system('sudo chown -R `logname`:`logname` dist')
 
-    print 'Done'
+    print('checking Debian package')
+    system('lintian --pedantic brickd-{0}_{1}.deb'.format(version, architecture))
+
+    print('cleaning up')
+    system('make clean')
 
 
-# call python build_pkg.py to build the windows/linux/macosx package
-if __name__ == "__main__":
+# run 'python build_pkg.py' to build the windows/linux/macosx package
+if __name__ == '__main__':
+    if sys.platform != 'win32' and os.geteuid() == 0:
+        print('error: must not be started as root, exiting')
+        sys.exit(1)
+
     if sys.platform.startswith('linux'):
         build_linux_pkg()
     elif sys.platform == 'win32':
@@ -232,4 +286,7 @@ if __name__ == "__main__":
     elif sys.platform == 'darwin':
         build_macosx_pkg()
     else:
-        print "error: unsupported platform: " + sys.platform
+        print('error: unsupported platform: ' + sys.platform)
+        sys.exit(1)
+
+    print('done')

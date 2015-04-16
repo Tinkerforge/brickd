@@ -174,12 +174,6 @@ v2:
 unregister_done:
   DetailPrint "Uninstall Brick Daemon..."
 
-  Delete "$INSTDIR\drivers\*"
-
-  ; Remove files and uninstaller
-  Delete "$INSTDIR\*"
-
-  ; Remove directories used
   RMDir /R "$INSTDIR"
 
   ; Remove registry keys
@@ -215,10 +209,7 @@ Section "Install Brick Daemon ${BRICKD_VERSION}"
   DetailPrint "Install Brick Daemon..."
 
   SetOutPath "$INSTDIR"
-  File "..\*"
-
-  SetOutPath "$INSTDIR\drivers"
-  File /r "..\drivers\*"
+  File /r /x nsis ..\*
 
   ; Write the installation path into the registry
   WriteRegStr HKLM "Software\Tinkerforge\Brickd" "Install_Dir" "$INSTDIR"

@@ -1,10 +1,10 @@
 Package: brickd
-Version: <<BRICKD_VERSION>>
+Version: <<VERSION>>
 Section: electronics
 Maintainer: Olaf Lüke <olaf@tinkerforge.com>
-Architecture: <<BRICKD_ARCHITECTURE>>
+Architecture: <<ARCHITECTURE>>
 Priority: optional
-Installed-Size: 195
+Installed-Size: <<INSTALLED_SIZE>>
 Depends: libc6, libusb-1.0-0, libudev1 | libudev0, pm-utils
 Recommends: logrotate
 Description: Tinkerforge Brick Daemon

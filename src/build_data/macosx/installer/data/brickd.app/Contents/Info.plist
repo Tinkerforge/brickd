@@ -3,7 +3,7 @@
 <plist version="1.0">
 <dict>
   <key>CFBundleGetInfoString</key>
-  <string>Brick Daemon <<BRICKD_VERSION>></string>
+  <string>Brick Daemon <<VERSION>></string>
   <key>CFBundleExecutable</key>
   <string>brickd</string>
   <key>CFBundleIdentifier</key>
@@ -13,7 +13,7 @@
   <key>CFBundleDisplayName</key>
   <string>Brick Daemon</string>
   <key>CFBundleVersion</key>
-  <string><<BRICKD_VERSION>></string>
+  <string><<VERSION>></string>
   <key>CFBundleInfoDictionaryVersion</key>
   <string>6.0</string>
   <key>CFBundlePackageType</key>
