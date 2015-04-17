@@ -5,7 +5,7 @@ Copyright (C) 2012-2015 Matthias Bolte <matthias@tinkerforge.com>
 Copyright (C) 2011 Olaf Lüke <olaf@tinkerforge.com>
 Copyright (C) 2011 Bastian Nordmeyer <bastian@tinkerforge.com>
 
-brickd_pkg.py: Package builder for Brick Daemon
+build_pkg.py: Package builder for Brick Daemon
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -27,8 +27,6 @@ import sys
 import os
 import shutil
 import subprocess
-import re
-import glob
 
 
 def system(command):
