@@ -176,6 +176,10 @@ unregister_done:
 
   RMDir /R "$INSTDIR"
 
+  ; Remove menu shortcuts
+  Delete "$SMPROGRAMS\Tinkerforge\Brickd *.lnk"
+  RMDir "$SMPROGRAMS\Tinkerforge"
+
   ; Remove registry keys
   DeleteRegKey HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Tinkerforge" ; Remove old key too
   DeleteRegKey HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Tinkerforge Brickd"
@@ -223,6 +227,11 @@ Section "Install Brick Daemon ${BRICKD_VERSION}"
   WriteRegDWORD HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Tinkerforge Brickd" "NoModify" 1
   WriteRegDWORD HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Tinkerforge Brickd" "NoRepair" 1
   WriteUninstaller "uninstall.exe"
+
+  ; Create start menu shortcut
+  SetOutPath "$INSTDIR" ; set working directory for logviewer.exe
+  createDirectory "$SMPROGRAMS\Tinkerforge"
+  createShortCut "$SMPROGRAMS\Tinkerforge\Brickd ${BRICKD_VERSION} - Log Viewer.lnk" "$INSTDIR\logviewer.exe"
 
 SectionEnd
 
