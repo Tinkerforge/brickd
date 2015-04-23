@@ -221,7 +221,7 @@ def build_linux_pkg():
 
     print('preparing files')
     system('objcopy --strip-debug --strip-unneeded dist/usr/bin/brickd')
-    system('cp ../changelog dist/usr/share/doc/brickd/')
+    system('cp changelog dist/usr/share/doc/brickd/')
 
     if version.endswith('+redbrick'):
         os.rename('dist/etc/brickd-red-brick.conf', 'dist/etc/brickd.conf')
