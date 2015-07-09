@@ -26,32 +26,44 @@
 #include <daemonlib/utils.h>
 
 int test1(void) {
-	if (!string_ends_with("", "")) {
+	if (!string_ends_with("", "", true)) {
 		printf("test1: 1 failed\n");
 
 		return -1;
 	}
 
-	if (!string_ends_with("foobar", "")) {
+	if (!string_ends_with("foobar", "", true)) {
 		printf("test1: 2 failed\n");
 
 		return -1;
 	}
 
-	if (string_ends_with("", "foobar")) {
+	if (string_ends_with("", "foobar", true)) {
 		printf("test1: 3 failed\n");
 
 		return -1;
 	}
 
-	if (string_ends_with("foo", "foobar")) {
+	if (string_ends_with("foo", "foobar", true)) {
 		printf("test1: 4 failed\n");
 
 		return -1;
 	}
 
-	if (!string_ends_with("blubb foobar", "foobar")) {
+	if (!string_ends_with("blubb foobar", "foobar", true)) {
 		printf("test1: 5 failed\n");
+
+		return -1;
+	}
+
+	if (!string_ends_with("blubb foobAr", "foobar", false)) {
+		printf("test1: 6 failed\n");
+
+		return -1;
+	}
+
+	if (string_ends_with("blubb foobAr", "foobar", true)) {
+		printf("test1: 7 failed\n");
 
 		return -1;
 	}
