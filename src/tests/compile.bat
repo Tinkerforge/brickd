@@ -137,5 +137,18 @@ rem @set LD=link /nologo /debug
 @del *.obj *.res *.bin *.exp *.manifest
 
 
+%CC% string_test.c^
+ ..\brickd\fixes_msvc.c^
+ ..\daemonlib\base58.c^
+ ..\daemonlib\utils.c
+
+%LD% /out:string_test.exe *.obj
+
+@if exist string_test.exe.manifest^
+ %MT% /manifest string_test.exe.manifest -outputresource:string_test.exe
+
+@del *.obj *.res *.bin *.exp *.manifest
+
+
 :done
 @endlocal
