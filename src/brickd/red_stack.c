@@ -154,6 +154,7 @@ typedef struct {
 	GPIOPin slave_select_pin;
 	Queue packet_to_spi_queue;
 	Mutex packet_queue_mutex;
+	bool next_packet_empty;
 } REDStackSlave;
 
 typedef struct {
@@ -330,6 +331,9 @@ static int red_stack_spi_transceive_message(REDStackPacket *packet_send, Packet 
 		// Overwrite current return status with error,
 		// it seems ioctl itself didn't work.
 		retval = RED_STACK_TRANSCEIVE_RESULT_SEND_ERROR | RED_STACK_TRANSCEIVE_RESULT_READ_ERROR;
+		if(packet_send == NULL) {
+			slave->next_packet_empty = true;
+		}
 		log_error("ioctl failed: %s (%d)", get_errno_name(errno), errno);
 		goto ret;
 	}
@@ -340,6 +344,9 @@ static int red_stack_spi_transceive_message(REDStackPacket *packet_send, Packet 
 		// Overwrite current return status with error,
 		// it seems ioctl itself didn't work.
 		retval = RED_STACK_TRANSCEIVE_RESULT_SEND_ERROR | RED_STACK_TRANSCEIVE_RESULT_READ_ERROR;
+		if(packet_send == NULL) {
+			slave->next_packet_empty = true;
+		}
 		log_error("ioctl has unexpected result (actual: %d != expected: %d)",
 		          length_send, RED_STACK_SPI_PACKET_SIZE);
 		goto ret;
@@ -351,6 +358,9 @@ static int red_stack_spi_transceive_message(REDStackPacket *packet_send, Packet 
 		// log_error("Received packet without proper preamble (actual: %d != expected: %d)",
 		//          rx[RED_STACK_SPI_PREAMBLE], RED_STACK_SPI_PREAMBLE_VALUE);
 		retval = (retval & (~RED_STACK_TRANSCEIVE_RESULT_MASK_READ)) | RED_STACK_TRANSCEIVE_RESULT_READ_ERROR;
+		if(packet_send == NULL) {
+			slave->next_packet_empty = true;
+		}
 		goto ret;
 	}
 
@@ -362,6 +372,9 @@ static int red_stack_spi_transceive_message(REDStackPacket *packet_send, Packet 
 	     (length > RED_STACK_SPI_PACKET_SIZE))) {
 		log_error("Received packet with malformed length: %d", length);
 		retval = (retval & (~RED_STACK_TRANSCEIVE_RESULT_MASK_READ)) | RED_STACK_TRANSCEIVE_RESULT_READ_ERROR;
+		if(packet_send == NULL) {
+			slave->next_packet_empty = true;
+		}
 		goto ret;
 	}
 
@@ -372,6 +385,9 @@ static int red_stack_spi_transceive_message(REDStackPacket *packet_send, Packet 
 		log_error("Received packet with wrong checksum (actual: %x != expected: %x)",
 		          checksum, rx[RED_STACK_SPI_CHECKSUM(length)]);
 		retval = (retval & (~RED_STACK_TRANSCEIVE_RESULT_MASK_READ)) | RED_STACK_TRANSCEIVE_RESULT_READ_ERROR;
+		if(packet_send == NULL) {
+			slave->next_packet_empty = true;
+		}
 		goto ret;
 	}
 
@@ -551,6 +567,7 @@ static void red_stack_spi_handle_reset(void) {
 		_red_stack.slaves[slave].status = RED_STACK_SLAVE_STATUS_ABSENT;
 		_red_stack.slaves[slave].sequence_number_master = 1;
 		_red_stack.slaves[slave].sequence_number_slave = 0;
+		_red_stack.slaves[slave].next_packet_empty = false;
 
 		// Unfortunately we have to discard all of the queued packets.
 		// we can't be sure that the packets are for the correct slave after a reset.
@@ -566,7 +583,7 @@ static void red_stack_spi_handle_reset(void) {
 // data. If there is data to be send the slave that ought to receive
 // the data gets priority. This can greatly reduce latency in a big stack.
 static void red_stack_spi_thread(void *opaque) {
-	REDStackPacket *packet_to_spi;
+	REDStackPacket *packet_to_spi = NULL;
 	uint8_t stack_address_cycle;
 	int ret;
 
@@ -596,9 +613,14 @@ static void red_stack_spi_thread(void *opaque) {
 			// send over SPI. It is filled through from the main brickd
 			// event thread, so we have to make sure that there is not race
 			// condition.
-			mutex_lock(&(slave->packet_queue_mutex));
-			packet_to_spi = queue_peek(&slave->packet_to_spi_queue);
-			mutex_unlock(&(slave->packet_queue_mutex));
+			if(slave->next_packet_empty) {
+				slave->next_packet_empty = false;
+				packet_to_spi = NULL;
+			} else {
+				mutex_lock(&(slave->packet_queue_mutex));
+				packet_to_spi = queue_peek(&slave->packet_to_spi_queue);
+				mutex_unlock(&(slave->packet_queue_mutex));
+			}
 
 			stack_address_cycle++;
 
