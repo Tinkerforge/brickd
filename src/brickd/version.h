@@ -42,7 +42,7 @@
 #define VERSION_RELEASE 1
 
 #ifdef BRICKD_WITH_RED_BRICK
-	#define VERSION_SUFFIX_STRING "~hf1+redbrick"
+	#define VERSION_SUFFIX_STRING "~hf2+redbrick"
 #else
 	#define VERSION_SUFFIX_STRING ""
 #endif
