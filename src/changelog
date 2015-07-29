@@ -1,99 +1,163 @@
-1.0.0: Initial version
-1.0.1: Add timeout for message callbacks
-1.0.2: Don't wait 100ms if no callback available
-       Add Mac OS support
-1.0.3: Remove global reactor import for Mac OS
-1.0.4: Remove double fork completely for Mac OS
-1.0.5: Update to newest python-libusb1 version (thanks to vpelletier)
-       Remove possible memory leak
-1.0.6: Remove faulty libusb locking
-1.0.7: Fix handling of incomplete packets
-1.0.8: Break a reference cycle between USBDevice and USBTransfer objects
-       Add date to log output
-       Fix stack ID routing for enumerate with multiple connected stacks
-       Add --version commandline argument
-1.0.9: Reduce Windows and Mac OS installer size
-       Avoid race condition when enumerating USB devices on Linux
-       Use more expressive log file name and correct line endings on Windows
-       Don't cancel pending USB transfers to avoid segfault in libusb on USB hotunplug on Linux
-       Update libusb to make USB 3.0 work on Windows
-       Increase USB hotplug/unplug stability by using a libusb context per device
-1.0.10: Enable non-root usage on Linux
-        Avoid potential data corruption in python-libusb1
-1.0.11: Don't broadcast GetStackID responses, avoids confusing clients
-        Update libusb-1.0.dll to support the 2nd generation of Renesas USB 3.0 controllers
-        Lock the PID file on Linux to prohibit starting multiple instances
-2.0.0: Complete rewrite in C for protocol 2.0
-2.0.1: Add socket peer name to related log messages
-       Don't accept an empty string as valid integer value in config file
-       Reject 0 as port number in config file
-       Report config errors to log file
-2.0.2: Make errors during client peer name lookup non-fatal
-       Support running as normal console application on Windows
-       Support MinGW as compiler on Windows
-       Support running as non-root on Linux
-       Improve --help output
-2.0.3: Fix USB unplug detection on Windows
-2.0.4: NSIS installer automatically installs/updates the WinUSB driver on Windows < 8
-       Improve callback related log messages
-       Fix wrong log level of startup greeting on Windows
-       Drop incoming disconnect probe requests
-       Fix packet buffer handling in unlikely error case
-2.0.5: Avoid non-portable usage of bit fields
-       Handle big endian byte order correctly
-       Show UIDs in log messages in Base58
-       Debian i386 package now really compiled for i386 instead of i686
-2.0.6: Workaround struct packing bug in MinGW GCC 4.7
-       Add event log viewer tool for Windows
-       Prohibit starting a second instance on Windows
-       Check for USB device additions/removals changes on SIGUSR1
-       Ignore SIGPIPE and handle socket write errors properly
-2.0.7: Add OpenWrt package Makefile (thanks to bjoern-r)
-       Debian package now works with libudev0 and libudev1
-       Use GetSystemTimePreciseAsFileTime() on Windows 8 for more precise log timestamps
-       Fix race between socket select thread and USB poll thread on Windows
-       Fix text of some USB related error messages
-       Don't set SO_REUSEADDR for server socket on Windows
-2.0.8: Fix dynamic loading of libudev on Linux
-2.0.9: Use libusb hotplug support if available on Linux
-       Update bundled libusb to 1.0.17 on Mac OS X, libusb hotplug replaces custom IOKit code
-       Update bundled libusb to 1.0.17 on Windows, adds support for VIA VL805 USB 3.0 host controllers
-       Add --libusb-debug option to enable libusb debug output
-       Report too long lines in config file as errors instead of silently ignoring them
-       Add IPv6 support with configurable dual-stack handling
-       Don't interfere with Apple's USB Ethernet Adapter on Mac OS X
-       Sign brickd.app and installer on Mac OS X to silence the Gate Keeper
-       Linux packages build on older Debian/Ubuntu release to lower required glibc version
-2.0.10: Reduce log level of messages about USB write queue usage, packet burst are expected for the LED Strip Bricklet
-        Handle USB transfers correctly that complete during usb_stack_destroy()
-        Add Queue type and use if for the USB stack's write queue instead of Array type
-2.1.0: Add authentication support (disabled by default)
-       Add WebSocket support (port 4280, disabled by default)
-       Make USB device lookup more robust in case of some USB driver bugs on Windows
-       Update bundled libusb to 1.0.18 on Mac OS X, fixes a SIGFPE bug
-       Update bundled libusb to 1.0.18 on Windows, adds support for Intel and AMD USB 3.0 root hubs
-       Improve handling of request packets with invalid length in the header
-       Handle rare case of socket_receive failing with EWOULDBLOCK
-       Don't lose connection to USB devices on host-resume-from-suspend on Linux and Mac OS X (requires pm-utils on Linux)
-       Increase upper limits for pending requests and USB write queues
-       Add socket_send queue for clients, enqueue packet instead of disconnecting client if socket_send would block
-       Only dispatch response to the first client with a matching pending request, fixes response duplication
-2.1.1: Add live debug log view to logviewer.exe on Windows
-       Include signed version of the Brick bootloader driver for Windows
-       Workaround race condition in USB hotplug handling on Linux
-       Fix crash if client with pending responses disconnects
-       Fix possible mismatch while handling responses for identical requests
-       Avoid broadcasting unexpected responses in most cases
-2.2.0: Add RED Brick support
-       Colorized log messages
-       Detect and drop pending requests that will never get a response
-       Windows installer and drivers are signed now
-       Mac OS X installer signed on Mac OS X 10.10 to make it pass the Gatekeeper again
-       Enable logrotate for brickd.log on Linux
-       Remove all categories from logging system
-       Handle partial writes if outgoing socket buffer is almost full
-2.2.1: Improve RED Brick hotplug detection and error handling on Windows
-       Add debug filter to fine-tune debug output
-       Wait for WebSocket handshake completion before sending data
-       Use redapid version as RED Brick firmware version
-       Don't send packet twice after partial write
+1.0.0:
+- Initial version
+
+1.0.1:
+- Add timeout for message callbacks
+
+1.0.2:
+- Don't wait 100ms if no callback available
+- Add Mac OS support
+
+1.0.3:
+- Remove global reactor import for Mac OS
+
+1.0.4:
+- Remove double fork completely for Mac OS
+
+1.0.5:
+- Update to newest python-libusb1 version (thanks to vpelletier)
+- Remove possible memory leak
+
+1.0.6:
+- Remove faulty libusb locking
+
+1.0.7:
+- Fix handling of incomplete packets
+
+1.0.8:
+- Break a reference cycle between USBDevice and USBTransfer objects
+- Add date to log output
+- Fix stack ID routing for enumerate with multiple connected stacks
+- Add --version commandline argument
+
+1.0.9:
+- Reduce Windows and Mac OS installer size
+- Avoid race condition when enumerating USB devices on Linux
+- Use more expressive log file name and correct line endings on Windows
+- Don't cancel pending USB transfers to avoid segfault in libusb on USB
+  hotunplug on Linux
+- Update libusb to make USB 3.0 work on Windows
+- Increase USB hotplug/unplug stability by using a libusb context per device
+
+1.0.10:
+- Enable non-root usage on Linux
+- Avoid potential data corruption in python-libusb1
+
+1.0.11:
+- Don't broadcast GetStackID responses, avoids confusing clients
+- Update libusb-1.0.dll to support the 2nd generation of Renesas USB 3.0
+  controllers
+- Lock the PID file on Linux to prohibit starting multiple instances
+
+2.0.0:
+- Complete rewrite in C for protocol 2.0
+
+2.0.1:
+- Add socket peer name to related log messages
+- Don't accept an empty string as valid integer value in config file
+- Reject 0 as port number in config file
+- Report config errors to log file
+
+2.0.2:
+- Make errors during client peer name lookup non-fatal
+- Support running as normal console application on Windows
+- Support MinGW as compiler on Windows
+- Support running as non-root on Linux
+- Improve --help output
+
+2.0.3:
+- Fix USB unplug detection on Windows
+
+2.0.4:
+- NSIS installer automatically installs/updates the WinUSB driver on Windows < 8
+- Improve callback related log messages
+- Fix wrong log level of startup greeting on Windows
+- Drop incoming disconnect probe requests
+- Fix packet buffer handling in unlikely error case
+
+2.0.5:
+- Avoid non-portable usage of bit fields
+- Handle big endian byte order correctly
+- Show UIDs in log messages in Base58
+- Debian i386 package now really compiled for i386 instead of i686
+
+2.0.6:
+- Workaround struct packing bug in MinGW GCC 4.7
+- Add event log viewer tool for Windows
+- Prohibit starting a second instance on Windows
+- Check for USB device additions/removals changes on SIGUSR1
+- Ignore SIGPIPE and handle socket write errors properly
+
+2.0.7:
+- Add OpenWrt package Makefile (thanks to bjoern-r)
+- Debian package now works with libudev0 and libudev1
+- Use GetSystemTimePreciseAsFileTime() on Windows 8 for more precise log
+  timestamps
+- Fix race between socket select thread and USB poll thread on Windows
+- Fix text of some USB related error messages
+- Don't set SO_REUSEADDR for server socket on Windows
+
+2.0.8:
+- Fix dynamic loading of libudev on Linux
+
+2.0.9:
+- Use libusb hotplug support if available on Linux
+- Update bundled libusb to 1.0.17 on Mac OS X, libusb hotplug replaces custom
+  IOKit code
+- Update bundled libusb to 1.0.17 on Windows, adds support for VIA VL805
+  USB 3.0 host controllers
+- Add --libusb-debug option to enable libusb debug output
+- Report too long lines in config file as errors instead of silently ignoring them
+- Add IPv6 support with configurable dual-stack handling
+- Don't interfere with Apple's USB Ethernet Adapter on Mac OS X
+- Sign brickd.app and installer on Mac OS X to silence the Gate Keeper
+- Linux packages build on older Debian/Ubuntu release to lower required glibc version
+
+2.0.10:
+- Reduce log level of messages about USB write queue usage, packet burst are
+  expected for the LED Strip Bricklet
+- Handle USB transfers correctly that complete during usb_stack_destroy()
+- Add Queue type and use if for the USB stack's write queue instead of Array
+  type
+
+2.1.0:
+- Add authentication support (disabled by default)
+- Add WebSocket support (port 4280, disabled by default)
+- Make USB device lookup more robust in case of some USB driver bugs on Windows
+- Update bundled libusb to 1.0.18 on Mac OS X, fixes a SIGFPE bug
+- Update bundled libusb to 1.0.18 on Windows, adds support for Intel and AMD
+  USB 3.0 root hubs
+- Improve handling of request packets with invalid length in the header
+- Handle rare case of socket_receive failing with EWOULDBLOCK
+- Don't lose connection to USB devices on host-resume-from-suspend on Linux and
+  Mac OS X (requires pm-utils on Linux)
+- Increase upper limits for pending requests and USB write queues
+- Add socket_send queue for clients, enqueue packet instead of disconnecting
+  client if socket_send would block
+- Only dispatch response to the first client with a matching pending request,
+  fixes response duplication
+
+2.1.1:
+- Add live debug log view to logviewer.exe on Windows
+- Include signed version of the Brick bootloader driver for Windows
+- Workaround race condition in USB hotplug handling on Linux
+- Fix crash if client with pending responses disconnects
+- Fix possible mismatch while handling responses for identical requests
+- Avoid broadcasting unexpected responses in most cases
+
+2.2.0:
+- Add RED Brick support
+- Colorized log messages
+- Detect and drop pending requests that will never get a response
+- Windows installer and drivers are signed now
+- Mac OS X installer signed on Mac OS X 10.10 to pass the Gatekeeper again
+- Enable logrotate for brickd.log on Linux
+- Remove all categories from logging system
+- Handle partial writes if outgoing socket buffer is almost full
+
+2.2.1:
+- Improve RED Brick hotplug detection and error handling on Windows
+- Add debug filter to fine-tune debug output
+- Wait for WebSocket handshake completion before sending data
+- Use redapid version as RED Brick firmware version
+- Don't send packet twice after partial write
