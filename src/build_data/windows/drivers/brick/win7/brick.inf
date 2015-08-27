@@ -1,28 +1,28 @@
 ; brick.inf
-; Copyright (c) 2010 libusb (GNU LGPL)
+; Copyright (c) 2010-2014 libusb (GNU LGPL)
 
 [Strings]
 DeviceName  = "Tinkerforge Brick"
-VendorName  = "Tinkerforge GmbH"
 DisplayName = "Brick Driver"
+VendorName  = "Tinkerforge GmbH"
 SourceName  = "Tinkerforge Brick Install Disk"
 DeviceID    = "VID_16D0&PID_063D"
 DeviceGUID  = "{870013DD-FB1D-4BD7-A96C-1F0B7D31AF41}"
 
 [Version]
 Signature                = "$Windows NT$"
-Class                    = "libusb (WinUSB) devices"
-ClassGuid                = {78a1c341-4539-11d3-b88d-00c04fad5171}
-Provider                 = "libusb.org"
+Class                    = "Universal Serial Bus devices"
+ClassGuid                = {88bae032-5a81-49f0-bc3d-a4ff138216d6}
+Provider                 = "libusb.info"
 CatalogFile              = brick.cat
-DriverVer                = 01/04/2013,6.1.7600.16385
+DriverVer                = 06/18/2013, 6.1.7600.16385
 DriverPackageDisplayName = %DisplayName%
 
 [ClassInstall32]
 Addreg = WinUSBDeviceClassReg
 
 [WinUSBDeviceClassReg]
-HKR,,,0,"libusb (WinUSB) devices"
+HKR,,,0,"Universal Serial Bus devices"
 HKR,,Icon,,-20
 
 [Manufacturer]
@@ -43,7 +43,7 @@ Include    = winusb.inf
 AddService = WinUSB,0x00000002,WinUSB_ServiceInstall
 
 [WinUSB_ServiceInstall]
-DisplayName   = "WinUSB - Kernel Driver 07/14/2009 6.1.7600.16385"
+DisplayName   = "WinUSB - Kernel Driver 06/18/2013 6.1.7600.16385"
 ServiceType   = 1
 StartType     = 3
 ErrorControl  = 1
@@ -53,12 +53,15 @@ ServiceBinary = %12%\WinUSB.sys
 KmdfService = WINUSB, WinUsb_Install
 
 [WinUSB_Install]
-KmdfLibraryVersion = 1.9
+KmdfLibraryVersion = 1.11
 
 [USB_Install.HW]
-AddReg = Dev_AddReg
+AddReg = AddDeviceInterfaceGUID
 
-[Dev_AddReg]
+[NoDeviceInterfaceGUID]
+; Avoids adding a DeviceInterfaceGUID for generic driver
+
+[AddDeviceInterfaceGUID]
 HKR,,DeviceInterfaceGUIDs,0x10000,%DeviceGUID%
 
 [USB_Install.CoInstallers]
@@ -66,11 +69,11 @@ AddReg    = CoInstallers_AddReg
 CopyFiles = CoInstallers_CopyFiles
 
 [CoInstallers_AddReg]
-HKR,,CoInstallers32,0x00010000,"WdfCoInstaller01009.dll,WdfCoInstaller","WinUSBCoInstaller2.dll"
+HKR,,CoInstallers32,0x00010000,"WdfCoInstaller01011.dll,WdfCoInstaller","WinUSBCoInstaller2.dll"
 
 [CoInstallers_CopyFiles]
 WinUSBCoInstaller2.dll
-WdfCoInstaller01009.dll
+WdfCoInstaller01011.dll
 
 [DestinationDirs]
 CoInstallers_CopyFiles = 11
@@ -80,8 +83,8 @@ CoInstallers_CopyFiles = 11
 
 [SourceDisksFiles.x86]
 WinUSBCoInstaller2.dll  = 1,x86
-WdfCoInstaller01009.dll = 1,x86
+WdfCoInstaller01011.dll = 1,x86
 
 [SourceDisksFiles.amd64]
 WinUSBCoInstaller2.dll  = 1,amd64
-WdfCoInstaller01009.dll = 1,amd64
+WdfCoInstaller01011.dll = 1,amd64

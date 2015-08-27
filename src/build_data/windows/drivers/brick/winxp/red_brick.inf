@@ -1,28 +1,28 @@
 ; red_brick.inf
-; Copyright (c) 2010 libusb (GNU LGPL)
+; Copyright (c) 2010-2014 libusb (GNU LGPL)
 
 [Strings]
 DeviceName  = "Tinkerforge RED Brick"
-VendorName  = "Tinkerforge GmbH"
 DisplayName = "RED Brick Driver"
+VendorName  = "Tinkerforge GmbH"
 SourceName  = "Tinkerforge RED Brick Install Disk"
 DeviceID    = "VID_16D0&PID_09E5&MI_00"
 DeviceGUID  = "{9536B3B1-6077-4A3B-9BAC-7C2CFA8A2BF3}"
 
 [Version]
 Signature                = "$Windows NT$"
-Class                    = "libusb (WinUSB) devices"
-ClassGuid                = {78a1c341-4539-11d3-b88d-00c04fad5171}
-Provider                 = "libusb.org"
+Class                    = "Universal Serial Bus devices"
+ClassGuid                = {88bae032-5a81-49f0-bc3d-a4ff138216d6}
+Provider                 = "libusb.info"
 CatalogFile              = red_brick.cat
-DriverVer                = 01/04/2013,6.1.7600.16385
+DriverVer                = 06/18/2013, 6.1.7600.16385
 DriverPackageDisplayName = %DisplayName%
 
 [ClassInstall32]
 Addreg = WinUSBDeviceClassReg
 
 [WinUSBDeviceClassReg]
-HKR,,,0,"libusb (WinUSB) devices"
+HKR,,,0,"Universal Serial Bus devices"
 HKR,,Icon,,-20
 
 [Manufacturer]
@@ -43,7 +43,7 @@ Include    = winusb.inf
 AddService = WinUSB,0x00000002,WinUSB_ServiceInstall
 
 [WinUSB_ServiceInstall]
-DisplayName   = "WinUSB - Kernel Driver 07/14/2009 6.1.7600.16385"
+DisplayName   = "WinUSB - Kernel Driver 06/18/2013 6.1.7600.16385"
 ServiceType   = 1
 StartType     = 3
 ErrorControl  = 1
@@ -56,9 +56,9 @@ KmdfService = WINUSB, WinUsb_Install
 KmdfLibraryVersion = 1.9
 
 [USB_Install.HW]
-AddReg = Dev_AddReg
+AddReg = AddDeviceInterfaceGUID
 
-[Dev_AddReg]
+[AddDeviceInterfaceGUID]
 HKR,,DeviceInterfaceGUIDs,0x10000,%DeviceGUID%
 
 [USB_Install.CoInstallers]
