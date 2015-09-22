@@ -148,11 +148,8 @@ int main(int argc, char **argv) {
 		goto error_pid_file;
 	}
 
-	if (daemon) {
-		log_info("Brick Daemon %s started (daemonized)", VERSION_STRING);
-	} else {
-		log_info("Brick Daemon %s started", VERSION_STRING);
-	}
+	log_info("Brick Daemon %s started (pid: %u, daemonized: %d)",
+	         VERSION_STRING, getpid(), daemon ? 1 : 0);
 
 	if (debug_filter != NULL) {
 		log_enable_debug_override(debug_filter);
