@@ -161,3 +161,12 @@
 - Wait for WebSocket handshake completion before sending data
 - Use redapid version as RED Brick firmware version
 - Don't send packet twice after partial write
+
+2.2.2:
+- Use uname to get RED Brick kernel release for loading Ethernet Extension
+  kernel driver (hotfix-1: already released as part of RED Brick Image 1.6)
+- Improve RED Brick SPI stack protocol error recovery (hotfix-2: already
+  released as part of RED Brick Image 1.7)
+- Add start menu link for logviewer.exe on Windows
+- Adapt to file system protection changes in Mac OS X 10.11
+- Update libusb WDF co-installer for Windows Vista and 7

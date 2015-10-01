@@ -39,10 +39,10 @@
 
 #define VERSION_MAJOR 2
 #define VERSION_MINOR 2
-#define VERSION_RELEASE 1
+#define VERSION_RELEASE 2
 
 #ifdef BRICKD_WITH_RED_BRICK
-	#define VERSION_SUFFIX_STRING "~hf2+redbrick"
+	#define VERSION_SUFFIX_STRING "+redbrick"
 #else
 	#define VERSION_SUFFIX_STRING ""
 #endif
