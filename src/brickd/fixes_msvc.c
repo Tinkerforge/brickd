@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2012-2014 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2012-2014, 2016 Matthias Bolte <matthias@tinkerforge.com>
  *
  * fixes_msvc.c: Fixes for problems with the MSVC/WDK headers and libs
  *
@@ -32,20 +32,30 @@
 #include "fixes_msvc.h"
 
 typedef void (WINAPI *GETSYSTEMTIMEPRECISEASFILETIME)(LPFILETIME);
-typedef int (*PUTENV)(const char *);
 typedef errno_t (*PUTENV_S)(const char *, const char *);
+typedef int (*PUTENV)(const char *);
 
 static GETSYSTEMTIMEPRECISEASFILETIME ptr_GetSystemTimePreciseAsFileTime = NULL;
 static PUTENV_S ptr_putenv_s = NULL;
 static PUTENV ptr_putenv = NULL;
 
 void fixes_init(void) {
+#ifndef BRICKD_UWP_BUILD
 	HMODULE hmodule = NULL;
+#endif
 
+	// GetSystemTimePreciseAsFileTime was added in Windows 8. the Universal
+	// Windows Platform (UWP) build implies Windows 10. for non-UWP builds just
+	// try loading the function at runtime.
+#ifdef BRICKD_UWP_BUILD
+	ptr_GetSystemTimePreciseAsFileTime = GetSystemTimePreciseAsFileTime;
+#else
 	ptr_GetSystemTimePreciseAsFileTime =
 	  (GETSYSTEMTIMEPRECISEASFILETIME)GetProcAddress(GetModuleHandleA("kernel32"),
 	                                                 "GetSystemTimePreciseAsFileTime");
+#endif
 
+#ifndef BRICKD_UWP_BUILD // UWP doesn't support environment variables
 	// _putenv_s is not avialable on Windows XP by default, so find _putenv_s
 	// and _putenv at runtime. as brickd might not be linked to msvcrt.dll
 	// (could be msvcrtXY.dll) GetModuleHandle cannot be used with "msvcrt"
@@ -60,6 +70,7 @@ void fixes_init(void) {
 
 	ptr_putenv_s = (PUTENV_S)GetProcAddress(hmodule, "_putenv_s");
 	ptr_putenv = (PUTENV)GetProcAddress(hmodule, "_putenv");
+#endif
 }
 
 #ifdef BRICKD_WDK_BUILD
