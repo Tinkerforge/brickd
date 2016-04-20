@@ -470,6 +470,13 @@ int usb_get_interface_endpoints(libusb_device_handle *device_handle, int interfa
 		return -1;
 	}
 
+	if (config_descriptor->bNumInterfaces == 0) {
+		log_error("Config descriptor for USB device (bus: %u, device: %u) contains no interfaces",
+		          bus_number, device_address);
+
+		return -1;
+	}
+
 	for (i = 0; i < config_descriptor->bNumInterfaces; ++i) {
 		if (config_descriptor->interface[i].num_altsetting < 1) {
 			log_debug("Interface at index %d of USB device (bus: %u, device: %u) has no alt setting, ignoring it",
