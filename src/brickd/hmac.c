@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2012-2014 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2012-2014, 2016 Matthias Bolte <matthias@tinkerforge.com>
  * Copyright (C) 2014 Olaf Lüke <olaf@tinkerforge.com>
  *
  * hmac.c: HMAC functions
@@ -66,7 +66,12 @@ uint32_t get_random_uint32(void) {
 	struct timeval tv;
 	uint32_t seconds;
 	uint32_t microseconds;
-#ifdef _WIN32
+#ifdef BRICKD_UWP_BUILD
+	if (BCryptGenRandom(NULL, (UCHAR *)&r, sizeof(r),
+	                    BCRYPT_USE_SYSTEM_PREFERRED_RNG) != /*STATUS_SUCCESS*/0) {
+		goto fallback;
+	}
+#elif defined(_WIN32)
 	HCRYPTPROV hprovider;
 
 	if (!CryptAcquireContextA(&hprovider, NULL, NULL, PROV_RSA_FULL,
