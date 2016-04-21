@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2013-2014 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2013-2014, 2016 Matthias Bolte <matthias@tinkerforge.com>
  *
  * usb_stack.h: USB stack specific functions
  *
@@ -45,9 +45,9 @@ typedef struct {
 	Queue write_queue;
 	uint32_t dropped_requests;
 	bool connected;
-	bool active; // only active USB stacks can handle USB transfers
 	bool expecting_short_A1_response;
 	bool expecting_read_stall_before_removal;
+	bool expecting_disconnect;
 } USBStack;
 
 int usb_stack_create(USBStack *usb_stack, uint8_t bus_number, uint8_t device_address);

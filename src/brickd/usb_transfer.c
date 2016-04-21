@@ -70,12 +70,16 @@ static void LIBUSB_CALL usb_transfer_wrapper(struct libusb_transfer *handle) {
 	usb_transfer->completed = true;
 
 	if (handle->status == LIBUSB_TRANSFER_CANCELLED) {
-		log_debug("%s transfer %p (%p) for %s was cancelled",
+		usb_transfer->usb_stack->expecting_disconnect = true;
+
+		log_debug("%s transfer %p (%p) for %s was cancelled, marking device as about to be removed",
 		          usb_transfer_get_type_name(usb_transfer->type, true),
 		          usb_transfer, handle, usb_transfer->usb_stack->base.name);
 
 		return;
 	} else if (handle->status == LIBUSB_TRANSFER_NO_DEVICE) {
+		usb_transfer->usb_stack->expecting_disconnect = true;
+
 		log_debug("%s transfer %p (%p) for %s was aborted, device got disconnected",
 		          usb_transfer_get_type_name(usb_transfer->type, true),
 		          usb_transfer, handle, usb_transfer->usb_stack->base.name);
@@ -90,10 +94,10 @@ static void LIBUSB_CALL usb_transfer_wrapper(struct libusb_transfer *handle) {
 		// condition here and deactivating the device
 		if (usb_transfer->usb_stack->expecting_read_stall_before_removal &&
 		    usb_transfer->type == USB_TRANSFER_TYPE_READ) {
-			usb_transfer->usb_stack->active = false;
 			usb_transfer->usb_stack->expecting_read_stall_before_removal = false;
+			usb_transfer->usb_stack->expecting_disconnect = true;
 
-			log_debug("%s transfer %p (%p) for %s got stalled as expected before device removal, deactivating device",
+			log_debug("%s transfer %p (%p) for %s got stalled as expected before device removal, marking device as about to be removed",
 			          usb_transfer_get_type_name(usb_transfer->type, true),
 			          usb_transfer, handle, usb_transfer->usb_stack->base.name);
 		} else {
@@ -116,11 +120,12 @@ static void LIBUSB_CALL usb_transfer_wrapper(struct libusb_transfer *handle) {
 		                 usb_transfer, handle, usb_transfer->usb_stack->base.name,
 		                 usb_transfer->cancelled
 		                 ? ", but it was cancelled in the meantime"
-		                 : (!usb_transfer->usb_stack->active
-		                    ? ", but the corresponding USB device is not active anymore"
+		                 : (usb_transfer->usb_stack->expecting_disconnect
+		                    ? ", but the corresponding USB device is about to be removed"
 		                    : ""));
 
-		if (usb_transfer->cancelled || !usb_transfer->usb_stack->active) {
+		if (usb_transfer->cancelled ||
+		    usb_transfer->usb_stack->expecting_disconnect) {
 			return;
 		}
 
@@ -129,8 +134,9 @@ static void LIBUSB_CALL usb_transfer_wrapper(struct libusb_transfer *handle) {
 		}
 	}
 
-	if (usb_transfer->type == USB_TRANSFER_TYPE_READ && !usb_transfer->cancelled &&
-	    usb_transfer->usb_stack->active) {
+	if (usb_transfer->type == USB_TRANSFER_TYPE_READ &&
+	    !usb_transfer->cancelled &&
+	    !usb_transfer->usb_stack->expecting_disconnect) {
 		usb_transfer_submit(usb_transfer);
 	}
 }
@@ -195,7 +201,10 @@ void usb_transfer_destroy(USBTransfer *usb_transfer) {
 				rc = libusb_handle_events_timeout(usb_transfer->usb_stack->context, &tv);
 
 				if (rc < 0) {
-					log_error("Could not handle USB events during transfer cancellation: %s (%d)",
+					log_error("Could not handle USB events during %s transfer %p (%p) cancellation for %s: %s (%d)",
+					          usb_transfer_get_type_name(usb_transfer->type, false),
+					          usb_transfer, usb_transfer->handle,
+					          usb_transfer->usb_stack->base.name,
 					          usb_get_error_name(rc), rc);
 				}
 

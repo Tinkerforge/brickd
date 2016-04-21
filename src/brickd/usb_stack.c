@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2012-2014 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2012-2014, 2016 Matthias Bolte <matthias@tinkerforge.com>
  *
  * usb_stack.c: USB stack specific functions
  *
@@ -132,7 +132,7 @@ static void usb_stack_write_callback(USBTransfer *usb_transfer) {
 	Packet *request;
 	char packet_signature[PACKET_MAX_SIGNATURE_LENGTH];
 
-	if (usb_transfer->usb_stack->active &&
+	if (!usb_transfer->usb_stack->expecting_disconnect &&
 	    usb_transfer->usb_stack->write_queue.count > 0) {
 		request = queue_peek(&usb_transfer->usb_stack->write_queue);
 
@@ -167,8 +167,8 @@ static int usb_stack_dispatch_request(Stack *stack, Packet *request,
 
 	(void)recipient;
 
-	if (!usb_stack->active) {
-		log_debug("Cannot dispatch request (%s) to inactive %s, dropping request",
+	if (usb_stack->expecting_disconnect) {
+		log_debug("Cannot dispatch request (%s) to %s that is about to be disconnected, dropping request",
 		          packet_get_request_signature(packet_signature, request),
 		          usb_stack->base.name);
 
@@ -249,9 +249,9 @@ int usb_stack_create(USBStack *usb_stack, uint8_t bus_number, uint8_t device_add
 	usb_stack->device_handle = NULL;
 	usb_stack->dropped_requests = 0;
 	usb_stack->connected = true;
-	usb_stack->active = false;
 	usb_stack->expecting_short_A1_response = false;
 	usb_stack->expecting_read_stall_before_removal = false;
+	usb_stack->expecting_disconnect = false;
 
 	// create stack base
 	snprintf(preliminary_name, sizeof(preliminary_name),
@@ -494,8 +494,6 @@ int usb_stack_create(USBStack *usb_stack, uint8_t bus_number, uint8_t device_add
 	}
 
 	// add to stacks array
-	usb_stack->active = true;
-
 	if (hardware_add_stack(&usb_stack->base) < 0) {
 		goto cleanup;
 	}
@@ -535,7 +533,7 @@ cleanup:
 void usb_stack_destroy(USBStack *usb_stack) {
 	char name[STACK_MAX_NAME_LENGTH];
 
-	usb_stack->active = false;
+	usb_stack->expecting_disconnect = true;
 
 	hardware_remove_stack(&usb_stack->base);
 
