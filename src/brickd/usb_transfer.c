@@ -70,7 +70,7 @@ static void LIBUSB_CALL usb_transfer_wrapper(struct libusb_transfer *handle) {
 	usb_transfer->completed = true;
 
 	if (handle->status == LIBUSB_TRANSFER_CANCELLED) {
-		log_debug("%s transfer %p (%p) for %s was canceled",
+		log_debug("%s transfer %p (%p) for %s was cancelled",
 		          usb_transfer_get_type_name(usb_transfer->type, true),
 		          usb_transfer, handle, usb_transfer->usb_stack->base.name);
 
@@ -114,13 +114,13 @@ static void LIBUSB_CALL usb_transfer_wrapper(struct libusb_transfer *handle) {
 		log_packet_debug("%s transfer %p (%p) returned successfully from %s%s",
 		                 usb_transfer_get_type_name(usb_transfer->type, true),
 		                 usb_transfer, handle, usb_transfer->usb_stack->base.name,
-		                 usb_transfer->canceled
-		                 ? ", but it was canceled in the meantime"
+		                 usb_transfer->cancelled
+		                 ? ", but it was cancelled in the meantime"
 		                 : (!usb_transfer->usb_stack->active
 		                    ? ", but the corresponding USB device is not active anymore"
 		                    : ""));
 
-		if (usb_transfer->canceled || !usb_transfer->usb_stack->active) {
+		if (usb_transfer->cancelled || !usb_transfer->usb_stack->active) {
 			return;
 		}
 
@@ -129,7 +129,7 @@ static void LIBUSB_CALL usb_transfer_wrapper(struct libusb_transfer *handle) {
 		}
 	}
 
-	if (usb_transfer->type == USB_TRANSFER_TYPE_READ && !usb_transfer->canceled &&
+	if (usb_transfer->type == USB_TRANSFER_TYPE_READ && !usb_transfer->cancelled &&
 	    usb_transfer->usb_stack->active) {
 		usb_transfer_submit(usb_transfer);
 	}
@@ -141,7 +141,7 @@ int usb_transfer_create(USBTransfer *usb_transfer, USBStack *usb_stack,
 	usb_transfer->type = type;
 	usb_transfer->submitted = false;
 	usb_transfer->completed = false;
-	usb_transfer->canceled = false;
+	usb_transfer->cancelled = false;
 	usb_transfer->function = function;
 	usb_transfer->handle = libusb_alloc_transfer(0);
 
@@ -168,7 +168,7 @@ void usb_transfer_destroy(USBTransfer *usb_transfer) {
 
 	if (usb_transfer->submitted) {
 		usb_transfer->completed = false;
-		usb_transfer->canceled = true;
+		usb_transfer->cancelled = true;
 
 		rc = libusb_cancel_transfer(usb_transfer->handle);
 

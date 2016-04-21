@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2012-2014 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2012-2014, 2016 Matthias Bolte <matthias@tinkerforge.com>
  *
  * usb_transfer.h: libusb transfer specific functions
  *
@@ -43,7 +43,7 @@ struct _USBTransfer {
 	USBTransferType type;
 	bool submitted;
 	bool completed;
-	bool canceled;
+	bool cancelled;
 	USBTransferFunction function;
 	struct libusb_transfer *handle;
 	Packet packet;
