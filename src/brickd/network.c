@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2012-2014 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2012-2014, 2016 Matthias Bolte <matthias@tinkerforge.com>
  * Copyright (C) 2014 Olaf Lüke <olaf@tinkerforge.com>
  *
  * network.c: Network specific functions
@@ -455,10 +455,7 @@ void network_client_expects_response(Client *client, Packet *request) {
 		return;
 	}
 
-	node_reset(&pending_request->global_node);
 	node_insert_before(&_pending_request_sentinel, &pending_request->global_node);
-
-	node_reset(&pending_request->client_node);
 	node_insert_before(&client->pending_request_sentinel, &pending_request->client_node);
 
 	++client->pending_request_count;

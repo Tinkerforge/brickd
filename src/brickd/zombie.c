@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2014 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2014, 2016 Matthias Bolte <matthias@tinkerforge.com>
  *
  * zombie.c: Zombie client specific functions
  *
@@ -67,7 +67,6 @@ int zombie_create(Zombie *zombie, Client *client) {
 	}
 
 	// insert new sentinal and remove old one to take over the list
-	node_reset(&zombie->pending_request_sentinel);
 	node_insert_after(&client->pending_request_sentinel, &zombie->pending_request_sentinel);
 	node_remove(&client->pending_request_sentinel);
 
