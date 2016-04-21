@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2012-2014 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2012-2014, 2016 Matthias Bolte <matthias@tinkerforge.com>
  *
  * usb.c: USB specific functions
  *
@@ -336,8 +336,8 @@ int usb_reopen(void) {
 
 	log_debug("Reopening all USB devices");
 
-	// iterate backwards for simpler index handling and to avoid memmove
-	// in array_remove call
+	// iterate backwards for simpler index handling and to avoid memmove in
+	// array_remove call
 	for (i = _usb_stacks.count - 1; i >= 0; --i) {
 		usb_stack = array_get(&_usb_stacks, i);
 

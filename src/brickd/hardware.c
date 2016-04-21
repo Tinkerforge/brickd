@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2013-2014 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2013-2014, 2016 Matthias Bolte <matthias@tinkerforge.com>
  *
  * hardware.c: Hardware specific functions
  *
@@ -53,7 +53,7 @@ void hardware_exit(void) {
 	log_debug("Shutting down hardware subsystem");
 
 	if (_stacks.count > 0) {
-		log_warn("Still %d stack(s) active", _stacks.count);
+		log_warn("Still %d stack(s) connected", _stacks.count);
 	}
 
 	array_destroy(&_stacks, NULL);
