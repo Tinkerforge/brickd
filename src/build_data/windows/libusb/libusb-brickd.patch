@@ -1,8 +1,8 @@
 diff --git a/libusb/core.c b/libusb/core.c
-index af92854..ffb4a22 100644
+index 5317d26..b2b3829 100644
 --- a/libusb/core.c
 +++ b/libusb/core.c
-@@ -2045,40 +2045,27 @@ int usbi_gettimeofday(struct timeval *tp, void *tzp)
+@@ -2244,40 +2244,27 @@ int usbi_gettimeofday(struct timeval *tp, void *tzp)
  }
  #endif
  
@@ -34,9 +34,7 @@ index af92854..ffb4a22 100644
 -	case LIBUSB_LOG_LEVEL_WARNING: priority = ANDROID_LOG_WARN; break;
 -	case LIBUSB_LOG_LEVEL_ERROR: priority = ANDROID_LOG_ERROR; break;
 -	case LIBUSB_LOG_LEVEL_DEBUG: priority = ANDROID_LOG_DEBUG; break;
-+	if (usbi_log_file == NULL) {
-+		usbi_log_file = stderr;
- 	}
+-	}
 -	__android_log_write(priority, "libusb", str);
 -#elif defined(HAVE_SYSLOG_FUNC)
 -	int syslog_level = LOG_INFO;
@@ -45,7 +43,9 @@ index af92854..ffb4a22 100644
 -	case LIBUSB_LOG_LEVEL_WARNING: syslog_level = LOG_WARNING; break;
 -	case LIBUSB_LOG_LEVEL_ERROR: syslog_level = LOG_ERR; break;
 -	case LIBUSB_LOG_LEVEL_DEBUG: syslog_level = LOG_DEBUG; break;
--	}
++	if (usbi_log_file == NULL) {
++		usbi_log_file = stderr;
+ 	}
 -	syslog(syslog_level, "%s", str);
 -#else /* All of gcc, Clang, XCode seem to use #warning */
 -#warning System logging is not supported on this platform. Logging to stderr will be used instead.
@@ -60,7 +60,7 @@ index af92854..ffb4a22 100644
  	UNUSED(ctx);
  	UNUSED(level);
  }
-@@ -2086,18 +2073,22 @@ static void usbi_log_str(struct libusb_context *ctx,
+@@ -2285,18 +2272,22 @@ static void usbi_log_str(struct libusb_context *ctx,
  void usbi_log_v(struct libusb_context *ctx, enum libusb_log_level level,
  	const char *function, const char *format, va_list args)
  {
@@ -85,52 +85,11 @@ index af92854..ffb4a22 100644
  	USBI_GET_CONTEXT(ctx);
  	if (ctx) {
  		ctx_level = ctx->debug;
-@@ -2120,8 +2111,8 @@ void usbi_log_v(struct libusb_context *ctx, enum libusb_log_level level,
- 	usbi_gettimeofday(&now, NULL);
- 	if ((global_debug) && (!has_debug_header_been_displayed)) {
- 		has_debug_header_been_displayed = 1;
--		usbi_log_str(ctx, LIBUSB_LOG_LEVEL_DEBUG, "[timestamp] [threadID] facility level [function call] <message>\n");
--		usbi_log_str(ctx, LIBUSB_LOG_LEVEL_DEBUG, "--------------------------------------------------------------------------------\n");
-+		usbi_log_str(ctx, LIBUSB_LOG_LEVEL_DEBUG, "[timestamp] [threadID] facility level [function call] <message>" USBI_LOG_LINE_END);
-+		usbi_log_str(ctx, LIBUSB_LOG_LEVEL_DEBUG, "--------------------------------------------------------------------------------" USBI_LOG_LINE_END);
- 	}
- 	if (now.tv_usec < timestamp_origin.tv_usec) {
- 		now.tv_sec--;
-@@ -2261,3 +2252,7 @@ const struct libusb_version * LIBUSB_CALL libusb_get_version(void)
- {
- 	return &libusb_version_internal;
- }
-+
-+void API_EXPORTED libusb_free(void *ptr) {
-+	free(ptr);
-+}
-diff --git a/libusb/descriptor.c b/libusb/descriptor.c
-index 93d34ce..add6452 100644
---- a/libusb/descriptor.c
-+++ b/libusb/descriptor.c
-@@ -453,7 +453,7 @@ static int parse_configuration(struct libusb_context *ctx,
- 					(header.bDescriptorType == LIBUSB_DT_DEVICE))
- 				break;
- 
--			usbi_dbg("skipping descriptor 0x%x\n", header.bDescriptorType);
-+			usbi_dbg("skipping descriptor 0x%x", header.bDescriptorType);
- 			buffer += header.bLength;
- 			size -= header.bLength;
- 		}
 diff --git a/libusb/io.c b/libusb/io.c
-index a9c611d..f7aeb11 100644
+index 4d03b8b..b6b5fd4 100644
 --- a/libusb/io.c
 +++ b/libusb/io.c
-@@ -1972,7 +1972,7 @@ redo_poll:
- 		return LIBUSB_ERROR_INTERRUPTED;
- 	} else if (r < 0) {
- 		free(fds);
--		usbi_err(ctx, "poll failed %d err=%d\n", r, errno);
-+		usbi_err(ctx, "poll failed %d err=%d", r, errno);
- 		return LIBUSB_ERROR_IO;
- 	}
- 
-@@ -2494,7 +2494,6 @@ DEFAULT_VISIBILITY
+@@ -2702,7 +2702,6 @@ DEFAULT_VISIBILITY
  const struct libusb_pollfd ** LIBUSB_CALL libusb_get_pollfds(
  	libusb_context *ctx)
  {
@@ -138,9 +97,9 @@ index a9c611d..f7aeb11 100644
  	struct libusb_pollfd **ret = NULL;
  	struct usbi_pollfd *ipollfd;
  	size_t i = 0;
-@@ -2516,11 +2515,6 @@ const struct libusb_pollfd ** LIBUSB_CALL libusb_get_pollfds(
+@@ -2721,11 +2720,6 @@ const struct libusb_pollfd ** LIBUSB_CALL libusb_get_pollfds(
  out:
- 	usbi_mutex_unlock(&ctx->pollfds_lock);
+ 	usbi_mutex_unlock(&ctx->event_data_lock);
  	return (const struct libusb_pollfd **) ret;
 -#else
 -	usbi_err(ctx, "external polling of libusb's internal descriptors "\
@@ -149,12 +108,12 @@ index a9c611d..f7aeb11 100644
 -#endif
  }
  
- /* Backends may call this from handle_events to report disconnection of a
+ /** \ingroup libusb_poll
 diff --git a/libusb/libusb-1.0.def b/libusb/libusb-1.0.def
-index cb0e32a..b4f00f7 100644
+index 7b14e0f..7eb1433 100644
 --- a/libusb/libusb-1.0.def
 +++ b/libusb/libusb-1.0.def
-@@ -156,3 +156,19 @@ EXPORTS
+@@ -168,3 +168,17 @@ EXPORTS
    libusb_unref_device@4 = libusb_unref_device
    libusb_wait_for_event
    libusb_wait_for_event@8 = libusb_wait_for_event
@@ -170,12 +129,10 @@ index cb0e32a..b4f00f7 100644
 +  usbi_close@4 = usbi_close
 +  libusb_set_log_file
 +  libusb_set_log_file@4 = libusb_set_log_file
-+  libusb_free
-+  libusb_free@4 = libusb_free
 +  libusb_set_log_function
 +  libusb_set_log_function@4 = libusb_set_log_function
 diff --git a/libusb/libusb-1.0.rc b/libusb/libusb-1.0.rc
-index 3dce6d5..5ff8dbb 100644
+index 3dce6d5..1f83f95 100644
 --- a/libusb/libusb-1.0.rc
 +++ b/libusb/libusb-1.0.rc
 @@ -49,7 +49,7 @@ BEGIN
@@ -183,12 +140,12 @@ index 3dce6d5..5ff8dbb 100644
  			VALUE "OriginalFilename", "libusb-1.0.dll\0"
  			VALUE "PrivateBuild", "\0"
 -			VALUE "ProductName", "libusb-1.0\0"
-+			VALUE "ProductName", "libusb-1.0-8facad00ea66e0609d93ad8aa4e174a6e7be8b3c-tf-12\0"
++			VALUE "ProductName", "libusb-1.0-d7cf58bafb9c77514db3381e115dae5129ffba2d-tf-13\0"
  			VALUE "ProductVersion", LIBUSB_VERSIONSTRING
  			VALUE "SpecialBuild", "\0"
  		END
 diff --git a/libusb/libusb.h b/libusb/libusb.h
-index 409b510..d2f23da 100644
+index 5b0d522..33da8b4 100644
 --- a/libusb/libusb.h
 +++ b/libusb/libusb.h
 @@ -60,6 +60,7 @@ typedef unsigned __int32  uint32_t;
@@ -207,9 +164,9 @@ index 409b510..d2f23da 100644
  #include <windows.h>
  #if defined(interface)
  #undef interface
-@@ -1951,6 +1953,16 @@ int LIBUSB_CALL libusb_hotplug_register_callback(libusb_context *ctx,
+@@ -1993,6 +1995,14 @@ int LIBUSB_CALL libusb_hotplug_register_callback(libusb_context *ctx,
  void LIBUSB_CALL libusb_hotplug_deregister_callback(libusb_context *ctx,
- 						libusb_hotplug_callback_handle handle);
+ 						libusb_hotplug_callback_handle callback_handle);
  
 +void LIBUSB_CALL libusb_set_log_file(FILE *file);
 +
@@ -219,16 +176,14 @@ index 409b510..d2f23da 100644
 +                                                va_list args);
 +void LIBUSB_CALL libusb_set_log_function(libusb_log_function function);
 +
-+void LIBUSB_CALL libusb_free(void *ptr);
-+
  #ifdef __cplusplus
  }
  #endif
 diff --git a/libusb/os/poll_windows.c b/libusb/os/poll_windows.c
-index 2a75c5e..ca05c59 100644
+index 9825607..0899e73 100644
 --- a/libusb/os/poll_windows.c
 +++ b/libusb/os/poll_windows.c
-@@ -256,7 +256,7 @@ void exit_polling(void)
+@@ -258,7 +258,7 @@ void exit_polling(void)
   * event. To that extent, we create a single wfd and overlapped as a means
   * to access that event.
   */
@@ -237,16 +192,7 @@ index 2a75c5e..ca05c59 100644
  {
  	int i;
  	OVERLAPPED* overlapped;
-@@ -331,7 +331,7 @@ struct winfd usbi_create_fd(HANDLE handle, int access_mode, struct usbi_transfer
- 	wfd.cancel_fn = cancel_fn;
- 
- 	if ((access_mode != RW_READ) && (access_mode != RW_WRITE)) {
--		usbi_warn(NULL, "only one of RW_READ or RW_WRITE are supported.\n"
-+		usbi_warn(NULL, "only one of RW_READ or RW_WRITE are supported. "
- 			"If you want to poll for R/W simultaneously, create multiple fds from the same handle.");
- 		return INVALID_WINFD;
- 	}
-@@ -504,7 +504,7 @@ struct winfd overlapped_to_winfd(OVERLAPPED* overlapped)
+@@ -506,7 +506,7 @@ struct winfd overlapped_to_winfd(OVERLAPPED* overlapped)
   * Currently, this function only accepts one of POLLIN or POLLOUT per fd
   * (but you can create multiple fds from the same handle for read and write)
   */
@@ -255,7 +201,7 @@ index 2a75c5e..ca05c59 100644
  {
  	unsigned i;
  	int _index, object_index, triggered;
-@@ -626,7 +626,7 @@ poll_exit:
+@@ -628,7 +628,7 @@ poll_exit:
  /*
   * close a fake pipe fd
   */
@@ -264,7 +210,7 @@ index 2a75c5e..ca05c59 100644
  {
  	int _index;
  	int r = -1;
-@@ -648,7 +648,7 @@ int usbi_close(int fd)
+@@ -650,7 +650,7 @@ int usbi_close(int fd)
  /*
   * synchronous write for fake "pipe" signaling
   */
@@ -273,7 +219,7 @@ index 2a75c5e..ca05c59 100644
  {
  	int _index;
  	UNUSED(buf);
-@@ -684,7 +684,7 @@ ssize_t usbi_write(int fd, const void *buf, size_t count)
+@@ -686,7 +686,7 @@ ssize_t usbi_write(int fd, const void *buf, size_t count)
  /*
   * synchronous read for fake "pipe" signaling
   */
@@ -283,19 +229,19 @@ index 2a75c5e..ca05c59 100644
  	int _index;
  	ssize_t r = -1;
 diff --git a/libusb/os/poll_windows.h b/libusb/os/poll_windows.h
-index deed206..294dbe8 100644
+index aa4c985..1feb511 100644
 --- a/libusb/os/poll_windows.h
 +++ b/libusb/os/poll_windows.h
-@@ -49,7 +49,7 @@ enum windows_version {
+@@ -55,7 +55,7 @@ enum windows_version {
  };
- extern enum windows_version windows_version;
+ extern int windows_version;
  
 -#define MAX_FDS     256
 +#define MAX_FDS     4096
  
  #define POLLIN      0x0001    /* There is data to read */
  #define POLLPRI     0x0002    /* There is urgent data to read */
-@@ -84,11 +84,11 @@ struct winfd {
+@@ -90,11 +90,11 @@ struct winfd {
  };
  extern const struct winfd INVALID_WINFD;
  
@@ -312,12 +258,38 @@ index deed206..294dbe8 100644
  
  void init_polling(void);
  void exit_polling(void);
-diff --git a/libusb/os/windows_usb.c b/libusb/os/windows_usb.c
-index e130bc9..4a49d8a 100644
---- a/libusb/os/windows_usb.c
-+++ b/libusb/os/windows_usb.c
-@@ -1098,6 +1098,14 @@ static int init_device(struct libusb_device* dev, struct libusb_device* parent_d
- 	struct libusb_device* tmp_dev;
+diff --git a/libusb/os/windows_nt_common.c b/libusb/os/windows_nt_common.c
+index 93e6278..bdc6cc3 100644
+--- a/libusb/os/windows_nt_common.c
++++ b/libusb/os/windows_nt_common.c
+@@ -510,6 +510,10 @@ static void windows_transfer_callback(struct usbi_transfer *itransfer, uint32_t
+ 			status = LIBUSB_TRANSFER_CANCELLED;
+ 		}
+ 		break;
++	case ERROR_FILE_NOT_FOUND:
++		usbi_dbg("detected disconnect");
++		status = LIBUSB_TRANSFER_NO_DEVICE;
++		break;
+ 	default:
+ 		usbi_err(ITRANSFER_CTX(itransfer), "detected I/O error %u: %s", io_result, windows_error_str(io_result));
+ 		status = LIBUSB_TRANSFER_ERROR;
+@@ -580,8 +584,8 @@ int windows_handle_events(struct libusb_context *ctx, struct pollfd *fds, POLL_N
+ 			windows_handle_callback(transfer, io_result, io_size);
+ 		} else {
+ 			usbi_err(ctx, "could not find a matching transfer for fd %d", fds[i]);
+-			r = LIBUSB_ERROR_NOT_FOUND;
+-			break;
++			//r = LIBUSB_ERROR_NOT_FOUND;
++			//break;
+ 		}
+ 	}
+ 	usbi_mutex_unlock(&ctx->open_devs_lock);
+diff --git a/libusb/os/windows_winusb.c b/libusb/os/windows_winusb.c
+index 9fe2956..e9ceb57 100644
+--- a/libusb/os/windows_winusb.c
++++ b/libusb/os/windows_winusb.c
+@@ -1000,6 +1000,14 @@ static int init_device(struct libusb_device *dev, struct libusb_device *parent_d
+ 	unsigned long tmp_id;
  	unsigned i;
  
 +	if (strncmp(device_id, "\\\\.\\USB#VID_16D0&PID_09E5&MI_01", 31) == 0 && port_number > 1) {
@@ -328,13 +300,13 @@ index e130bc9..4a49d8a 100644
 +		--port_number;
 +	}
 +
- 	if ((dev == NULL) || (parent_dev == NULL)) {
+ 	if ((dev == NULL) || (parent_dev == NULL))
  		return LIBUSB_ERROR_NOT_FOUND;
- 	}
-@@ -1140,6 +1148,11 @@ static int init_device(struct libusb_device* dev, struct libusb_device* parent_d
- 	}
+ 
+@@ -1052,6 +1060,11 @@ static int init_device(struct libusb_device *dev, struct libusb_device *parent_d
+ 
  	memset(&conn_info, 0, sizeof(conn_info));
- 	if (priv->depth != 0) {	// Not a HCD hub
+ 	if (priv->depth != 0) { // Not a HCD hub
 +		if (port_number == 0) {
 +			usbi_warn(ctx, "got invalid port number for '%s', if this device is connected to a Renesas/NEC USB controller update the driver", device_id);
 +			return LIBUSB_ERROR_NO_DEVICE;
@@ -343,8 +315,8 @@ index e130bc9..4a49d8a 100644
  		handle = CreateFileA(parent_priv->path, GENERIC_WRITE, FILE_SHARE_WRITE, NULL, OPEN_EXISTING,
  			FILE_FLAG_OVERLAPPED, NULL);
  		if (handle == INVALID_HANDLE_VALUE) {
-@@ -1197,6 +1210,15 @@ static int init_device(struct libusb_device* dev, struct libusb_device* parent_d
- 	usbi_dbg("(bus: %d, addr: %d, depth: %d, port: %d): '%s'",
+@@ -1131,6 +1144,15 @@ static int init_device(struct libusb_device *dev, struct libusb_device *parent_d
+ 	usbi_dbg("(bus: %u, addr: %u, depth: %u, port: %u): '%s'",
  		dev->bus_number, dev->device_address, priv->depth, priv->port, device_id);
  
 +	if (strncmp(device_id, "\\\\.\\USB#VID_16D0&PID_09E5&MI_", 29) == 0) {
@@ -359,45 +331,38 @@ index e130bc9..4a49d8a 100644
  	return LIBUSB_SUCCESS;
  }
  
-@@ -1400,10 +1422,10 @@ static int windows_get_device_list(struct libusb_context *ctx, struct discovered
- 	}
+@@ -1277,7 +1299,7 @@ static int windows_get_device_list(struct libusb_context *ctx, struct discovered
+ {
+ 	struct discovered_devs *discdevs;
+ 	HDEVINFO dev_info = { 0 };
+-	const char *usb_class[] = {"USB", "NUSB3", "IUSB3"};
++	const char *usb_class[] = {"USB", "NUSB3", "IUSB3", "IARUSB3"};
+ 	SP_DEVINFO_DATA dev_info_data = { 0 };
+ 	SP_DEVICE_INTERFACE_DETAIL_DATA_A *dev_interface_details = NULL;
+ 	GUID hid_guid;
+@@ -1331,7 +1353,7 @@ static int windows_get_device_list(struct libusb_context *ctx, struct discovered
+ 		return LIBUSB_ERROR_NO_MEM;
  
  	for (pass = 0; ((pass < nb_guids) && (r == LIBUSB_SUCCESS)); pass++) {
 -//#define ENUM_DEBUG
 +#define ENUM_DEBUG
- #ifdef ENUM_DEBUG
+ #if defined(ENABLE_LOGGING) && defined(ENUM_DEBUG)
  		const char *passname[] = { "HCD", "HUB", "GEN", "DEV", "HID", "EXT" };
--		usbi_dbg("\n#### PROCESSING %ss %s", passname[(pass<=HID_PASS)?pass:HID_PASS+1],
-+		usbi_dbg("#### PROCESSING %ss %s", passname[(pass<=HID_PASS)?pass:HID_PASS+1],
- 			(pass!=GEN_PASS)?guid_to_string(guid[pass]):"");
- #endif
- 		for (i = 0; ; i++) {
-@@ -2091,6 +2113,10 @@ static void windows_transfer_callback(struct usbi_transfer *itransfer, uint32_t
- 			status = LIBUSB_TRANSFER_CANCELLED;
- 		}
- 		break;
-+	case ERROR_FILE_NOT_FOUND:
-+		usbi_dbg("detected disconnect");
-+		status = LIBUSB_TRANSFER_NO_DEVICE;
-+		break;
- 	default:
- 		usbi_err(ITRANSFER_CTX(itransfer), "detected I/O error %d: %s", io_result, windows_error_str(io_result));
- 		status = LIBUSB_TRANSFER_ERROR;
-@@ -2166,7 +2192,7 @@ static int windows_handle_events(struct libusb_context *ctx, struct pollfd *fds,
- 			windows_handle_callback(transfer, io_result, io_size);
- 		} else {
- 			usbi_err(ctx, "could not find a matching transfer for fd %x", fds[i]);
--			return LIBUSB_ERROR_NOT_FOUND;
-+			//return LIBUSB_ERROR_NOT_FOUND;
- 		}
- 	}
+ 		usbi_dbg("#### PROCESSING %ss %s", passname[(pass <= HID_PASS) ? pass : (HID_PASS + 1)],
+@@ -1370,6 +1392,7 @@ static int windows_get_device_list(struct libusb_context *ctx, struct discovered
+ 				// Workaround for a Nec/Renesas USB 3.0 driver bug where root hubs are
+ 				// being listed under the "NUSB3" PnP Symbolic Name rather than "USB".
+ 				// The Intel USB 3.0 driver behaves similar, but uses "IUSB3"
++				// The Intel Alpine Ridge USB 3.1 driver uses "IARUSB3"
+ 				for (; class_index < ARRAYSIZE(usb_class); class_index++) {
+ 					if (get_devinfo_data(ctx, &dev_info, &dev_info_data, usb_class[class_index], i))
+ 						break;
+@@ -2176,7 +2199,7 @@ static int common_configure_endpoints(int sub_api, struct libusb_device_handle *
+ }
  
-@@ -2534,7 +2560,7 @@ static int winusbx_init(int sub_api, struct libusb_context *ctx)
- 		if (h == NULL) {
- 			h = LoadLibraryA("WinUSB");
- 		}		if (h == NULL) {
--			usbi_warn(ctx, "WinUSB DLL is not available either,\n"
-+			usbi_warn(ctx, "WinUSB DLL is not available either, "
- 				"you will not be able to access devices outside of enumeration");
- 			return LIBUSB_ERROR_NOT_FOUND;
- 		}
+ // These names must be uppercase
+-static const char *hub_driver_names[] = {"USBHUB", "USBHUB3", "USB3HUB", "NUSB3HUB", "RUSB3HUB", "FLXHCIH", "TIHUB3", "ETRONHUB3", "VIAHUB3", "ASMTHUB3", "IUSB3HUB", "VUSB3HUB", "AMDHUB30", "VHHUB"};
++static const char *hub_driver_names[] = {"USBHUB", "USBHUB3", "USB3HUB", "NUSB3HUB", "RUSB3HUB", "FLXHCIH", "TIHUB3", "ETRONHUB3", "VIAHUB3", "ASMTHUB3", "IUSB3HUB", "VUSB3HUB", "AMDHUB30", "VHHUB", "AUSB3HUB"};
+ static const char *composite_driver_names[] = {"USBCCGP"};
+ static const char *winusbx_driver_names[] = WINUSBX_DRV_NAMES;
+ static const char *hid_driver_names[] = {"HIDUSB", "MOUHID", "KBDHID"};

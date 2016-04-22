@@ -356,9 +356,9 @@ int usb_reopen(void) {
 int usb_create_context(libusb_context **context) {
 	int phase = 0;
 	int rc;
-	struct libusb_pollfd **pollfds = NULL;
-	struct libusb_pollfd **pollfd;
-	struct libusb_pollfd **last_added_pollfd = NULL;
+	const struct libusb_pollfd **pollfds = NULL;
+	const struct libusb_pollfd **pollfd;
+	const struct libusb_pollfd **last_added_pollfd = NULL;
 
 	rc = libusb_init(context);
 
@@ -376,7 +376,7 @@ int usb_create_context(libusb_context **context) {
 	phase = 1;
 
 	// get pollfds from main libusb context
-	pollfds = (struct libusb_pollfd **)libusb_get_pollfds(*context);
+	pollfds = libusb_get_pollfds(*context);
 
 	if (pollfds == NULL) {
 		log_error("Could not get pollfds from libusb context");
@@ -415,8 +415,8 @@ cleanup:
 		break;
 	}
 
-#ifdef _WIN32
-	libusb_free(pollfds); // avoid possible heap-mismatch on Windows
+#if defined(_WIN32) || (defined(LIBUSB_API_VERSION) && LIBUSB_API_VERSION >= 0x01000104)
+	libusb_free_pollfds(pollfds); // avoids possible heap-mismatch on Windows
 #else
 	free(pollfds);
 #endif
@@ -425,12 +425,12 @@ cleanup:
 }
 
 void usb_destroy_context(libusb_context *context) {
-	struct libusb_pollfd **pollfds = NULL;
-	struct libusb_pollfd **pollfd;
+	const struct libusb_pollfd **pollfds = NULL;
+	const struct libusb_pollfd **pollfd;
 
 	libusb_set_pollfd_notifiers(context, NULL, NULL, NULL);
 
-	pollfds = (struct libusb_pollfd **)libusb_get_pollfds(context);
+	pollfds = libusb_get_pollfds(context);
 
 	if (pollfds == NULL) {
 		log_error("Could not get pollfds from main libusb context");
@@ -439,8 +439,8 @@ void usb_destroy_context(libusb_context *context) {
 			event_remove_source((*pollfd)->fd, EVENT_SOURCE_TYPE_USB);
 		}
 
-#ifdef _WIN32
-		libusb_free(pollfds); // avoid possible heap-mismatch on Windows
+#if defined(_WIN32) || (defined(LIBUSB_API_VERSION) && LIBUSB_API_VERSION >= 0x01000104)
+		libusb_free_pollfds(pollfds); // avoids possible heap-mismatch on Windows
 #else
 		free(pollfds);
 #endif
