@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2012-2014 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2012-2014, 2016 Matthias Bolte <matthias@tinkerforge.com>
  *
  * main_windows.c: Brick Daemon starting point for Windows
  *
@@ -72,14 +72,14 @@ static const GUID GUID_DEVINTERFACE_USB_DEVICE =
 { 0xA5DCBF10L, 0x6530, 0x11D2, { 0x90, 0x1F, 0x00, 0xC0, 0x4F, 0xB9, 0x51, 0xED } };
 
 // Brick device GUID (does not apply to the RED Brick). only set by the
-// brick.inf driver, not reported by the Brick itself if used driverless on
+// brick.inf driver, not reported by the Brick itself if used driverless since
 // Windows 8. therefore it cannot be used as the only way to detect Bricks
 static const GUID GUID_DEVINTERFACE_BRICK_DEVICE =
 { 0x870013DDL, 0xFB1D, 0x4BD7, { 0xA9, 0x6C, 0x1F, 0x0B, 0x7D, 0x31, 0xAF, 0x41 } };
 
 // RED Brick device GUID (only applies to the Brick function). set by the
 // red_brick.inf driver and reported by the RED Brick itself if used driverless
-// on Windows 8. therefore it can be used as the sole way to detect RED Bricks
+// since Windows 8. therefore it can be used as the sole way to detect RED Bricks
 static const GUID GUID_DEVINTERFACE_RED_BRICK_DEVICE =
 { 0x9536B3B1L, 0x6077, 0x4A3B, { 0x9B, 0xAC, 0x7C, 0x2C, 0xFA, 0x8A, 0x2B, 0xF3 } };
 
@@ -227,6 +227,7 @@ static void handle_device_event(DWORD event_type,
 	bool definitely_red_brick = false;
 	const char *brick_name_prefix1 = "\\\\?\\USB\\"; // according to libusb: "\\?\" == "\\.\" == "##?#" == "##.#" and "\" == "#"
 	const char *brick_name_prefix2 = "VID_16D0&PID_063D"; // according to libusb: "Vid_" == "VID_"
+	const char *red_brick_name_prefix2 = "VID_16D0&PID_09E5"; // according to libusb: "Vid_" == "VID_"
 	char guid[64] = "<unknown>";
 	char buffer[1024] = "<unknown>";
 	int rc;
@@ -270,11 +271,15 @@ static void handle_device_event(DWORD event_type,
 	}
 
 	if (possibly_brick) {
-		// check if name contains Brick vendor and product ID
-		if (strlen(name) > strlen(brick_name_prefix1) &&
-		    strncasecmp(name + strlen(brick_name_prefix1), brick_name_prefix2,
-		                strlen(brick_name_prefix2)) == 0) {
-			definitely_brick = true;
+		// check if name contains (RED) Brick vendor and product ID
+		if (strlen(name) > strlen(brick_name_prefix1)) {
+			if (strncasecmp(name + strlen(brick_name_prefix1), brick_name_prefix2,
+			                strlen(brick_name_prefix2)) == 0) {
+				definitely_brick = true;
+			} else if (strncasecmp(name + strlen(brick_name_prefix1), red_brick_name_prefix2,
+			                       strlen(red_brick_name_prefix2)) == 0) {
+				definitely_red_brick = true;
+			}
 		}
 	}
 
