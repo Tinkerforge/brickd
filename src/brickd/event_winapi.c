@@ -25,6 +25,11 @@
 #include <stddef.h>
 #include <stdlib.h>
 
+// newer libusb defines LIBUSB_CALL but older libusb doesn't
+#ifndef LIBUSB_CALL
+	#define LIBUSB_CALL
+#endif
+
 #include <daemonlib/array.h>
 #include <daemonlib/event.h>
 #include <daemonlib/log.h>
@@ -44,7 +49,7 @@ struct usbi_pollfd {
 	short revents;
 };
 
-extern int LIBUSB_CALL usbi_pipe(int filedes[2]);
+extern int LIBUSB_CALL usbi_pipe(int fd[2]);
 extern int LIBUSB_CALL usbi_poll(struct usbi_pollfd *fds, unsigned int nfds,
                                  int timeout);
 extern int LIBUSB_CALL usbi_close(int fd);
