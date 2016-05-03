@@ -301,28 +301,13 @@ static void handle_device_event(DWORD event_type,
 	         event_data->dbcc_classguid.Data4[6],
 	         event_data->dbcc_classguid.Data4[7]);
 
-	switch (event_type) {
-	case DBT_DEVICEARRIVAL:
-		log_debug("Received device notification (type: arrival, guid: %s, name: %s)",
-		          guid, name);
+	log_debug("Received device notification (type: %s, guid: %s, name: %s)",
+	          event_type == DBT_DEVICEARRIVAL ? "arrival" : "removal",
+	          guid, name);
 
-		if (pipe_write(&_notification_pipe, &byte, sizeof(byte)) < 0) {
-			log_error("Could not write to notification pipe: %s (%d)",
-			          get_errno_name(errno), errno);
-		}
-
-		break;
-
-	case DBT_DEVICEREMOVECOMPLETE:
-		log_debug("Received device notification (type: removal, guid: %s, name: %s)",
-		          guid, name);
-
-		if (pipe_write(&_notification_pipe, &byte, sizeof(byte)) < 0) {
-			log_error("Could not write to notification pipe: %s (%d)",
-			          get_errno_name(errno), errno);
-		}
-
-		break;
+	if (pipe_write(&_notification_pipe, &byte, sizeof(byte)) < 0) {
+		log_error("Could not write to notification pipe: %s (%d)",
+		          get_errno_name(errno), errno);
 	}
 }
 
