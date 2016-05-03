@@ -1,7 +1,7 @@
 /*
  * brickd
  * Copyright (C) 2014 Olaf Lüke <olaf@tinkerforge.com>
- * Copyright (C) 2014-2015 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2014-2016 Matthias Bolte <matthias@tinkerforge.com>
  *
  * websocket.h: Miniature websocket server implementation
  *
@@ -131,6 +131,6 @@ int websocket_create(Websocket *websocket);
 Socket *websocket_create_allocated(void);
 void websocket_destroy(Socket *socket);
 int websocket_receive(Socket *socket, void *buffer, int length);
-int websocket_send(Socket *socket, void *buffer, int length);
+int websocket_send(Socket *socket, const void *buffer, int length);
 
 #endif // BRICKD_WEBSOCKET_H

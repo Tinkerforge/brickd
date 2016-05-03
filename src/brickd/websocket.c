@@ -1,7 +1,7 @@
 /*
  * brickd
  * Copyright (C) 2014 Olaf Lüke <olaf@tinkerforge.com>
- * Copyright (C) 2014-2015 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2014-2016 Matthias Bolte <matthias@tinkerforge.com>
  *
  * websocket.c: Miniature WebSocket server implementation
  *
@@ -37,7 +37,7 @@ static LogSource _log_source = LOG_SOURCE_INITIALIZER;
 
 extern void socket_destroy_platform(Socket *socket);
 extern int socket_receive_platform(Socket *socket, void *buffer, int length);
-extern int socket_send_platform(Socket *socket, void *buffer, int length);
+extern int socket_send_platform(Socket *socket, const void *buffer, int length);
 
 typedef struct {
 	void *buffer;
@@ -50,7 +50,7 @@ static void websocket_free_queued_data(void *item) {
 	free(queued_data->buffer);
 }
 
-static int websocket_send_frame(Websocket *websocket, void *buffer, int length) {
+static int websocket_send_frame(Websocket *websocket, const void *buffer, int length) {
 	WebsocketFrameWithPayload frame;
 
 	if (length > WEBSOCKET_MAX_UNEXTENDED_PAYLOAD_DATA_LENGTH) {
@@ -460,7 +460,7 @@ int websocket_receive(Socket *socket, void *buffer, int length) {
 }
 
 // sets errno on error
-int websocket_send(Socket *socket, void *buffer, int length) {
+int websocket_send(Socket *socket, const void *buffer, int length) {
 	Websocket *websocket = (Websocket *)socket;
 	WebsocketQueuedData *queued_data;
 
