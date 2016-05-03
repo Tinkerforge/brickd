@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2014-2015 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2014-2016 Matthias Bolte <matthias@tinkerforge.com>
  *
  * red_usb_gadget.c: RED Brick USB gadget interface
  *
@@ -91,7 +91,7 @@ static int red_usb_gadget_create_client(void) {
 		return -1;
 	}
 
-	if (file_create(file, G_RED_BRICK_DATA_FILENAME, O_RDWR) < 0) {
+	if (file_create(file, G_RED_BRICK_DATA_FILENAME, O_RDWR | O_NONBLOCK) < 0) {
 		log_error("Could not create file object for '%s': %s (%d)",
 		          G_RED_BRICK_DATA_FILENAME, get_errno_name(errno), errno);
 
@@ -211,7 +211,8 @@ int red_usb_gadget_init(void) {
 	          uint32_from_le(_uid));
 
 	// read current USB gadget state from /proc/g_red_brick_state
-	if (file_create(&_state_file, G_RED_BRICK_STATE_FILENAME, O_RDONLY) < 0) {
+	if (file_create(&_state_file, G_RED_BRICK_STATE_FILENAME,
+	                O_RDONLY | O_NONBLOCK) < 0) {
 		log_error("Could not create file object for '%s': %s (%d)",
 		          G_RED_BRICK_STATE_FILENAME, get_errno_name(errno), errno);
 

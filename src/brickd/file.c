@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2014 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2014, 2016 Matthias Bolte <matthias@tinkerforge.com>
  *
  * file.c: File based I/O device
  *
@@ -27,7 +27,7 @@
 #include "file.h"
 
 // sets errno on error
-int file_create(File *file, const char *name, int flags) {
+int file_create(File *file, const char *name, int flags) { // takes open flags
 	int rc;
 	int fcntl_flags;
 	int saved_errno;
@@ -41,24 +41,27 @@ int file_create(File *file, const char *name, int flags) {
 		return rc;
 	}
 
-	file->base.handle = open(name, flags);
+	// open file blocking
+	file->base.handle = open(name, flags & ~O_NONBLOCK);
 
 	if (file->base.handle < 0) {
 		return -1;
 	}
 
 	// enable non-blocking operation
-	fcntl_flags = fcntl(file->base.handle, F_GETFL, 0);
+	if ((flags & O_NONBLOCK) != 0) {
+		fcntl_flags = fcntl(file->base.handle, F_GETFL, 0);
 
-	if (fcntl_flags < 0 ||
-	    fcntl(file->base.handle, F_SETFL, fcntl_flags | O_NONBLOCK) < 0) {
-		saved_errno = errno;
+		if (fcntl_flags < 0 ||
+			fcntl(file->base.handle, F_SETFL, fcntl_flags | O_NONBLOCK) < 0) {
+			saved_errno = errno;
 
-		close(file->base.handle);
+			close(file->base.handle);
 
-		errno = saved_errno;
+			errno = saved_errno;
 
-		return -1;
+			return -1;
+		}
 	}
 
 	return 0;
@@ -79,6 +82,6 @@ int file_write(File *file, void *buffer, int length) {
 }
 
 // sets errno on error
-int file_seek(File *file, off_t offset, int origin) {
+int file_seek(File *file, off_t offset, int origin) { // takes lseek origin
 	return lseek(file->base.handle, offset, origin);
 }

@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2014 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2014, 2016 Matthias Bolte <matthias@tinkerforge.com>
  *
  * file.h: File based I/O device
  *
@@ -28,11 +28,11 @@ typedef struct {
 	IO base;
 } File;
 
-int file_create(File *file, const char *name, int flags);
+int file_create(File *file, const char *name, int flags); // takes open flags
 void file_destroy(File *file);
 
 int file_read(File *file, void *buffer, int length);
 int file_write(File *file, void *buffer, int length);
-int file_seek(File *file, off_t offset, int origin);
+int file_seek(File *file, off_t offset, int origin); // takes lseek origin
 
 #endif // BRICKD_FILE_H
