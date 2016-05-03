@@ -228,10 +228,10 @@ static void handle_device_event(DWORD event_type,
 	const char *brick_name_prefix1 = "\\\\?\\USB\\"; // according to libusb: "\\?\" == "\\.\" == "##?#" == "##.#" and "\" == "#"
 	const char *brick_name_prefix2 = "VID_16D0&PID_063D"; // according to libusb: "Vid_" == "VID_"
 	const char *red_brick_name_prefix2 = "VID_16D0&PID_09E5"; // according to libusb: "Vid_" == "VID_"
-	char guid[64] = "<unknown>";
 	char buffer[1024] = "<unknown>";
 	int rc;
 	char *name;
+	char guid[64] = "<unknown>";
 	uint8_t byte = 0;
 
 	// check event type
@@ -255,8 +255,8 @@ static void handle_device_event(DWORD event_type,
 
 	// convert name
 	if (_run_as_service) {
-		if (!WideCharToMultiByte(CP_UTF8, 0, (LPCWSTR)&event_data->dbcc_name[0],
-		                         -1, buffer, sizeof(buffer), NULL, NULL)) {
+		if (WideCharToMultiByte(CP_UTF8, 0, (LPCWSTR)&event_data->dbcc_name[0],
+		                        -1, buffer, sizeof(buffer), NULL, NULL) == 0) {
 			rc = ERRNO_WINAPI_OFFSET + GetLastError();
 
 			log_error("Could not convert device name: %s (%d)",
