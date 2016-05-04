@@ -45,12 +45,12 @@
 
 #include <daemonlib/base58.h>
 #include <daemonlib/event.h>
+#include <daemonlib/file.h>
 #include <daemonlib/log.h>
 #include <daemonlib/utils.h>
 
 #include "red_usb_gadget.h"
 
-#include "file.h"
 #include "network.h"
 
 static LogSource _log_source = LOG_SOURCE_INITIALIZER;
@@ -91,7 +91,8 @@ static int red_usb_gadget_create_client(void) {
 		return -1;
 	}
 
-	if (file_create(file, G_RED_BRICK_DATA_FILENAME, O_RDWR | O_NONBLOCK) < 0) {
+	if (file_create(file, G_RED_BRICK_DATA_FILENAME,
+	                O_RDWR | O_NONBLOCK, 0) < 0) {
 		log_error("Could not create file object for '%s': %s (%d)",
 		          G_RED_BRICK_DATA_FILENAME, get_errno_name(errno), errno);
 
@@ -212,7 +213,7 @@ int red_usb_gadget_init(void) {
 
 	// read current USB gadget state from /proc/g_red_brick_state
 	if (file_create(&_state_file, G_RED_BRICK_STATE_FILENAME,
-	                O_RDONLY | O_NONBLOCK) < 0) {
+	                O_RDONLY | O_NONBLOCK, 0) < 0) {
 		log_error("Could not create file object for '%s': %s (%d)",
 		          G_RED_BRICK_STATE_FILENAME, get_errno_name(errno), errno);
 
