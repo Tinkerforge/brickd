@@ -18,7 +18,7 @@ SOURCES=array.c \
 	conf_file.c \
 	enum.c \
 	event.c \
-	event_winapi.c \
+	file.c \
 	io.c \
 	log.c \
 	node.c \
@@ -34,6 +34,7 @@ SOURCES=array.c \
 	base64.c \
 	client.c \
 	config_options.c \
+	event_winapi.c \
 	fixes_msvc.c \
 	hardware.c \
 	hmac.c \

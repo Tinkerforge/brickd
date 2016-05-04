@@ -27,6 +27,8 @@
 #include <windows.h>
 #include <dbt.h>
 #include <conio.h>
+#include <fcntl.h>
+#include <sys\stat.h>
 
 #ifndef BRICKD_WDK_BUILD
 	#include <tlhelp32.h>
@@ -53,6 +55,7 @@ BOOL WINAPI Process32Next(HANDLE hSnapshot, PROCESSENTRY32 *lppe);
 
 #include <daemonlib/config.h>
 #include <daemonlib/event.h>
+#include <daemonlib/file.h>
 #include <daemonlib/log.h>
 #include <daemonlib/pipe.h>
 #include <daemonlib/threads.h>
@@ -550,7 +553,7 @@ static int generic_main(bool log_to_file, const char *debug_filter, bool libusb_
 	int rc;
 	char filename[1024];
 	int i;
-	FILE *log_file = NULL;
+	File log_file;
 	WSADATA wsa_data;
 	DEV_BROADCAST_DEVICEINTERFACE notification_filter;
 	HDEVNOTIFY notification_handle;
@@ -629,19 +632,20 @@ static int generic_main(bool log_to_file, const char *debug_filter, bool libusb_
 				filename[i - 3] = '\0';
 				string_append(filename, sizeof(filename), "log");
 
-				log_file = fopen(filename, "a+");
-
-				if (log_file == NULL) {
-					log_warn("Could not open log file '%s'", filename);
+				if (file_create(&log_file, filename,
+				                _O_CREAT | _O_WRONLY | _O_APPEND,
+				                _S_IREAD | _S_IWRITE) < 0) {
+					log_warn("Could not open log file '%s': %s (%d)",
+					         filename, get_errno_name(errno), errno);
 				} else {
 					printf("Logging to '%s'\n", filename);
 
-					log_set_file(log_file);
+					log_set_output(&log_file.base);
 				}
 			}
 		}
 	} else if (_run_as_service) {
-		log_set_file(NULL);
+		log_set_output(NULL);
 	}
 
 	if (!_run_as_service &&

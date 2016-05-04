@@ -178,7 +178,5 @@ EXPORTS
   usbi_read@12 = usbi_read
   usbi_close
   usbi_close@4 = usbi_close
-  libusb_set_log_file
-  libusb_set_log_file@4 = libusb_set_log_file
   libusb_set_log_function
   libusb_set_log_function@4 = libusb_set_log_function

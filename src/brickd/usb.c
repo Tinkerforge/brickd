@@ -47,6 +47,10 @@ extern void usb_exit_platform(void);
 extern int usb_init_hotplug(libusb_context *context);
 extern void usb_exit_hotplug(libusb_context *context);
 
+#ifdef _WIN32
+extern bool log_libusb_debug;
+#endif
+
 static int usb_enumerate(void) {
 	int result = -1;
 	libusb_device **devices;
@@ -202,12 +206,12 @@ int usb_init(bool libusb_debug) {
 
 	_libusb_debug = libusb_debug;
 
+#ifdef _WIN32
+	log_libusb_debug = libusb_debug;
+#endif
+
 	if (_libusb_debug) {
 		putenv("LIBUSB_DEBUG=5");
-
-#ifdef _WIN32
-		libusb_set_log_file(log_get_file());
-#endif
 	}
 
 	if (usb_init_platform() < 0) {

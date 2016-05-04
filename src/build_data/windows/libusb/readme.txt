@@ -1,6 +1,6 @@
 This is a special version of libusb for brickd build with WDK 7 for x86.
 
-Based on libusb's github.com commit d7cf58bafb9c77514db3381e115dae5129ffba2d
+Based on libusb's github.com commit 578942b5a90cd36b47b11e0992c2e92a05b70d91
 (libusb version 1.0.20 plus several patches) with the libusb-brickd.patch
 applied to it.
 
@@ -8,7 +8,6 @@ The MinGW import lib libusb-1.0.dll.a was created from libusb-1.0.def using:
 dlltool -k -d libusb-1.0.def -l libusb-1.0.dll.a
 
 Changes:
-- Add libusb_set_log_file function to redirect log output to a file.
 - Add libusb_set_log_function function to intercept all log output.
 - Make libusb_get_pollfds work on Windows.
 - Expose internal functions for fake file descriptors, to allow integration

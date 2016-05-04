@@ -1,66 +1,17 @@
 diff --git a/libusb/core.c b/libusb/core.c
-index 5317d26..b2b3829 100644
+index 5317d26..3666391 100644
 --- a/libusb/core.c
 +++ b/libusb/core.c
-@@ -2244,40 +2244,27 @@ int usbi_gettimeofday(struct timeval *tp, void *tzp)
+@@ -2282,21 +2282,32 @@ static void usbi_log_str(struct libusb_context *ctx,
+ 	UNUSED(level);
  }
- #endif
  
-+static FILE *usbi_log_file = NULL;
-+
-+void API_EXPORTED libusb_set_log_file(FILE *file) {
-+	usbi_log_file = file;
-+}
-+
 +static libusb_log_function usbi_log_function = NULL;
 +
 +void API_EXPORTED libusb_set_log_function(libusb_log_function function) {
 +	usbi_log_function = function;
 +}
 +
- static void usbi_log_str(struct libusb_context *ctx,
- 	enum libusb_log_level level, const char * str)
- {
--#if defined(USE_SYSTEM_LOGGING_FACILITY)
--#if defined(OS_WINDOWS) || defined(OS_WINCE)
--	/* Windows CE only supports the Unicode version of OutputDebugString. */
--	WCHAR wbuf[USBI_MAX_LOG_LEN];
--	MultiByteToWideChar(CP_UTF8, 0, str, -1, wbuf, sizeof(wbuf));
--	OutputDebugStringW(wbuf);
--#elif defined(__ANDROID__)
--	int priority = ANDROID_LOG_UNKNOWN;
--	switch (level) {
--	case LIBUSB_LOG_LEVEL_INFO: priority = ANDROID_LOG_INFO; break;
--	case LIBUSB_LOG_LEVEL_WARNING: priority = ANDROID_LOG_WARN; break;
--	case LIBUSB_LOG_LEVEL_ERROR: priority = ANDROID_LOG_ERROR; break;
--	case LIBUSB_LOG_LEVEL_DEBUG: priority = ANDROID_LOG_DEBUG; break;
--	}
--	__android_log_write(priority, "libusb", str);
--#elif defined(HAVE_SYSLOG_FUNC)
--	int syslog_level = LOG_INFO;
--	switch (level) {
--	case LIBUSB_LOG_LEVEL_INFO: syslog_level = LOG_INFO; break;
--	case LIBUSB_LOG_LEVEL_WARNING: syslog_level = LOG_WARNING; break;
--	case LIBUSB_LOG_LEVEL_ERROR: syslog_level = LOG_ERR; break;
--	case LIBUSB_LOG_LEVEL_DEBUG: syslog_level = LOG_DEBUG; break;
-+	if (usbi_log_file == NULL) {
-+		usbi_log_file = stderr;
- 	}
--	syslog(syslog_level, "%s", str);
--#else /* All of gcc, Clang, XCode seem to use #warning */
--#warning System logging is not supported on this platform. Logging to stderr will be used instead.
--	fputs(str, stderr);
--#endif
--#else
--	fputs(str, stderr);
--#endif /* USE_SYSTEM_LOGGING_FACILITY */
-+
-+	fputs(str, usbi_log_file);
-+
- 	UNUSED(ctx);
- 	UNUSED(level);
- }
-@@ -2285,18 +2272,22 @@ static void usbi_log_str(struct libusb_context *ctx,
  void usbi_log_v(struct libusb_context *ctx, enum libusb_log_level level,
  	const char *function, const char *format, va_list args)
  {
@@ -72,7 +23,8 @@ index 5317d26..b2b3829 100644
  	static int has_debug_header_been_displayed = 0;
  
 +	if (usbi_log_function != NULL) {
-+		usbi_log_function(level, function, format, args);
++		usbi_log_function(ctx, level, function, format, args);
++		return;
 +	}
 +
  #ifdef ENABLE_DEBUG_LOGGING
@@ -110,10 +62,10 @@ index 4d03b8b..b6b5fd4 100644
  
  /** \ingroup libusb_poll
 diff --git a/libusb/libusb-1.0.def b/libusb/libusb-1.0.def
-index 7b14e0f..7eb1433 100644
+index 7b14e0f..b05382b 100644
 --- a/libusb/libusb-1.0.def
 +++ b/libusb/libusb-1.0.def
-@@ -168,3 +168,17 @@ EXPORTS
+@@ -168,3 +168,15 @@ EXPORTS
    libusb_unref_device@4 = libusb_unref_device
    libusb_wait_for_event
    libusb_wait_for_event@8 = libusb_wait_for_event
@@ -127,12 +79,10 @@ index 7b14e0f..7eb1433 100644
 +  usbi_read@12 = usbi_read
 +  usbi_close
 +  usbi_close@4 = usbi_close
-+  libusb_set_log_file
-+  libusb_set_log_file@4 = libusb_set_log_file
 +  libusb_set_log_function
 +  libusb_set_log_function@4 = libusb_set_log_function
 diff --git a/libusb/libusb-1.0.rc b/libusb/libusb-1.0.rc
-index 3dce6d5..1f83f95 100644
+index 3dce6d5..da73f18 100644
 --- a/libusb/libusb-1.0.rc
 +++ b/libusb/libusb-1.0.rc
 @@ -49,7 +49,7 @@ BEGIN
@@ -140,12 +90,12 @@ index 3dce6d5..1f83f95 100644
  			VALUE "OriginalFilename", "libusb-1.0.dll\0"
  			VALUE "PrivateBuild", "\0"
 -			VALUE "ProductName", "libusb-1.0\0"
-+			VALUE "ProductName", "libusb-1.0-d7cf58bafb9c77514db3381e115dae5129ffba2d-tf-13\0"
++			VALUE "ProductName", "libusb-1.0-578942b5a90cd36b47b11e0992c2e92a05b70d91-tf-14\0"
  			VALUE "ProductVersion", LIBUSB_VERSIONSTRING
  			VALUE "SpecialBuild", "\0"
  		END
 diff --git a/libusb/libusb.h b/libusb/libusb.h
-index 5b0d522..33da8b4 100644
+index 5b0d522..7a63828 100644
 --- a/libusb/libusb.h
 +++ b/libusb/libusb.h
 @@ -60,6 +60,7 @@ typedef unsigned __int32  uint32_t;
@@ -164,13 +114,12 @@ index 5b0d522..33da8b4 100644
  #include <windows.h>
  #if defined(interface)
  #undef interface
-@@ -1993,6 +1995,14 @@ int LIBUSB_CALL libusb_hotplug_register_callback(libusb_context *ctx,
+@@ -1993,6 +1995,13 @@ int LIBUSB_CALL libusb_hotplug_register_callback(libusb_context *ctx,
  void LIBUSB_CALL libusb_hotplug_deregister_callback(libusb_context *ctx,
  						libusb_hotplug_callback_handle callback_handle);
  
-+void LIBUSB_CALL libusb_set_log_file(FILE *file);
-+
-+typedef void (LIBUSB_CALL *libusb_log_function)(enum libusb_log_level level,
++typedef void (LIBUSB_CALL *libusb_log_function)(libusb_context *ctx,
++                                                enum libusb_log_level level,
 +                                                const char *function,
 +                                                const char *format,
 +                                                va_list args);

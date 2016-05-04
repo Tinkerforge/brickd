@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2012-2014 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2012-2014, 2016 Matthias Bolte <matthias@tinkerforge.com>
  *
  * main_macosx.c: Brick Daemon starting point for Mac OS X
  *
@@ -48,6 +48,7 @@ static LogSource _log_source = LOG_SOURCE_INITIALIZER;
 #define CONFIG_FILENAME (SYSCONFDIR "/brickd.conf")
 #define PID_FILENAME (LOCALSTATEDIR "/run/brickd.pid")
 #define LOG_FILENAME (LOCALSTATEDIR "/log/brickd.log")
+static File _log_file;
 
 static void print_usage(void) {
 	printf("Usage:\n"
@@ -135,7 +136,7 @@ int main(int argc, char **argv) {
 	log_init();
 
 	if (daemon) {
-		pid_fd = daemon_start(LOG_FILENAME, PID_FILENAME, false);
+		pid_fd = daemon_start(LOG_FILENAME, &_log_file, PID_FILENAME, false);
 	} else {
 		pid_fd = pid_file_acquire(PID_FILENAME, getpid());
 

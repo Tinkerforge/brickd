@@ -1995,9 +1995,8 @@ int LIBUSB_CALL libusb_hotplug_register_callback(libusb_context *ctx,
 void LIBUSB_CALL libusb_hotplug_deregister_callback(libusb_context *ctx,
 						libusb_hotplug_callback_handle callback_handle);
 
-void LIBUSB_CALL libusb_set_log_file(FILE *file);
-
-typedef void (LIBUSB_CALL *libusb_log_function)(enum libusb_log_level level,
+typedef void (LIBUSB_CALL *libusb_log_function)(libusb_context *ctx,
+                                                enum libusb_log_level level,
                                                 const char *function,
                                                 const char *format,
                                                 va_list args);

@@ -61,6 +61,7 @@ static LogSource _log_source = LOG_SOURCE_INITIALIZER;
 static char _config_filename[1024] = SYSCONFDIR"/brickd.conf";
 static char _pid_filename[1024] = LOCALSTATEDIR"/run/brickd.pid";
 static char _log_filename[1024] = LOCALSTATEDIR"/log/brickd.log";
+static File _log_file;
 
 static int prepare_paths(void) {
 	char *home;
@@ -159,28 +160,23 @@ static void print_usage(void) {
 }
 
 static void handle_sighup(void) {
-	FILE *log_file = log_get_file();
-
-	if (log_file != NULL) {
-		if (fileno(log_file) == STDOUT_FILENO || fileno(log_file) == STDERR_FILENO) {
-			return; // don't close stdout or stderr
-		}
-
-		fclose(log_file);
+	if (log_get_output() != &_log_file.base) {
+		return;
 	}
 
-	log_file = fopen(_log_filename, "a+");
+	log_set_output(&log_stderr_output);
 
-	if (log_file == NULL) {
-		log_set_file(stderr);
+	file_destroy(&_log_file);
 
+	if (file_create(&_log_file, _log_filename,
+	                O_CREAT | O_WRONLY | O_APPEND, 0644) < 0) {
 		log_error("Could not reopen log file '%s': %s (%d)",
 		          _log_filename, get_errno_name(errno), errno);
 
 		return;
 	}
 
-	log_set_file(log_file);
+	log_set_output(&_log_file.base);
 
 	log_info("Reopened log file '%s'", _log_filename);
 }
@@ -264,7 +260,7 @@ int main(int argc, char **argv) {
 	log_init();
 
 	if (daemon) {
-		pid_fd = daemon_start(_log_filename, _pid_filename, true);
+		pid_fd = daemon_start(_log_filename, &_log_file, _pid_filename, true);
 	} else {
 		pid_fd = pid_file_acquire(_pid_filename, getpid());
 

@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2012, 2014 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2012, 2014, 2016 Matthias Bolte <matthias@tinkerforge.com>
  *
  * log_winapi.c: Windows Event Log handling
  *
@@ -59,6 +59,7 @@ typedef struct {
 #define FOREGROUND_YELLOW (FOREGROUND_RED | FOREGROUND_GREEN)
 #define FOREGROUND_WHITE (FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE)
 
+static IO *_output = NULL;
 static HANDLE _console = NULL;
 static WORD _default_attributes = 0;
 static HANDLE _event_log = NULL;
@@ -70,7 +71,10 @@ static HANDLE _named_pipe_write_event = NULL;
 static Mutex _named_pipe_write_event_mutex; // protects _named_pipe_write_event
 static HANDLE _named_pipe_stop_event = NULL;
 
-void log_set_file_platform(FILE *file);
+bool log_libusb_debug = false;
+
+void log_set_output_platform(IO *output);
+void log_apply_color_platform(LogLevel level, bool begin);
 
 static WORD log_prepare_color_attributes(WORD color) {
 	WORD attributes = _default_attributes;
@@ -122,14 +126,28 @@ static void log_send_pipe_message(LogPipeMessage *pipe_message) {
 	mutex_unlock(&_named_pipe_write_event_mutex);
 }
 
-static void LIBUSB_CALL log_forward_libusb_message(enum libusb_log_level level,
+static void LIBUSB_CALL log_forward_libusb_message(libusb_context *ctx,
+                                                   enum libusb_log_level libusb_level,
                                                    const char *function,
                                                    const char *format,
                                                    va_list arguments) {
 	struct timeval timestamp;
+	time_t unix_seconds;
+	struct tm localized_timestamp;
+	char formatted_timestamp[64] = "<unknown>";
+	LogLevel level;
+	char level_char;
+	char buffer[1024] = "<unknown>";
+	int length;
 	LogPipeMessage pipe_message;
 
-	if (!_named_pipe_connected || level == LIBUSB_LOG_LEVEL_NONE) {
+	(void)ctx;
+
+	if (libusb_level == LIBUSB_LOG_LEVEL_NONE) {
+		return;
+	}
+
+	if (!log_libusb_debug && !_named_pipe_connected) {
 		return;
 	}
 
@@ -138,30 +156,74 @@ static void LIBUSB_CALL log_forward_libusb_message(enum libusb_log_level level,
 		timestamp.tv_usec = 0;
 	}
 
-	pipe_message.length = sizeof(pipe_message);
-	pipe_message.flags = LOG_PIPE_MESSAGE_FLAG_LIBUSB;
-	pipe_message.timestamp = (uint64_t)timestamp.tv_sec * 1000000 + timestamp.tv_usec;
-	pipe_message.line = -1;
+	if (log_libusb_debug && _output != NULL) {
+		// copy value to time_t variable because timeval.tv_sec and time_t
+		// can have different sizes between different compilers and compiler
+		// version and platforms. for example with WDK 7 both are 4 byte in
+		// size, but with MSVC 2010 time_t is 8 byte in size but timeval.tv_sec
+		// is still 4 byte in size.
+		unix_seconds = timestamp.tv_sec;
 
-	switch (level) {
-	default:
-	case LIBUSB_LOG_LEVEL_ERROR:   pipe_message.level = LOG_LEVEL_ERROR; break;
-	case LIBUSB_LOG_LEVEL_WARNING: pipe_message.level = LOG_LEVEL_WARN;  break;
-	case LIBUSB_LOG_LEVEL_INFO:    pipe_message.level = LOG_LEVEL_INFO;  break;
-	case LIBUSB_LOG_LEVEL_DEBUG:   pipe_message.level = LOG_LEVEL_DEBUG; break;
+		// format time
+		if (localtime_r(&unix_seconds, &localized_timestamp) != NULL) {
+			strftime(formatted_timestamp, sizeof(formatted_timestamp),
+			         "%Y-%m-%d %H:%M:%S", &localized_timestamp);
+		}
+
+		// format level
+		switch (libusb_level) {
+		case LIBUSB_LOG_LEVEL_ERROR:   level = LOG_LEVEL_ERROR; level_char = 'E'; break;
+		case LIBUSB_LOG_LEVEL_WARNING: level = LOG_LEVEL_WARN;  level_char = 'W'; break;
+		case LIBUSB_LOG_LEVEL_INFO:    level = LOG_LEVEL_INFO;  level_char = 'I'; break;
+		case LIBUSB_LOG_LEVEL_DEBUG:   level = LOG_LEVEL_DEBUG; level_char = 'D'; break;
+		default:                       level = LOG_LEVEL_ERROR; level_char = 'U'; break;
+		}
+
+		// format prefix
+		snprintf(buffer, sizeof(buffer), "%s.%06d <%c> <libusb|%s> ",
+		         formatted_timestamp, (int)timestamp.tv_usec, level_char,
+		         function);
+
+		length = strlen(buffer);
+
+		// format message
+		vsnprintf(buffer + length, sizeof(buffer) - length, format, arguments);
+
+		length = strlen(buffer);
+
+		// format newline
+		snprintf(buffer + length, sizeof(buffer) - length, "\n");
+
+		length = strlen(buffer);
+
+		// write output
+		log_lock();
+		log_apply_color_platform(level, true);
+		io_write(_output, buffer, length);
+		log_apply_color_platform(level, false);
+		log_unlock();
 	}
 
-	string_copy(pipe_message.source, sizeof(pipe_message.source), function);
-	vsnprintf(pipe_message.message, sizeof(pipe_message.message), format,
-	          arguments);
+	if (_named_pipe_connected) {
+		pipe_message.length = sizeof(pipe_message);
+		pipe_message.flags = LOG_PIPE_MESSAGE_FLAG_LIBUSB;
+		pipe_message.timestamp = (uint64_t)timestamp.tv_sec * 1000000 + timestamp.tv_usec;
+		pipe_message.line = -1;
 
-	log_send_pipe_message(&pipe_message);
-}
+		switch (libusb_level) {
+		default:
+		case LIBUSB_LOG_LEVEL_ERROR:   pipe_message.level = LOG_LEVEL_ERROR; break;
+		case LIBUSB_LOG_LEVEL_WARNING: pipe_message.level = LOG_LEVEL_WARN;  break;
+		case LIBUSB_LOG_LEVEL_INFO:    pipe_message.level = LOG_LEVEL_INFO;  break;
+		case LIBUSB_LOG_LEVEL_DEBUG:   pipe_message.level = LOG_LEVEL_DEBUG; break;
+		}
 
-static void log_set_named_pipe_connected(bool connected) {
-	_named_pipe_connected = connected;
+		string_copy(pipe_message.source, sizeof(pipe_message.source), function);
+		vsnprintf(pipe_message.message, sizeof(pipe_message.message), format,
+		          arguments);
 
-	libusb_set_log_function(connected ? log_forward_libusb_message : NULL);
+		log_send_pipe_message(&pipe_message);
+	}
 }
 
 static void log_connect_named_pipe(void *opaque) {
@@ -235,7 +297,7 @@ static void log_connect_named_pipe(void *opaque) {
 				// named pipe connect thread stopped
 				goto cleanup;
 			} else if (rc == WAIT_OBJECT_0 + 1) {
-				log_set_named_pipe_connected(true);
+				_named_pipe_connected = true;
 
 				log_info("Log Viewer connected");
 			} else {
@@ -280,7 +342,7 @@ static void log_connect_named_pipe(void *opaque) {
 
 				log_info("Log Viewer disconnected");
 
-				log_set_named_pipe_connected(false);
+				_named_pipe_connected = false;
 
 				break;
 			}
@@ -298,7 +360,7 @@ static void log_connect_named_pipe(void *opaque) {
 
 				log_info("Log Viewer disconnected");
 
-				log_set_named_pipe_connected(false);
+				_named_pipe_connected = false;
 
 				break;
 			} else {
@@ -333,11 +395,11 @@ cleanup:
 	_named_pipe_running = false;
 }
 
-void log_init_platform(FILE *file) {
+void log_init_platform(IO *output) {
 	int rc;
 	Semaphore handshake;
 
-	log_set_file_platform(file);
+	log_set_output_platform(output);
 
 	mutex_create(&_named_pipe_write_event_mutex);
 
@@ -399,9 +461,14 @@ void log_init_platform(FILE *file) {
 			}
 		}
 	}
+
+	// set libusb log funcrion
+	libusb_set_log_function(log_forward_libusb_message);
 }
 
 void log_exit_platform(void) {
+	libusb_set_log_function(NULL);
+
 	if (_named_pipe_running) {
 		SetEvent(_named_pipe_stop_event);
 
@@ -409,7 +476,7 @@ void log_exit_platform(void) {
 		thread_destroy(&_named_pipe_thread);
 	}
 
-	log_set_named_pipe_connected(false);
+	_named_pipe_connected = false;
 
 	if (_named_pipe != INVALID_HANDLE_VALUE) {
 		CloseHandle(_named_pipe);
@@ -430,17 +497,18 @@ void log_exit_platform(void) {
 	mutex_destroy(&_named_pipe_write_event_mutex);
 }
 
-void log_set_file_platform(FILE *file) {
+void log_set_output_platform(IO *output) {
 	HANDLE console;
 	CONSOLE_SCREEN_BUFFER_INFO screen_buffer_info;
 
+	_output = output;
 	_console = NULL;
 
-	if (file == NULL) {
+	if (_output == NULL || strcmp(_output->type, "stderr") != 0) {
 		return;
 	}
 
-	console = (HANDLE)_get_osfhandle(fileno(file));
+	console = (HANDLE)_get_osfhandle(_output->handle);
 
 	if (console == INVALID_HANDLE_VALUE) {
 		return;

@@ -162,6 +162,7 @@ SOURCES_DAEMONLIB := $(call FIX_PATH,../daemonlib/array.c) \
                      $(call FIX_PATH,../daemonlib/conf_file.c) \
                      $(call FIX_PATH,../daemonlib/enum.c) \
                      $(call FIX_PATH,../daemonlib/event.c) \
+                     $(call FIX_PATH,../daemonlib/file.c) \
                      $(call FIX_PATH,../daemonlib/io.c) \
                      $(call FIX_PATH,../daemonlib/log.c) \
                      $(call FIX_PATH,../daemonlib/node.c) \
@@ -237,8 +238,7 @@ ifeq ($(WITH_LIBUDEV),yes)
 endif
 
 ifeq ($(WITH_RED_BRICK),yes)
-	SOURCES_BRICKD += file.c \
-	                  redapid.c \
+	SOURCES_BRICKD += redapid.c \
 	                  red_stack.c \
 	                  red_usb_gadget.c \
 	                  red_extension.c \
