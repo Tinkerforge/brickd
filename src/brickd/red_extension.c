@@ -1,7 +1,7 @@
 /*
  * brickd
  * Copyright (C) 2014 Olaf Lüke <olaf@tinkerforge.com>
- * Copyright (C) 2014-2015 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2014-2016 Matthias Bolte <matthias@tinkerforge.com>
  *
  * red_extension.c: Extension initialization for RED Brick
  *
@@ -129,29 +129,32 @@ static void red_extension_configure_pin(ExtensionPinConfiguration *config, int e
 }
 
 int red_extension_read_eeprom_from_fs(uint8_t *buffer, int extension) {
-	FILE *f;
+	FILE *fp;
 	char file_name[128];
 	int length;
 
-	if (robust_snprintf(file_name, sizeof(file_name), "/tmp/new_eeprom_extension_%d.conf", extension) < 0) {
+	if (robust_snprintf(file_name, sizeof(file_name),
+	                    "/tmp/new_eeprom_extension_%d.conf", extension) < 0) {
 		return -1;
 	}
 
-	if ((f = fopen(file_name, "rb")) == NULL) {
+	fp = fopen(file_name, "rb");
+
+	if (fp == NULL) {
 		return -1;
-	} else {
-		length = fread(buffer, 1, EEPROM_SIZE, f);
-
-		if (fclose(f) < 0) {
-			log_warn("Could not close file %s", file_name);
-		}
-
-		if (remove(file_name) < 0) {
-			log_warn("Could not delete file %s", file_name);
-		}
-
-		return length;
 	}
+
+	length = robust_fread(fp, buffer, EEPROM_SIZE);
+
+	if (fclose(fp) < 0) {
+		log_warn("Could not close file %s", file_name);
+	}
+
+	if (remove(file_name) < 0) {
+		log_warn("Could not delete file %s", file_name);
+	}
+
+	return length;
 }
 
 int red_extension_save_rs485_config_to_fs(ExtensionRS485Config *rs485_config) {

@@ -1,7 +1,7 @@
 /*
  * brickd
  * Copyright (C) 2014 Olaf Lüke <olaf@tinkerforge.com>
- * Copyright (C) 2014-2015 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2014-2016 Matthias Bolte <matthias@tinkerforge.com>
  *
  * red_stack.c: SPI stack support for RED Brick
  *
@@ -832,7 +832,7 @@ static void red_stack_reset_handler(void *opaque) {
 
 	// Seek and read from gpio fd (see https://www.kernel.org/doc/Documentation/gpio/sysfs.txt)
 	lseek(_red_stack_reset_fd, 0, SEEK_SET);
-	if (read(_red_stack_reset_fd, buf, 2) < 0) {} // ignore return value
+	if (robust_read(_red_stack_reset_fd, buf, 2) < 0) {} // ignore return value
 
 	_red_stack_reset_detected++;
 	log_debug("Reset button press detected (%d since last reset)", _red_stack_reset_detected);
@@ -940,7 +940,7 @@ int red_stack_init(void) {
 	if (_red_stack_reset_fd > 0) {
 		char buf[2];
 		lseek(_red_stack_reset_fd, 0, SEEK_SET);
-		if (read(_red_stack_reset_fd, buf, 2) < 0) {} // ignore return value
+		if (robust_read(_red_stack_reset_fd, buf, 2) < 0) {} // ignore return value
 
 		if (event_add_source(_red_stack_reset_fd, EVENT_SOURCE_TYPE_GENERIC,
 		                     EVENT_PRIO | EVENT_ERROR, red_stack_reset_handler, NULL) < 0) {

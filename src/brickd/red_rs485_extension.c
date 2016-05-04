@@ -1,7 +1,7 @@
 /*
  * brickd
  * Copyright (C) 2014 Ishraq Ibne Ashraf <ishraq@tinkerforge.com>
- * Copyright (C) 2014-2015 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2014-2016 Matthias Bolte <matthias@tinkerforge.com>
  * Copyright (C) 2014 Olaf Lüke <olaf@tinkerforge.com>
  *
  * red_rs485_extension.c: RS485 extension support for RED Brick
@@ -599,7 +599,7 @@ void send_packet(void) {
 	rs485_packet[++crc16_first_byte_index] = packet_crc16 & 0x00FF;
 
 	// Sending packet
-	if ((write(_red_rs485_serial_fd, &rs485_packet, sizeof(rs485_packet))) <= 0) {
+	if (robust_write(_red_rs485_serial_fd, &rs485_packet, sizeof(rs485_packet)) <= 0) {
 		log_error("Error sending packet on interface, %s (%d)",
 		          get_errno_name(errno), errno);
 
@@ -649,7 +649,7 @@ void init_rxe_pin_state(int extension) {
 
 void disable_master_timer(void) {
 	uint64_t dummy_read_buffer = 0;
-	if ((read(_master_timer_event, &dummy_read_buffer, sizeof(uint64_t))) < 0) {}
+	if (robust_read(_master_timer_event, &dummy_read_buffer, sizeof(uint64_t)) < 0) {}
 	master_timer.it_interval.tv_sec = 0;
 	master_timer.it_interval.tv_nsec = 0;
 	master_timer.it_value.tv_sec = 0;

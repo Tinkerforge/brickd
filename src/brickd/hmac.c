@@ -38,6 +38,8 @@
 	#include <process.h>
 #endif
 
+#include <daemonlib/utils.h>
+
 #include "hmac.h"
 
 #ifndef _WIN32
@@ -50,7 +52,7 @@ static int read_uint32_non_blocking(const char *filename, uint32_t *value) {
 		return -1;
 	}
 
-	rc = read(fd, value, sizeof(uint32_t));
+	rc = robust_read(fd, value, sizeof(uint32_t));
 
 	close(fd);
 

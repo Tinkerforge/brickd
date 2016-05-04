@@ -1,7 +1,7 @@
 /*
  * brickd
  * Copyright (C) 2014 Olaf Lüke <olaf@tinkerforge.com>
- * Copyright (C) 2014-2015 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2014-2016 Matthias Bolte <matthias@tinkerforge.com>
  *
  * red_ethernet_extension.c: Ethernet extension support for RED Brick
  *
@@ -61,7 +61,7 @@ void red_ethernet_extension_rmmod(void) {
 
 int red_ethernet_extension_init(ExtensionEthernetConfig *ethernet_config) {
 	struct utsname uts;
-	FILE *f;
+	FILE *fp;
 	char buf_path[W5X00_PATH_MAX_SIZE + 1] = {0};
 	char buf_param[W5X00_PARAM_MAX_SIZE + 1] = {0};
 	char buf_module[W5X00_MODULE_MAX_SIZE];
@@ -123,16 +123,18 @@ int red_ethernet_extension_init(ExtensionEthernetConfig *ethernet_config) {
 	          ethernet_config->extension,
 	          buf_param);
 
-	if ((f = fopen(buf_path, "rb")) == NULL) {
+	fp = fopen(buf_path, "rb");
+
+	if (fp == NULL) {
 		log_error("Could not read w5x00 kernel module: %s (%d)",
 		          get_errno_name(errno), errno);
 
 		return -1;
 	}
 
-	length = fread(buf_module, sizeof(char), W5X00_MODULE_MAX_SIZE, f);
+	length = robust_fread(fp, buf_module, W5X00_MODULE_MAX_SIZE);
 
-	fclose(f);
+	fclose(fp);
 
 	// We abort if the read was not successful or the buffer was not big enough
 	if (length < 0 || length == W5X00_MODULE_MAX_SIZE) {
