@@ -56,7 +56,7 @@ void fixes_init(void) {
 #endif
 
 #ifndef BRICKD_UWP_BUILD // UWP doesn't support environment variables
-	// _putenv_s is not avialable on Windows XP by default, so find _putenv_s
+	// _putenv_s is not available on Windows XP by default, so find _putenv_s
 	// and _putenv at runtime. as brickd might not be linked to msvcrt.dll
 	// (could be msvcrtXY.dll) GetModuleHandle cannot be used with "msvcrt"
 	// as module name. use GetModuleHandleEx with the address of the getenv
