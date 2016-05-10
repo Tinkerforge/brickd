@@ -37,6 +37,10 @@
 
 static LogSource _log_source = LOG_SOURCE_INITIALIZER;
 
+#ifdef _WIN32
+static LogSource _libusb_log_source = LOG_SOURCE_INITIALIZER;
+#endif
+
 static bool _libusb_debug = false;
 static libusb_context *_context = NULL;
 static Array _usb_stacks;
@@ -48,7 +52,40 @@ extern int usb_init_hotplug(libusb_context *context);
 extern void usb_exit_hotplug(libusb_context *context);
 
 #ifdef _WIN32
-extern bool log_libusb_debug;
+
+static void LIBUSB_CALL usb_forward_message(libusb_context *ctx,
+                                            enum libusb_log_level level_,
+                                            const char *function,
+                                            const char *format,
+                                            va_list arguments) {
+	LogLevel level;
+	LogDebugGroup debug_group;
+	char buffer[1024] = "<unknown>";
+
+	(void)ctx;
+
+	switch (level_) {
+	case LIBUSB_LOG_LEVEL_ERROR:   level = LOG_LEVEL_ERROR; break;
+	case LIBUSB_LOG_LEVEL_WARNING: level = LOG_LEVEL_WARN;  break;
+	case LIBUSB_LOG_LEVEL_INFO:    level = LOG_LEVEL_INFO;  break;
+	case LIBUSB_LOG_LEVEL_DEBUG:   level = LOG_LEVEL_DEBUG; break;
+	default:                                                return;
+	}
+
+	if (level == LOG_LEVEL_DEBUG) {
+		debug_group = LOG_DEBUG_GROUP_COMMON; // FIXME: maybe add libusb debug group
+	} else {
+		debug_group = LOG_DEBUG_GROUP_NONE;
+	}
+
+	if (log_is_message_included(level, &_libusb_log_source, debug_group)) {
+		vsnprintf(buffer, sizeof(buffer), format, arguments);
+
+		log_message(level, &_libusb_log_source, debug_group, function, -1,
+		            "%s", buffer);
+	}
+}
+
 #endif
 
 static int usb_enumerate(void) {
@@ -207,7 +244,10 @@ int usb_init(bool libusb_debug) {
 	_libusb_debug = libusb_debug;
 
 #ifdef _WIN32
-	log_libusb_debug = libusb_debug;
+	_libusb_log_source.file = "libusb";
+	_libusb_log_source.name = "libusb";
+
+	libusb_set_log_function(usb_forward_message);
 #endif
 
 	if (_libusb_debug) {
@@ -292,6 +332,10 @@ void usb_exit(void) {
 	usb_destroy_context(_context);
 
 	usb_exit_platform();
+
+#ifdef _WIN32
+	libusb_set_log_function(NULL);
+#endif
 }
 
 int usb_rescan(void) {

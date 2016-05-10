@@ -2,7 +2,7 @@
  * brickd
  * Copyright (C) 2012, 2014, 2016 Matthias Bolte <matthias@tinkerforge.com>
  *
- * log_winapi.c: Windows Event Log handling
+ * log_winapi.c: Windows Event Log and log viewer handling
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,7 +20,6 @@
  */
 
 #include <io.h>
-#include <libusb.h>
 #include <stdbool.h>
 #ifndef _MSC_VER
 	#include <sys/time.h>
@@ -35,11 +34,11 @@
 
 static LogSource _log_source = LOG_SOURCE_INITIALIZER;
 
-#include <daemonlib/packed_begin.h>
-
-typedef enum { // bitmask
+enum { // bitmask
 	LOG_PIPE_MESSAGE_FLAG_LIBUSB = 0x0001
-} LogPipeMessageFlag;
+};
+
+#include <daemonlib/packed_begin.h>
 
 typedef struct {
 	uint16_t length;
@@ -70,8 +69,6 @@ static Thread _named_pipe_thread;
 static HANDLE _named_pipe_write_event = NULL;
 static Mutex _named_pipe_write_event_mutex; // protects _named_pipe_write_event
 static HANDLE _named_pipe_stop_event = NULL;
-
-bool log_libusb_debug = false;
 
 void log_set_output_platform(IO *output);
 void log_apply_color_platform(LogLevel level, bool begin);
@@ -116,7 +113,8 @@ static void log_send_pipe_message(LogPipeMessage *pipe_message) {
 	memset(&overlapped, 0, sizeof(overlapped));
 	overlapped.hEvent = _named_pipe_write_event;
 
-	if (!WriteFile(_named_pipe, pipe_message, sizeof(*pipe_message), NULL, &overlapped) &&
+	if (!WriteFile(_named_pipe, pipe_message, sizeof(*pipe_message),
+	               NULL, &overlapped) &&
 	    GetLastError() == ERROR_IO_PENDING) {
 		// wait for result of overlapped I/O to avoid a race condition with
 		// the next WriteFile call that will reuse the same event handle
@@ -124,106 +122,6 @@ static void log_send_pipe_message(LogPipeMessage *pipe_message) {
 	}
 
 	mutex_unlock(&_named_pipe_write_event_mutex);
-}
-
-static void LIBUSB_CALL log_forward_libusb_message(libusb_context *ctx,
-                                                   enum libusb_log_level libusb_level,
-                                                   const char *function,
-                                                   const char *format,
-                                                   va_list arguments) {
-	struct timeval timestamp;
-	time_t unix_seconds;
-	struct tm localized_timestamp;
-	char formatted_timestamp[64] = "<unknown>";
-	LogLevel level;
-	char level_char;
-	char buffer[1024] = "<unknown>";
-	int length;
-	LogPipeMessage pipe_message;
-
-	(void)ctx;
-
-	if (libusb_level == LIBUSB_LOG_LEVEL_NONE) {
-		return;
-	}
-
-	if (!log_libusb_debug && !_named_pipe_connected) {
-		return;
-	}
-
-	if (gettimeofday(&timestamp, NULL) < 0) {
-		timestamp.tv_sec = time(NULL);
-		timestamp.tv_usec = 0;
-	}
-
-	if (log_libusb_debug && _output != NULL) {
-		// copy value to time_t variable because timeval.tv_sec and time_t
-		// can have different sizes between different compilers and compiler
-		// version and platforms. for example with WDK 7 both are 4 byte in
-		// size, but with MSVC 2010 time_t is 8 byte in size but timeval.tv_sec
-		// is still 4 byte in size.
-		unix_seconds = timestamp.tv_sec;
-
-		// format time
-		if (localtime_r(&unix_seconds, &localized_timestamp) != NULL) {
-			strftime(formatted_timestamp, sizeof(formatted_timestamp),
-			         "%Y-%m-%d %H:%M:%S", &localized_timestamp);
-		}
-
-		// format level
-		switch (libusb_level) {
-		case LIBUSB_LOG_LEVEL_ERROR:   level = LOG_LEVEL_ERROR; level_char = 'E'; break;
-		case LIBUSB_LOG_LEVEL_WARNING: level = LOG_LEVEL_WARN;  level_char = 'W'; break;
-		case LIBUSB_LOG_LEVEL_INFO:    level = LOG_LEVEL_INFO;  level_char = 'I'; break;
-		case LIBUSB_LOG_LEVEL_DEBUG:   level = LOG_LEVEL_DEBUG; level_char = 'D'; break;
-		default:                       level = LOG_LEVEL_ERROR; level_char = 'U'; break;
-		}
-
-		// format prefix
-		snprintf(buffer, sizeof(buffer), "%s.%06d <%c> <libusb|%s> ",
-		         formatted_timestamp, (int)timestamp.tv_usec, level_char,
-		         function);
-
-		length = strlen(buffer);
-
-		// format message
-		vsnprintf(buffer + length, sizeof(buffer) - length, format, arguments);
-
-		length = strlen(buffer);
-
-		// format newline
-		snprintf(buffer + length, sizeof(buffer) - length, "\n");
-
-		length = strlen(buffer);
-
-		// write output
-		log_lock();
-		log_apply_color_platform(level, true);
-		io_write(_output, buffer, length);
-		log_apply_color_platform(level, false);
-		log_unlock();
-	}
-
-	if (_named_pipe_connected) {
-		pipe_message.length = sizeof(pipe_message);
-		pipe_message.flags = LOG_PIPE_MESSAGE_FLAG_LIBUSB;
-		pipe_message.timestamp = (uint64_t)timestamp.tv_sec * 1000000 + timestamp.tv_usec;
-		pipe_message.line = -1;
-
-		switch (libusb_level) {
-		default:
-		case LIBUSB_LOG_LEVEL_ERROR:   pipe_message.level = LOG_LEVEL_ERROR; break;
-		case LIBUSB_LOG_LEVEL_WARNING: pipe_message.level = LOG_LEVEL_WARN;  break;
-		case LIBUSB_LOG_LEVEL_INFO:    pipe_message.level = LOG_LEVEL_INFO;  break;
-		case LIBUSB_LOG_LEVEL_DEBUG:   pipe_message.level = LOG_LEVEL_DEBUG; break;
-		}
-
-		string_copy(pipe_message.source, sizeof(pipe_message.source), function);
-		vsnprintf(pipe_message.message, sizeof(pipe_message.message), format,
-		          arguments);
-
-		log_send_pipe_message(&pipe_message);
-	}
 }
 
 static void log_connect_named_pipe(void *opaque) {
@@ -461,14 +359,9 @@ void log_init_platform(IO *output) {
 			}
 		}
 	}
-
-	// set libusb log funcrion
-	libusb_set_log_function(log_forward_libusb_message);
 }
 
 void log_exit_platform(void) {
-	libusb_set_log_function(NULL);
-
 	if (_named_pipe_running) {
 		SetEvent(_named_pipe_stop_event);
 
@@ -504,7 +397,7 @@ void log_set_output_platform(IO *output) {
 	_output = output;
 	_console = NULL;
 
-	if (_output == NULL || strcmp(_output->type, "stderr") != 0) {
+	if (_output != &log_stderr_output) {
 		return;
 	}
 
@@ -563,61 +456,74 @@ void log_apply_color_platform(LogLevel level, bool begin) {
 	}
 }
 
-bool log_is_message_included_platform(LogLevel level) {
-	if (_named_pipe_connected) {
-		return true;
-	}
+bool log_is_message_included_platform(LogLevel level, LogSource *source,
+                                      LogDebugGroup debug_group) {
+	(void)source;
+	(void)debug_group;
 
-	return level == LOG_LEVEL_ERROR || level == LOG_LEVEL_WARN;
+	return _named_pipe_connected ||
+	       level == LOG_LEVEL_ERROR || level == LOG_LEVEL_WARN;
 }
 
 // NOTE: assumes that _mutex (in log.c) is locked
 void log_secondary_output_platform(struct timeval *timestamp, LogLevel level,
-                                   LogSource *source, int line,
+                                   LogSource *source, LogDebugGroup debug_group,
+                                   const char *function, int line,
                                    const char *format, va_list arguments) {
-	WORD type = 0;
-	DWORD event_id = 0;
-	LPCSTR insert_strings[1] = {NULL};
-	LogPipeMessage pipe_message;
+	bool libusb;
+	LogPipeMessage message;
+	WORD type;
+	DWORD event_id;
+	LPCSTR insert_strings[1];
+
+	(void)debug_group;
 
 	if (_event_log == NULL && !_named_pipe_connected) {
 		return;
 	}
 
-	switch (level) {
-	case LOG_LEVEL_ERROR:
-		type = EVENTLOG_ERROR_TYPE;
-		event_id = BRICKD_GENERIC_ERROR;
-		insert_strings[0] = pipe_message.message;
-		break;
+	libusb = strcmp(source->name, "libusb") == 0;
 
-	case LOG_LEVEL_WARN:
-		type = EVENTLOG_WARNING_TYPE;
-		event_id = BRICKD_GENERIC_WARNING;
-		insert_strings[0] = pipe_message.message;
-		break;
+	vsnprintf(message.message, sizeof(message.message), format, arguments);
 
-	default:
-		// ignore all other log levels for the event log
-		insert_strings[0] = NULL;
-		break;
-	}
+	if (_event_log != NULL && !libusb) {
+		switch (level) {
+		case LOG_LEVEL_ERROR:
+			type = EVENTLOG_ERROR_TYPE;
+			event_id = BRICKD_GENERIC_ERROR;
+			insert_strings[0] = message.message;
+			break;
 
-	vsnprintf(pipe_message.message, sizeof(pipe_message.message), format, arguments);
+		case LOG_LEVEL_WARN:
+			type = EVENTLOG_WARNING_TYPE;
+			event_id = BRICKD_GENERIC_WARNING;
+			insert_strings[0] = message.message;
+			break;
 
-	if (_event_log != NULL && insert_strings[0] != NULL) {
-		ReportEvent(_event_log, type, 0, event_id, NULL, 1, 0, insert_strings, NULL);
+		default:
+			// ignore all other log levels for the event log
+			type = 0;
+			event_id = 0;
+			insert_strings[0] = NULL;
+			break;
+		}
+
+		if (insert_strings[0] != NULL) {
+			ReportEvent(_event_log, type, 0, event_id, NULL, 1, 0,
+			            insert_strings, NULL);
+		}
 	}
 
 	if (_named_pipe_connected) {
-		pipe_message.length = sizeof(pipe_message);
-		pipe_message.flags = 0;
-		pipe_message.timestamp = (uint64_t)timestamp->tv_sec * 1000000 + timestamp->tv_usec;
-		pipe_message.level = level;
-		pipe_message.line = line;
+		message.length = sizeof(message);
+		message.flags = libusb ? LOG_PIPE_MESSAGE_FLAG_LIBUSB : 0;
+		message.timestamp = (uint64_t)timestamp->tv_sec * 1000000 + timestamp->tv_usec;
+		message.level = level;
+		message.line = line;
 
-		string_copy(pipe_message.source, sizeof(pipe_message.source), source->name);
+		string_copy(message.source, sizeof(message.source),
+		            libusb ? function : source->name);
 
-		log_send_pipe_message(&pipe_message);
+		log_send_pipe_message(&message);
 	}
 }
