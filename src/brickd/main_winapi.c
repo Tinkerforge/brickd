@@ -2,7 +2,7 @@
  * brickd
  * Copyright (C) 2012-2014, 2016 Matthias Bolte <matthias@tinkerforge.com>
  *
- * main_windows.c: Brick Daemon starting point for Windows
+ * main_winapi.c: Brick Daemon starting point for Windows
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by

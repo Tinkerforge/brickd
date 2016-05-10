@@ -210,7 +210,7 @@ else
 endif
 
 ifeq ($(PLATFORM),Windows)
-	SOURCES_BRICKD += main_windows.c
+	SOURCES_BRICKD += main_winapi.c
 endif
 
 ifeq ($(PLATFORM),Linux)

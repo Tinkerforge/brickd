@@ -73,7 +73,7 @@
  hardware.c^
  hmac.c^
  log_winapi.c^
- main_windows.c^
+ main_winapi.c^
  network.c^
  service.c^
  sha1.c^
