@@ -7,7 +7,7 @@
 brickd \- Tinkerforge Brick Daemon
 .SH SYNOPSIS
 .B brickd
-[--help|--version|--check-config|--daemon] [--debug [<filter>]] [--libusb-debug]
+[--help|--version|--check-config|--daemon] [--debug [<filter>]]
 .SH DESCRIPTION
 The
 .B brickd
@@ -45,9 +45,6 @@ value. See
 for further details. Also takes an optional comma separated list of filter
 statements that allow to control the visibility of debug messages (FIXME: Add
 more details about filter statements).
-.IP "\fB\-\-libusb-debug\fR" 4
-Enable libusb log output. Only works if libusb was compiled with log output
-enabled.
 .SH SIGNALS
 On reception of
 .B SIGHUP

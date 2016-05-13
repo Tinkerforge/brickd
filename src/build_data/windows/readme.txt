@@ -44,7 +44,6 @@ the installer register and start brickd.exe as a Windows Service.
 --version        shows version number and exits
 --check-config   checks config file for errors
 --debug          sets all log levels to debug
---libusb-debug   set libusb log level to debug
 --install        registers Brick Daemon as service and starts it
 --uninstall      stops service and unregister it
 --console        forces start as console application
@@ -78,10 +77,6 @@ error, warning and information messages are written to the log by default. The
 Brick Daemon config file allows to fine-tune which log messages are included.
 You can use the --debug option to override the config file settings and to
 output a full debug log.
-
-For debugging problems in libusb itself the --libusb-debug option can be used.
-Then brickd will enable libusb logging and include libusb log messages into its
-own log output.
 
 If started from a command prompt and without the --log-to-file option log
 messages are written to the command prompt window.

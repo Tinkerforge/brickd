@@ -53,15 +53,13 @@ static File _log_file;
 static void print_usage(void) {
 	printf("Usage:\n"
 	       "  brickd [--help|--version|--check-config|--daemon] [--debug [<filter>]]\n"
-	       "         [--libusb-debug]\n"
 	       "\n"
 	       "Options:\n"
 	       "  --help              Show this help\n"
 	       "  --version           Show version number\n"
 	       "  --check-config      Check config file for errors\n"
 	       "  --daemon            Run as daemon and write PID and log file\n"
-	       "  --debug [<filter>]  Set log level to debug and apply optional filter\n"
-	       "  --libusb-debug      Set libusb log level to debug\n");
+	       "  --debug [<filter>]  Set log level to debug and apply optional filter\n");
 }
 
 static void handle_sigusr1(void) {
@@ -80,7 +78,6 @@ int main(int argc, char **argv) {
 	bool check_config = false;
 	bool daemon = false;
 	const char *debug_filter = NULL;
-	bool libusb_debug = false;
 	int pid_fd = -1;
 
 	for (i = 1; i < argc; ++i) {
@@ -98,8 +95,6 @@ int main(int argc, char **argv) {
 			} else {
 				debug_filter = "";
 			}
-		} else if (strcmp(argv[i], "--libusb-debug") == 0) {
-			libusb_debug = true;
 		} else {
 			fprintf(stderr, "Unknown option '%s'\n\n", argv[i]);
 			print_usage();
@@ -173,7 +168,7 @@ int main(int argc, char **argv) {
 		goto error_hardware;
 	}
 
-	if (usb_init(libusb_debug) < 0) {
+	if (usb_init() < 0) {
 		goto error_usb;
 	}
 

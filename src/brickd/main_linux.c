@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2012-2015 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2012-2016 Matthias Bolte <matthias@tinkerforge.com>
  *
  * main_linux.c: Brick Daemon starting point for Linux
  *
@@ -148,15 +148,13 @@ static int prepare_paths(void) {
 static void print_usage(void) {
 	printf("Usage:\n"
 	       "  brickd [--help|--version|--check-config|--daemon] [--debug [<filter>]]\n"
-	       "         [--libusb-debug]\n"
 	       "\n"
 	       "Options:\n"
 	       "  --help              Show this help\n"
 	       "  --version           Show version number\n"
 	       "  --check-config      Check config file for errors\n"
 	       "  --daemon            Run as daemon and write PID and log file\n"
-	       "  --debug [<filter>]  Set log level to debug and apply optional filter\n"
-	       "  --libusb-debug      Set libusb log level to debug\n");
+	       "  --debug [<filter>]  Set log level to debug and apply optional filter\n");
 }
 
 static void handle_sighup(void) {
@@ -197,7 +195,6 @@ int main(int argc, char **argv) {
 	bool check_config = false;
 	bool daemon = false;
 	const char *debug_filter = NULL;
-	bool libusb_debug = false;
 	int pid_fd = -1;
 #ifdef BRICKD_WITH_LIBUDEV
 	bool initialized_udev = false;
@@ -218,8 +215,6 @@ int main(int argc, char **argv) {
 			} else {
 				debug_filter = "";
 			}
-		} else if (strcmp(argv[i], "--libusb-debug") == 0) {
-			libusb_debug = true;
 		} else {
 			fprintf(stderr, "Unknown option '%s'\n\n", argv[i]);
 			print_usage();
@@ -297,7 +292,7 @@ int main(int argc, char **argv) {
 		goto error_hardware;
 	}
 
-	if (usb_init(libusb_debug) < 0) {
+	if (usb_init() < 0) {
 		goto error_usb;
 	}
 

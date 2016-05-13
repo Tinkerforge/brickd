@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2012-2014 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2012-2014, 2016 Matthias Bolte <matthias@tinkerforge.com>
  *
  * usb.h: USB specific functions
  *
@@ -40,7 +40,7 @@
 #define USB_RED_BRICK_DEVICE_RELEASE ((1 << 8) | (1 << 4) | (0 << 0)) /* 1.10 */
 #define USB_RED_BRICK_INTERFACE 0
 
-int usb_init(bool libusb_debug);
+int usb_init(void);
 void usb_exit(void);
 
 bool usb_has_hotplug(void);

@@ -36,12 +36,8 @@
 #include "usb_transfer.h"
 
 static LogSource _log_source = LOG_SOURCE_INITIALIZER;
-
-#ifdef _WIN32
 static LogSource _libusb_log_source = LOG_SOURCE_INITIALIZER;
-#endif
 
-static bool _libusb_debug = false;
 static libusb_context *_context = NULL;
 static Array _usb_stacks;
 static bool _initialized_hotplug = false;
@@ -73,7 +69,7 @@ static void LIBUSB_CALL usb_forward_message(libusb_context *ctx,
 	}
 
 	if (level == LOG_LEVEL_DEBUG) {
-		debug_group = LOG_DEBUG_GROUP_COMMON; // FIXME: maybe add libusb debug group
+		debug_group = LOG_DEBUG_GROUP_LIBUSB;
 	} else {
 		debug_group = LOG_DEBUG_GROUP_NONE;
 	}
@@ -236,22 +232,43 @@ static void LIBUSB_CALL usb_remove_pollfd(int fd, void *opaque) {
 	event_remove_source(fd, EVENT_SOURCE_TYPE_USB);
 }
 
-int usb_init(bool libusb_debug) {
+int usb_init(void) {
 	int phase = 0;
 
 	log_debug("Initializing USB subsystem");
 
-	_libusb_debug = libusb_debug;
-
-#ifdef _WIN32
 	_libusb_log_source.file = "libusb";
 	_libusb_log_source.name = "libusb";
 
+#ifdef _WIN32
 	libusb_set_log_function(usb_forward_message);
 #endif
 
-	if (_libusb_debug) {
-		putenv("LIBUSB_DEBUG=5");
+	switch (log_get_effective_level()) {
+	case LOG_LEVEL_ERROR:
+		putenv("LIBUSB_DEBUG=1");
+		break;
+
+	case LOG_LEVEL_WARN:
+		putenv("LIBUSB_DEBUG=2");
+		break;
+
+	case LOG_LEVEL_INFO:
+		putenv("LIBUSB_DEBUG=3");
+		break;
+
+	case LOG_LEVEL_DEBUG:
+		if (log_is_message_included(LOG_LEVEL_DEBUG, &_libusb_log_source,
+		                            LOG_DEBUG_GROUP_LIBUSB)) {
+			putenv("LIBUSB_DEBUG=4");
+		} else {
+			putenv("LIBUSB_DEBUG=3");
+		}
+
+		break;
+
+	default:
+		break;
 	}
 
 	if (usb_init_platform() < 0) {
@@ -417,8 +434,31 @@ int usb_create_context(libusb_context **context) {
 		goto cleanup;
 	}
 
-	if (_libusb_debug) {
-		libusb_set_debug(*context, 5);
+	switch (log_get_effective_level()) {
+	case LOG_LEVEL_ERROR:
+		libusb_set_debug(*context, 1);
+		break;
+
+	case LOG_LEVEL_WARN:
+		libusb_set_debug(*context, 2);
+		break;
+
+	case LOG_LEVEL_INFO:
+		libusb_set_debug(*context, 3);
+		break;
+
+	case LOG_LEVEL_DEBUG:
+		if (log_is_message_included(LOG_LEVEL_DEBUG, &_libusb_log_source,
+		                            LOG_DEBUG_GROUP_LIBUSB)) {
+			libusb_set_debug(*context, 4);
+		} else {
+			libusb_set_debug(*context, 3);
+		}
+
+		break;
+
+	default:
+		break;
 	}
 
 	phase = 1;
