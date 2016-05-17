@@ -262,7 +262,7 @@ static void event_forward_usb_events(void *opaque) {
 		return;
 	}
 
-	if (_usb_poll_pollfds.count == 0) {
+	if (_usb_poll_pollfds.count == 0 || _usb_poll_pollfds_ready == 0) {
 		return;
 	}
 
@@ -276,7 +276,8 @@ static void event_forward_usb_events(void *opaque) {
 	// not removed or replaced during the iteration over the pollfd array.
 	// because of this event_remove_source only marks event sources as removed,
 	// the actual removal is done later by event_cleanup_sources
-	for (i = 0, k = 1; i < event_source_count && k < _usb_poll_pollfds.count && _usb_poll_pollfds_ready > handled; ++i) {
+	for (i = 0, k = 1; i < event_source_count && k < _usb_poll_pollfds.count &&
+	     _usb_poll_pollfds_ready > handled; ++i) {
 		event_source = array_get(event_sources, i);
 
 		if (event_source->type != EVENT_SOURCE_TYPE_USB) {
