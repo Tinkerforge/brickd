@@ -60,7 +60,7 @@ typedef unsigned __int32  uint32_t;
 
 #include <time.h>
 #include <limits.h>
-#include <stdio.h>
+#include <stdarg.h>
 
 /* 'interface' might be defined as a macro on Windows, so we need to
  * undefine it so as not to break the current libusb API, because
