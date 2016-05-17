@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 brickd (Brick Daemon)
-Copyright (C) 2012-2015 Matthias Bolte <matthias@tinkerforge.com>
+Copyright (C) 2012-2016 Matthias Bolte <matthias@tinkerforge.com>
 Copyright (C) 2011 Olaf Lüke <olaf@tinkerforge.com>
 Copyright (C) 2011 Bastian Nordmeyer <bastian@tinkerforge.com>
 
@@ -167,6 +167,7 @@ def build_windows_pkg():
     shutil.copy(os.path.join(build_data_path, 'readme.txt'), dist_path)
     shutil.copy(os.path.join(build_data_path, 'brickd.ini'), dist_path)
     shutil.copy(os.path.join(build_data_path, 'logviewer', 'logviewer.exe'), dist_path)
+    shutil.copy(os.path.join(build_data_path, 'logviewer', 'logviewer.pdb'), dist_path)
 
     print('building NSIS installer')
     system('"C:\\Program Files\\NSIS\\makensis.exe" dist\\nsis\\brickd_installer.nsi')

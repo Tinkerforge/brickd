@@ -9,7 +9,7 @@
 )
 
 @set CC=cl /nologo /c /MD /O2 /W4 /wd4200 /wd4214 /DWIN32_LEAN_AND_MEAN /DNDEBUG
-@set LD=link /nologo /subsystem:windows /opt:ref /opt:icf /release
+@set LD=link /nologo /subsystem:windows /debug /opt:ref /opt:icf
 @set RC=rc /dWIN32 /r
 
 @if defined DDKBUILDENV (
