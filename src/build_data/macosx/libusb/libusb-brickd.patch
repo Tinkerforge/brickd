@@ -1,8 +1,73 @@
+diff --git a/libusb/core.c b/libusb/core.c
+index 5317d26..3666391 100644
+--- a/libusb/core.c
++++ b/libusb/core.c
+@@ -2282,21 +2282,32 @@ static void usbi_log_str(struct libusb_context *ctx,
+ 	UNUSED(level);
+ }
+ 
++static libusb_log_function usbi_log_function = NULL;
++
++void API_EXPORTED libusb_set_log_function(libusb_log_function function) {
++	usbi_log_function = function;
++}
++
+ void usbi_log_v(struct libusb_context *ctx, enum libusb_log_level level,
+ 	const char *function, const char *format, va_list args)
+ {
++	int ctx_level = 0;
+ 	const char *prefix = "";
+ 	char buf[USBI_MAX_LOG_LEN];
+ 	struct timeval now;
+ 	int global_debug, header_len, text_len;
+ 	static int has_debug_header_been_displayed = 0;
+ 
++	if (usbi_log_function != NULL) {
++		usbi_log_function(ctx, level, function, format, args);
++		return;
++	}
++
+ #ifdef ENABLE_DEBUG_LOGGING
+ 	global_debug = 1;
+ 	UNUSED(ctx);
++	UNUSED(ctx_level);
+ #else
+-	int ctx_level = 0;
+-
+ 	USBI_GET_CONTEXT(ctx);
+ 	if (ctx) {
+ 		ctx_level = ctx->debug;
+diff --git a/libusb/libusb.h b/libusb/libusb.h
+index 5b0d522..a8e06ca 100644
+--- a/libusb/libusb.h
++++ b/libusb/libusb.h
+@@ -60,6 +60,7 @@ typedef unsigned __int32  uint32_t;
+ 
+ #include <time.h>
+ #include <limits.h>
++#include <stdarg.h>
+ 
+ /* 'interface' might be defined as a macro on Windows, so we need to
+  * undefine it so as not to break the current libusb API, because
+@@ -1993,6 +1994,13 @@ int LIBUSB_CALL libusb_hotplug_register_callback(libusb_context *ctx,
+ void LIBUSB_CALL libusb_hotplug_deregister_callback(libusb_context *ctx,
+ 						libusb_hotplug_callback_handle callback_handle);
+ 
++typedef void (LIBUSB_CALL *libusb_log_function)(libusb_context *ctx,
++                                                enum libusb_log_level level,
++                                                const char *function,
++                                                const char *format,
++                                                va_list args);
++void LIBUSB_CALL libusb_set_log_function(libusb_log_function function);
++
+ #ifdef __cplusplus
+ }
+ #endif
 diff --git a/libusb/os/darwin_usb.c b/libusb/os/darwin_usb.c
-index 5963965..70fbb02 100644
+index 4e4ab04..c27afb5 100644
 --- a/libusb/os/darwin_usb.c
 +++ b/libusb/os/darwin_usb.c
-@@ -620,7 +620,13 @@ static int darwin_cache_device_descriptor (struct libusb_context *ctx, struct da
+@@ -719,7 +719,13 @@ static int darwin_cache_device_descriptor (struct libusb_context *ctx, struct da
    /* According to Apple's documentation the device must be open for DeviceRequest but we may not be able to open some
     * devices and Apple's USB Prober doesn't bother to open the device before issuing a descriptor request.  Still,
     * to follow the spec as closely as possible, try opening the device */

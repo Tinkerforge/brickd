@@ -47,7 +47,7 @@ extern void usb_exit_platform(void);
 extern int usb_init_hotplug(libusb_context *context);
 extern void usb_exit_hotplug(libusb_context *context);
 
-#ifdef _WIN32
+#if defined(_WIN32) || defined(__APPLE__)
 
 static void LIBUSB_CALL usb_forward_message(libusb_context *ctx,
                                             enum libusb_log_level level_,
@@ -240,7 +240,7 @@ int usb_init(void) {
 	_libusb_log_source.file = "libusb";
 	_libusb_log_source.name = "libusb";
 
-#ifdef _WIN32
+#if defined(_WIN32) || defined(__APPLE__)
 	libusb_set_log_function(usb_forward_message);
 #endif
 
@@ -350,7 +350,7 @@ void usb_exit(void) {
 
 	usb_exit_platform();
 
-#ifdef _WIN32
+#if defined(_WIN32) || defined(__APPLE__)
 	libusb_set_log_function(NULL);
 #endif
 }
