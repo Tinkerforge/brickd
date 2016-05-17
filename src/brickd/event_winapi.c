@@ -510,7 +510,7 @@ int event_run_platform(Array *event_sources, bool *running, EventCleanupFunction
 
 	while (*running) {
 		// update SocketSet arrays
-		if (event_reserve_socket_set(&_socket_read_set, // FIXME: this over allocates
+		if (event_reserve_socket_set(&_socket_read_set, // FIXME: this over-allocates
 		                             event_sources->count) < 0) {
 			log_error("Could not resize socket read set: %s (%d)",
 			          get_errno_name(errno), errno);
@@ -518,7 +518,7 @@ int event_run_platform(Array *event_sources, bool *running, EventCleanupFunction
 			goto cleanup;
 		}
 
-		if (event_reserve_socket_set(&_socket_write_set, // FIXME: this over allocates
+		if (event_reserve_socket_set(&_socket_write_set, // FIXME: this over-allocates
 		                             event_sources->count) < 0) {
 			log_error("Could not resize socket write set: %s (%d)",
 			          get_errno_name(errno), errno);
@@ -526,7 +526,7 @@ int event_run_platform(Array *event_sources, bool *running, EventCleanupFunction
 			goto cleanup;
 		}
 
-		if (event_reserve_socket_set(&_socket_error_set, // FIXME: this over allocates
+		if (event_reserve_socket_set(&_socket_error_set, // FIXME: this over-allocates
 		                             event_sources->count) < 0) {
 			log_error("Could not resize socket error set: %s (%d)",
 			          get_errno_name(errno), errno);
