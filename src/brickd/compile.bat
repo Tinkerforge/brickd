@@ -21,7 +21,7 @@
  /DDAEMONLIB_WITH_LOGGING
 @set MC=mc
 @set RC=rc /dWIN32 /r
-@set LD=link /nologo /opt:ref /opt:icf /release
+@set LD=link /nologo /debug /opt:ref /opt:icf
 @set AR=link /lib /nologo
 @set MT=mt /nologo
 
@@ -97,7 +97,9 @@
 
 @if not exist ..\dist mkdir ..\dist
 copy brickd.exe ..\dist\
+copy brickd.pdb ..\dist\
 copy ..\build_data\windows\libusb\libusb-1.0.dll ..\dist\
+copy ..\build_data\windows\libusb\libusb-1.0.pdb ..\dist\
 
 :done
 @endlocal
