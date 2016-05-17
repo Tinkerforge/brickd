@@ -82,7 +82,7 @@ index 7b14e0f..b05382b 100644
 +  libusb_set_log_function
 +  libusb_set_log_function@4 = libusb_set_log_function
 diff --git a/libusb/libusb-1.0.rc b/libusb/libusb-1.0.rc
-index 3dce6d5..da73f18 100644
+index 3dce6d5..3eb7e3a 100644
 --- a/libusb/libusb-1.0.rc
 +++ b/libusb/libusb-1.0.rc
 @@ -49,7 +49,7 @@ BEGIN
@@ -90,7 +90,7 @@ index 3dce6d5..da73f18 100644
  			VALUE "OriginalFilename", "libusb-1.0.dll\0"
  			VALUE "PrivateBuild", "\0"
 -			VALUE "ProductName", "libusb-1.0\0"
-+			VALUE "ProductName", "libusb-1.0-578942b5a90cd36b47b11e0992c2e92a05b70d91-tf-14\0"
++			VALUE "ProductName", "libusb-1.0-578942b5a90cd36b47b11e0992c2e92a05b70d91-tf-15\0"
  			VALUE "ProductVersion", LIBUSB_VERSIONSTRING
  			VALUE "SpecialBuild", "\0"
  		END
@@ -129,7 +129,7 @@ index 5b0d522..7a63828 100644
  }
  #endif
 diff --git a/libusb/os/poll_windows.c b/libusb/os/poll_windows.c
-index 9825607..0899e73 100644
+index 9825607..285047a 100644
 --- a/libusb/os/poll_windows.c
 +++ b/libusb/os/poll_windows.c
 @@ -258,7 +258,7 @@ void exit_polling(void)
@@ -141,16 +141,177 @@ index 9825607..0899e73 100644
  {
  	int i;
  	OVERLAPPED* overlapped;
-@@ -506,7 +506,7 @@ struct winfd overlapped_to_winfd(OVERLAPPED* overlapped)
+@@ -501,19 +501,49 @@ struct winfd overlapped_to_winfd(OVERLAPPED* overlapped)
+ 	return INVALID_WINFD;
+ }
+ 
++typedef struct {
++	CRITICAL_SECTION mutex;
++	int object_index;
++	HANDLE event;
++} usbi_wait_object_ctx;
++
++typedef struct {
++	usbi_wait_object_ctx *ctx;
++	int object_index;
++	HANDLE wait_object;
++} usbi_wait_object_wrapper;
++
++static void CALLBACK usbi_poll_callback(void *context, BOOLEAN timeout)
++{
++	usbi_wait_object_wrapper *wrapper = (usbi_wait_object_wrapper *)context;
++
++	if (!timeout) {
++		EnterCriticalSection(&wrapper->ctx->mutex);
++
++		if (wrapper->ctx->object_index < 0) {
++			wrapper->ctx->object_index = wrapper->object_index;
++
++			SetEvent(wrapper->ctx->event);
++		}
++
++		LeaveCriticalSection(&wrapper->ctx->mutex);
++	}
++}
++
+ /*
+  * POSIX poll equivalent, using Windows OVERLAPPED
   * Currently, this function only accepts one of POLLIN or POLLOUT per fd
   * (but you can create multiple fds from the same handle for read and write)
   */
 -int usbi_poll(struct pollfd *fds, unsigned int nfds, int timeout)
 +int API_EXPORTED usbi_poll(struct pollfd *fds, unsigned int nfds, int timeout)
  {
- 	unsigned i;
- 	int _index, object_index, triggered;
-@@ -628,7 +628,7 @@ poll_exit:
+-	unsigned i;
+-	int _index, object_index, triggered;
++	int i, _index, object_index, triggered;
+ 	HANDLE *handles_to_wait_on;
+ 	int *handle_to_index;
+ 	DWORD nb_handles_to_wait_on = 0;
+ 	DWORD ret;
++	usbi_wait_object_ctx wait_object_ctx;
++	usbi_wait_object_wrapper *wrappers;
+ 
+ 	CHECK_INIT_POLLING;
+ 
+@@ -526,7 +556,7 @@ int usbi_poll(struct pollfd *fds, unsigned int nfds, int timeout)
+ 		goto poll_exit;
+ 	}
+ 
+-	for (i = 0; i < nfds; ++i) {
++	for (i = 0; i < (int)nfds; ++i) {
+ 		fds[i].revents = 0;
+ 
+ 		// Only one of POLLIN or POLLOUT can be selected with this version of poll (not both)
+@@ -594,9 +624,97 @@ int usbi_poll(struct pollfd *fds, unsigned int nfds, int timeout)
+ 		} else {
+ 			poll_dbg("starting %d ms wait for %u handles...", timeout, (unsigned int)nb_handles_to_wait_on);
+ 		}
+-		ret = WaitForMultipleObjects(nb_handles_to_wait_on, handles_to_wait_on,
+-			FALSE, (timeout<0)?INFINITE:(DWORD)timeout);
+-		object_index = ret-WAIT_OBJECT_0;
++
++		if (nb_handles_to_wait_on <= MAXIMUM_WAIT_OBJECTS) {
++			ret = WaitForMultipleObjects(nb_handles_to_wait_on, handles_to_wait_on,
++			                             FALSE, (timeout<0)?INFINITE:(DWORD)timeout);
++			object_index = ret-WAIT_OBJECT_0;
++		} else {
++			poll_dbg("more than %d handles to wait for", MAXIMUM_WAIT_OBJECTS);
++
++			wrappers = (usbi_wait_object_wrapper *)calloc(nfds, sizeof(usbi_wait_object_wrapper));
++
++			if (wrappers == NULL) {
++				errno = ENOMEM;
++				triggered = -1; // error
++				goto poll_exit;
++			}
++
++			InitializeCriticalSection(&wait_object_ctx.mutex);
++
++			wait_object_ctx.object_index = -1;
++			wait_object_ctx.event = CreateEvent(NULL, TRUE, FALSE, NULL);
++
++			if (wait_object_ctx.event == NULL) {
++				poll_dbg(" error creating wait object event: %d", GetLastError());
++
++				free(wrappers);
++				DeleteCriticalSection(&wait_object_ctx.mutex);
++
++				errno = EIO;
++				triggered = -1; // error
++				goto poll_exit;
++			}
++
++			for (i = 0; i < (int)nb_handles_to_wait_on; ++i) {
++				wrappers[i].ctx = &wait_object_ctx;
++				wrappers[i].object_index = i;
++
++				// FIXME: this can behave differently if objects such as semaphores or
++				//        auto-reset events are used. those objects are altered by a
++				//        WaitForMultipleObjects call. but WaitForMultipleObjects will
++				//        return after the first signaled object. but the thread poll
++				//        behind RegisterWaitForSingleObject can wait for all signaled
++				//        objects making them non-signaled if the object is a semaphore
++				//        or an auto-reset event. currently this is not a problem
++				//        because currently no semaphores or auto-reset events are
++				//        used with usbi_poll.
++				if (!RegisterWaitForSingleObject(&wrappers[i].wait_object, handles_to_wait_on[i],
++				                                 usbi_poll_callback, &wrappers[i], INFINITE,
++				                                 WT_EXECUTEONLYONCE)) {
++					poll_dbg(" error registering wait object %d: %d", i, GetLastError());
++
++					for (--i; i >= 0; --i) {
++						if (!UnregisterWaitEx(wrappers[i].wait_object, INVALID_HANDLE_VALUE) &&
++						    GetLastError() != ERROR_IO_PENDING) {
++							poll_dbg(" error unregistering wait object %d: %d", i, GetLastError());
++						}
++					}
++
++					free(wrappers);
++					DeleteCriticalSection(&wait_object_ctx.mutex);
++					CloseHandle(wait_object_ctx.event);
++
++					errno = EIO;
++					triggered = -1; // error
++					goto poll_exit;
++				}
++			}
++
++			ret = WaitForSingleObject(wait_object_ctx.event, (timeout<0)?INFINITE:(DWORD)timeout);
++
++			if (ret == WAIT_OBJECT_0) {
++				EnterCriticalSection(&wait_object_ctx.mutex);
++
++				object_index = wait_object_ctx.object_index;
++
++				LeaveCriticalSection(&wait_object_ctx.mutex);
++			} else {
++				object_index = -1;
++			}
++
++			for (i = 0; i < (int)nb_handles_to_wait_on; ++i) {
++				if (!UnregisterWaitEx(wrappers[i].wait_object, INVALID_HANDLE_VALUE) &&
++				    GetLastError() != ERROR_IO_PENDING) {
++					poll_dbg(" error unregistering wait object %d: %d", i, GetLastError());
++				}
++			}
++
++			free(wrappers);
++			DeleteCriticalSection(&wait_object_ctx.mutex);
++			CloseHandle(wait_object_ctx.event);
++		}
++
+ 		if ((object_index >= 0) && ((DWORD)object_index < nb_handles_to_wait_on)) {
+ 			poll_dbg("  completed after wait");
+ 			i = handle_to_index[object_index];
+@@ -622,13 +740,14 @@ poll_exit:
+ 	if (handle_to_index != NULL) {
+ 		free(handle_to_index);
+ 	}
++
+ 	return triggered;
+ }
+ 
  /*
   * close a fake pipe fd
   */
@@ -159,7 +320,7 @@ index 9825607..0899e73 100644
  {
  	int _index;
  	int r = -1;
-@@ -650,7 +650,7 @@ int usbi_close(int fd)
+@@ -650,7 +769,7 @@ int usbi_close(int fd)
  /*
   * synchronous write for fake "pipe" signaling
   */
@@ -168,7 +329,7 @@ index 9825607..0899e73 100644
  {
  	int _index;
  	UNUSED(buf);
-@@ -686,7 +686,7 @@ ssize_t usbi_write(int fd, const void *buf, size_t count)
+@@ -686,7 +805,7 @@ ssize_t usbi_write(int fd, const void *buf, size_t count)
  /*
   * synchronous read for fake "pipe" signaling
   */

@@ -17,10 +17,11 @@ Changes:
 - Check for invalid port number reported by Renesas/NEC USB controller with
   outdated driver.
 - Add support for Intel Alpine Ridge USB 3.1 controller.
+- Make usbi_poll work with more than 64 fake file descriptors in all cases.
 
 Known issues:
 - Windows XP: Submitted transfers are not correctly aborted on USB device
   disconnect. This results in leaking the underlying fake file descriptor.
-  Currently libsubx has a hard limit of 4096 fake file descriptors. When
+  Currently libsub has a hard limit of 4096 fake file descriptors. When
   libusb runs out of fake file descriptors then new transfers cannot be
   created anymore. Workaround: brickd restart.
