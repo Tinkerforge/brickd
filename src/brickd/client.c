@@ -46,7 +46,8 @@ extern uint8_t _redapid_version[3];
 
 #define UID_BRICK_DAEMON 1
 
-static void client_handle_get_authentication_nonce_request(Client *client, GetAuthenticationNonceRequest *request) {
+static void client_handle_get_authentication_nonce_request(Client *client,
+                                                           GetAuthenticationNonceRequest *request) {
 	GetAuthenticationNonceResponse response;
 
 	if (client->authentication_state == CLIENT_AUTHENTICATION_STATE_DISABLED) {
@@ -79,14 +80,16 @@ static void client_handle_get_authentication_nonce_request(Client *client, GetAu
 	response.header = request->header;
 	response.header.length = sizeof(response);
 
-	memcpy(response.server_nonce, &client->authentication_nonce, sizeof(response.server_nonce));
+	memcpy(response.server_nonce, &client->authentication_nonce,
+	       sizeof(response.server_nonce));
 
 	client_dispatch_response(client, NULL, (Packet *)&response, false, true);
 
 	client->authentication_state = CLIENT_AUTHENTICATION_STATE_NONCE_SEND;
 }
 
-static void client_handle_authenticate_request(Client *client, AuthenticateRequest *request) {
+static void client_handle_authenticate_request(Client *client,
+                                               AuthenticateRequest *request) {
 	uint32_t nonces[2];
 	uint8_t digest[SHA1_DIGEST_LENGTH];
 	const char *secret;
@@ -122,7 +125,7 @@ static void client_handle_authenticate_request(Client *client, AuthenticateReque
 	          (uint8_t *)nonces, sizeof(nonces), digest);
 
 	if (memcmp(request->digest, digest, SHA1_DIGEST_LENGTH) != 0) {
-		log_error("Authentication request (%s) from client ("CLIENT_SIGNATURE_FORMAT") did not contain the expected data, disconnecting client",
+		log_error("Authenticate request (%s) from client ("CLIENT_SIGNATURE_FORMAT") did not contain the expected data, disconnecting client",
 		          packet_get_request_signature(packet_signature, (Packet *)request),
 		          client_expand_signature(client));
 
@@ -159,7 +162,7 @@ static void client_handle_request(Client *client, Packet *request) {
 
 		if (request->header.function_id == FUNCTION_GET_AUTHENTICATION_NONCE) {
 			if (request->header.length != sizeof(GetAuthenticationNonceRequest)) {
-				log_error("Received authentication nonce request (%s) from client ("CLIENT_SIGNATURE_FORMAT") with wrong length, disconnecting client",
+				log_error("Received authentication-nonce request (%s) from client ("CLIENT_SIGNATURE_FORMAT") with wrong length, disconnecting client",
 				          packet_get_request_signature(packet_signature, request),
 				          client_expand_signature(client));
 

@@ -252,7 +252,8 @@ static void network_drop_pending_requests(uint32_t uid) {
 	int count = 0;
 
 	while (pending_request_global_node != &_pending_request_sentinel) {
-		pending_request = containerof(pending_request_global_node, PendingRequest, global_node);
+		pending_request = containerof(pending_request_global_node,
+		                              PendingRequest, global_node);
 		pending_request_global_node_next = pending_request_global_node->next;
 
 		if (pending_request->header.uid == uid) {
@@ -339,12 +340,14 @@ void network_exit(void) {
 	array_destroy(&_zombies, (ItemDestroyFunction)zombie_destroy);
 
 	if (_plain_server_socket_open) {
-		event_remove_source(_plain_server_socket.base.handle, EVENT_SOURCE_TYPE_GENERIC);
+		event_remove_source(_plain_server_socket.base.handle,
+		                    EVENT_SOURCE_TYPE_GENERIC);
 		socket_destroy(&_plain_server_socket);
 	}
 
 	if (_websocket_server_socket_open) {
-		event_remove_source(_websocket_server_socket.base.handle, EVENT_SOURCE_TYPE_GENERIC);
+		event_remove_source(_websocket_server_socket.base.handle,
+		                    EVENT_SOURCE_TYPE_GENERIC);
 		socket_destroy(&_websocket_server_socket);
 	}
 }
@@ -440,7 +443,8 @@ void network_client_expects_response(Client *client, Packet *request) {
 		         client->pending_request_count - CLIENT_MAX_PENDING_REQUESTS + 1);
 
 		while (client->pending_request_count >= CLIENT_MAX_PENDING_REQUESTS) {
-			pending_request = containerof(client->pending_request_sentinel.next, PendingRequest, client_node);
+			pending_request = containerof(client->pending_request_sentinel.next,
+			                              PendingRequest, client_node);
 
 			pending_request_remove_and_free(pending_request);
 		}
@@ -518,7 +522,8 @@ void network_dispatch_response(Packet *response) {
 		pending_request_global_node = _pending_request_sentinel.next;
 
 		while (pending_request_global_node != &_pending_request_sentinel) {
-			pending_request = containerof(pending_request_global_node, PendingRequest, global_node);
+			pending_request = containerof(pending_request_global_node,
+			                              PendingRequest, global_node);
 
 			if (packet_is_matching_response(response, &pending_request->header)) {
 				if (pending_request->client != NULL) {
