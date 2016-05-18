@@ -74,7 +74,7 @@ static void LIBUSB_CALL usb_forward_message(libusb_context *ctx,
 		debug_group = LOG_DEBUG_GROUP_NONE;
 	}
 
-	if (log_is_message_included(level, &_libusb_log_source, debug_group)) {
+	if (log_is_included(level, &_libusb_log_source, debug_group)) {
 		vsnprintf(buffer, sizeof(buffer), format, arguments);
 
 		log_message(level, &_libusb_log_source, debug_group, function, -1,
@@ -258,8 +258,8 @@ int usb_init(void) {
 		break;
 
 	case LOG_LEVEL_DEBUG:
-		if (log_is_message_included(LOG_LEVEL_DEBUG, &_libusb_log_source,
-		                            LOG_DEBUG_GROUP_LIBUSB)) {
+		if (log_is_included(LOG_LEVEL_DEBUG, &_libusb_log_source,
+		                    LOG_DEBUG_GROUP_LIBUSB)) {
 			putenv("LIBUSB_DEBUG=4");
 		} else {
 			putenv("LIBUSB_DEBUG=3");
@@ -448,8 +448,8 @@ int usb_create_context(libusb_context **context) {
 		break;
 
 	case LOG_LEVEL_DEBUG:
-		if (log_is_message_included(LOG_LEVEL_DEBUG, &_libusb_log_source,
-		                            LOG_DEBUG_GROUP_LIBUSB)) {
+		if (log_is_included(LOG_LEVEL_DEBUG, &_libusb_log_source,
+		                    LOG_DEBUG_GROUP_LIBUSB)) {
 			libusb_set_debug(*context, 4);
 		} else {
 			libusb_set_debug(*context, 3);

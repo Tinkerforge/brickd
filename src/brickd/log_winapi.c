@@ -456,8 +456,8 @@ void log_apply_color_platform(LogLevel level, bool begin) {
 	}
 }
 
-bool log_is_message_included_platform(LogLevel level, LogSource *source,
-                                      LogDebugGroup debug_group) {
+bool log_is_included_platform(LogLevel level, LogSource *source,
+                              LogDebugGroup debug_group) {
 	(void)source;
 	(void)debug_group;
 
@@ -466,10 +466,10 @@ bool log_is_message_included_platform(LogLevel level, LogSource *source,
 }
 
 // NOTE: assumes that _mutex (in log.c) is locked
-void log_secondary_output_platform(struct timeval *timestamp, LogLevel level,
-                                   LogSource *source, LogDebugGroup debug_group,
-                                   const char *function, int line,
-                                   const char *format, va_list arguments) {
+void log_write_platform(struct timeval *timestamp, LogLevel level,
+                        LogSource *source, LogDebugGroup debug_group,
+                        const char *function, int line,
+                        const char *format, va_list arguments) {
 	bool libusb;
 	LogPipeMessage message;
 	WORD type;
