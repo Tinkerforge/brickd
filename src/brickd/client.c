@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2012-2015 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2012-2016 Matthias Bolte <matthias@tinkerforge.com>
  * Copyright (C) 2014 Olaf Lüke <olaf@tinkerforge.com>
  *
  * client.c: Client specific functions
@@ -159,7 +159,7 @@ static void client_handle_request(Client *client, Packet *request) {
 
 		if (request->header.function_id == FUNCTION_GET_AUTHENTICATION_NONCE) {
 			if (request->header.length != sizeof(GetAuthenticationNonceRequest)) {
-				log_error("Received authentication request (%s) from client ("CLIENT_SIGNATURE_FORMAT") with wrong length, disconnecting client",
+				log_error("Received authentication nonce request (%s) from client ("CLIENT_SIGNATURE_FORMAT") with wrong length, disconnecting client",
 				          packet_get_request_signature(packet_signature, request),
 				          client_expand_signature(client));
 
@@ -171,7 +171,7 @@ static void client_handle_request(Client *client, Packet *request) {
 			client_handle_get_authentication_nonce_request(client, (GetAuthenticationNonceRequest *)request);
 		} else if (request->header.function_id == FUNCTION_AUTHENTICATE) {
 			if (request->header.length != sizeof(AuthenticateRequest)) {
-				log_error("Received authentication request (%s) from client ("CLIENT_SIGNATURE_FORMAT") with wrong length, disconnecting client",
+				log_error("Received authenticate request (%s) from client ("CLIENT_SIGNATURE_FORMAT") with wrong length, disconnecting client",
 				          packet_get_request_signature(packet_signature, request),
 				          client_expand_signature(client));
 
