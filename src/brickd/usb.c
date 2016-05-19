@@ -383,7 +383,7 @@ int usb_rescan(void) {
 			continue;
 		}
 
-		log_info("Removing USB device (bus: %u, device: %u) at index %d: %s ",
+		log_info("Removing USB device (bus: %u, device: %u) at index %d: %s",
 		         usb_stack->bus_number, usb_stack->device_address, i,
 		         usb_stack->base.name);
 
@@ -406,7 +406,7 @@ int usb_reopen(void) {
 	for (i = _usb_stacks.count - 1; i >= 0; --i) {
 		usb_stack = array_get(&_usb_stacks, i);
 
-		log_info("Temporarily removing USB device (bus: %u, device: %u) at index %d: %s ",
+		log_info("Temporarily removing USB device (bus: %u, device: %u) at index %d: %s",
 		         usb_stack->bus_number, usb_stack->device_address, i,
 		         usb_stack->base.name);
 
