@@ -1,6 +1,12 @@
 *.p
 *.o
+src/brickd/.vs
+src/brickd/AppPackages
+src/brickd/ARM
+src/brickd/Debug
+src/brickd/Release
 src/brickd/objfre_wxp_x86
+src/brickd/x64
 src/brickd/brickd
 src/brickd/brickd.exe
 src/brickd/log_messages.h

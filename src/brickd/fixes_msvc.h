@@ -30,6 +30,10 @@
 #include <time.h>
 #include <winsock2.h> // for struct timeval
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 struct timezone {
 	int tz_minuteswest;
 	int tz_dsttime;
@@ -63,6 +67,10 @@ int fixed_putenv(char *string);
 	_vsnprintf_s(buffer, count, _TRUNCATE, format, arguments)
 #define strcasecmp _stricmp
 #define strncasecmp _strnicmp
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif // _MSC_VER
 
