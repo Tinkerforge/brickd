@@ -1,6 +1,6 @@
 This is a special version of libusb for brickd build with WDK 7 for x86.
 
-Based on libusb's github.com commit 578942b5a90cd36b47b11e0992c2e92a05b70d91
+Based on libusb's github.com commit 648fb8691f8b9701d7406bc339ce64b57545934b
 (libusb version 1.0.20 plus several patches) with the libusb-brickd.patch
 applied to it.
 
@@ -16,7 +16,6 @@ Changes:
 - Workaround possible issues with the RED Brick composite device.
 - Check for invalid port number reported by Renesas/NEC USB controller with
   outdated driver.
-- Add support for Intel Alpine Ridge USB 3.1 controller.
 - Make usbi_poll work with more than 64 fake file descriptors in all cases.
 
 Known issues:
