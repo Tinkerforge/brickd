@@ -1264,7 +1264,16 @@ int libusb_submit_transfer(struct libusb_transfer *transfer) {
 				itransfer->submitted = true;
 				itransfer->sequence_number = _next_read_itransfer_sequence_number++;
 				itransfer->reader = ref new DataReader(pipe_in->InputStream);
-				itransfer->load_operation = itransfer->reader->LoadAsync(transfer->length);
+
+				try {
+					itransfer->load_operation = itransfer->reader->LoadAsync(transfer->length);
+				} catch (...) { // FIXME: too generic
+					usbi_log_error(ctx, "Could not submit read transfer %p [%u] (length: %d): <exception>", // FIXME
+					               transfer, itransfer->sequence_number, transfer->length);
+
+					return LIBUSB_ERROR_NO_DEVICE; // FIXME: assumes that this happend because of device hotunplug
+				}
+
 				itransfer->load_operation->Completed = ref new AsyncOperationCompletedHandler<size_t>(
 				[ctx, itransfer](IAsyncOperation<size_t> ^operation, AsyncStatus status) {
 					struct libusb_transfer *transfer = &itransfer->transfer;
@@ -1315,7 +1324,15 @@ int libusb_submit_transfer(struct libusb_transfer *transfer) {
 
 				itransfer->writer->WriteBytes(data);
 
-				itransfer->store_operation = itransfer->writer->StoreAsync();
+				try {
+					itransfer->store_operation = itransfer->writer->StoreAsync();
+				} catch (...) { // FIXME: too generic
+					usbi_log_error(ctx, "Could not submit write transfer %p [%u] (length: %d): <exception>", // FIXME
+					               transfer, itransfer->sequence_number, transfer->length);
+
+					return LIBUSB_ERROR_NO_DEVICE; // FIXME: assumes that this happend because of device hotunplug
+				}
+
 				itransfer->store_operation->Completed = ref new AsyncOperationCompletedHandler<size_t>(
 				[ctx, itransfer](IAsyncOperation<size_t> ^operation, AsyncStatus status) {
 					struct libusb_transfer *transfer = &itransfer->transfer;
