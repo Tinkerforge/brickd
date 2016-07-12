@@ -178,17 +178,25 @@ static usbi_fake_fd *usbi_create_fake_fd(int event, usbi_fake_pipe *fake_pipe) {
 }
 
 static void usbi_free_fake_fd(usbi_fake_fd *fake_fd) {
-	_fake_fds[fake_fd->fd].fd = 0;
-	_fake_fds[fake_fd->fd].event = 0;
-	_fake_fds[fake_fd->fd].fake_pipe = nullptr;
+	fake_fd->fd = -1;
+	fake_fd->event = 0;
+	fake_fd->fake_pipe = nullptr;
 }
 
 static usbi_fake_fd *usbi_get_fake_fd(int fd) {
-	if (fd < 0 || fd >= USBI_MAX_FAKE_FDS || _fake_fds[fd].fd < 0) {
+	if (fd < 0 || fd >= USBI_MAX_FAKE_FDS || _fake_fds[fd].fd != fd) {
 		return nullptr;
 	}
 
 	return &_fake_fds[fd];
+}
+
+extern "C" void usbi_init(void) {
+	int i;
+
+	for (i = 0; i < USBI_MAX_FAKE_FDS; ++i) {
+		_fake_fds[i].fd = -1;
+	}
 }
 
 // sets errno on error

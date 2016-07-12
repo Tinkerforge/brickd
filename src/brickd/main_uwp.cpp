@@ -47,6 +47,8 @@ using namespace Windows::Foundation;
 using namespace Windows::Storage;
 using namespace Windows::Storage::Search;
 
+extern "C" void LIBUSB_CALL usbi_init(void);
+
 #define CONFIG_FILENAME (ApplicationData::Current->LocalFolder->Path + "\\brickd.ini")
 #define LOG_FILENAME (ApplicationData::Current->LocalFolder->Path + "\\brickd.log")
 
@@ -141,6 +143,8 @@ void brickd_uwp::StartupTask::Run(IBackgroundTaskInstance ^taskInstance) {
 	File *log_file_ptr = &log_file;
 
 	fixes_init();
+
+	usbi_init();
 
 	if (WideCharToMultiByte(CP_UTF8, 0, CONFIG_FILENAME->Data(), -1, config_filename,
 	                        sizeof(config_filename), NULL, NULL) == 0) {
