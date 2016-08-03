@@ -9,10 +9,10 @@
 - Add Mac OS support
 
 2012-04-11: 1.0.3 (e7e4121)
-- Remove global reactor import for Mac OS
+- Remove global reactor import for Mac OS X
 
 2012-04-13: 1.0.4 (e35d70c)
-- Remove double fork completely for Mac OS
+- Remove double fork completely for Mac OS X
 
 2012-04-15: 1.0.5 (3313060)
 - Update to newest python-libusb1 version (thanks to vpelletier)
@@ -31,7 +31,7 @@
 - Add --version commandline argument
 
 2012-07-30: 1.0.9 (7002e21)
-- Reduce Windows and Mac OS installer size
+- Reduce Windows and Mac OS X installer size
 - Avoid race condition when enumerating USB devices on Linux
 - Use more expressive log file name and correct line endings on Windows
 - Don't cancel pending USB transfers to avoid segfault in libusb on USB
@@ -110,7 +110,7 @@
 - Report too long lines in config file as errors instead of silently ignoring them
 - Add IPv6 support with configurable dual-stack handling
 - Don't interfere with Apple's USB Ethernet Adapter on Mac OS X
-- Sign brickd.app and installer on Mac OS X to silence the Gate Keeper
+- Sign brickd.app and installer on Mac OS X to silence the Gatekeeper
 - Linux packages build on older Debian/Ubuntu release to lower required glibc version
 
 2013-12-03: 2.0.10 (5bacb2c)
