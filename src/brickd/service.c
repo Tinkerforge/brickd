@@ -146,6 +146,7 @@ int service_install(bool log_to_file, const char *debug_filter) {
 	SC_HANDLE service_control_manager;
 	int rc;
 	char filename[1024];
+	char quoted_filename[1024];
 	HKEY key = NULL;
 	DWORD types = EVENTLOG_ERROR_TYPE | EVENTLOG_WARNING_TYPE;
 	SC_HANDLE service;
@@ -200,9 +201,11 @@ int service_install(bool log_to_file, const char *debug_filter) {
 	}
 
 	// install service
+	snprintf(quoted_filename, sizeof(quoted_filename), "\"%s\"", filename);
+
 	service = CreateService(service_control_manager, _service_name, _service_name,
 	                        SERVICE_ALL_ACCESS, SERVICE_WIN32_OWN_PROCESS,
-	                        SERVICE_AUTO_START, SERVICE_ERROR_NORMAL, filename,
+	                        SERVICE_AUTO_START, SERVICE_ERROR_NORMAL, quoted_filename,
 	                        NULL, NULL, NULL, NULL, NULL);
 
 	if (service == NULL) {
