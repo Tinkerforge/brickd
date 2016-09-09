@@ -124,7 +124,7 @@ static int usb_enumerate(void) {
 		if (descriptor.idVendor == USB_BRICK_VENDOR_ID &&
 		    descriptor.idProduct == USB_BRICK_PRODUCT_ID) {
 			if (descriptor.bcdDevice < USB_BRICK_DEVICE_RELEASE) {
-				log_warn("USB device (bus: %u, device: %u) has protocol 1.0 firmware, ignoring USB device",
+				log_warn("USB device (bus: %u, device: %u) has unsupported protocol 1.0 firmware, please update firmware, ignoring USB device",
 				         bus_number, device_address);
 
 				continue;
