@@ -368,10 +368,6 @@ int red_extension_read_rs485_config(I2CEEPROM *i2c_eeprom, ExtensionRS485Config 
 			rs485_config->slave_num++;
 			current_eeprom_location += 4;
 		}
-	} else {
-		log_error("RS485: Only master mode supported");
-
-		return -1;
 	}
 
 	return 0;
