@@ -293,18 +293,18 @@ cleanup:
 int red_extension_read_rs485_config(I2CEEPROM *i2c_eeprom, ExtensionRS485Config *rs485_config) {
 	uint8_t buf[4];
 
-	// Config: ADDRESS
+	// address
 	if (i2c_eeprom_read(i2c_eeprom, EXTENSION_EEPROM_RS485_ADDRESS_LOCATION, buf, 4) < 4) {
-		log_error("RS485: Could not read config ADDRESS from EEPROM");
+		log_error("Could not read RS485 address from EEPROM");
 
 		return -1;
 	}
 
 	rs485_config->address = (buf[0] << 0) | (buf[1] << 8) | (buf[2] << 16) | (buf[3] << 24);
 
-	// Config: BAUDRATE
+	// baudrate
 	if (i2c_eeprom_read(i2c_eeprom, EXTENSION_EEPROM_RS485_BAUDRATE_LOCATION, buf, 4) < 4) {
-		log_error("RS485: Could not read config BAUDRATE from EEPROM");
+		log_error("Could not read RS485 baudrate from EEPROM");
 
 		return -1;
 	}
@@ -312,14 +312,14 @@ int red_extension_read_rs485_config(I2CEEPROM *i2c_eeprom, ExtensionRS485Config 
 	rs485_config->baudrate = (buf[0] << 0) | (buf[1] << 8) | (buf[2] << 16) | (buf[3] << 24);
 
 	if (rs485_config->baudrate < 8) {
-		log_error("RS485: Configured baudrate is too low");
+		log_error("Configured RS485 baudrate is too low");
 
 		return -1;
 	}
 
-	// Config: PARITY
+	// parity
 	if (i2c_eeprom_read(i2c_eeprom, EXTENSION_EEPROM_RS485_PARTIY_LOCATION, buf, 1) < 1) {
-		log_error("RS485: Could not read config PARITY from EEPROM");
+		log_error("Could not read RS485 parity from EEPROM");
 
 		return -1;
 	}
@@ -332,16 +332,16 @@ int red_extension_read_rs485_config(I2CEEPROM *i2c_eeprom, ExtensionRS485Config 
 		rs485_config->parity = RS485_EXTENSION_SERIAL_PARITY_ODD;
 	}
 
-	// Config: STOPBITS
+	// stopbits
 	if (i2c_eeprom_read(i2c_eeprom, EXTENSION_EEPROM_RS485_STOPBITS_LOCATION, buf, 1) < 1) {
-		log_error("RS485: Could not read config STOPBITS from EEPROM");
+		log_error("Could not read RS485 stopbits from EEPROM");
 
 		return -1;
 	}
 
 	rs485_config->stopbits = buf[0];
 
-	// Config (if master): SLAVE ADDRESSES
+	// slave addresses
 	if (rs485_config->address == 0) {
 		rs485_config->slave_num = 0;
 		uint16_t current_eeprom_location = EXTENSION_EEPROM_RS485_SLAVE_ADDRESSES_START_LOCATION;
@@ -350,10 +350,8 @@ int red_extension_read_rs485_config(I2CEEPROM *i2c_eeprom, ExtensionRS485Config 
 		rs485_config->slave_address[0] = 0;
 
 		while (rs485_config->slave_num < EXTENSION_RS485_SLAVES_MAX) {
-			// Config: SLAVE ADDRESS
-
 			if (i2c_eeprom_read(i2c_eeprom, current_eeprom_location, buf, 4) < 4) {
-				log_error("RS485: Could not read config SLAVE ADDRESSES from EEPROM");
+				log_error("Could not read RS485 slave addresses from EEPROM");
 				return -1;
 			}
 
