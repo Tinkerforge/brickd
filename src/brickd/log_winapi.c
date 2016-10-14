@@ -48,7 +48,7 @@ typedef struct {
 	char source[128];
 	int line;
 	char message[1024];
-} LogPipeMessage;
+} ATTRIBUTE_PACKED LogPipeMessage;
 
 #include <daemonlib/packed_end.h>
 
