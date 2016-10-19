@@ -58,7 +58,7 @@ static LogSource _log_source = LOG_SOURCE_INITIALIZER;
 #define RS485_EXTENSION_FUNCTION_CODE                                   100 // Custom modbus function code
 
 // Serial interface config stuffs
-#define RECEIVE_BUFFER_SIZE                                             170 // 85x2 = 170 bytes
+#define RECEIVE_BUFFER_SIZE                                             1024
 #define RS485_EXTENSION_SERIAL_DEVICE                                   "/dev/ttyS0"
 
 // Time related constants
@@ -457,7 +457,6 @@ void verify_buffer(void) {
 		}
 	}
 
-#if 0
 	// Checking the CRC16 checksum
 	crc16_calculated = crc16(_receive.buffer, frame_length - RS485_FRAME_FOOTER_LENGTH);
 	crc16_on_packet = (_receive.buffer[frame_length - 2] << 8) | _receive.buffer[frame_length - 1];
@@ -472,34 +471,33 @@ void verify_buffer(void) {
 
 		return;
 	}
-#endif
 
-	// Received empty packet from the other side (UID=0, LEN=8, FID=0)
-	if (_receive.packet.uid == 0 && _receive.packet.length == 8 && _receive.packet.function_id == 0) {
-		// Checking address
-		if (_receive.frame.address != current_request_as_byte_array[0]){
-			// Move on to next slave
-			disable_master_timer();
-			log_error("Received empty response (frame: %s) with address mismatch (actual: %u != expected: %u)",
-			          frame_get_content_dump(frame_content_dump, _receive.buffer, frame_length),
-			          _receive.frame.address, current_request_as_byte_array[0]);
-			seq_pop_poll();
+	// Checking address
+	if (_receive.frame.address != current_request_as_byte_array[0]){
+		// Move on to next slave
+		disable_master_timer();
+		log_error("Received response (frame: %s) with address mismatch (actual: %u != expected: %u)",
+		          frame_get_content_dump(frame_content_dump, _receive.buffer, frame_length),
+		          _receive.frame.address, current_request_as_byte_array[0]);
+		seq_pop_poll();
 
-			return;
-		}
+		return;
+	}
 
-		// Checking function code
-		if (_receive.frame.function_code != current_request_as_byte_array[1]) {
-			// Move on to next slave
-			disable_master_timer();
-			log_error("Received empty response (frame: %s) with function code mismatch (actual: %u != expected: %u)",
-			          frame_get_content_dump(frame_content_dump, _receive.buffer, frame_length),
-			          _receive.frame.function_code, current_request_as_byte_array[1]);
-			seq_pop_poll();
+	// Checking function code
+	if (_receive.frame.function_code != current_request_as_byte_array[1]) {
+		// Move on to next slave
+		disable_master_timer();
+		log_error("Received response (frame: %s) with function code mismatch (actual: %u != expected: %u)",
+		          frame_get_content_dump(frame_content_dump, _receive.buffer, frame_length),
+		          _receive.frame.function_code, current_request_as_byte_array[1]);
+		seq_pop_poll();
 
-			return;
-		}
+		return;
+	}
 
+	// Received empty packet from the other side (UID=0, FID=0)
+	if (_receive.packet.uid == 0 && _receive.packet.function_id == 0) {
 		// Checking current sequence number
 		if (_receive.frame.sequence_number != current_request_as_byte_array[2]) {
 			// Move on to next slave
@@ -507,21 +505,6 @@ void verify_buffer(void) {
 			log_error("Received empty response (frame: %s) with sequence number mismatch (actual: %u != expected: %u)",
 			          frame_get_content_dump(frame_content_dump, _receive.buffer, frame_length),
 			          _receive.frame.sequence_number, current_request_as_byte_array[2]);
-			seq_pop_poll();
-
-			return;
-		}
-
-		crc16_calculated = crc16(_receive.buffer, frame_length - RS485_FRAME_FOOTER_LENGTH);
-		crc16_on_packet = (_receive.buffer[frame_length - 2] << 8) | _receive.buffer[frame_length - 1];
-
-		// Checking the CRC16 checksum
-		if (crc16_calculated != crc16_on_packet) {
-			// Move on to next slave
-			disable_master_timer();
-			log_error("Received empty response (frame: %s) with CRC-16 mismatch (actual: %04X != expected: %04X)",
-			          frame_get_content_dump(frame_content_dump, _receive.buffer, frame_length),
-			          crc16_calculated, crc16_on_packet);
 			seq_pop_poll();
 
 			return;
@@ -542,65 +525,21 @@ void verify_buffer(void) {
 	}
 	// Received data packet from the other side
 	else if (_receive.packet.uid != 0 && _receive.packet.function_id != 0) {
-		// Checking address
-		if (_receive.frame.address != current_request_as_byte_array[0]) {
-			// Move on to next slave
-			disable_master_timer();
-			log_error("Received data response (frame: %s) with address mismatch (actual: %u != expected: %u)",
-			          frame_get_content_dump(frame_content_dump, _receive.buffer, frame_length),
-			          _receive.frame.address, current_request_as_byte_array[0]);
-			seq_pop_poll();
-
-			return;
-		}
-
-		// Checking function code
-		if (_receive.frame.function_code != current_request_as_byte_array[1]) {
-			// Move on to next slave
-			disable_master_timer();
-			log_error("Received data response (frame: %s) with function code mismatch (actual: %u != expected: %u)",
-			          frame_get_content_dump(frame_content_dump, _receive.buffer, frame_length),
-			          _receive.frame.function_code, current_request_as_byte_array[1]);
-			seq_pop_poll();
-
-			return;
-		}
-
 		// Checking current sequence number
 		if (_receive.frame.sequence_number != current_request_as_byte_array[2]) {
-			// Move on to next slave
-			disable_master_timer();
-			log_error("Received data response (frame: %s) with sequence number mismatch (actual: %u != expected: %u)",
-			          frame_get_content_dump(frame_content_dump, _receive.buffer, frame_length),
-			          _receive.frame.sequence_number, current_request_as_byte_array[2]);
-			seq_pop_poll();
+			log_warn("Received data response (frame: %s) with sequence number mismatch (actual: %u != expected: %u)",
+			         frame_get_content_dump(frame_content_dump, _receive.buffer, frame_length),
+			         _receive.frame.sequence_number, current_request_as_byte_array[2]);
+		} else {
+			log_packet_debug("Received data response");
 
-			return;
+			// Send message into brickd dispatcher
+			memset(&_red_rs485_extension.dispatch_packet, 0, sizeof(Packet));
+			memcpy(&_red_rs485_extension.dispatch_packet, &_receive.buffer[3], _receive.packet.length);
+			network_dispatch_response(&_red_rs485_extension.dispatch_packet);
+
+			stack_add_recipient(&_red_rs485_extension.base, _receive.packet.uid, _receive.frame.address);
 		}
-
-		crc16_calculated = crc16(_receive.buffer, frame_length - RS485_FRAME_FOOTER_LENGTH);
-		crc16_on_packet = (_receive.buffer[frame_length - 2] << 8) | _receive.buffer[frame_length - 1];
-
-		// Checking the CRC16 checksum
-		if (crc16_calculated != crc16_on_packet) {
-			// Move on to next slave
-			disable_master_timer();
-			log_error("Received data response (frame: %s) with CRC-16 mismatch (actual: %04X != expected: %04X)",
-			          frame_get_content_dump(frame_content_dump, _receive.buffer, frame_length),
-			          crc16_calculated, crc16_on_packet);
-			seq_pop_poll();
-
-			return;
-		}
-
-		log_packet_debug("Received data response");
-
-		// Send message into brickd dispatcher
-		memset(&_red_rs485_extension.dispatch_packet, 0, sizeof(Packet));
-		memcpy(&_red_rs485_extension.dispatch_packet, &_receive.buffer[3], _receive.packet.length);
-		network_dispatch_response(&_red_rs485_extension.dispatch_packet);
-
-		stack_add_recipient(&_red_rs485_extension.base, _receive.packet.uid, _receive.frame.address);
 
 		queue_packet = queue_peek(&_red_rs485_extension.slaves[master_current_slave_to_process].packet_queue);
 
