@@ -849,8 +849,6 @@ void master_timeout_handler(void* opaque) {
 		return;
 	}
 
-	log_debug("Current request timed out. Moving on");
-
 	// For some unknown reason the timer randomly times out or this timeout function is called
 	// much long before the actual timeout. This is a fix to this problem
 	// until we find the real problem
@@ -866,6 +864,8 @@ void master_timeout_handler(void* opaque) {
 
 		return;
 	}
+
+	log_debug("Current request timed out. Moving on");
 
 	// Current request timedout. Move on to next slave
 	if (is_current_request_empty()) {
