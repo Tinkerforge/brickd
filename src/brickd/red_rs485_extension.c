@@ -37,6 +37,7 @@
 #include <time.h>
 #include <termios.h>
 
+#include <daemonlib/base58.h>
 #include <daemonlib/config.h>
 #include <daemonlib/event.h>
 #include <daemonlib/log.h>
@@ -68,15 +69,13 @@ static uint32_t TIMEOUT_BYTES = 86;
 static uint64_t last_timer_enable_at_uS = 0;
 static uint64_t time_passed_from_last_timer_enable = 0;
 
-// Packet related constants
-#define RS485_PACKET_HEADER_LENGTH      3
-#define RS485_PACKET_FOOTER_LENGTH      2
-#define TF_PACKET_MAX_LENGTH            80
-#define RS485_PACKET_LENGTH_INDEX       7
-#define RS485_PACKET_TRIES_DATA         10
-#define RS485_PACKET_TRIES_EMPTY        1
-#define RS485_PACKET_OVERHEAD           RS485_PACKET_HEADER_LENGTH+RS485_PACKET_FOOTER_LENGTH
-#define RS485_PACKET_MAX_LENGTH         TF_PACKET_MAX_LENGTH+RS485_PACKET_OVERHEAD
+// Frame related constants
+#define RS485_FRAME_HEADER_LENGTH      3
+#define RS485_FRAME_FOOTER_LENGTH      2
+#define RS485_FRAME_TRIES_DATA         10
+#define RS485_FRAME_TRIES_EMPTY        1
+#define RS485_FRAME_OVERHEAD           RS485_FRAME_HEADER_LENGTH + RS485_FRAME_FOOTER_LENGTH
+#define RS485_FRAME_MAX_CONTENT_DUMP_LENGTH (((int)sizeof(Packet) + RS485_FRAME_OVERHEAD) * 3 + 1)
 
 // Table of CRC values for high-order byte
 static const uint8_t table_crc_hi[] = {
@@ -167,12 +166,31 @@ static char packet_signature[PACKET_MAX_SIGNATURE_LENGTH] = {0};
 static int _red_rs485_serial_fd = -1; // Serial interface file descriptor
 
 // Variables tracking current states
-static char current_request_as_byte_array[sizeof(Packet) + RS485_PACKET_OVERHEAD] = {0};
+static char current_request_as_byte_array[sizeof(Packet) + RS485_FRAME_OVERHEAD] = {0};
 static int master_current_slave_to_process = -1; // Only used used by master
 
 // Receive buffer
-static uint8_t receive_buffer[RECEIVE_BUFFER_SIZE] = {0};
-static int current_receive_buffer_index = 0;
+#include <daemonlib/packed_begin.h>
+
+static union {
+	struct {
+		struct {
+			uint8_t address;
+			uint8_t function_code;
+			uint8_t sequence_number;
+		} ATTRIBUTE_PACKED frame;
+		struct {
+			uint32_t uid; // FIXME: assuming brickd runs on a little endian machine
+			uint8_t length;
+			uint8_t function_id;
+		} ATTRIBUTE_PACKED packet;
+	} ATTRIBUTE_PACKED;
+	uint8_t buffer[RECEIVE_BUFFER_SIZE];
+} ATTRIBUTE_PACKED _receive;
+
+#include <daemonlib/packed_end.h>
+
+static int _receive_buffer_used = 0;
 
 // Events
 static int _master_timer_event = 0;
@@ -192,7 +210,7 @@ static GPIOPin _rx_pin; // Active low
 // Function prototypes
 uint16_t crc16(uint8_t*, uint16_t);
 int serial_interface_init(const char*);
-void verify_buffer(uint8_t*);
+void verify_buffer(void);
 void send_packet(void);
 void init_rxe_pin_state(int);
 void serial_data_available_handler(void*);
@@ -335,39 +353,57 @@ int serial_interface_init(const char *serial_interface) {
 	return 0;
 }
 
+char *frame_get_content_dump(char *content_dump, uint8_t *frame, int length) {
+	int i;
+
+	if (length > (int)sizeof(Packet) + RS485_FRAME_OVERHEAD) {
+		length = (int)sizeof(Packet) + RS485_FRAME_OVERHEAD;
+	}
+
+	for (i = 0; i < length; ++i) {
+		snprintf(content_dump + i * 3, 4, "%02X ", frame[i]);
+	}
+
+	if (length > 0) {
+		content_dump[length * 3 - 1] = '\0';
+	} else {
+		content_dump[0] = '\0';
+	}
+
+	return content_dump;
+}
+
 // Verify packet
-void verify_buffer(uint8_t *receive_buffer) {
-	int packet_end_index = 0;
-	uint32_t uid_from_packet;
+void verify_buffer(void) {
+	int frame_length;
 	uint16_t crc16_calculated;
 	uint16_t crc16_on_packet;
 	RS485ExtensionPacket* queue_packet;
 	int i;
+	char frame_content_dump[RS485_FRAME_MAX_CONTENT_DUMP_LENGTH];
+	char base58[BASE58_MAX_LENGTH];
 
 	// Check if length byte is available
-	if (current_receive_buffer_index < 8) {
-		log_packet_debug("Partial packet received. Length byte not available");
-
+	if (_receive_buffer_used < 8) {
 		return;
 	}
 
 	// Calculate packet end index
-	packet_end_index = 7+((receive_buffer[RS485_PACKET_LENGTH_INDEX] - 5) + RS485_PACKET_FOOTER_LENGTH);
+	frame_length = RS485_FRAME_HEADER_LENGTH + _receive.packet.length + RS485_FRAME_FOOTER_LENGTH;
 
 	// Check if complete packet is available
-	if (current_receive_buffer_index <= packet_end_index) {
-		log_packet_debug("Partial packet received");
-
+	if (_receive_buffer_used < frame_length) {
 		return;
 	}
 
 	// If send verify flag was set
 	if (send_verify_flag) {
-		for (i = 0; i <= packet_end_index; i++) {
-			if (receive_buffer[i] != current_request_as_byte_array[i]) {
+		for (i = 0; i < frame_length; i++) {
+			if (_receive.buffer[i] != current_request_as_byte_array[i]) {
 				// Move on to next slave
 				disable_master_timer();
-				log_error("Send verification failed");
+				log_error("Send verification failed (offset: %d, actual: %u != expected: %u)",
+				          i, _receive.buffer[i], current_request_as_byte_array[i]);
 				seq_pop_poll();
 
 				return;
@@ -389,25 +425,25 @@ void verify_buffer(uint8_t *receive_buffer) {
 			arm_master_poll_slave_interval_timer();
 
 			return;
-		} else if (current_receive_buffer_index == packet_end_index+1) {
+		} else if (_receive_buffer_used == frame_length) {
 			// Everything OK. Wait for response now
 			log_packet_debug("No more Data. Waiting for response");
-			current_receive_buffer_index = 0;
-			memset(receive_buffer, 0, RECEIVE_BUFFER_SIZE);
+			_receive_buffer_used = 0;
+			memset(_receive.buffer, 0, RECEIVE_BUFFER_SIZE);
 
 			return;
-		} else if (current_receive_buffer_index > packet_end_index+1) {
+		} else if (_receive_buffer_used > frame_length) {
 			// More data in the receive buffer
 			log_packet_debug("Potential partial data in the buffer. Verifying");
 
-			memmove(&receive_buffer[0], &receive_buffer[packet_end_index+1],
-			        current_receive_buffer_index - (packet_end_index+1));
+			memmove(_receive.buffer, _receive.buffer + frame_length,
+			        _receive_buffer_used - frame_length);
 
-			current_receive_buffer_index = current_receive_buffer_index - (packet_end_index+1);
+			_receive_buffer_used -= frame_length;
 
 			// A recursive call to handle the remaining bytes in the buffer
-			if (current_receive_buffer_index >= 8) {
-				verify_buffer(receive_buffer);
+			if (_receive_buffer_used >= 8) {
+				verify_buffer(); // FIXME: turn this into an external loop
 			}
 
 			return;
@@ -421,50 +457,71 @@ void verify_buffer(uint8_t *receive_buffer) {
 		}
 	}
 
-	// Copy UID from the received packet
-	memcpy(&uid_from_packet, &receive_buffer[3], sizeof(uint32_t));
+#if 0
+	// Checking the CRC16 checksum
+	crc16_calculated = crc16(_receive.buffer, frame_length - RS485_FRAME_FOOTER_LENGTH);
+	crc16_on_packet = (_receive.buffer[frame_length - 2] << 8) | _receive.buffer[frame_length - 1];
+
+	if (crc16_calculated != crc16_on_packet) {
+		// Move on to next slave
+		disable_master_timer();
+		log_error("Received response (frame: %s) with CRC-16 mismatch (actual: %04X != expected: %04X)",
+		          frame_get_content_dump(frame_content_dump, _receive.buffer, frame_length),
+		          crc16_calculated, crc16_on_packet);
+		seq_pop_poll();
+
+		return;
+	}
+#endif
 
 	// Received empty packet from the other side (UID=0, LEN=8, FID=0)
-	if (uid_from_packet == 0 && receive_buffer[RS485_PACKET_LENGTH_INDEX] == 8 && receive_buffer[8] == 0) {
+	if (_receive.packet.uid == 0 && _receive.packet.length == 8 && _receive.packet.function_id == 0) {
 		// Checking address
-		if (receive_buffer[0] != current_request_as_byte_array[0]){
+		if (_receive.frame.address != current_request_as_byte_array[0]){
 			// Move on to next slave
 			disable_master_timer();
-			log_error("Wrong address in received empty packet. Moving on");
+			log_error("Received empty response (frame: %s) with address mismatch (actual: %u != expected: %u)",
+			          frame_get_content_dump(frame_content_dump, _receive.buffer, frame_length),
+			          _receive.frame.address, current_request_as_byte_array[0]);
 			seq_pop_poll();
 
 			return;
 		}
 
 		// Checking function code
-		if (receive_buffer[1] != current_request_as_byte_array[1]) {
+		if (_receive.frame.function_code != current_request_as_byte_array[1]) {
 			// Move on to next slave
 			disable_master_timer();
-			log_error("Wrong function code in received empty packet. Moving on");
+			log_error("Received empty response (frame: %s) with function code mismatch (actual: %u != expected: %u)",
+			          frame_get_content_dump(frame_content_dump, _receive.buffer, frame_length),
+			          _receive.frame.function_code, current_request_as_byte_array[1]);
 			seq_pop_poll();
 
 			return;
 		}
 
 		// Checking current sequence number
-		if (receive_buffer[2] != current_request_as_byte_array[2]) {
+		if (_receive.frame.sequence_number != current_request_as_byte_array[2]) {
 			// Move on to next slave
 			disable_master_timer();
-			log_error("Wrong sequence number in received empty packet. Moving on");
+			log_error("Received empty response (frame: %s) with sequence number mismatch (actual: %u != expected: %u)",
+			          frame_get_content_dump(frame_content_dump, _receive.buffer, frame_length),
+			          _receive.frame.sequence_number, current_request_as_byte_array[2]);
 			seq_pop_poll();
 
 			return;
 		}
 
-		// Checking the CRC16 checksum
-		crc16_calculated = crc16(&receive_buffer[0], (packet_end_index - RS485_PACKET_FOOTER_LENGTH) + 1);
-		crc16_on_packet = (receive_buffer[packet_end_index-1] << 8) |
-		                  receive_buffer[packet_end_index];
+		crc16_calculated = crc16(_receive.buffer, frame_length - RS485_FRAME_FOOTER_LENGTH);
+		crc16_on_packet = (_receive.buffer[frame_length - 2] << 8) | _receive.buffer[frame_length - 1];
 
+		// Checking the CRC16 checksum
 		if (crc16_calculated != crc16_on_packet) {
 			// Move on to next slave
 			disable_master_timer();
-			log_error("Wrong CRC16 checksum in received empty packet. Moving on");
+			log_error("Received empty response (frame: %s) with CRC-16 mismatch (actual: %04X != expected: %04X)",
+			          frame_get_content_dump(frame_content_dump, _receive.buffer, frame_length),
+			          crc16_calculated, crc16_on_packet);
 			seq_pop_poll();
 
 			return;
@@ -472,7 +529,7 @@ void verify_buffer(uint8_t *receive_buffer) {
 
 		disable_master_timer();
 
-		log_packet_debug("Received empty packet");
+		log_packet_debug("Received empty response");
 
 		// Updating sequence number
 		++_red_rs485_extension.slaves[master_current_slave_to_process].sequence;
@@ -484,78 +541,89 @@ void verify_buffer(uint8_t *receive_buffer) {
 		arm_master_poll_slave_interval_timer();
 	}
 	// Received data packet from the other side
-	else if (uid_from_packet != 0 && receive_buffer[8] != 0) {
+	else if (_receive.packet.uid != 0 && _receive.packet.function_id != 0) {
 		// Checking address
-		if (receive_buffer[0] != current_request_as_byte_array[0]) {
+		if (_receive.frame.address != current_request_as_byte_array[0]) {
 			// Move on to next slave
 			disable_master_timer();
-			log_error("Wrong address in received data packet. Moving on");
+			log_error("Received data response (frame: %s) with address mismatch (actual: %u != expected: %u)",
+			          frame_get_content_dump(frame_content_dump, _receive.buffer, frame_length),
+			          _receive.frame.address, current_request_as_byte_array[0]);
 			seq_pop_poll();
 
 			return;
 		}
 
 		// Checking function code
-		if (receive_buffer[1] != current_request_as_byte_array[1]) {
+		if (_receive.frame.function_code != current_request_as_byte_array[1]) {
 			// Move on to next slave
 			disable_master_timer();
-			log_error("Wrong function code in received data packet. Moving on");
+			log_error("Received data response (frame: %s) with function code mismatch (actual: %u != expected: %u)",
+			          frame_get_content_dump(frame_content_dump, _receive.buffer, frame_length),
+			          _receive.frame.function_code, current_request_as_byte_array[1]);
 			seq_pop_poll();
 
 			return;
 		}
 
 		// Checking current sequence number
-		if (receive_buffer[2] != current_request_as_byte_array[2]) {
+		if (_receive.frame.sequence_number != current_request_as_byte_array[2]) {
 			// Move on to next slave
 			disable_master_timer();
-			log_error("Wrong sequence number in received data packet. Moving on");
+			log_error("Received data response (frame: %s) with sequence number mismatch (actual: %u != expected: %u)",
+			          frame_get_content_dump(frame_content_dump, _receive.buffer, frame_length),
+			          _receive.frame.sequence_number, current_request_as_byte_array[2]);
 			seq_pop_poll();
 
 			return;
 		}
 
-		// Checking the CRC16 checksum
-		crc16_calculated = crc16(&receive_buffer[0], (packet_end_index - RS485_PACKET_FOOTER_LENGTH) + 1);
-		crc16_on_packet = (receive_buffer[packet_end_index-1] << 8) |
-		                  receive_buffer[packet_end_index];
+		crc16_calculated = crc16(_receive.buffer, frame_length - RS485_FRAME_FOOTER_LENGTH);
+		crc16_on_packet = (_receive.buffer[frame_length - 2] << 8) | _receive.buffer[frame_length - 1];
 
+		// Checking the CRC16 checksum
 		if (crc16_calculated != crc16_on_packet) {
 			// Move on to next slave
 			disable_master_timer();
-			log_error("Wrong CRC16 checksum in received empty packet. Moving on");
+			log_error("Received data response (frame: %s) with CRC-16 mismatch (actual: %04X != expected: %04X)",
+			          frame_get_content_dump(frame_content_dump, _receive.buffer, frame_length),
+			          crc16_calculated, crc16_on_packet);
 			seq_pop_poll();
 
 			return;
 		}
 
-		log_packet_debug("Data packet received");
+		log_packet_debug("Received data response");
 
 		// Send message into brickd dispatcher
 		memset(&_red_rs485_extension.dispatch_packet, 0, sizeof(Packet));
-		memcpy(&_red_rs485_extension.dispatch_packet, &receive_buffer[3], receive_buffer[RS485_PACKET_LENGTH_INDEX]);
+		memcpy(&_red_rs485_extension.dispatch_packet, &_receive.buffer[3], _receive.packet.length);
 		network_dispatch_response(&_red_rs485_extension.dispatch_packet);
 
-		stack_add_recipient(&_red_rs485_extension.base, uid_from_packet, receive_buffer[0]);
+		stack_add_recipient(&_red_rs485_extension.base, _receive.packet.uid, _receive.frame.address);
 
 		queue_packet = queue_peek(&_red_rs485_extension.slaves[master_current_slave_to_process].packet_queue);
 
 		// Replace head of slave queue with an ACK
 		memset(queue_packet, 0, sizeof(RS485ExtensionPacket));
-		queue_packet->tries_left = RS485_PACKET_TRIES_EMPTY;
+		queue_packet->tries_left = RS485_FRAME_TRIES_EMPTY;
 		queue_packet->packet.header.length = 8;
 
-		current_receive_buffer_index = 0;
+		_receive_buffer_used = 0;
 		sent_ack_of_data_packet = 1;
-		memset(receive_buffer, 0, RECEIVE_BUFFER_SIZE);
+		memset(_receive.buffer, 0, RECEIVE_BUFFER_SIZE);
 
-		log_packet_debug("Sending ACK of the data packet");
+		log_packet_debug("Sending ACK of the data response");
 
 		send_packet();
 	} else {
 		// Undefined packet
 		disable_master_timer();
-		log_error("Undefined packet");
+		log_error("Undefined response (frame: %s, U: %s, L: %u, F: %u)",
+		          frame_get_content_dump(frame_content_dump, _receive.buffer, frame_length),
+		          base58_encode(base58, uint32_from_le(_receive.packet.uid)),
+		          _receive.packet.length,
+		          _receive.packet.function_id);
 		seq_pop_poll();
 	}
 }
@@ -578,7 +646,7 @@ void send_packet(void) {
 		return;
 	}
 
-	uint8_t rs485_packet[packet_to_send->packet.header.length + RS485_PACKET_OVERHEAD];
+	uint8_t rs485_packet[packet_to_send->packet.header.length + RS485_FRAME_OVERHEAD];
 
     // Assemble packet header
 	rs485_packet[0] = current_slave->address;
@@ -589,11 +657,11 @@ void send_packet(void) {
 	memcpy(&rs485_packet[3], packet_to_send, packet_to_send->packet.header.length);
 
 	// Calculating CRC16
-	packet_crc16 = crc16(rs485_packet, packet_to_send->packet.header.length + RS485_PACKET_HEADER_LENGTH);
+	packet_crc16 = crc16(rs485_packet, packet_to_send->packet.header.length + RS485_FRAME_HEADER_LENGTH);
 
 	// Assemble the calculated CRC16
 	crc16_first_byte_index = packet_to_send->packet.header.length +
-	                         RS485_PACKET_HEADER_LENGTH;
+	                         RS485_FRAME_HEADER_LENGTH;
 
 	rs485_packet[crc16_first_byte_index] = packet_crc16 >> 8;
 	rs485_packet[++crc16_first_byte_index] = packet_crc16 & 0x00FF;
@@ -663,7 +731,7 @@ void serial_data_available_handler(void* opaque) {
 	(void)opaque;
 
 	// Check if there is space in the receive buffer
-	if (current_receive_buffer_index >= RECEIVE_BUFFER_SIZE) {
+	if (_receive_buffer_used >= RECEIVE_BUFFER_SIZE) {
 		log_warn("No more space in the receive buffer. Aborting current request");
 
 		// Poll next slave after the configured timeout
@@ -674,23 +742,24 @@ void serial_data_available_handler(void* opaque) {
 
 	// Put newly received bytes on the specific index in receive buffer
 	int bytes_received = read(_red_rs485_serial_fd,
-	                          &receive_buffer[current_receive_buffer_index],
-	                          (RECEIVE_BUFFER_SIZE - current_receive_buffer_index));
+	                          _receive.buffer + _receive_buffer_used,
+	                          RECEIVE_BUFFER_SIZE - _receive_buffer_used);
 
 	if (bytes_received < 0) {
+		// FIXME: log error?
 		return;
 	}
 
-	current_receive_buffer_index += bytes_received;
-	verify_buffer(receive_buffer);
+	_receive_buffer_used += bytes_received;
+	verify_buffer();
 }
 
 // Master polling slave event handler
 void master_poll_slave(void) {
 	RS485ExtensionPacket* slave_queue_packet;
 	sent_ack_of_data_packet = 0;
-	current_receive_buffer_index = 0;
-	memset(receive_buffer, 0, RECEIVE_BUFFER_SIZE);
+	_receive_buffer_used = 0;
+	memset(_receive.buffer, 0, RECEIVE_BUFFER_SIZE);
 
 	// Updating current slave to process
 	if (++master_current_slave_to_process >= _red_rs485_extension.slave_num) {
@@ -699,7 +768,7 @@ void master_poll_slave(void) {
 
 	log_debug("Updated current RS485 slave's index");
 
-	if ((queue_peek(&_red_rs485_extension.slaves[master_current_slave_to_process].packet_queue)) == NULL) {
+	if (_red_rs485_extension.slaves[master_current_slave_to_process].packet_queue.count == 0) {
 		// Nothing to send in the slave's queue. So send a poll packet
 		slave_queue_packet = queue_push(&_red_rs485_extension.slaves[master_current_slave_to_process].packet_queue);
 
@@ -711,7 +780,7 @@ void master_poll_slave(void) {
 			return;
 		}
 
-		slave_queue_packet->tries_left = RS485_PACKET_TRIES_EMPTY;
+		slave_queue_packet->tries_left = RS485_FRAME_TRIES_EMPTY;
 		slave_queue_packet->packet.header.length = 8;
 
 		log_packet_debug("Sending empty packet to slave ID = %d, Sequence number = %d",
@@ -859,7 +928,7 @@ int red_rs485_extension_dispatch_to_rs485(Stack *stack, Packet *request, Recipie
 				return -1;
 			}
 
-			queued_request->tries_left = RS485_PACKET_TRIES_DATA;
+			queued_request->tries_left = RS485_FRAME_TRIES_DATA;
 			memcpy(&queued_request->packet, request, request->header.length);
 
 			log_packet_debug("Broadcast... Packet is queued to be sent to slave %d. Function signature = (%s)",
@@ -880,7 +949,7 @@ int red_rs485_extension_dispatch_to_rs485(Stack *stack, Packet *request, Recipie
 					return -1;
 				}
 
-				queued_request->tries_left = RS485_PACKET_TRIES_DATA;
+				queued_request->tries_left = RS485_FRAME_TRIES_DATA;
 				memcpy(&queued_request->packet, request, request->header.length);
 
 				log_packet_debug("Packet is queued to be sent to slave %d over. Function signature = (%s)",
