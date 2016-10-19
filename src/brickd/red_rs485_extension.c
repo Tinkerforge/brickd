@@ -604,6 +604,24 @@ void verify_buffer(void) {
 
 		queue_packet = queue_peek(&_red_rs485_extension.slaves[master_current_slave_to_process].packet_queue);
 
+		// FIXME: at this point the packet queue should not be empty. it should
+		//        contain the request that triggered this response. but sometimes
+		//        this queue is empty for some unknown reason. until this problem
+		//        is fixed just push a new packet to the queue
+		if (queue_packet == NULL) {
+			log_warn("Missing expected request packet");
+
+			queue_packet = queue_push(&_red_rs485_extension.slaves[master_current_slave_to_process].packet_queue);
+
+			if (queue_packet == NULL) {
+				log_error("Could not push empty request to packet queue for slave %d: %s (%d)",
+				          _red_rs485_extension.slaves[master_current_slave_to_process].address,
+				          get_errno_name(errno), errno);
+
+				return; // FIXME
+			}
+		}
+
 		// Replace head of slave queue with an ACK
 		memset(queue_packet, 0, sizeof(RS485ExtensionPacket));
 		queue_packet->tries_left = RS485_FRAME_TRIES_EMPTY;
