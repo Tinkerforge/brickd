@@ -1,0 +1,4 @@
+#!/bin/bash
+
+launchctl load /Library/LaunchDaemons/com.tinkerforge.brickd.plist
+launchctl start com.tinkerforge.brickd

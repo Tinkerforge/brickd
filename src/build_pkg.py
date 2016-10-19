@@ -83,7 +83,7 @@ def build_macosx_pkg():
     print('building brickd disk image')
     root_path = os.getcwd()
 
-    print('removing old build directories')
+    print('removing old build directory')
     dist_path = os.path.join(root_path, 'dist')
 
     if os.path.exists(dist_path):
@@ -93,12 +93,13 @@ def build_macosx_pkg():
     system('cd brickd; make clean')
     system('cd brickd; env CC=gcc make')
 
-    print('copying installer')
-    installer_path = os.path.join(root_path, 'build_data', 'macosx', 'installer')
-    shutil.copytree(installer_path, dist_path)
+    print('copying installer root')
+    installer_root_path = os.path.join(root_path, 'build_data', 'macosx', 'installer', 'root')
+    dist_root_path = os.path.join(dist_path, 'root')
+    shutil.copytree(installer_root_path, dist_root_path)
 
     print('copying brickd binary')
-    brickd_app_path = os.path.join(dist_path, 'data', 'brickd.app')
+    brickd_app_path = os.path.join(dist_root_path, 'usr', 'local', 'libexec', 'brickd.app')
     contents_path = os.path.join(brickd_app_path, 'Contents')
     macos_path = os.path.join(contents_path, 'MacOS')
     os.makedirs(macos_path)
@@ -115,13 +116,24 @@ def build_macosx_pkg():
     system('install_name_tool -id @executable_path/libusb-1.0.dylib {0}'.format(os.path.join(macos_path, 'libusb-1.0.dylib')))
     system('install_name_tool -change @executable_path/../build_data/macosx/libusb/libusb-1.0.dylib @executable_path/libusb-1.0.dylib {0}'.format(os.path.join(macos_path, 'brickd')))
 
-    print('signing brickd binary')
-    # NOTE: codesign_identity contains "Developer ID Application: ..."
-    codesign_command = 'codesign --force --verify --verbose --sign "`cat codesign_identity`" {0}'
-    install_app_path = os.path.join(dist_path, 'INSTALL.app')
-    system(codesign_command.format(install_app_path))
+    print('signing libusb and brickd binaries')
+    system('security unlock-keychain /Users/$USER/Library/Keychains/login.keychain')
+    # NOTE: codesign_application_identity contains "Developer ID Application: ..."
+    codesign_command = 'codesign --force --verify --verbose --sign "`cat codesign_application_identity`" {0}'
     system(codesign_command.format(os.path.join(macos_path, 'libusb-1.0.dylib')))
     system(codesign_command.format(brickd_app_path))
+
+    print('building pkg')
+    scripts_path = os.path.join(root_path, 'build_data', 'macosx', 'installer', 'scripts')
+    component_path = os.path.join(root_path, 'build_data', 'macosx', 'installer', 'component.plist')
+    # NOTE: codesign_application_identity contains "Developer ID Installer: ..."
+    system('pkgbuild --sign "`cat codesign_installer_identity`" --root dist/root --identifier com.tinkerforge.brickd --version {0} --scripts {1} --install-location / --component-plist {2} dist/brickd.pkg'.format(version, scripts_path, component_path))
+    distribution_path = os.path.join(root_path, 'build_data', 'macosx', 'installer', 'distribution.xml')
+    shutil.copy(distribution_path, dist_path)
+    distribution_path = os.path.join(dist_path, 'distribution.xml')
+    specialize_template(distribution_path, distribution_path, {'<<VERSION>>': version})
+    os.makedirs('dist/dmg')
+    system('productbuild --sign "`cat codesign_installer_identity`" --distribution {0} --package-path {1} --version {2} dist/dmg/Brickd-{2}.pkg'.format(distribution_path, dist_path, version))
 
     print('building disk image')
     dmg_name = 'brickd_macos_{0}.dmg'.format(version.replace('.', '_'))
@@ -129,14 +141,14 @@ def build_macosx_pkg():
     if os.path.exists(dmg_name):
         os.remove(dmg_name)
 
-    system('hdiutil create -fs HFS+ -volname "Brickd-{0}" -srcfolder dist {1}'.format(version, dmg_name))
+    system('hdiutil create -fs HFS+ -volname "Brickd-{0}" -srcfolder dist/dmg {1}'.format(version, dmg_name))
 
 
 def build_windows_pkg():
     print('building brickd NSIS installer')
     root_path = os.getcwd()
 
-    print('removing old build directories')
+    print('removing old build directory')
     dist_path = os.path.join(root_path, 'dist')
 
     if os.path.exists(dist_path):
@@ -186,7 +198,7 @@ def build_linux_pkg():
     print('building brickd Debian package')
     root_path = os.getcwd()
 
-    print('removing old build directories')
+    print('removing old build directory')
     dist_path = os.path.join(root_path, 'dist')
 
     if os.path.exists(dist_path):

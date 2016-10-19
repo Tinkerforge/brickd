@@ -1,0 +1,17 @@
+#!/bin/bash
+
+# Mac OS X 10.11 added "System Integrity Protection" that basically makes
+# /System, /bin, /sbin and /usr unwritable even for root. Recommended places
+# to put files are now [~]/Library, /usr/local and /Applications. The older
+# brickd installer installed to /usr/libexec and /System/Library. The new .pkg
+# based installer installs to /usr/local/libexec and /Library instead. Delete
+# the brickd files from the old locations if they exist.
+
+if [ -d /usr/libexec/brickd.app ]
+then
+launchctl unload /System/Library/LaunchDaemons/com.tinkerforge.brickd.plist
+rm /System/Library/LaunchDaemons/com.tinkerforge.brickd.plist
+rm -rf /usr/libexec/brickd.app
+else
+launchctl unload /Library/LaunchDaemons/com.tinkerforge.brickd.plist
+fi

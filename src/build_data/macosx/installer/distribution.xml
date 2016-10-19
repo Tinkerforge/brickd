@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8" standalone="no"?>
+<installer-gui-script minSpecVersion="1">
+	<title>Brickd <<VERSION>></title>
+	<organization>com.tinkerforge</organization>
+	<domains enable_localSystem="true"/>
+	<options customize="never" require-scripts="true" rootVolumeOnly="true" />
+	<pkg-ref id="com.tinkerforge.brickd" version="<<VERSION>>" auth="root">brickd.pkg</pkg-ref>
+	<choices-outline>
+		<line choice="com.tinkerforge.brickd"/>
+	</choices-outline>
+	<choice id="com.tinkerforge.brickd" visible="false" title="Brickd <<VERSION>>" description="" start_selected="true">
+		<pkg-ref id="com.tinkerforge.brickd"/>
+	</choice>
+</installer-gui-script>
