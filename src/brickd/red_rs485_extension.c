@@ -153,7 +153,6 @@ typedef struct {
 	Stack base;
 	RS485Slave slaves[EXTENSION_RS485_SLAVES_MAX];
 	int slave_num;
-    Packet dispatch_packet;
 
 	uint32_t baudrate;
 	uint8_t parity;
@@ -179,11 +178,7 @@ static union {
 			uint8_t function_code;
 			uint8_t sequence_number;
 		} ATTRIBUTE_PACKED frame;
-		struct {
-			uint32_t uid; // FIXME: assuming brickd runs on a little endian machine
-			uint8_t length;
-			uint8_t function_id;
-		} ATTRIBUTE_PACKED packet;
+		Packet packet;
 	} ATTRIBUTE_PACKED;
 	uint8_t buffer[RECEIVE_BUFFER_SIZE];
 } ATTRIBUTE_PACKED _receive;
@@ -389,7 +384,7 @@ void verify_buffer(void) {
 	}
 
 	// Calculate packet end index
-	frame_length = RS485_FRAME_HEADER_LENGTH + _receive.packet.length + RS485_FRAME_FOOTER_LENGTH;
+	frame_length = RS485_FRAME_HEADER_LENGTH + _receive.packet.header.length + RS485_FRAME_FOOTER_LENGTH;
 
 	// Check if complete packet is available
 	if (_receive_buffer_used < frame_length) {
@@ -497,7 +492,7 @@ void verify_buffer(void) {
 	}
 
 	// Received empty packet from the other side (UID=0, FID=0)
-	if (_receive.packet.uid == 0 && _receive.packet.function_id == 0) {
+	if (_receive.packet.header.uid == 0 && _receive.packet.header.function_id == 0) {
 		// Checking current sequence number
 		if (_receive.frame.sequence_number != current_request_as_byte_array[2]) {
 			// Move on to next slave
@@ -524,7 +519,7 @@ void verify_buffer(void) {
 		arm_master_poll_slave_interval_timer();
 	}
 	// Received data packet from the other side
-	else if (_receive.packet.uid != 0 && _receive.packet.function_id != 0) {
+	else if (_receive.packet.header.uid != 0 && _receive.packet.header.function_id != 0) {
 		// Checking current sequence number
 		if (_receive.frame.sequence_number != current_request_as_byte_array[2]) {
 			log_warn("Received data response (frame: %s) with sequence number mismatch (actual: %u != expected: %u)",
@@ -533,12 +528,10 @@ void verify_buffer(void) {
 		} else {
 			log_packet_debug("Received data response");
 
-			// Send message into brickd dispatcher
-			memset(&_red_rs485_extension.dispatch_packet, 0, sizeof(Packet));
-			memcpy(&_red_rs485_extension.dispatch_packet, &_receive.buffer[3], _receive.packet.length);
-			network_dispatch_response(&_red_rs485_extension.dispatch_packet);
+			stack_add_recipient(&_red_rs485_extension.base, _receive.packet.header.uid, _receive.frame.address); // FIXME: check return value
 
-			stack_add_recipient(&_red_rs485_extension.base, _receive.packet.uid, _receive.frame.address);
+			// Send message into brickd dispatcher
+			network_dispatch_response(&_receive.packet);
 		}
 
 		queue_packet = queue_peek(&_red_rs485_extension.slaves[master_current_slave_to_process].packet_queue);
@@ -578,9 +571,9 @@ void verify_buffer(void) {
 		disable_master_timer();
 		log_error("Undefined response (frame: %s, U: %s, L: %u, F: %u)",
 		          frame_get_content_dump(frame_content_dump, _receive.buffer, frame_length),
-		          base58_encode(base58, uint32_from_le(_receive.packet.uid)),
-		          _receive.packet.length,
-		          _receive.packet.function_id);
+		          base58_encode(base58, uint32_from_le(_receive.packet.header.uid)),
+		          _receive.packet.header.length,
+		          _receive.packet.header.function_id);
 		seq_pop_poll();
 	}
 }
