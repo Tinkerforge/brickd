@@ -409,12 +409,15 @@ void verify_buffer(void) {
 		send_verify_flag = 0;
 		log_packet_debug("Send verification done");
 
-		if (sent_ack_of_data_packet) {
+		if (sent_ack_of_data_packet > 0) {
 			// Request processing done. Move on to next slave
 			disable_master_timer();
-			log_packet_debug("Processed current request");
-			++_red_rs485_extension.slaves[master_current_slave_to_process].sequence;
-			queue_pop(&_red_rs485_extension.slaves[master_current_slave_to_process].packet_queue, NULL);
+
+			if (sent_ack_of_data_packet == 1) {
+				log_packet_debug("Processed current request");
+				++_red_rs485_extension.slaves[master_current_slave_to_process].sequence;
+				queue_pop(&_red_rs485_extension.slaves[master_current_slave_to_process].packet_queue, NULL);
+			}
 
 			// Poll next slave after the configured timeout
 			arm_master_poll_slave_interval_timer();
@@ -536,12 +539,8 @@ void verify_buffer(void) {
 
 		queue_packet = queue_peek(&_red_rs485_extension.slaves[master_current_slave_to_process].packet_queue);
 
-		// FIXME: at this point the packet queue should not be empty. it should
-		//        contain the request that triggered this response. but sometimes
-		//        this queue is empty for some unknown reason. until this problem
-		//        is fixed just push a new packet to the queue
 		if (queue_packet == NULL) {
-			log_warn("Missing expected request packet");
+			log_warn("Sending ACK for unexpected data response");
 
 			queue_packet = queue_push(&_red_rs485_extension.slaves[master_current_slave_to_process].packet_queue);
 
@@ -552,6 +551,10 @@ void verify_buffer(void) {
 
 				return; // FIXME
 			}
+
+			sent_ack_of_data_packet = 2;
+		} else {
+			sent_ack_of_data_packet = 1;
 		}
 
 		// Replace head of slave queue with an ACK
@@ -560,7 +563,6 @@ void verify_buffer(void) {
 		queue_packet->packet.header.length = 8;
 
 		_receive_buffer_used = 0;
-		sent_ack_of_data_packet = 1;
 		memset(_receive.buffer, 0, RECEIVE_BUFFER_SIZE);
 
 		log_packet_debug("Sending ACK of the data response");
