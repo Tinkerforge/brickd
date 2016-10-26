@@ -849,8 +849,8 @@ static void red_stack_reset_handler(void *opaque) {
 }
 
 int red_stack_init(void) {
-	int i = 0;
 	int phase = 0;
+	int i = 0;
 
 	log_debug("Initializing RED Brick SPI Stack subsystem");
 

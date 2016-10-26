@@ -51,7 +51,7 @@ void red_ethernet_extension_rmmod(void) {
 		// ENOENT = w5x00 was not loaded (which is OK)
 		if (errno != ENOENT) {
 			log_warn("Could not remove kernel module: %s (%d)",
-					get_errno_name(errno), errno);
+			         get_errno_name(errno), errno);
 
 			// In this error case we run through, maybe we
 			// can load the kernel module anyway.

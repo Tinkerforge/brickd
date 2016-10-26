@@ -543,7 +543,7 @@ int red_extension_init(void) {
 
 		switch (base_config[i].type) {
 		case EXTENSION_TYPE_RS485:
-			ret = red_extension_read_rs485_config(&i2c_eeprom, (ExtensionRS485Config *) &base_config[i]);
+			ret = red_extension_read_rs485_config(&i2c_eeprom, (ExtensionRS485Config *)&base_config[i]);
 			i2c_eeprom_destroy(&i2c_eeprom);
 
 			if (ret < 0) {
@@ -552,14 +552,14 @@ int red_extension_init(void) {
 				continue;
 			}
 
-			if (red_extension_save_rs485_config_to_fs((ExtensionRS485Config *) &base_config[i]) < 0) {
+			if (red_extension_save_rs485_config_to_fs((ExtensionRS485Config *)&base_config[i]) < 0) {
 				log_warn("Could not save RS485 config. RS485 Extension at position %d will not show up in Brick Viewer", i);
 			}
 
 			break;
 
 		case EXTENSION_TYPE_ETHERNET:
-			ret = red_extension_read_ethernet_config(&i2c_eeprom, (ExtensionEthernetConfig *) &base_config[i]);
+			ret = red_extension_read_ethernet_config(&i2c_eeprom, (ExtensionEthernetConfig *)&base_config[i]);
 			i2c_eeprom_destroy(&i2c_eeprom);
 
 			if (ret < 0) {
@@ -568,7 +568,7 @@ int red_extension_init(void) {
 				continue;
 			}
 
-			if (red_extension_save_ethernet_config_to_fs((ExtensionEthernetConfig *) &base_config[i]) < 0) {
+			if (red_extension_save_ethernet_config_to_fs((ExtensionEthernetConfig *)&base_config[i]) < 0) {
 				log_warn("Could not save Ethernet config. Ethernet Extension at position %d will not show up in Brick Viewer", i);
 			}
 
