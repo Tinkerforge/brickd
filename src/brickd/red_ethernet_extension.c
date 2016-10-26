@@ -71,6 +71,8 @@ int red_ethernet_extension_init(ExtensionEthernetConfig *ethernet_config) {
 	int length;
 	GPIOPin pin;
 
+	log_debug("Initializing RED Brick Ethernet Extension subsystem");
+
 	// Mux SPI CS pins again. They have been overwritten by I2C select!
 	pin.port_index = GPIO_PORT_G;
 
@@ -154,6 +156,8 @@ int red_ethernet_extension_init(ExtensionEthernetConfig *ethernet_config) {
 }
 
 void red_ethernet_extension_exit(void) {
+	log_debug("Shutting down RED Brick Ethernet Extension subsystem");
+
 	// Nothing to do here, we do not rmmod the module, if brickd
 	// is closed. The Ethernet Extension may still be needed!
 	// Example: Closing/recompiling/restarting brickd over ssh.

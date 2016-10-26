@@ -470,6 +470,8 @@ int red_extension_init(void) {
 	int i, j, ret;
 	ExtensionBaseConfig base_config[2];
 
+	log_debug("Initializing RED Brick Extension subsystem");
+
 	// First we remove the Ethernet Extension kernel module (if there is one)
 	// to make sure that there isn't a collision between SPI select and I2C select.
 	red_ethernet_extension_rmmod();
@@ -612,6 +614,8 @@ int red_extension_init(void) {
 
 void red_extension_exit(void) {
 	int i;
+
+	log_debug("Shutting down RED Brick Extension subsystem");
 
 	for (i = 0; i < EXTENSION_NUM_MAX; i++) {
 		switch (_red_extension_type[i]) {
