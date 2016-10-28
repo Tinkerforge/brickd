@@ -249,7 +249,7 @@ index 9825607..285047a 100644
 +				// FIXME: this can behave differently if objects such as semaphores or
 +				//        auto-reset events are used. those objects are altered by a
 +				//        WaitForMultipleObjects call. but WaitForMultipleObjects will
-+				//        return after the first signaled object. but the thread poll
++				//        return after the first signaled object. but the thread pool
 +				//        behind RegisterWaitForSingleObject can wait for all signaled
 +				//        objects making them non-signaled if the object is a semaphore
 +				//        or an auto-reset event. currently this is not a problem
