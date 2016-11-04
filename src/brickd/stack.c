@@ -65,7 +65,7 @@ void stack_destroy(Stack *stack) {
 	array_destroy(&stack->recipients, NULL);
 }
 
-int stack_add_recipient(Stack *stack, uint32_t uid /* always little endian */, int opaque) {
+int stack_add_recipient(Stack *stack, uint32_t uid /* always little endian */, uint64_t opaque) {
 	int i;
 	Recipient *recipient;
 	char base58[BASE58_MAX_LENGTH];

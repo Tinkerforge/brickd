@@ -547,7 +547,7 @@ static void red_stack_spi_handle_reset(void) {
 	int slave;
 
 	stack_announce_disconnect(&_red_stack.base);
-	_red_stack.base.recipients.count = 0;
+	_red_stack.base.recipients.count = 0; // FIXME: properly clear the array
 
 	log_info("Starting reinitialization of SPI slaves");
 
