@@ -170,3 +170,13 @@
 - Add start menu link for logviewer.exe on Windows
 - Adapt to file system protection changes in Mac OS X 10.11
 - Update libusb WDF co-installer for Windows Vista and 7
+
+2016-11-29: 2.2.3 (<unknown>)
+- Update bundled libusb to 1.0.20 on Windows, add support for Intel Alpine
+  Ridge USB 3.1 controller
+- Update bundled libusb to 1.0.20 on Mac OS X
+- Merge --debug and --libusb-debug options
+- Add initial Windows 10 IoT Core support
+- Properly quote path to brickd.exe for service registration on Windows
+- Switch to .pkg based installer for Mac OS X
+- Fix crash in RS485 Extension code for RED Brick
