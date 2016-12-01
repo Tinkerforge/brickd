@@ -163,6 +163,7 @@ typedef struct {
 	uint8_t slave_num;
 
 	Packet packet_from_spi;
+	uint8_t packet_from_spi_stack_address;
 } REDStack;
 
 typedef struct {
@@ -659,6 +660,9 @@ static void red_stack_spi_thread(void *opaque) {
 				// Before the dispatching we insert the stack position into an enumerate message
 				red_stack_spi_insert_position(slave);
 
+				// Set stack address for packet
+				_red_stack.packet_from_spi_stack_address = slave->stack_address;
+
 				red_stack_spi_request_dispatch_response_event();
 				// Wait until message is dispatched, so we don't overwrite it
 				// accidentally.
@@ -777,6 +781,11 @@ static void red_stack_dispatch_from_spi(void *opaque) {
 		          get_errno_name(errno), errno);
 
 		return;
+	}
+
+	// Update routing table (this is necessary for Co MCU Bricklets)
+	if(_red_stack.packet_from_spi.header.function_id == CALLBACK_ENUMERATE) {
+		stack_add_recipient(&_red_stack.base, _red_stack.packet_from_spi.header.uid, _red_stack.packet_from_spi_stack_address);
 	}
 
 	// Send message into brickd dispatcher
