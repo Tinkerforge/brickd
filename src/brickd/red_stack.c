@@ -394,9 +394,8 @@ static int red_stack_spi_transceive_message(REDStackPacket *packet_send, Packet 
 
 	// If we send data and the master sequence number matches to the one
 	// set in the packet we know that the slave received the packet!
+	sequence_number_master = rx[RED_STACK_SPI_INFO(length)] & RED_STACK_SPI_INFO_SEQUENCE_MASTER_MASK;
 	if ((packet_send != NULL) /*&& (packet_send->status == RED_STACK_PACKET_STATUS_SEQUENCE_NUMBER_SET)*/) {
-		sequence_number_master = rx[RED_STACK_SPI_INFO(length)] & RED_STACK_SPI_INFO_SEQUENCE_MASTER_MASK;
-
 		if (sequence_number_master == slave->sequence_number_master) {
 			retval = (retval & (~RED_STACK_TRANSCEIVE_RESULT_MASK_SEND)) | RED_STACK_TRANSCEIVE_RESULT_SEND_OK;
 
@@ -404,9 +403,20 @@ static int red_stack_spi_transceive_message(REDStackPacket *packet_send, Packet 
 			red_stack_increase_master_sequence_number(slave);
 		}
 	} else {
-		// If we didn't send anything we can always increase the sequence number,
-		// it doesn't matter if the slave actually received it.
-		red_stack_increase_master_sequence_number(slave);
+		// If we didn't send anything we can increase the sequence number
+		// if the increased sequence number does not match the last sequence number
+		// that we ACKed. Otherwise we may get a false positive ACK for the next
+		// message.
+
+		uint8_t seq_inc = slave->sequence_number_master + 1 > RED_STACK_SPI_INFO_SEQUENCE_MASTER_MASK ? 0 : slave->sequence_number_master + 1;
+		if (sequence_number_master == slave->sequence_number_master || seq_inc != sequence_number_master) {
+			red_stack_increase_master_sequence_number(slave);
+		} else {
+			// Since we did't increase the sequence number, then ext packet must
+			// be empty, otherwise we may get a ACK for the last empty packet and
+			// interpret it as an ACK for a packet with a message
+			slave->next_packet_empty = true;
+		}
 	}
 
 	// If the slave sequence number matches we already processed this packet
