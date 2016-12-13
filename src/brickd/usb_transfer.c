@@ -178,13 +178,17 @@ void usb_transfer_destroy(USBTransfer *usb_transfer) {
 
 		rc = libusb_cancel_transfer(usb_transfer->handle);
 
-		// FIXME: if libusb_cancel_transfer fails with LIBUSB_ERROR_NO_DEVICE
-		//        then probably free the transfer anyway, as it fails constantly
-		//        this way on Windows XP and Mac OS X. but need to verify that
-		//        in those cases freeing the transfer won't trigger a segfault.
-		//        the libusb docs forbid to free an active transfer.
-
-		if (rc < 0) {
+		// if libusb_cancel_transfer fails with LIBUSB_ERROR_NO_DEVICE if the
+		// device was disconnected before the transfer could be cancelled. but
+		// the transfer might be cancelled anyway and we need to wait for the
+		// transfer to complete. this can result in waiting for a transfer that
+		// might not complete anymore. but if we don't wait for the transfer to
+		// complete if it actually will complete then the libusb_device_handle
+		// might be closed before the transfer completes. this results in a
+		// crash by NULL pointer dereference because libusb assumes that the
+		// libusb_device_handle is not closed as long as there are submitted
+		// transfers.
+		if (rc < 0 && rc != LIBUSB_ERROR_NO_DEVICE) {
 			log_warn("Could not cancel pending %s transfer %p (%p) for %s: %s (%d)",
 			         usb_transfer_get_type_name(usb_transfer->type, false), usb_transfer,
 			         usb_transfer->handle, usb_transfer->usb_stack->base.name,
@@ -196,7 +200,7 @@ void usb_transfer_destroy(USBTransfer *usb_transfer) {
 			start = time(NULL);
 			now = start;
 
-			// FIXME: don't wait 1sec per transfer
+			// FIXME: don't wait 1 second per transfer
 			while (!usb_transfer->completed && now >= start && now < start + 1) {
 				rc = libusb_handle_events_timeout(usb_transfer->usb_stack->context, &tv);
 
