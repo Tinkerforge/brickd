@@ -1,7 +1,7 @@
-This is a special version of libusb for brickd build on Mac OS X 10.11.
+This is a special version of libusb for brickd build on Mac OS X 10.11.6.
 
-Based on libusb's github.com commit 578942b5a90cd36b47b11e0992c2e92a05b70d91
-(libusb version 1.0.20 plus some fixes) with the libusb-brickd.patch
+Based on libusb's github.com commit b14d0a49e8014c0043673160ace2910e5742a1d2
+(libusb version 1.0.21 plus some fixes) with the libusb-brickd.patch
 applied to it.
 
 The libusb-1.0.dylib was build using the compile.sh script.

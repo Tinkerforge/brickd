@@ -2,7 +2,7 @@
 # For GCC/Clang builds on Linux and Mac OS X, and MinGW builds on Windows
 #
 # Minimum libusb version: 1.0.6
-# Tested with libusb: 1.0.6, 1.0.8, 1.0.9, 1.0.16, 1.0.17
+# Tested with libusb: 1.0.6, 1.0.8, 1.0.9, 1.0.16, 1.0.17, 1.0.19, 1.0.21
 #
 # Debian/Ubuntu:
 # sudo apt-get install build-essential pkg-config libusb-1.0-0-dev libudev-dev pm-utils
@@ -305,7 +305,7 @@ endif
 endif
 
 ifeq ($(PLATFORM),Darwin)
-	LIBUSB_STATUS := 1.0.20 (fork)
+	LIBUSB_STATUS := 1.0.21 (fork)
 	LIBUSB_CFLAGS := -I../build_data/macosx/libusb
 	LIBUSB_LDFLAGS := -L../build_data/macosx/libusb
 	LIBUSB_LIBS := -lusb-1.0
