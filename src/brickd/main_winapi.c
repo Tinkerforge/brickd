@@ -65,6 +65,7 @@ BOOL WINAPI Process32Next(HANDLE hSnapshot, PROCESSENTRY32 *lppe);
 #include "network.h"
 #include "service.h"
 #include "usb.h"
+#include "mesh.h"
 #include "version.h"
 
 static LogSource _log_source = LOG_SOURCE_INITIALIZER;
@@ -779,6 +780,10 @@ error_mutex:
 		goto error_network;
 	}
 
+	if (mesh_init() < 0) {
+		goto error_mesh;
+	}
+
 	// running
 	if (_run_as_service) {
 		service_set_status(SERVICE_RUNNING, NO_ERROR);
@@ -790,6 +795,9 @@ error_mutex:
 	}
 
 	exit_code = EXIT_SUCCESS;
+
+error_mesh:
+	mesh_exit();
 
 error_run:
 	network_exit();

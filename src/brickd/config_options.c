@@ -51,6 +51,7 @@ ConfigOption config_options[] = {
 	CONFIG_OPTION_STRING_INITIALIZER("listen.address", 1, -1, "0.0.0.0"),
 	CONFIG_OPTION_INTEGER_INITIALIZER("listen.plain_port", 1, UINT16_MAX, 4223),
 	CONFIG_OPTION_INTEGER_INITIALIZER("listen.websocket_port", 0, UINT16_MAX, 0), // default to enable: 4280
+	CONFIG_OPTION_INTEGER_INITIALIZER("listen.mesh_port", 0, UINT16_MAX, 0), // default to enable: 4240
 	CONFIG_OPTION_BOOLEAN_INITIALIZER("listen.dual_stack", false),
 	CONFIG_OPTION_STRING_INITIALIZER("authentication.secret", 0, 64, NULL),
 	CONFIG_OPTION_SYMBOL_INITIALIZER("log.level", config_parse_log_level, config_format_log_level, LOG_LEVEL_INFO),

@@ -54,6 +54,7 @@
 	#include "udev.h"
 #endif
 #include "usb.h"
+#include "mesh.h"
 #include "version.h"
 
 static LogSource _log_source = LOG_SOURCE_INITIALIZER;
@@ -310,6 +311,10 @@ int main(int argc, char **argv) {
 		goto error_network;
 	}
 
+	if (mesh_init() < 0) {
+		goto error_mesh;
+	}
+
 #ifdef BRICKD_WITH_RED_BRICK
 	if (gpio_init() < 0) {
 		goto error_gpio;
@@ -366,6 +371,9 @@ error_redapid:
 error_gpio:
 #endif
 	network_exit();
+
+error_mesh:
+	mesh_exit();
 
 error_network:
 #ifdef BRICKD_WITH_LIBUDEV

@@ -41,6 +41,7 @@
 #include "iokit.h"
 #include "network.h"
 #include "usb.h"
+#include "mesh.h"
 #include "version.h"
 
 static LogSource _log_source = LOG_SOURCE_INITIALIZER;
@@ -180,6 +181,10 @@ int main(int argc, char **argv) {
 		goto error_network;
 	}
 
+	if (mesh_init() < 0) {
+		goto error_mesh;
+	}
+
 	if (event_run(network_cleanup_clients_and_zombies) < 0) {
 		goto error_run;
 	}
@@ -188,6 +193,9 @@ int main(int argc, char **argv) {
 
 error_run:
 	network_exit();
+
+error_mesh:
+	mesh_exit();
 
 error_network:
 	iokit_exit();

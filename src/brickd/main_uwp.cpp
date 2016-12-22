@@ -35,6 +35,7 @@ extern "C" {
 #include "hardware.h"
 #include "network.h"
 #include "usb.h"
+#include "mesh.h"
 #include "version.h"
 
 }
@@ -297,9 +298,16 @@ void brickd_uwp::StartupTask::Run(IBackgroundTaskInstance ^taskInstance) {
 		goto error_network;
 	}
 
+	if (mesh_init() < 0) {
+		goto error_mesh;
+	}
+
 	if (event_run(network_cleanup_clients_and_zombies) < 0) {
 		goto error_run;
 	}
+
+error_mesh:
+	mesh_exit();
 
 error_run:
 	network_exit();

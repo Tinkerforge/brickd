@@ -39,7 +39,7 @@
 
 #define VERSION_MAJOR 2
 #define VERSION_MINOR 2
-#define VERSION_RELEASE 3
+#define VERSION_RELEASE 4
 
 #ifdef BRICKD_WITH_RED_BRICK
 	#define VERSION_SUFFIX_STRING "+redbrick"
