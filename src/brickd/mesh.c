@@ -80,14 +80,14 @@ int mesh_init(void) {
 	}
 
 	if (!is_mesh_listen_socket_open) {
-		log_error("Could not open mesh listen socket");
+		log_error("Failed to open mesh listen socket");
 
 		return -1;
 	}
 
 	// Create mesh stack array.
 	if (array_create(&mesh_stacks, MAX_MESH_STACKS, sizeof(MeshStack), false) < 0) {
-		log_error("Could not create mesh stack array: %s (%d)",
+		log_error("Failed to create mesh stack array: %s (%d)",
               get_errno_name(errno), errno);
 
 		return -1;
@@ -154,7 +154,7 @@ void mesh_handle_accept(void *opaque) {
 	 * Allocate and initialise a new mesh stack. Note that in this stage the stack
 	 * is not added to brickd's central list of stacks yet.
 	 */
-	if (mesh_stack_create(name, &mesh_client_socket->base) < 0) {
+	if (mesh_stack_create(name, mesh_client_socket) < 0) {
 		log_error("Could not create new mesh stack");
 	}
 	else {
@@ -194,7 +194,7 @@ int mesh_start_listening(Socket *mesh_listen_socket,
 
 	// Create socket.
 	if (socket_create(mesh_listen_socket) < 0) {
-		log_error("Could not create mesh listen socket: %s (%d)",
+		log_error("Failed to create mesh listen socket: %s (%d)",
 							get_errno_name(errno),
 							errno);
 
@@ -207,7 +207,7 @@ int mesh_start_listening(Socket *mesh_listen_socket,
 									resolved_address->ai_family,
 									resolved_address->ai_socktype,
 									resolved_address->ai_protocol) < 0) {
-		log_error("Could not open %s mesh listen socket: %s (%d)",
+		log_error("Failed to open %s mesh listen socket: %s (%d)",
 		          network_get_address_family_name(resolved_address->ai_family, false),
 		          get_errno_name(errno),
 							errno);
@@ -224,7 +224,7 @@ int mesh_start_listening(Socket *mesh_listen_socket,
 		 * state on Windows by default.
 		 */
 		if (socket_set_address_reuse(mesh_listen_socket, true) < 0) {
-			log_error("Could not enable address-reuse mode for mesh listen socket: %s (%d)",
+			log_error("Failed to enable address-reuse mode for mesh listen socket: %s (%d)",
 			          get_errno_name(errno),
 								errno);
 
@@ -236,7 +236,7 @@ int mesh_start_listening(Socket *mesh_listen_socket,
 	if (socket_bind(mesh_listen_socket,
 									resolved_address->ai_addr,
 									resolved_address->ai_addrlen) < 0) {
-		log_error("Could not bind %s mesh listen socket to (A: %s, P: %u): %s (%d)",
+		log_error("Failed to bind %s mesh listen socket to (A: %s, P: %u): %s (%d)",
 		          network_get_address_family_name(resolved_address->ai_family, true),
 		          address,
 							mesh_listen_socket_port,
@@ -247,7 +247,7 @@ int mesh_start_listening(Socket *mesh_listen_socket,
 	}
 
 	if (socket_listen(mesh_listen_socket, 10, create_allocated) < 0) {
-		log_error("Could not listen to %s mesh socket (A: %s, P: %u): %s (%d)",
+		log_error("Failed to listen to %s mesh socket (A: %s, P: %u): %s (%d)",
 		          network_get_address_family_name(resolved_address->ai_family, true),
 		          address,
 							mesh_listen_socket_port,
@@ -267,6 +267,8 @@ int mesh_start_listening(Socket *mesh_listen_socket,
 											EVENT_READ,
 											mesh_handle_accept,
 											mesh_listen_socket) < 0) {
+		log_error("Failed to add read event for mesh listen socket");
+
 		goto CLEANUP;
 	}
 

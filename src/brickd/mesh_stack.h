@@ -22,14 +22,19 @@
 #ifndef BRICKD_MESH_STACK_H
 #define BRICKD_MESH_STACK_H
 
+#include <daemonlib/timer.h>
+#include <daemonlib/socket.h>
+
 #include "stack.h"
 #include "daemonlib/packet.h"
 
-#define MAX_MESH_STACKS 32
+#define MAX_MESH_STACKS 64
+
 #define MESH_STACK_STATE_WAIT_HELLO 1
 #define MESH_STACK_STATE_OPERATIONAL 2
-#define FMT_DBG_RECV_HELLO \
-  "(FWV: %d.%d.%d, PFX: %s, GID: %02X:%02X:%02X:%02X:%02X:%02X)"
+
+// In microseconds.
+#define TIME_WAIT_HELLO 16000000
 
 #define ESP_MESH_VERSION     0
 #define ESP_MESH_ADDRESS_LEN 6
@@ -52,6 +57,9 @@ enum {
 enum {
   MESH_PACKET_HELLO = 1,
   MESH_PACKET_OLLEH,
+  MESH_PACKET_RESET,
+  MESH_PACKET_HB_PING,
+  MESH_PACKET_HB_PONG,
   MESH_PACKET_TFP
 };
 
@@ -92,6 +100,16 @@ typedef struct {
 typedef struct {
 	esp_mesh_header_t header;
   uint8_t type;
+} ATTRIBUTE_PACKED pkt_mesh_reset_t;
+
+typedef struct {
+	esp_mesh_header_t header;
+  uint8_t type;
+} ATTRIBUTE_PACKED pkt_mesh_hb_t;
+
+typedef struct {
+	esp_mesh_header_t header;
+  uint8_t type;
   Packet pkt_tfp;
 } ATTRIBUTE_PACKED pkt_mesh_tfp_t;
 #include "daemonlib/packed_end.h"
@@ -103,11 +121,12 @@ typedef struct {
    * stack in the central list of stacks.
    */
   Stack base;
-  IO *io;
+  Socket *sock;
   bool cleanup;
   uint8_t state;
   char prefix[16];
   uint8_t group_id[6];
+  Timer timer_wait_hello;
   int incoming_buffer_used;
   bool mesh_header_checked;
   char name[STACK_MAX_NAME_LENGTH];
@@ -117,13 +136,12 @@ typedef struct {
   uint8_t incoming_buffer[sizeof(esp_mesh_header_t) + sizeof(Packet) + 1];
 } MeshStack;
 
-int mesh_stack_create(char *name, IO *io);
+bool tfp_recv_handler(MeshStack *mesh_stack);
 void mesh_stack_destroy(MeshStack *mesh_stack);
-bool tfp_mesh_tfp_recv_handler(MeshStack *mesh_stack);
-bool mesh_stack_make_operational(MeshStack *mesh_stack);
+int mesh_stack_create(char *name, Socket *sock);
+bool hello_root_recv_handler(MeshStack *mesh_stack);
+bool hello_non_root_recv_handler(MeshStack *mesh_stack);
 bool is_mesh_header_valid(esp_mesh_header_t *mesh_header);
-bool tfp_mesh_tfp_hello_root_recv_handler(MeshStack *mesh_stack);
-bool tfp_mesh_tfp_hello_non_root_recv_handler(MeshStack *mesh_stack);
 int mesh_stack_dispatch_request(Stack *stack, Packet *request, Recipient *recipient);
 
 // Generate a mesh packet header.

@@ -1,6 +1,7 @@
 /*
  * brickd
  * Copyright (C) 2012-2016 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2016 Ishraq Ibne Ashraf <ishraq@tinkerforge.com>
  *
  * main_linux.c: Brick Daemon starting point for Linux
  *

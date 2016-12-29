@@ -27,12 +27,7 @@
 
 int mesh_init(void);
 void mesh_exit(void);
-// Callback called by event loop when new client connects on the mesh port.
 void mesh_handle_accept(void *opaque);
-/*
- * As part of mesh initialisation process start listening for connections on
- * the mesh port.
- */
 int mesh_start_listening(Socket *mesh_listen_socket,
                          uint16_t mesh_listen_port,
                          SocketCreateAllocatedFunction create_allocated);

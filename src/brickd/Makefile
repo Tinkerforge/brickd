@@ -25,6 +25,7 @@ WITH_PROFILING ?= no
 WITH_USB_REOPEN_ON_SIGUSR1 ?= yes
 WITH_PM_UTILS ?= check
 WITH_RED_BRICK ?= check
+WITH_MESH_SINGLE_ROOT_NODE ?= no
 
 ## RULES ######################################################################
 
@@ -384,22 +385,27 @@ ifeq ($(WITH_RED_BRICK),yes)
 	CFLAGS += -DBRICKD_WITH_RED_BRICK
 endif
 
+ifeq ($(WITH_MESH_SINGLE_ROOT_NODE),yes)
+	CFLAGS += -DBRICKD_WITH_MESH_SINGLE_ROOT_NODE
+endif
+
 ifeq ($(PLATFORM),Windows)
 	GENERATED := log_messages.h log_messages.rc
 endif
 
 ifneq ($(MAKECMDGOALS),clean)
 $(info libraries/tools:)
-$(info - libusb:    $(LIBUSB_STATUS))
-$(info - libudev:   $(LIBUDEV_STATUS))
-$(info - pm-utils:  $(PM_UTILS_STATUS))
+$(info - libusb:                $(LIBUSB_STATUS))
+$(info - libudev:               $(LIBUDEV_STATUS))
+$(info - pm-utils:              $(PM_UTILS_STATUS))
 $(info features:)
-$(info - logging:   $(WITH_LOGGING))
-$(info - epoll:     $(WITH_EPOLL))
-$(info - debug:     $(WITH_DEBUG))
-$(info - profiling: $(WITH_PROFILING))
-$(info - red-brick: $(WITH_RED_BRICK))
-$(info - hotplug:   $(HOTPLUG))
+$(info - logging:               $(WITH_LOGGING))
+$(info - epoll:                 $(WITH_EPOLL))
+$(info - debug:                 $(WITH_DEBUG))
+$(info - profiling:             $(WITH_PROFILING))
+$(info - red-brick:             $(WITH_RED_BRICK))
+$(info - hotplug:               $(HOTPLUG))
+$(info - mesh-single-root-node: $(WITH_MESH_SINGLE_ROOT_NODE))
 endif
 
 .PHONY: all clean
