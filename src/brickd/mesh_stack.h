@@ -139,6 +139,7 @@ typedef struct {
 bool tfp_recv_handler(MeshStack *mesh_stack);
 void mesh_stack_destroy(MeshStack *mesh_stack);
 int mesh_stack_create(char *name, Socket *sock);
+void broadcast_reset_packet(MeshStack *mesh_stack);
 bool hello_root_recv_handler(MeshStack *mesh_stack);
 bool hello_non_root_recv_handler(MeshStack *mesh_stack);
 bool is_mesh_header_valid(esp_mesh_header_t *mesh_header);

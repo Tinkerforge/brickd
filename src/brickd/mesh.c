@@ -138,9 +138,12 @@ void mesh_handle_accept(void *opaque) {
 		return;
 	}
 
-	if (socket_address_to_hostname((struct sockaddr *)&address, length,
-	                               hostname, sizeof(hostname),
-	                               port, sizeof(port)) < 0) {
+	if (socket_address_to_hostname((struct sockaddr *)&address,
+																 length,
+	                               hostname,
+																 sizeof(hostname),
+	                               port,
+																 sizeof(port)) < 0) {
 		log_warn("Could not get hostname and port of mesh client (socket: %d): %s (%d)",
 		         mesh_client_socket->base.handle, get_errno_name(errno), errno);
 	}

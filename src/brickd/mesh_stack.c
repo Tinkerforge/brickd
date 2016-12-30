@@ -247,10 +247,18 @@ static void mesh_stack_recv_handler(void *opaque) {
 static void timer_wait_hello_handler(void *opaque) {
   MeshStack *mesh_stack = (MeshStack *)opaque;
 
+  timer_destroy(&mesh_stack->timer_wait_hello);
+
   log_info("Wait hello timed out, destroying mesh stack (N: %s)",
            mesh_stack->name);
 
-  mesh_stack_destroy(mesh_stack);
+  broadcast_reset_packet(mesh_stack);
+
+  // Schedule a cleanup of the mesh stack.
+  mesh_stack->cleanup = true;
+
+  // Wait for reset stack packet to be broadcasted to all the nodes.
+  sleep(4);
 }
 
 bool tfp_recv_handler(MeshStack *mesh_stack) {
@@ -371,6 +379,41 @@ int mesh_stack_create(char *name, Socket *sock) {
   log_info("Mesh stack is waiting for hello packet (N: %s)", mesh_stack->name);
 
   return 0;
+}
+
+void broadcast_reset_packet(MeshStack *mesh_stack) {
+  pkt_mesh_reset_t pkt_mesh_reset;
+  uint8_t addr[ESP_MESH_ADDRESS_LEN];
+  esp_mesh_header_t *mesh_header = NULL;
+
+  memset(&addr, 0, sizeof(addr));
+
+  mesh_header = (esp_mesh_header_t *)esp_mesh_get_packet_header(// Direction.
+                                                                ESP_MESH_PACKET_DOWNWARDS,
+                                                                // P2P.
+                                                                false,
+                                                                // ESP mesh payload protocol.
+                                                                ESP_MESH_PAYLOAD_BIN,
+                                                                // Length of the payload of the mesh packet.
+                                                                sizeof(pkt_mesh_reset_t) - sizeof(esp_mesh_header_t),
+                                                                // Destination address.
+                                                                addr,
+                                                                // Source address.
+                                                                addr);
+
+  memset(&pkt_mesh_reset, 0, sizeof(pkt_mesh_reset_t));
+  memcpy(&pkt_mesh_reset.header, mesh_header, sizeof(esp_mesh_header_t));
+
+  free(mesh_header);
+
+  pkt_mesh_reset.type = MESH_PACKET_RESET;
+
+  if(socket_send(mesh_stack->sock, &pkt_mesh_reset, pkt_mesh_reset.header.len) < 0) {
+    log_error("Failed to send broadcast reset stack packet, LEN=%d", pkt_mesh_reset.header.len);
+  }
+  else {
+    log_info("Broadcast reset stack packet sent");
+  }
 }
 
 bool hello_root_recv_handler(MeshStack *mesh_stack) {
