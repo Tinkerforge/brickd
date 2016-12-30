@@ -149,8 +149,6 @@ static void mesh_stack_recv_handler(void *opaque) {
                    hello_mesh_pkt->header.src_addr[5]);
 
           if(!hello_root_recv_handler(mesh_stack)) {
-            mesh_stack->cleanup = true;
-
             return;
           }
         }
@@ -164,8 +162,6 @@ static void mesh_stack_recv_handler(void *opaque) {
                    hello_mesh_pkt->header.src_addr[5]);
 
           if(!hello_non_root_recv_handler(mesh_stack)) {
-            mesh_stack->cleanup = true;
-
             return;
           }
         }
@@ -246,7 +242,6 @@ static void mesh_stack_recv_handler(void *opaque) {
 
 static void timer_wait_hello_handler(void *opaque) {
   MeshStack *mesh_stack = (MeshStack *)opaque;
-
   timer_destroy(&mesh_stack->timer_wait_hello);
 
   log_info("Wait hello timed out, destroying mesh stack (N: %s)",
@@ -254,11 +249,22 @@ static void timer_wait_hello_handler(void *opaque) {
 
   broadcast_reset_packet(mesh_stack);
 
-  // Schedule a cleanup of the mesh stack.
-  mesh_stack->cleanup = true;
+  /*
+   * Schedule a cleanup of the stack after a certain delay.
+   *
+   * This is to make sure the the reset stack packet is received
+   * by all the nodes.
+   */
+  arm_timer_cleanup_after_reset_sent(mesh_stack);
+}
 
-  // Wait for reset stack packet to be broadcasted to all the nodes.
-  sleep(4);
+static void timer_cleanup_after_reset_sent_handler(void *opaque) {
+  MeshStack *mesh_stack = (MeshStack *)opaque;
+  timer_destroy(&mesh_stack->timer_cleanup_after_reset_sent);
+
+  log_info("Cleaning up mesh stack (N: %s)", mesh_stack->name);
+
+  mesh_stack->cleanup = true;
 }
 
 bool tfp_recv_handler(MeshStack *mesh_stack) {
@@ -349,7 +355,7 @@ int mesh_stack_create(char *name, Socket *sock) {
 	snprintf(mesh_stack->name, sizeof(mesh_stack->name), "%s", name);
 
   if(timer_create_(&mesh_stack->timer_wait_hello, timer_wait_hello_handler, mesh_stack) < 0) {
-    log_error("Failed to start wait hello timer: %s (%d)",
+    log_error("Failed to configure wait hello timer: %s (%d)",
               get_errno_name(errno),
               errno);
 
@@ -363,7 +369,7 @@ int mesh_stack_create(char *name, Socket *sock) {
   }
 
   if(timer_configure(&mesh_stack->timer_wait_hello, TIME_WAIT_HELLO, 0) < 0) {
-    log_error("Failed to configure wait hello timer: %s (%d)",
+    log_error("Failed to start wait hello timer: %s (%d)",
               get_errno_name(errno),
               errno);
 
@@ -542,12 +548,13 @@ bool hello_root_recv_handler(MeshStack *mesh_stack) {
         }
 
         /*
-         * Make sure the stacks received the stack reset packets before
-         * scheduling cleanups.
+         * Schedule a cleanup of the stack after a certain delay.
+         *
+         * This is to make sure the the reset stack packet is received
+         * by all the nodes.
          */
-        sleep(4);
-
-        mesh_stack_from_list->cleanup = true;
+        arm_timer_cleanup_after_reset_sent(mesh_stack);
+        arm_timer_cleanup_after_reset_sent(mesh_stack_from_list);
 
         return false;
       }
@@ -813,6 +820,35 @@ bool esp_mesh_packet_init(esp_mesh_header_t *mesh_packet_header,
   memcpy(&mesh_packet_header->src_addr, mesh_src_addr, ESP_MESH_ADDRESS_LEN);
 
   return true;
+}
+
+void arm_timer_cleanup_after_reset_sent(MeshStack *mesh_stack) {
+  timer_destroy(&mesh_stack->timer_cleanup_after_reset_sent);
+
+  if(timer_create_(&mesh_stack->timer_cleanup_after_reset_sent,
+                   timer_cleanup_after_reset_sent_handler,
+                   mesh_stack) < 0) {
+    log_warn("Failed to configure stack cleanup timer (N: %s)",
+             mesh_stack->name);
+
+    mesh_stack->cleanup = true;
+    sleep(TIME_CLEANUP_AFTER_RESET_SENT/1000000);
+
+    return;
+  }
+
+  if(timer_configure(&mesh_stack->timer_cleanup_after_reset_sent,
+                     TIME_CLEANUP_AFTER_RESET_SENT,
+                     0) < 0) {
+    log_warn("Failed to arm stack cleanup timer (N: %s)", mesh_stack->name);
+
+    mesh_stack->cleanup = true;
+    sleep(TIME_CLEANUP_AFTER_RESET_SENT/1000000);
+
+    return;
+  }
+
+  log_info("Stack cleanup timer armed (N: %s)", mesh_stack->name);
 }
 
 bool hello_non_root_recv_handler(MeshStack *mesh_stack) {

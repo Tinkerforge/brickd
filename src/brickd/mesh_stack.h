@@ -35,6 +35,7 @@
 
 // In microseconds.
 #define TIME_WAIT_HELLO 16000000
+#define TIME_CLEANUP_AFTER_RESET_SENT 4000000
 
 #define ESP_MESH_VERSION     0
 #define ESP_MESH_ADDRESS_LEN 6
@@ -130,6 +131,7 @@ typedef struct {
   int incoming_buffer_used;
   bool mesh_header_checked;
   char name[STACK_MAX_NAME_LENGTH];
+  Timer timer_cleanup_after_reset_sent;
   uint8_t root_node_firmware_version[3];
   uint8_t gw_addr[ESP_MESH_ADDRESS_LEN];
   uint8_t root_node_addr[ESP_MESH_ADDRESS_LEN];
@@ -143,6 +145,7 @@ void broadcast_reset_packet(MeshStack *mesh_stack);
 bool hello_root_recv_handler(MeshStack *mesh_stack);
 bool hello_non_root_recv_handler(MeshStack *mesh_stack);
 bool is_mesh_header_valid(esp_mesh_header_t *mesh_header);
+void arm_timer_cleanup_after_reset_sent(MeshStack *mesh_stack);
 int mesh_stack_dispatch_request(Stack *stack, Packet *request, Recipient *recipient);
 
 // Generate a mesh packet header.
