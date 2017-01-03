@@ -41,7 +41,6 @@ static void mesh_stack_recv_handler(void *opaque) {
   int read_len = 0;
   uint8_t mesh_pkt_type = 0;
   esp_mesh_header_t *mesh_header = NULL;
-  pkt_mesh_hello_t *hello_mesh_pkt = NULL;
   MeshStack *mesh_stack = (MeshStack *)opaque;
 
   read_len = socket_receive(mesh_stack->sock,
@@ -123,106 +122,18 @@ static void mesh_stack_recv_handler(void *opaque) {
 
       // Handle mesh hello packet.
       if(mesh_pkt_type == MESH_PACKET_HELLO) {
-        log_info("Received mesh packet (T: HELLO, L: %d)", mesh_header->len);
-
-        hello_mesh_pkt = (pkt_mesh_hello_t *)mesh_stack->incoming_buffer;
-
-        timer_destroy(&mesh_stack->timer_wait_hello);
-
-        if(hello_mesh_pkt->is_root_node) {
-          log_info("Hello from root mesh node (F: %d.%d.%d, P: %s, G: %02X-%02X-%02X-%02X-%02X-%02X, A: %02X-%02X-%02X-%02X-%02X-%02X)",
-                   hello_mesh_pkt->firmware_version[0],
-                   hello_mesh_pkt->firmware_version[1],
-                   hello_mesh_pkt->firmware_version[2],
-                   (char *)&hello_mesh_pkt->prefix,
-                   hello_mesh_pkt->group_id[0],
-                   hello_mesh_pkt->group_id[1],
-                   hello_mesh_pkt->group_id[2],
-                   hello_mesh_pkt->group_id[3],
-                   hello_mesh_pkt->group_id[4],
-                   hello_mesh_pkt->group_id[5],
-                   hello_mesh_pkt->header.src_addr[0],
-                   hello_mesh_pkt->header.src_addr[1],
-                   hello_mesh_pkt->header.src_addr[2],
-                   hello_mesh_pkt->header.src_addr[3],
-                   hello_mesh_pkt->header.src_addr[4],
-                   hello_mesh_pkt->header.src_addr[5]);
-
-          if(!hello_root_recv_handler(mesh_stack)) {
-            return;
-          }
-        }
-        else {
-          log_info("Hello from non-root mesh node (A: %02X-%02X-%02X-%02X-%02X-%02X)",
-                   hello_mesh_pkt->header.src_addr[0],
-                   hello_mesh_pkt->header.src_addr[1],
-                   hello_mesh_pkt->header.src_addr[2],
-                   hello_mesh_pkt->header.src_addr[3],
-                   hello_mesh_pkt->header.src_addr[4],
-                   hello_mesh_pkt->header.src_addr[5]);
-
-          if(!hello_non_root_recv_handler(mesh_stack)) {
-            return;
-          }
-        }
+        hello_recv_handler(mesh_stack);
       }
       // Handle heart beat ping packet.
       else if(mesh_pkt_type == MESH_PACKET_HB_PING) {
-        log_debug("Received mesh ping packet (T: PING, L: %d, A: %02X-%02X-%02X-%02X-%02X-%02X)",
-                  mesh_header->len,
-                  mesh_header->src_addr[0],
-                  mesh_header->src_addr[1],
-                  mesh_header->src_addr[2],
-                  mesh_header->src_addr[3],
-                  mesh_header->src_addr[4],
-                  mesh_header->src_addr[5]);
-
-        pkt_mesh_hb_t pkt_mesh_hb;
-        uint8_t dst[ESP_MESH_ADDRESS_LEN];
-        uint8_t src[ESP_MESH_ADDRESS_LEN];
-
-        memset(&dst, 0, sizeof(dst));
-        memset(&src, 0, sizeof(src));
-        memset(&pkt_mesh_hb, 0, sizeof(pkt_mesh_hb_t));
-
-        mesh_header->proto.flag_direction =  ESP_MESH_PACKET_DOWNWARDS;
-        memcpy(&mesh_header->dst_addr, &mesh_header->src_addr, sizeof(mesh_header->src_addr));
-        memcpy(&mesh_header->src_addr, &mesh_stack->gw_addr, sizeof(mesh_stack->gw_addr));
-
-        memcpy(&pkt_mesh_hb.header, mesh_header, sizeof(esp_mesh_header_t));
-
-        /*
-         * Don't call free() on mesh_header as it is in the incoming buffer of
-         * the mesh stack!
-         */
-
-         pkt_mesh_hb.type = MESH_PACKET_HB_PONG;
-
-        // TODO: Integrate buffered IO write.
-        if(socket_send(mesh_stack->sock, &pkt_mesh_hb, pkt_mesh_hb.header.len) < 0) {
-          log_error("Failed to send mesh pong packet");
-        }
-        else {
-          log_debug("Sent mesh pong packet (A: %02X-%02X-%02X-%02X-%02X-%02X)",
-                    mesh_header->dst_addr[0],
-                    mesh_header->dst_addr[1],
-                    mesh_header->dst_addr[2],
-                    mesh_header->dst_addr[3],
-                    mesh_header->dst_addr[4],
-                    mesh_header->dst_addr[5]);
-        }
+        hb_ping_recv_handler(mesh_stack);
+      }
+      // Handle heart beat pong packet.
+      else if(mesh_pkt_type == MESH_PACKET_HB_PONG) {
+        hb_pong_recv_handler(mesh_stack);
       }
       // Handle TFP packet.
       else if(mesh_pkt_type == MESH_PACKET_TFP) {
-        log_debug("Received mesh packet (T: TFP, L: %d, A: %02X-%02X-%02X-%02X-%02X-%02X)",
-                  mesh_header->len,
-                  mesh_header->src_addr[0],
-                  mesh_header->src_addr[1],
-                  mesh_header->src_addr[2],
-                  mesh_header->src_addr[3],
-                  mesh_header->src_addr[4],
-                  mesh_header->src_addr[5]);
-
         tfp_recv_handler(mesh_stack);
       }
       //Packet type is unknown.
@@ -241,6 +152,12 @@ static void mesh_stack_recv_handler(void *opaque) {
 }
 
 static void timer_wait_hello_handler(void *opaque) {
+  if(opaque == NULL) {
+    log_error("Wait hello timer handler called with NULL pointer");
+
+    return;
+  }
+
   MeshStack *mesh_stack = (MeshStack *)opaque;
   timer_destroy(&mesh_stack->timer_wait_hello);
 
@@ -259,6 +176,12 @@ static void timer_wait_hello_handler(void *opaque) {
 }
 
 static void timer_cleanup_after_reset_sent_handler(void *opaque) {
+  if(opaque == NULL) {
+    log_error("Cleanup after reset sent timer handler called with NULL pointer");
+
+    return;
+  }
+
   MeshStack *mesh_stack = (MeshStack *)opaque;
   timer_destroy(&mesh_stack->timer_cleanup_after_reset_sent);
 
@@ -267,9 +190,145 @@ static void timer_cleanup_after_reset_sent_handler(void *opaque) {
   mesh_stack->cleanup = true;
 }
 
+void timer_hb_do_ping_handler(void *opaque) {
+  if(opaque == NULL) {
+    log_warn("Do ping timer handler called with NULL pointer");
+
+    return;
+  }
+
+  MeshStack *mesh_stack = (MeshStack *)opaque;
+
+  timer_destroy(&mesh_stack->timer_hb_do_ping);
+  timer_destroy(&mesh_stack->timer_hb_wait_pong);
+
+  pkt_mesh_hb_t pkt_mesh_hb;
+  esp_mesh_header_t *mesh_header = (esp_mesh_header_t *)esp_mesh_get_packet_header(// Direction.
+                                                                                  ESP_MESH_PACKET_DOWNWARDS,
+                                                                                  // P2P.
+                                                                                  false,
+                                                                                  // ESP mesh payload protocol.
+                                                                                  ESP_MESH_PAYLOAD_BIN,
+                                                                                  // Length of the payload of the mesh packet.
+                                                                                  sizeof(pkt_mesh_olleh_t) - sizeof(esp_mesh_header_t),
+                                                                                  // Destination address.
+                                                                                  mesh_stack->root_node_addr,
+                                                                                  // Source address.
+                                                                                  mesh_stack->gw_addr);
+
+  memset(&pkt_mesh_hb, 0, sizeof(pkt_mesh_hb_t));
+  memcpy(&pkt_mesh_hb.header, mesh_header, sizeof(esp_mesh_header_t));
+  free(mesh_header);
+
+  pkt_mesh_hb.type = MESH_PACKET_HB_PING;
+
+  log_info("Sending ping to mesh root node");
+
+  // TODO: Integrate buffered IO write.
+  if(socket_send(mesh_stack->sock, &pkt_mesh_hb, pkt_mesh_hb.header.len) < 0) {
+    log_error("Failed to send ping to mesh root node, cleaning up mesh stack");
+
+    mesh_stack->cleanup = true;
+  }
+  else {
+    log_info("Arming wait pong timer");
+
+    if(timer_create_(&mesh_stack->timer_hb_wait_pong,
+                     timer_hb_wait_pong_handler,
+                     mesh_stack) < 0) {
+      log_error("Failed to configure wait pong timer (N: %s), cleaning up the mesh stack",
+                mesh_stack->name);
+
+      mesh_stack->cleanup = true;
+
+      return;
+    }
+
+    if(timer_configure(&mesh_stack->timer_hb_wait_pong,
+                       TIME_HB_WAIT_PONG,
+                       0) < 0) {
+      log_error("Failed to arm wait pong timer (N: %s), cleaning up the mesh stack",
+                mesh_stack->name);
+
+      mesh_stack->cleanup = true;
+
+      return;
+    }
+  }
+}
+
+void timer_hb_wait_pong_handler(void *opaque) {
+  if(opaque == NULL) {
+    log_warn("Wait pong timer handler called with NULL pointer");
+
+    return;
+  }
+
+  MeshStack *mesh_stack = (MeshStack *)opaque;
+
+  log_info("Wait pong timed out, cleaning up mesh stack");
+
+  mesh_stack->cleanup = true;
+}
+
+void hello_recv_handler(MeshStack *mesh_stack) {
+  pkt_mesh_hello_t *pkt_mesh_hello = \
+    (pkt_mesh_hello_t *)&mesh_stack->incoming_buffer;
+
+  log_info("Received mesh packet (T: HELLO, L: %d)", pkt_mesh_hello->header.len);
+
+  timer_destroy(&mesh_stack->timer_wait_hello);
+
+  if(pkt_mesh_hello->is_root_node) {
+    log_info("Hello from root mesh node (F: %d.%d.%d, P: %s, G: %02X-%02X-%02X-%02X-%02X-%02X, A: %02X-%02X-%02X-%02X-%02X-%02X)",
+             pkt_mesh_hello->firmware_version[0],
+             pkt_mesh_hello->firmware_version[1],
+             pkt_mesh_hello->firmware_version[2],
+             (char *)&pkt_mesh_hello->prefix,
+             pkt_mesh_hello->group_id[0],
+             pkt_mesh_hello->group_id[1],
+             pkt_mesh_hello->group_id[2],
+             pkt_mesh_hello->group_id[3],
+             pkt_mesh_hello->group_id[4],
+             pkt_mesh_hello->group_id[5],
+             pkt_mesh_hello->header.src_addr[0],
+             pkt_mesh_hello->header.src_addr[1],
+             pkt_mesh_hello->header.src_addr[2],
+             pkt_mesh_hello->header.src_addr[3],
+             pkt_mesh_hello->header.src_addr[4],
+             pkt_mesh_hello->header.src_addr[5]);
+
+    if(!hello_root_recv_handler(mesh_stack)) {
+      return;
+    }
+  }
+  else {
+    log_info("Hello from non-root mesh node (A: %02X-%02X-%02X-%02X-%02X-%02X)",
+             pkt_mesh_hello->header.src_addr[0],
+             pkt_mesh_hello->header.src_addr[1],
+             pkt_mesh_hello->header.src_addr[2],
+             pkt_mesh_hello->header.src_addr[3],
+             pkt_mesh_hello->header.src_addr[4],
+             pkt_mesh_hello->header.src_addr[5]);
+
+    if(!hello_non_root_recv_handler(mesh_stack)) {
+      return;
+    }
+  }
+}
+
 bool tfp_recv_handler(MeshStack *mesh_stack) {
   uint64_t mesh_src_addr = 0;
   pkt_mesh_tfp_t *pkt_mesh_tfp = (pkt_mesh_tfp_t *)&mesh_stack->incoming_buffer;
+
+  log_debug("Received mesh packet (T: TFP, L: %d, A: %02X-%02X-%02X-%02X-%02X-%02X)",
+            pkt_mesh_tfp->header.len,
+            pkt_mesh_tfp->header.src_addr[0],
+            pkt_mesh_tfp->header.src_addr[1],
+            pkt_mesh_tfp->header.src_addr[2],
+            pkt_mesh_tfp->header.src_addr[3],
+            pkt_mesh_tfp->header.src_addr[4],
+            pkt_mesh_tfp->header.src_addr[5]);
 
   memcpy(&mesh_src_addr,
          &pkt_mesh_tfp->header.src_addr,
@@ -387,6 +446,92 @@ int mesh_stack_create(char *name, Socket *sock) {
   return 0;
 }
 
+void hb_ping_recv_handler(MeshStack *mesh_stack) {
+  pkt_mesh_hb_t pkt_mesh_hb_pong;
+  uint8_t dst[ESP_MESH_ADDRESS_LEN];
+  uint8_t src[ESP_MESH_ADDRESS_LEN];
+  pkt_mesh_hb_t *pkt_mesh_hb_ping = (pkt_mesh_hb_t *)&mesh_stack->incoming_buffer;
+
+  log_debug("Received mesh ping packet (T: PING, L: %d, A: %02X-%02X-%02X-%02X-%02X-%02X)",
+            pkt_mesh_hb_ping->header.len,
+            pkt_mesh_hb_ping->header.src_addr[0],
+            pkt_mesh_hb_ping->header.src_addr[1],
+            pkt_mesh_hb_ping->header.src_addr[2],
+            pkt_mesh_hb_ping->header.src_addr[3],
+            pkt_mesh_hb_ping->header.src_addr[4],
+            pkt_mesh_hb_ping->header.src_addr[5]);
+
+  memset(&dst, 0, sizeof(dst));
+  memset(&src, 0, sizeof(src));
+  memset(&pkt_mesh_hb_pong, 0, sizeof(pkt_mesh_hb_t));
+
+  pkt_mesh_hb_ping->header.proto.flag_direction =  ESP_MESH_PACKET_DOWNWARDS;
+  memcpy(&pkt_mesh_hb_ping->header.dst_addr, &pkt_mesh_hb_ping->header.src_addr, sizeof(pkt_mesh_hb_ping->header.src_addr));
+  memcpy(&pkt_mesh_hb_ping->header.src_addr, &mesh_stack->gw_addr, sizeof(mesh_stack->gw_addr));
+
+  memcpy(&pkt_mesh_hb_pong.header, &pkt_mesh_hb_ping->header, sizeof(esp_mesh_header_t));
+
+  pkt_mesh_hb_pong.type = MESH_PACKET_HB_PONG;
+
+  // TODO: Integrate buffered IO write.
+  if(socket_send(mesh_stack->sock, &pkt_mesh_hb_pong, pkt_mesh_hb_pong.header.len) < 0) {
+    log_error("Failed to send mesh pong packet");
+  }
+  else {
+    log_info("Sent mesh pong packet (A: %02X-%02X-%02X-%02X-%02X-%02X)",
+              pkt_mesh_hb_pong.header.dst_addr[0],
+              pkt_mesh_hb_pong.header.dst_addr[1],
+              pkt_mesh_hb_pong.header.dst_addr[2],
+              pkt_mesh_hb_pong.header.dst_addr[3],
+              pkt_mesh_hb_pong.header.dst_addr[4],
+              pkt_mesh_hb_pong.header.dst_addr[5]);
+  }
+}
+
+void hb_pong_recv_handler(MeshStack *mesh_stack) {
+  pkt_mesh_hb_t *pkt_mesh_hb = (pkt_mesh_hb_t *)&mesh_stack->incoming_buffer;
+
+  log_debug("Received mesh pong packet (T: PONG, L: %d, A: %02X-%02X-%02X-%02X-%02X-%02X)",
+            pkt_mesh_hb->header.len,
+            pkt_mesh_hb->header.src_addr[0],
+            pkt_mesh_hb->header.src_addr[1],
+            pkt_mesh_hb->header.src_addr[2],
+            pkt_mesh_hb->header.src_addr[3],
+            pkt_mesh_hb->header.src_addr[4],
+            pkt_mesh_hb->header.src_addr[5]);
+
+  arm_timer_hb_do_ping(mesh_stack);
+}
+
+void arm_timer_hb_do_ping(MeshStack *mesh_stack) {
+  timer_destroy(&mesh_stack->timer_hb_do_ping);
+  timer_destroy(&mesh_stack->timer_hb_wait_pong);
+
+  if(timer_create_(&mesh_stack->timer_hb_do_ping,
+                   timer_hb_do_ping_handler,
+                   mesh_stack) < 0) {
+    log_error("Failed to configure do ping timer (N: %s), cleaning up the mesh stack",
+              mesh_stack->name);
+
+    mesh_stack->cleanup = true;
+
+    return;
+  }
+
+  if(timer_configure(&mesh_stack->timer_hb_do_ping,
+                     TIME_HB_DO_PING,
+                     0) < 0) {
+    log_error("Failed to arm do ping timer (N: %s), cleaning up the mesh stack",
+              mesh_stack->name);
+
+    mesh_stack->cleanup = true;
+
+    return;
+  }
+
+  log_debug("Do ping timer armed (N: %s)", mesh_stack->name);
+}
+
 void broadcast_reset_packet(MeshStack *mesh_stack) {
   pkt_mesh_reset_t pkt_mesh_reset;
   uint8_t addr[ESP_MESH_ADDRESS_LEN];
@@ -414,6 +559,7 @@ void broadcast_reset_packet(MeshStack *mesh_stack) {
 
   pkt_mesh_reset.type = MESH_PACKET_RESET;
 
+  // TODO: Integrate buffered IO write.
   if(socket_send(mesh_stack->sock, &pkt_mesh_reset, pkt_mesh_reset.header.len) < 0) {
     log_error("Failed to send broadcast reset stack packet, LEN=%d", pkt_mesh_reset.header.len);
   }
@@ -581,6 +727,8 @@ bool hello_root_recv_handler(MeshStack *mesh_stack) {
        * the same mesh node.
        */
       if(root_node_addr_from_existing_stack == src_addr_from_hello_pkt) {
+        log_info("Removing previously existing mesh stack");
+
         mesh_stack_from_list->cleanup = true;
       }
     }
@@ -628,6 +776,7 @@ bool hello_root_recv_handler(MeshStack *mesh_stack) {
 
   olleh_mesh_pkt.type = MESH_PACKET_OLLEH;
 
+  // TODO: Integrate buffered IO write.
   if(socket_send(mesh_stack->sock, &olleh_mesh_pkt, olleh_mesh_pkt.header.len) < 0) {
     log_error("Failed to send mesh olleh packet (A: %02X-%02X-%02X-%02X-%02X-%02X)",
               hello_mesh_pkt->header.src_addr[0],
@@ -677,6 +826,8 @@ bool hello_root_recv_handler(MeshStack *mesh_stack) {
            hello_mesh_pkt->group_id[3],
            hello_mesh_pkt->group_id[4],
            hello_mesh_pkt->group_id[5]);
+
+  arm_timer_hb_do_ping(mesh_stack);
 
   return true;
 }
@@ -879,6 +1030,7 @@ bool hello_non_root_recv_handler(MeshStack *mesh_stack) {
 
   olleh_mesh_pkt.type = MESH_PACKET_OLLEH;
 
+  // TODO: Integrate buffered IO write.
   if(socket_send(mesh_stack->sock, &olleh_mesh_pkt, olleh_mesh_pkt.header.len) < 0) {
     log_error("Olleh packet send failed (A: %02X-%02X-%02X-%02X-%02X-%02X)",
              hello_mesh_pkt->header.src_addr[0],

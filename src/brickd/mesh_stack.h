@@ -34,7 +34,9 @@
 #define MESH_STACK_STATE_OPERATIONAL 2
 
 // In microseconds.
-#define TIME_WAIT_HELLO 16000000
+#define TIME_HB_DO_PING 8000000
+#define TIME_WAIT_HELLO 8000000
+#define TIME_HB_WAIT_PONG 8000000
 #define TIME_CLEANUP_AFTER_RESET_SENT 4000000
 
 #define ESP_MESH_VERSION     0
@@ -128,6 +130,8 @@ typedef struct {
   char prefix[16];
   uint8_t group_id[6];
   Timer timer_wait_hello;
+  Timer timer_hb_do_ping;
+  Timer timer_hb_wait_pong;
   int incoming_buffer_used;
   bool mesh_header_checked;
   char name[STACK_MAX_NAME_LENGTH];
@@ -138,9 +142,15 @@ typedef struct {
   uint8_t incoming_buffer[sizeof(esp_mesh_header_t) + sizeof(Packet) + 1];
 } MeshStack;
 
+void timer_hb_do_ping_handler(void *opaque);
 bool tfp_recv_handler(MeshStack *mesh_stack);
+void timer_hb_wait_pong_handler(void *opaque);
+void hello_recv_handler(MeshStack *mesh_stack);
 void mesh_stack_destroy(MeshStack *mesh_stack);
 int mesh_stack_create(char *name, Socket *sock);
+void hb_ping_recv_handler(MeshStack *mesh_stack);
+void hb_pong_recv_handler(MeshStack *mesh_stack);
+void arm_timer_hb_do_ping(MeshStack *mesh_stack);
 void broadcast_reset_packet(MeshStack *mesh_stack);
 bool hello_root_recv_handler(MeshStack *mesh_stack);
 bool hello_non_root_recv_handler(MeshStack *mesh_stack);
