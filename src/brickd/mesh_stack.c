@@ -272,6 +272,8 @@ void timer_hb_wait_pong_handler(void *opaque) {
 }
 
 void hello_recv_handler(MeshStack *mesh_stack) {
+  char prefix_str[17];
+
   pkt_mesh_hello_t *pkt_mesh_hello = \
     (pkt_mesh_hello_t *)&mesh_stack->incoming_buffer;
 
@@ -280,11 +282,14 @@ void hello_recv_handler(MeshStack *mesh_stack) {
   timer_destroy(&mesh_stack->timer_wait_hello);
 
   if(pkt_mesh_hello->is_root_node) {
+    memset(&prefix_str, 0, sizeof(prefix_str));
+    memcpy(&prefix_str, &pkt_mesh_hello->prefix, sizeof(pkt_mesh_hello->prefix));
+
     log_info("Hello from root mesh node (F: %d.%d.%d, P: %s, G: %02X-%02X-%02X-%02X-%02X-%02X, A: %02X-%02X-%02X-%02X-%02X-%02X)",
              pkt_mesh_hello->firmware_version[0],
              pkt_mesh_hello->firmware_version[1],
              pkt_mesh_hello->firmware_version[2],
-             (char *)&pkt_mesh_hello->prefix,
+             (char *)&prefix_str,
              pkt_mesh_hello->group_id[0],
              pkt_mesh_hello->group_id[1],
              pkt_mesh_hello->group_id[2],
@@ -569,6 +574,7 @@ void broadcast_reset_packet(MeshStack *mesh_stack) {
 }
 
 bool hello_root_recv_handler(MeshStack *mesh_stack) {
+  char prefix_str[17];
   pkt_mesh_olleh_t olleh_mesh_pkt;
   esp_mesh_header_t *mesh_header = NULL;
   MeshStack *mesh_stack_from_list = NULL;
@@ -814,12 +820,15 @@ bool hello_root_recv_handler(MeshStack *mesh_stack) {
 
   mesh_stack->state = MESH_STACK_STATE_OPERATIONAL;
 
+  memset(&prefix_str, 0, sizeof(prefix_str));
+  memcpy(&prefix_str, &hello_mesh_pkt->prefix, sizeof(hello_mesh_pkt->prefix));
+
   log_info("Mesh stack %s changed state to operational (F: %d.%d.%d, P: %s, G: %02X:%02X:%02X:%02X:%02X:%02X)",
            mesh_stack->name,
            hello_mesh_pkt->firmware_version[0],
            hello_mesh_pkt->firmware_version[1],
            hello_mesh_pkt->firmware_version[2],
-           (char *)&hello_mesh_pkt->prefix,
+           (char *)&prefix_str,
            hello_mesh_pkt->group_id[0],
            hello_mesh_pkt->group_id[1],
            hello_mesh_pkt->group_id[2],
