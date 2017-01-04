@@ -43,6 +43,12 @@ static void mesh_stack_recv_handler(void *opaque) {
   esp_mesh_header_t *mesh_header = NULL;
   MeshStack *mesh_stack = (MeshStack *)opaque;
 
+  if(mesh_stack->cleanup) {
+    log_warn("Mesh stack already scheduled for cleanup, ignoring receive...");
+
+    return;
+  }
+
   read_len = socket_receive(mesh_stack->sock,
                             (uint8_t *)&mesh_stack->incoming_buffer + mesh_stack->incoming_buffer_used,
                             sizeof(mesh_stack->incoming_buffer) - mesh_stack->incoming_buffer_used);
@@ -70,8 +76,9 @@ static void mesh_stack_recv_handler(void *opaque) {
 			log_debug("Receiving would block, retrying");
 		}
     else {
-			log_error("Could not receive from mesh client, disconnecting stack (N: %s)",
-                mesh_stack->name);
+			log_error("Could not receive from mesh client, disconnecting stack (N: %s, R: %d)",
+                mesh_stack->name,
+                read_len);
 
       mesh_stack->cleanup = true;
 		}
