@@ -441,7 +441,7 @@ void network_cleanup_clients_and_zombies(void) {
 		mesh_stack = array_get(&mesh_stacks, i);
 
 		if (mesh_stack->cleanup) {
-			log_debug("Removing disconnected mesh client, %s", mesh_stack->name);
+			log_debug("Removing mesh stack, %s", mesh_stack->name);
 			array_remove(&mesh_stacks, i, (ItemDestroyFunction)mesh_stack_destroy);
 		}
 	}
