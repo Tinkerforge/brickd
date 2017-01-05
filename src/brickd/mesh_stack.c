@@ -206,9 +206,6 @@ void timer_hb_do_ping_handler(void *opaque) {
 
   MeshStack *mesh_stack = (MeshStack *)opaque;
 
-  timer_destroy(&mesh_stack->timer_hb_do_ping);
-  timer_destroy(&mesh_stack->timer_hb_wait_pong);
-
   pkt_mesh_hb_t pkt_mesh_hb;
   esp_mesh_header_t *mesh_header = (esp_mesh_header_t *)esp_mesh_get_packet_header(// Direction.
                                                                                   ESP_MESH_PACKET_DOWNWARDS,
