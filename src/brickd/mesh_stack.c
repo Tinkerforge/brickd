@@ -166,7 +166,8 @@ static void timer_wait_hello_handler(void *opaque) {
   }
 
   MeshStack *mesh_stack = (MeshStack *)opaque;
-  timer_destroy(&mesh_stack->timer_wait_hello);
+
+  timer_configure(&mesh_stack->timer_wait_hello, 0, 0);
 
   log_info("Wait hello timed out, destroying mesh stack (N: %s)",
            mesh_stack->name);
@@ -190,7 +191,8 @@ static void timer_cleanup_after_reset_sent_handler(void *opaque) {
   }
 
   MeshStack *mesh_stack = (MeshStack *)opaque;
-  timer_destroy(&mesh_stack->timer_cleanup_after_reset_sent);
+
+  timer_configure(&mesh_stack->timer_cleanup_after_reset_sent, 0, 0);
 
   log_info("Cleaning up mesh stack (N: %s)", mesh_stack->name);
 
@@ -270,6 +272,8 @@ void timer_hb_wait_pong_handler(void *opaque) {
 
   MeshStack *mesh_stack = (MeshStack *)opaque;
 
+  timer_configure(&mesh_stack->timer_hb_wait_pong, 0, 0);
+
   log_info("Wait pong timed out, cleaning up mesh stack");
 
   mesh_stack->cleanup = true;
@@ -283,7 +287,7 @@ void hello_recv_handler(MeshStack *mesh_stack) {
 
   log_info("Received mesh packet (T: HELLO, L: %d)", pkt_mesh_hello->header.len);
 
-  timer_destroy(&mesh_stack->timer_wait_hello);
+  timer_configure(&mesh_stack->timer_wait_hello, 0, 0);
 
   if(pkt_mesh_hello->is_root_node) {
     memset(&prefix_str, 0, sizeof(prefix_str));
@@ -357,6 +361,11 @@ bool tfp_recv_handler(MeshStack *mesh_stack) {
 }
 
 void mesh_stack_destroy(MeshStack *mesh_stack) {
+  timer_destroy(&mesh_stack->timer_wait_hello);
+  timer_destroy(&mesh_stack->timer_hb_do_ping);
+  timer_destroy(&mesh_stack->timer_hb_wait_pong);
+  timer_destroy(&mesh_stack->timer_cleanup_after_reset_sent);
+
   event_remove_source(mesh_stack->sock->base.handle,
                       EVENT_SOURCE_TYPE_GENERIC);
 
@@ -428,8 +437,6 @@ int mesh_stack_create(char *name, Socket *sock) {
               get_errno_name(errno),
               errno);
 
-    timer_destroy(&mesh_stack->timer_wait_hello);
-
     array_remove(&mesh_stacks,
                  mesh_stacks.count - 1,
                  (ItemDestroyFunction)mesh_stack_destroy);
@@ -441,8 +448,6 @@ int mesh_stack_create(char *name, Socket *sock) {
     log_error("Failed to start wait hello timer: %s (%d)",
               get_errno_name(errno),
               errno);
-
-    timer_destroy(&mesh_stack->timer_wait_hello);
 
     array_remove(&mesh_stacks,
                  mesh_stacks.count - 1,
@@ -499,6 +504,8 @@ void hb_ping_recv_handler(MeshStack *mesh_stack) {
 }
 
 void hb_pong_recv_handler(MeshStack *mesh_stack) {
+  timer_configure(&mesh_stack->timer_hb_wait_pong, 0, 0);
+
   pkt_mesh_hb_t *pkt_mesh_hb = (pkt_mesh_hb_t *)&mesh_stack->incoming_buffer;
 
   log_debug("Received mesh pong packet (T: PONG, L: %d, A: %02X-%02X-%02X-%02X-%02X-%02X)",
@@ -509,14 +516,9 @@ void hb_pong_recv_handler(MeshStack *mesh_stack) {
             pkt_mesh_hb->header.src_addr[3],
             pkt_mesh_hb->header.src_addr[4],
             pkt_mesh_hb->header.src_addr[5]);
-
-  arm_timer_hb_do_ping(mesh_stack);
 }
 
 void arm_timer_hb_do_ping(MeshStack *mesh_stack) {
-  timer_destroy(&mesh_stack->timer_hb_do_ping);
-  timer_destroy(&mesh_stack->timer_hb_wait_pong);
-
   if(timer_create_(&mesh_stack->timer_hb_do_ping,
                    timer_hb_do_ping_handler,
                    mesh_stack) < 0) {
@@ -529,8 +531,8 @@ void arm_timer_hb_do_ping(MeshStack *mesh_stack) {
   }
 
   if(timer_configure(&mesh_stack->timer_hb_do_ping,
-                     TIME_HB_DO_PING,
-                     0) < 0) {
+                     0,
+                     TIME_HB_DO_PING) < 0) {
     log_error("Failed to arm do ping timer (N: %s), cleaning up the mesh stack",
               mesh_stack->name);
 
@@ -996,7 +998,7 @@ bool esp_mesh_packet_init(esp_mesh_header_t *mesh_packet_header,
 }
 
 void arm_timer_cleanup_after_reset_sent(MeshStack *mesh_stack) {
-  timer_destroy(&mesh_stack->timer_cleanup_after_reset_sent);
+  timer_configure(&mesh_stack->timer_cleanup_after_reset_sent, 0, 0);
 
   if(timer_create_(&mesh_stack->timer_cleanup_after_reset_sent,
                    timer_cleanup_after_reset_sent_handler,
