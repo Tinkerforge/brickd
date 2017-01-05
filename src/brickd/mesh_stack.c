@@ -167,8 +167,6 @@ static void timer_wait_hello_handler(void *opaque) {
 
   MeshStack *mesh_stack = (MeshStack *)opaque;
 
-  timer_configure(&mesh_stack->timer_wait_hello, 0, 0);
-
   log_info("Wait hello timed out, destroying mesh stack (N: %s)",
            mesh_stack->name);
 
@@ -191,8 +189,6 @@ static void timer_cleanup_after_reset_sent_handler(void *opaque) {
   }
 
   MeshStack *mesh_stack = (MeshStack *)opaque;
-
-  timer_configure(&mesh_stack->timer_cleanup_after_reset_sent, 0, 0);
 
   log_info("Cleaning up mesh stack (N: %s)", mesh_stack->name);
 
@@ -271,8 +267,6 @@ void timer_hb_wait_pong_handler(void *opaque) {
   }
 
   MeshStack *mesh_stack = (MeshStack *)opaque;
-
-  timer_configure(&mesh_stack->timer_hb_wait_pong, 0, 0);
 
   log_info("Wait pong timed out, cleaning up mesh stack");
 
@@ -361,6 +355,13 @@ bool tfp_recv_handler(MeshStack *mesh_stack) {
 }
 
 void mesh_stack_destroy(MeshStack *mesh_stack) {
+  // Disable all running timers.
+  timer_configure(&mesh_stack->timer_wait_hello, 0, 0);
+  timer_configure(&mesh_stack->timer_hb_do_ping, 0, 0);
+  timer_configure(&mesh_stack->timer_hb_wait_pong, 0, 0);
+  timer_configure(&mesh_stack->timer_cleanup_after_reset_sent, 0, 0);
+
+  // Cleanup the timers of the mesh stack.
   timer_destroy(&mesh_stack->timer_wait_hello);
   timer_destroy(&mesh_stack->timer_hb_do_ping);
   timer_destroy(&mesh_stack->timer_hb_wait_pong);
@@ -998,8 +999,6 @@ bool esp_mesh_packet_init(esp_mesh_header_t *mesh_packet_header,
 }
 
 void arm_timer_cleanup_after_reset_sent(MeshStack *mesh_stack) {
-  timer_configure(&mesh_stack->timer_cleanup_after_reset_sent, 0, 0);
-
   if(timer_create_(&mesh_stack->timer_cleanup_after_reset_sent,
                    timer_cleanup_after_reset_sent_handler,
                    mesh_stack) < 0) {
