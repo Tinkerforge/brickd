@@ -364,6 +364,7 @@ void mesh_stack_destroy(MeshStack *mesh_stack) {
                       EVENT_SOURCE_TYPE_GENERIC);
 
   socket_destroy(mesh_stack->sock);
+  free(mesh_stack->sock);
 
   if(mesh_stack->state == MESH_STACK_STATE_OPERATIONAL) {
     stack_announce_disconnect(&mesh_stack->base);
@@ -871,6 +872,7 @@ bool is_mesh_header_valid(esp_mesh_header_t *mesh_header) {
 }
 
 int mesh_stack_dispatch_request(Stack *stack, Packet *request, Recipient *recipient) {
+  int ret = 0;
   bool is_broadcast = true;
   pkt_mesh_tfp_t tfp_mesh_pkt;
   char base58[BASE58_MAX_LENGTH];
@@ -915,14 +917,18 @@ int mesh_stack_dispatch_request(Stack *stack, Packet *request, Recipient *recipi
   }
 
   // TODO: Integrate buffered IO write.
-  if(socket_send(mesh_stack->sock, &tfp_mesh_pkt, tfp_mesh_pkt.header.len) < 0) {
+  ret = socket_send(mesh_stack->sock, &tfp_mesh_pkt, tfp_mesh_pkt.header.len);
+
+  if(ret < 0) {
     if(is_broadcast) {
-      log_error("Failed to send TFP packet to mesh (L: %d, B: %d)",
+      log_error("Failed to send TFP packet to mesh (E: %d, L: %d, B: %d)",
+                ret,
                 request->header.length,
                 is_broadcast);
     }
     else {
-      log_error("Failed to send TFP packet to mesh (U: %s, L: %d, B: %d, A: %02X-%02X-%02X-%02X-%02X-%02X)",
+      log_error("Failed to send TFP packet to mesh (E: %d, U: %s, L: %d, B: %d, A: %02X-%02X-%02X-%02X-%02X-%02X)",
+                ret,
                 base58,
                 request->header.length,
                 is_broadcast,
@@ -933,6 +939,9 @@ int mesh_stack_dispatch_request(Stack *stack, Packet *request, Recipient *recipi
                 dst_addr[4],
                 dst_addr[5]);
     }
+
+    log_info("Marking mesh stack for cleanup (N: %s)", mesh_stack->name);
+    mesh_stack->cleanup = true;
 
     return -1;
   }
