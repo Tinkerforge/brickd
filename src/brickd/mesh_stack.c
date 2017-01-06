@@ -433,6 +433,18 @@ int mesh_stack_create(char *name, Socket *sock) {
 
 	snprintf(mesh_stack->name, sizeof(mesh_stack->name), "%s", name);
 
+  // Initialise timers.
+  timer_create_(&mesh_stack->timer_wait_hello, NULL, NULL);
+  timer_create_(&mesh_stack->timer_hb_do_ping, NULL, NULL);
+  timer_create_(&mesh_stack->timer_hb_wait_pong, NULL, NULL);
+  timer_create_(&mesh_stack->timer_cleanup_after_reset_sent, NULL, NULL);
+
+  // Initially disable all thetimers.
+  timer_configure(&mesh_stack->timer_wait_hello, 0, 0);
+  timer_configure(&mesh_stack->timer_hb_do_ping, 0, 0);
+  timer_configure(&mesh_stack->timer_hb_wait_pong, 0, 0);
+  timer_configure(&mesh_stack->timer_cleanup_after_reset_sent, 0, 0);
+
   if(timer_create_(&mesh_stack->timer_wait_hello, timer_wait_hello_handler, mesh_stack) < 0) {
     log_error("Failed to configure wait hello timer: %s (%d)",
               get_errno_name(errno),

@@ -191,11 +191,16 @@ int main(int argc, char **argv) {
 
 	exit_code = EXIT_SUCCESS;
 
-error_run:
-	network_exit();
-
+/*
+ * It is important to call mesh_exit() before calling network_exit() because in
+ * mesh_exit(), disconnect is announced to the connected clients for which client
+ * objects must be available which are clearned in network_exit().
+ */
 error_mesh:
 	mesh_exit();
+
+error_run:
+	network_exit();
 
 error_network:
 	iokit_exit();
