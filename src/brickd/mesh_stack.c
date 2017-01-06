@@ -235,17 +235,6 @@ void timer_hb_do_ping_handler(void *opaque) {
   else {
     log_info("Arming wait pong timer");
 
-    if(timer_create_(&mesh_stack->timer_hb_wait_pong,
-                     timer_hb_wait_pong_handler,
-                     mesh_stack) < 0) {
-      log_error("Failed to configure wait pong timer (N: %s), cleaning up the mesh stack",
-                mesh_stack->name);
-
-      mesh_stack->cleanup = true;
-
-      return;
-    }
-
     if(timer_configure(&mesh_stack->timer_hb_wait_pong,
                        TIME_HB_WAIT_PONG,
                        0) < 0) {
@@ -434,19 +423,8 @@ int mesh_stack_create(char *name, Socket *sock) {
 	snprintf(mesh_stack->name, sizeof(mesh_stack->name), "%s", name);
 
   // Initialise timers.
-  timer_create_(&mesh_stack->timer_wait_hello, NULL, NULL);
-  timer_create_(&mesh_stack->timer_hb_do_ping, NULL, NULL);
-  timer_create_(&mesh_stack->timer_hb_wait_pong, NULL, NULL);
-  timer_create_(&mesh_stack->timer_cleanup_after_reset_sent, NULL, NULL);
-
-  // Initially disable all thetimers.
-  timer_configure(&mesh_stack->timer_wait_hello, 0, 0);
-  timer_configure(&mesh_stack->timer_hb_do_ping, 0, 0);
-  timer_configure(&mesh_stack->timer_hb_wait_pong, 0, 0);
-  timer_configure(&mesh_stack->timer_cleanup_after_reset_sent, 0, 0);
-
   if(timer_create_(&mesh_stack->timer_wait_hello, timer_wait_hello_handler, mesh_stack) < 0) {
-    log_error("Failed to configure wait hello timer: %s (%d)",
+    log_error("Failed to initialise wait hello timer: %s (%d)",
               get_errno_name(errno),
               errno);
 
@@ -456,6 +434,50 @@ int mesh_stack_create(char *name, Socket *sock) {
 
     return -1;
   }
+
+  if(timer_create_(&mesh_stack->timer_hb_do_ping, timer_hb_do_ping_handler, mesh_stack) < 0) {
+    log_error("Failed to initialise do ping timer: %s (%d)",
+              get_errno_name(errno),
+              errno);
+
+    array_remove(&mesh_stacks,
+                 mesh_stacks.count - 1,
+                 (ItemDestroyFunction)mesh_stack_destroy);
+
+    return -1;
+  }
+
+  if(timer_create_(&mesh_stack->timer_hb_wait_pong, timer_hb_wait_pong_handler, mesh_stack) < 0) {
+    log_error("Failed to initialise wait pong timer: %s (%d)",
+              get_errno_name(errno),
+              errno);
+
+    array_remove(&mesh_stacks,
+                 mesh_stacks.count - 1,
+                 (ItemDestroyFunction)mesh_stack_destroy);
+
+    return -1;
+  }
+
+  if(timer_create_(&mesh_stack->timer_cleanup_after_reset_sent,
+                   timer_cleanup_after_reset_sent_handler,
+                   mesh_stack) < 0) {
+    log_error("Failed to initialise cleanup after reset sent timer: %s (%d)",
+              get_errno_name(errno),
+              errno);
+
+    array_remove(&mesh_stacks,
+                 mesh_stacks.count - 1,
+                 (ItemDestroyFunction)mesh_stack_destroy);
+
+    return -1;
+  }
+
+  // Initially disable all the timers.
+  timer_configure(&mesh_stack->timer_wait_hello, 0, 0);
+  timer_configure(&mesh_stack->timer_hb_do_ping, 0, 0);
+  timer_configure(&mesh_stack->timer_hb_wait_pong, 0, 0);
+  timer_configure(&mesh_stack->timer_cleanup_after_reset_sent, 0, 0);
 
   if(timer_configure(&mesh_stack->timer_wait_hello, TIME_WAIT_HELLO, 0) < 0) {
     log_error("Failed to start wait hello timer: %s (%d)",
@@ -532,17 +554,6 @@ void hb_pong_recv_handler(MeshStack *mesh_stack) {
 }
 
 void arm_timer_hb_do_ping(MeshStack *mesh_stack) {
-  if(timer_create_(&mesh_stack->timer_hb_do_ping,
-                   timer_hb_do_ping_handler,
-                   mesh_stack) < 0) {
-    log_error("Failed to configure do ping timer (N: %s), cleaning up the mesh stack",
-              mesh_stack->name);
-
-    mesh_stack->cleanup = true;
-
-    return;
-  }
-
   if(timer_configure(&mesh_stack->timer_hb_do_ping,
                      0,
                      TIME_HB_DO_PING) < 0) {
@@ -1011,18 +1022,6 @@ bool esp_mesh_packet_init(esp_mesh_header_t *mesh_packet_header,
 }
 
 void arm_timer_cleanup_after_reset_sent(MeshStack *mesh_stack) {
-  if(timer_create_(&mesh_stack->timer_cleanup_after_reset_sent,
-                   timer_cleanup_after_reset_sent_handler,
-                   mesh_stack) < 0) {
-    log_warn("Failed to configure stack cleanup timer (N: %s)",
-             mesh_stack->name);
-
-    mesh_stack->cleanup = true;
-    sleep(TIME_CLEANUP_AFTER_RESET_SENT/1000000);
-
-    return;
-  }
-
   if(timer_configure(&mesh_stack->timer_cleanup_after_reset_sent,
                      TIME_CLEANUP_AFTER_RESET_SENT,
                      0) < 0) {
