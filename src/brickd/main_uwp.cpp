@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2016 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2016-2017 Matthias Bolte <matthias@tinkerforge.com>
  *
  * main_uwp.cpp: Brick Daemon starting point for Universal Windows Platform
  *
@@ -138,6 +138,7 @@ namespace brickd_uwp {
 }
 
 void brickd_uwp::StartupTask::Run(IBackgroundTaskInstance ^taskInstance) {
+	int phase = 0;
 	char config_filename[1024];
 	char buffer[1024];
 	char log_filename[1024];
@@ -167,6 +168,8 @@ void brickd_uwp::StartupTask::Run(IBackgroundTaskInstance ^taskInstance) {
 
 	config_init(config_filename);
 
+	phase = 1;
+
 	if (config_has_error()) {
 		snprintf(buffer, sizeof(buffer),
 		         "Error(s) occurred while reading config file '%s'\n",
@@ -174,7 +177,7 @@ void brickd_uwp::StartupTask::Run(IBackgroundTaskInstance ^taskInstance) {
 
 		OutputDebugStringA(buffer);
 
-		goto error_config;
+		goto cleanup;
 	}
 
 	log_init();
@@ -202,6 +205,8 @@ void brickd_uwp::StartupTask::Run(IBackgroundTaskInstance ^taskInstance) {
 		log_warn("Warning(s) in config file '%s'", config_filename);
 	}
 
+	phase = 2;
+
 	// initialize WinSock2
 	if (WSAStartup(MAKEWORD(2, 2), &wsa_data) != 0) {
 		rc = ERRNO_WINAPI_OFFSET + WSAGetLastError();
@@ -209,13 +214,14 @@ void brickd_uwp::StartupTask::Run(IBackgroundTaskInstance ^taskInstance) {
 		log_error("Could not initialize Windows Sockets 2.2: %s (%d)",
 		          get_errno_name(rc), rc);
 
-		goto error_event;
+		goto cleanup;
 	}
 
 	if (event_init() < 0) {
-		goto error_event;
+		goto cleanup;
 	}
 
+	phase = 3;
 	query = ApplicationData::Current->LocalFolder->CreateFileQuery();
 
 	query->ContentsChanged += ref new TypedEventHandler<IStorageQueryResultBase ^, Object ^>(
@@ -270,24 +276,32 @@ void brickd_uwp::StartupTask::Run(IBackgroundTaskInstance ^taskInstance) {
 	query->GetItemCountAsync();
 
 	if (hardware_init() < 0) {
-		goto error_hardware;
+		goto cleanup;
 	}
 
+	phase = 4;
+
 	if (usb_init() < 0) {
-		goto error_usb;
+		goto cleanup;
 	}
+
+	phase = 5;
 
 	if (pipe_create(&_cancellation_pipe, 0) < 0) {
 		log_error("Could not create cancellation pipe: %s (%d)",
 		          get_errno_name(errno), errno);
 
-		goto error_pipe;
+		goto cleanup;
 	}
+
+	phase = 6;
 
 	if (event_add_source(_cancellation_pipe.read_end, EVENT_SOURCE_TYPE_GENERIC,
 	                     EVENT_READ, forward_cancellation, nullptr) < 0) {
-		goto error_pipe_add;
+		goto cleanup;
 	}
+
+	phase = 7;
 
 	taskInstance->Canceled += ref new BackgroundTaskCanceledEventHandler(
 	[](IBackgroundTaskInstance ^sender, BackgroundTaskCancellationReason reason) {
@@ -300,48 +314,52 @@ void brickd_uwp::StartupTask::Run(IBackgroundTaskInstance ^taskInstance) {
 	});
 
 	if (network_init() < 0) {
-		goto error_network;
+		goto cleanup;
 	}
+
+	phase = 8;
 
 	if (mesh_init() < 0) {
-		goto error_mesh;
+		goto cleanup;
 	}
+
+	phase = 9;
 
 	if (event_run(handle_event_cleanup) < 0) {
-		goto error_run;
+		goto cleanup;
 	}
 
-/*
- * It is important to call mesh_exit() before calling network_exit() because in
- * mesh_exit(), disconnect is announced to the connected clients for which client
- * objects must be available which are clearned in network_exit().
- */
-error_mesh:
-	mesh_exit();
+cleanup:
+	switch (phase) { // no breaks, all cases fall through intentionally
+	case 9:
+		mesh_exit();
 
-error_run:
-	network_exit();
+	case 8:
+		network_exit();
 
-error_network:
-	event_remove_source(_cancellation_pipe.read_end, EVENT_SOURCE_TYPE_GENERIC);
+	case 7:
+		event_remove_source(_cancellation_pipe.read_end, EVENT_SOURCE_TYPE_GENERIC);
 
-error_pipe_add:
-	pipe_destroy(&_cancellation_pipe);
+	case 6:
+		pipe_destroy(&_cancellation_pipe);
 
-error_pipe:
-	usb_exit();
+	case 5:
+		usb_exit();
 
-error_usb:
-	hardware_exit();
+	case 4:
+		hardware_exit();
 
-error_hardware:
-	event_exit();
+	case 3:
+		event_exit();
 
-error_event:
-	log_info("Brick Daemon %s stopped", VERSION_STRING);
+	case 2:
+		log_info("Brick Daemon %s stopped", VERSION_STRING);
+		log_exit();
 
-	log_exit();
+	case 1:
+		config_exit();
 
-error_config:
-	config_exit();
+	default:
+		break;
+	}
 }
