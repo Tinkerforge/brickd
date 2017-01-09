@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2014 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2014, 2016 Matthias Bolte <matthias@tinkerforge.com>
  *
  * stdbool.h: ISO C99 bool type for MSVC/WDK
  *
@@ -22,7 +22,11 @@
 #ifndef BRICKD_STDBOOL_H
 #define BRICKD_STDBOOL_H
 
-#ifdef _MSC_VER
+#if _MSC_VER >= 1600
+
+#include <../include/stdint.h>
+
+#else
 
 typedef enum { _Bool_must_promote_to_int = -1, false = 0, true = 1 } _Bool;
 
