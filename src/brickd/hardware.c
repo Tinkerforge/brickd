@@ -125,6 +125,10 @@ void hardware_dispatch_request(Packet *request) {
 
 		// dispatch to all stacks, not only the first one that might claim to
 		// know the UID
+
+		// FIXME: instead of sending to all stacks, dynamically update the routing
+		//        table and remove UIDs from a stack if the show up on another
+		//        stack. this ensures that the UID is only mapped to one stack
 		for (i = 0; i < _stacks.count; ++i) {
 			stack = *(Stack **)array_get(&_stacks, i);
 

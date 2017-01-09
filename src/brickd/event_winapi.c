@@ -622,6 +622,12 @@ int event_run_platform(Array *event_sources, bool *running, EventCleanupFunction
 		// sources that got added during the event handling
 		event_source_count = event_sources->count;
 
+		// this loop assumes that event source array and fd_sets can be matched
+		// by index. this means that the first N items of the event source array
+		// (with N = items in the fd_sets) are not removed or replaced during
+		// the iteration over the pollfd array. because of this event_remove_source
+		// only marks event sources as removed, the actual removal is done after
+		// this loop by event_cleanup_sources
 		for (i = 0; *running && i < event_source_count && ready > handled; ++i) {
 			event_source = array_get(event_sources, i);
 			received_events = 0;
