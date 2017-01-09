@@ -159,12 +159,6 @@ static void mesh_stack_recv_handler(void *opaque) {
 }
 
 static void timer_wait_hello_handler(void *opaque) {
-  if(opaque == NULL) {
-    log_error("Wait hello timer handler called with NULL pointer");
-
-    return;
-  }
-
   MeshStack *mesh_stack = (MeshStack *)opaque;
 
   log_info("Wait hello timed out, destroying mesh stack (N: %s)",
@@ -182,12 +176,6 @@ static void timer_wait_hello_handler(void *opaque) {
 }
 
 static void timer_cleanup_after_reset_sent_handler(void *opaque) {
-  if(opaque == NULL) {
-    log_error("Cleanup after reset sent timer handler called with NULL pointer");
-
-    return;
-  }
-
   MeshStack *mesh_stack = (MeshStack *)opaque;
 
   log_info("Cleaning up mesh stack (N: %s)", mesh_stack->name);
@@ -196,14 +184,7 @@ static void timer_cleanup_after_reset_sent_handler(void *opaque) {
 }
 
 void timer_hb_do_ping_handler(void *opaque) {
-  if(opaque == NULL) {
-    log_warn("Do ping timer handler called with NULL pointer");
-
-    return;
-  }
-
   MeshStack *mesh_stack = (MeshStack *)opaque;
-
   pkt_mesh_hb_t pkt_mesh_hb;
   esp_mesh_header_t *mesh_header = (esp_mesh_header_t *)esp_mesh_get_packet_header(// Direction.
                                                                                   ESP_MESH_PACKET_DOWNWARDS,
@@ -249,12 +230,6 @@ void timer_hb_do_ping_handler(void *opaque) {
 }
 
 void timer_hb_wait_pong_handler(void *opaque) {
-  if(opaque == NULL) {
-    log_warn("Wait pong timer handler called with NULL pointer");
-
-    return;
-  }
-
   MeshStack *mesh_stack = (MeshStack *)opaque;
 
   log_info("Wait pong timed out, cleaning up mesh stack");
