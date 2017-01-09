@@ -28,8 +28,7 @@
 int mesh_init(void);
 void mesh_exit(void);
 void mesh_handle_accept(void *opaque);
-int mesh_start_listening(Socket *mesh_listen_socket,
-                         uint16_t mesh_listen_port,
+int mesh_start_listening(uint16_t mesh_listen_port,
                          SocketCreateAllocatedFunction create_allocated);
 
 #endif // BRICKD_MESH_H

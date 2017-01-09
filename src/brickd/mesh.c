@@ -73,8 +73,7 @@ int mesh_init(void) {
 
   log_info("Initializing mesh subsystem");
 
-  if (mesh_start_listening(&mesh_listen_socket,
-													 mesh_listen_port,
+  if (mesh_start_listening(mesh_listen_port,
                            socket_create_allocated) >= 0) {
 		is_mesh_listen_socket_open = true;
 	}
@@ -119,13 +118,14 @@ void mesh_handle_accept(void *opaque) {
 	// Socket that is created to the root node of a mesh network.
   struct sockaddr_storage address;
   socklen_t length = sizeof(address);
-  Socket *mesh_listen_socket = opaque;
   char buffer[NI_MAXHOST + NI_MAXSERV + 4];
+
+	(void)opaque;
 
 	log_info("New connection on mesh port");
 
 	// Accept new mesh client socket.
-	mesh_client_socket = socket_accept(mesh_listen_socket,
+	mesh_client_socket = socket_accept(&mesh_listen_socket,
                                      (struct sockaddr *)&address,
                                      &length);
 
@@ -165,9 +165,8 @@ void mesh_handle_accept(void *opaque) {
 	}
 }
 
-int mesh_start_listening(Socket *mesh_listen_socket,
-												 uint16_t mesh_listen_socket_port,
-												 SocketCreateAllocatedFunction create_allocated) {
+int mesh_start_listening(uint16_t mesh_listen_socket_port,
+                         SocketCreateAllocatedFunction create_allocated) {
 	int phase = 0;
 	struct addrinfo *resolved_address = NULL;
 	const char *address = config_get_option_value("listen.address")->string;
@@ -196,7 +195,7 @@ int mesh_start_listening(Socket *mesh_listen_socket,
 	phase = 1;
 
 	// Create socket.
-	if (socket_create(mesh_listen_socket) < 0) {
+	if (socket_create(&mesh_listen_socket) < 0) {
 		log_error("Failed to create mesh listen socket: %s (%d)",
 							get_errno_name(errno),
 							errno);
@@ -206,7 +205,7 @@ int mesh_start_listening(Socket *mesh_listen_socket,
 
 	phase = 2;
 
-	if (socket_open(mesh_listen_socket,
+	if (socket_open(&mesh_listen_socket,
 									resolved_address->ai_family,
 									resolved_address->ai_socktype,
 									resolved_address->ai_protocol) < 0) {
@@ -226,7 +225,7 @@ int mesh_start_listening(Socket *mesh_listen_socket,
 		 * don't set SO_REUSEADDR on Windows. Sockets can be rebound in CLOSE-WAIT
 		 * state on Windows by default.
 		 */
-		if (socket_set_address_reuse(mesh_listen_socket, true) < 0) {
+		if (socket_set_address_reuse(&mesh_listen_socket, true) < 0) {
 			log_error("Failed to enable address-reuse mode for mesh listen socket: %s (%d)",
 			          get_errno_name(errno),
 								errno);
@@ -236,7 +235,7 @@ int mesh_start_listening(Socket *mesh_listen_socket,
 	#endif
 
 	// Bind socket and start to listen.
-	if (socket_bind(mesh_listen_socket,
+	if (socket_bind(&mesh_listen_socket,
 									resolved_address->ai_addr,
 									resolved_address->ai_addrlen) < 0) {
 		log_error("Failed to bind %s mesh listen socket to (A: %s, P: %u): %s (%d)",
@@ -249,7 +248,7 @@ int mesh_start_listening(Socket *mesh_listen_socket,
 		goto CLEANUP;
 	}
 
-	if (socket_listen(mesh_listen_socket, 10, create_allocated) < 0) {
+	if (socket_listen(&mesh_listen_socket, 10, create_allocated) < 0) {
 		log_error("Failed to listen to %s mesh socket (A: %s, P: %u): %s (%d)",
 		          network_get_address_family_name(resolved_address->ai_family, true),
 		          address,
@@ -265,11 +264,11 @@ int mesh_start_listening(Socket *mesh_listen_socket,
 						mesh_listen_socket_port,
 	          network_get_address_family_name(resolved_address->ai_family, true));
 
-	if(event_add_source(mesh_listen_socket->base.handle,
+	if(event_add_source(mesh_listen_socket.base.handle,
 											EVENT_SOURCE_TYPE_GENERIC,
 											EVENT_READ,
 											mesh_handle_accept,
-											mesh_listen_socket) < 0) {
+											NULL) < 0) {
 		log_error("Failed to add read event for mesh listen socket");
 
 		goto CLEANUP;
@@ -282,7 +281,7 @@ int mesh_start_listening(Socket *mesh_listen_socket,
 CLEANUP:
 	switch(phase) { // No breaks, all cases fall through intentionally.
 		case 2:
-			socket_destroy(mesh_listen_socket);
+			socket_destroy(&mesh_listen_socket);
 
 		case 1:
 			freeaddrinfo(resolved_address);
