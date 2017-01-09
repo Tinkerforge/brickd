@@ -47,18 +47,10 @@ int gettimeofday(struct timeval *tv, struct timezone *tz);
 
 // replace _putenv with fixed_putenv
 int fixed_putenv(char *string);
-#define _putenv fixed_putenv
+#define putenv fixed_putenv
 
 // replace getpid with GetCurrentProcessId
 #define getpid GetCurrentProcessId
-
-// avoid warnings from MSVC about deprecated POSIX names
-#define strdup _strdup
-#define getch _getch
-#define putenv _putenv
-#define fileno _fileno
-#define read _read
-#define write _write
 
 // ensure that functions are avialable under their POSIX names
 #define snprintf(buffer, count, format, ...) \

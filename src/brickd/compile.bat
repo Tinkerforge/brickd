@@ -32,7 +32,7 @@
  set RC=%RC% /i%CRT_INC_PATH%
  echo WDK build
 ) else (
- set CC=%CC% /D_CRT_SECURE_NO_WARNINGS
+ set CC=%CC% /D_CRT_SECURE_NO_WARNINGS /D_CRT_NONSTDC_NO_DEPRECATE
  echo non-WDK build
 )
 
