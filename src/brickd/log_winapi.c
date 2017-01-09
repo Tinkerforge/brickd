@@ -428,6 +428,9 @@ void log_apply_color_platform(LogLevel level, bool begin) {
 
 	if (begin) {
 		switch (level) {
+		case LOG_LEVEL_DUMMY: // ignore this to avoid compiler warning
+			break;
+
 		case LOG_LEVEL_ERROR:
 			attributes = log_prepare_color_attributes(FOREGROUND_RED | FOREGROUND_INTENSITY);
 
