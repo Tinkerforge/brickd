@@ -178,6 +178,8 @@ SOURCES_BRICKD := base64.c \
                   config_options.c \
                   hardware.c \
                   hmac.c \
+                  mesh.c \
+                  mesh_stack.c \
                   network.c \
                   sha1.c \
                   stack.c \
@@ -185,9 +187,7 @@ SOURCES_BRICKD := base64.c \
                   usb_stack.c \
                   usb_transfer.c \
                   websocket.c \
-                  zombie.c \
-									mesh.c \
-									mesh_stack.c
+                  zombie.c
 
 ifeq ($(PLATFORM),Windows)
 	SOURCES_DAEMONLIB += $(call FIX_PATH,../daemonlib/pipe_winapi.c) \

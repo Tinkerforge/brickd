@@ -40,6 +40,8 @@ SOURCES=array.c \
 	hmac.c \
 	log_winapi.c \
 	main_winapi.c \
+	mesh.c \
+	mesh_stack.c \
 	network.c \
 	service.c \
 	sha1.c \
