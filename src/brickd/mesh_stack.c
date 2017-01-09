@@ -22,7 +22,6 @@
 #include <errno.h>
 #include <string.h>
 #include <stdlib.h>
-#include <unistd.h>
 
 #include <daemonlib/array.h>
 #include <daemonlib/log.h>
@@ -1028,7 +1027,6 @@ void arm_timer_cleanup_after_reset_sent(MeshStack *mesh_stack) {
     log_warn("Failed to arm stack cleanup timer (N: %s)", mesh_stack->name);
 
     mesh_stack->cleanup = true;
-    sleep(TIME_CLEANUP_AFTER_RESET_SENT/1000000);
 
     return;
   }
