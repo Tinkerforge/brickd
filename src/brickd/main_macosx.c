@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2012-2014, 2016 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2012-2014, 2016-2017 Matthias Bolte <matthias@tinkerforge.com>
  *
  * main_macosx.c: Brick Daemon starting point for Mac OS X
  *
@@ -77,6 +77,7 @@ static void handle_event_cleanup(void) {
 }
 
 int main(int argc, char **argv) {
+	int phase = 0;
 	int exit_code = EXIT_FAILURE;
 	int i;
 	bool help = false;
@@ -127,11 +128,13 @@ int main(int argc, char **argv) {
 
 	config_init(CONFIG_FILENAME);
 
+	phase = 1;
+
 	if (config_has_error()) {
 		fprintf(stderr, "Error(s) occurred while reading config file '%s'\n",
 		        CONFIG_FILENAME);
 
-		goto error_config;
+		goto cleanup;
 	}
 
 	log_init();
@@ -146,12 +149,16 @@ int main(int argc, char **argv) {
 		}
 	}
 
+	phase = 2;
+
 	if (pid_fd < 0) {
-		goto error_pid_file;
+		goto cleanup;
 	}
 
 	log_info("Brick Daemon %s started (pid: %u, daemonized: %d)",
 	         VERSION_STRING, getpid(), daemon ? 1 : 0);
+
+	phase = 3;
 
 	if (debug_filter != NULL) {
 		log_enable_debug_override(debug_filter);
@@ -163,77 +170,92 @@ int main(int argc, char **argv) {
 	}
 
 	if (event_init() < 0) {
-		goto error_event;
+		goto cleanup;
 	}
+
+	phase = 4;
 
 	if (signal_init(NULL, handle_sigusr1) < 0) {
-		goto error_signal;
+		goto cleanup;
 	}
+
+	phase = 5;
 
 	if (hardware_init() < 0) {
-		goto error_hardware;
+		goto cleanup;
 	}
+
+	phase = 6;
 
 	if (usb_init() < 0) {
-		goto error_usb;
+		goto cleanup;
 	}
+
+	phase = 7;
 
 	if (iokit_init() < 0) {
-		goto error_iokit;
+		goto cleanup;
 	}
+
+	phase = 8;
 
 	if (network_init() < 0) {
-		goto error_network;
+		goto cleanup;
 	}
+
+	phase = 9;
 
 	if (mesh_init() < 0) {
-		goto error_mesh;
+		goto cleanup;
 	}
 
+	phase = 10;
+
 	if (event_run(handle_event_cleanup) < 0) {
-		goto error_run;
+		goto cleanup;
 	}
 
 	exit_code = EXIT_SUCCESS;
 
-/*
- * It is important to call mesh_exit() before calling network_exit() because in
- * mesh_exit(), disconnect is announced to the connected clients for which client
- * objects must be available which are clearned in network_exit().
- */
-error_mesh:
-	mesh_exit();
+cleanup:
+	switch (phase) { // no breaks, all cases fall through intentionally
+	case 10:
+		mesh_exit();
 
-error_run:
-	network_exit();
+	case 9:
+		network_exit();
 
-error_network:
-	iokit_exit();
+	case 8:
+		iokit_exit();
 
-error_iokit:
-	usb_exit();
+	case 7:
+		usb_exit();
 
-error_usb:
-	hardware_exit();
+	case 6:
+		hardware_exit();
 
-error_hardware:
-	signal_exit();
+	case 5:
+		signal_exit();
 
-error_signal:
-	event_exit();
+	case 4:
+		event_exit();
 
-error_event:
-	log_info("Brick Daemon %s stopped", VERSION_STRING);
+	case 3:
+		log_info("Brick Daemon %s stopped", VERSION_STRING);
 
-error_pid_file:
-	if (pid_fd >= 0) {
-		pid_file_release(PID_FILENAME, pid_fd);
+	case 2:
+		if (pid_fd >= 0) {
+			pid_file_release(PID_FILENAME, pid_fd);
+		}
+
+		log_exit();
+
+	case 1:
+		config_exit();
+
+	default:
+		break;
 	}
-
-	log_exit();
-
-error_config:
-	config_exit();
 
 	return exit_code;
 }

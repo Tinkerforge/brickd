@@ -161,12 +161,6 @@ static void mesh_stack_recv_handler(void *opaque) {
 }
 
 static void timer_wait_hello_handler(void *opaque) {
-  if(opaque == NULL) {
-    log_error("Wait hello timer handler called with NULL pointer");
-
-    return;
-  }
-
   MeshStack *mesh_stack = (MeshStack *)opaque;
 
   log_info("Wait hello timed out, destroying mesh stack (N: %s)",
@@ -184,12 +178,6 @@ static void timer_wait_hello_handler(void *opaque) {
 }
 
 static void timer_cleanup_after_reset_sent_handler(void *opaque) {
-  if(opaque == NULL) {
-    log_error("Cleanup after reset sent timer handler called with NULL pointer");
-
-    return;
-  }
-
   MeshStack *mesh_stack = (MeshStack *)opaque;
 
   log_info("Cleaning up mesh stack (N: %s)", mesh_stack->name);
@@ -256,14 +244,7 @@ void set_esp_mesh_header_flag_direction(uint16_t *flags, uint8_t val) {
 }
 
 void timer_hb_do_ping_handler(void *opaque) {
-  if(opaque == NULL) {
-    log_warn("Do ping timer handler called with NULL pointer");
-
-    return;
-  }
-
   MeshStack *mesh_stack = (MeshStack *)opaque;
-
   pkt_mesh_hb_t pkt_mesh_hb;
   esp_mesh_header_t *mesh_header = (esp_mesh_header_t *)esp_mesh_get_packet_header(// Direction.
                                                                                   ESP_MESH_PACKET_DOWNWARDS,
@@ -309,12 +290,6 @@ void timer_hb_do_ping_handler(void *opaque) {
 }
 
 void timer_hb_wait_pong_handler(void *opaque) {
-  if(opaque == NULL) {
-    log_warn("Wait pong timer handler called with NULL pointer");
-
-    return;
-  }
-
   MeshStack *mesh_stack = (MeshStack *)opaque;
 
   log_info("Wait pong timed out, cleaning up mesh stack");
@@ -599,9 +574,11 @@ void hb_ping_recv_handler(MeshStack *mesh_stack) {
 }
 
 void hb_pong_recv_handler(MeshStack *mesh_stack) {
+  pkt_mesh_hb_t *pkt_mesh_hb;
+
   timer_configure(&mesh_stack->timer_hb_wait_pong, 0, 0);
 
-  pkt_mesh_hb_t *pkt_mesh_hb = (pkt_mesh_hb_t *)&mesh_stack->incoming_buffer;
+  pkt_mesh_hb = (pkt_mesh_hb_t *)&mesh_stack->incoming_buffer;
 
   log_debug("Received mesh pong packet (T: PONG, L: %d, A: %02X-%02X-%02X-%02X-%02X-%02X)",
             pkt_mesh_hb->header.len,
@@ -671,8 +648,7 @@ bool hello_root_recv_handler(MeshStack *mesh_stack) {
   MeshStack *mesh_stack_from_list = NULL;
   pkt_mesh_hello_t *hello_mesh_pkt = \
     (pkt_mesh_hello_t *)&mesh_stack->incoming_buffer;
-
-  memset(&olleh_mesh_pkt, 0, sizeof(pkt_mesh_olleh_t));
+  int i;
 
   #ifdef BRICKD_WITH_MESH_SINGLE_ROOT_NODE
     /*
@@ -684,7 +660,7 @@ bool hello_root_recv_handler(MeshStack *mesh_stack) {
     uint64_t gid_from_list = 0;
     uint64_t gid_from_hello_pkt = 0;
 
-    for(uint32_t i = 0; i < mesh_stacks.count; ++i) {
+    for(i = 0; i < mesh_stacks.count; ++i) {
       gid_from_list = 0;
       gid_from_hello_pkt = 0;
       pkt_mesh_reset_t pkt_mesh_reset;
@@ -810,7 +786,7 @@ bool hello_root_recv_handler(MeshStack *mesh_stack) {
            &hello_mesh_pkt->header.src_addr,
            sizeof(hello_mesh_pkt->header.src_addr));
 
-    for(int32_t i = 0; i < mesh_stacks.count; ++i) {
+    for(i = 0; i < mesh_stacks.count; ++i) {
       mesh_stack_from_list = NULL;
 
       mesh_stack_from_list = (MeshStack *)array_get(&mesh_stacks, i);

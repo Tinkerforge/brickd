@@ -1,6 +1,5 @@
 /*
  * brickd
- *
  * Copyright (C) 2014 Ishraq Ibne Ashraf <ishraq@tinkerforge.com>
  * Copyright (C) 2014 Olaf Lüke <olaf@tinkerforge.com>
  *

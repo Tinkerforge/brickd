@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2012-2014, 2016 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2012-2014, 2016-2017 Matthias Bolte <matthias@tinkerforge.com>
  *
  * main_winapi.c: Brick Daemon starting point for Windows
  *
@@ -551,9 +551,10 @@ static void handle_event_cleanup(void) {
 //       (via service_set_status) need to be called in all circumstances if
 //       brickd is running as service
 static int generic_main(bool log_to_file, const char *debug_filter) {
+	int phase = 0;
 	int exit_code = EXIT_FAILURE;
 	const char *mutex_name = "Global\\Tinkerforge-Brick-Daemon-Single-Instance";
-	HANDLE mutex_handle = NULL;
+	HANDLE mutex_handle;
 	bool fatal_error = false;
 	DWORD service_exit_code = NO_ERROR;
 	int rc;
@@ -562,7 +563,7 @@ static int generic_main(bool log_to_file, const char *debug_filter) {
 	File log_file;
 	WSADATA wsa_data;
 	DEV_BROADCAST_DEVICEINTERFACE notification_filter;
-	HDEVNOTIFY notification_handle;
+	HDEVNOTIFY notification_handle = NULL;
 
 	mutex_handle = OpenMutex(SYNCHRONIZE, FALSE, mutex_name);
 
@@ -576,15 +577,15 @@ static int generic_main(bool log_to_file, const char *debug_filter) {
 				fatal_error = true;
 				// FIXME: set service_exit_code
 
-				goto error_mutex;
-			} else if (rc) {
+				goto init;
+			} else if (rc > 0) {
 				fatal_error = true;
 				service_exit_code = ERROR_SERVICE_ALREADY_RUNNING;
 
 				log_error("Could not start as %s, another instance is already running as service",
 				          _run_as_service ? "service" : "console application");
 
-				goto error_mutex;
+				goto init;
 			}
 		}
 
@@ -596,7 +597,7 @@ static int generic_main(bool log_to_file, const char *debug_filter) {
 			log_error("Could not open single instance mutex: %s (%d)",
 			          get_errno_name(rc), rc);
 
-			goto error_mutex;
+			goto init;
 		}
 	}
 
@@ -607,7 +608,7 @@ static int generic_main(bool log_to_file, const char *debug_filter) {
 		log_error("Could not start as %s, another instance is already running",
 		          _run_as_service ? "service" : "console application");
 
-		goto error_mutex;
+		goto init;
 	}
 
 	mutex_handle = CreateMutex(NULL, FALSE, mutex_name);
@@ -620,7 +621,7 @@ static int generic_main(bool log_to_file, const char *debug_filter) {
 		log_error("Could not create single instance mutex: %s (%d)",
 		          get_errno_name(rc), rc);
 
-		goto error_mutex;
+		goto init;
 	}
 
 	if (log_to_file) {
@@ -663,12 +664,13 @@ static int generic_main(bool log_to_file, const char *debug_filter) {
 	}
 
 	if (config_has_error()) {
+		fatal_error = true;
+		// FIXME: set service_exit_code
+
 		log_error("Error(s) occurred while reading config file '%s'",
 		          _config_filename);
 
-		fatal_error = true;
-
-		goto error_config;
+		goto init;
 	}
 
 	if (_run_as_service) {
@@ -687,12 +689,11 @@ static int generic_main(bool log_to_file, const char *debug_filter) {
 	}
 
 	// initialize service status
-error_config:
-error_mutex:
+init:
 	if (_run_as_service) {
 		if (service_init(service_control_handler) < 0) {
 			// FIXME: set service_exit_code
-			goto error;
+			goto cleanup;
 		}
 
 		if (!fatal_error) {
@@ -702,7 +703,7 @@ error_mutex:
 	}
 
 	if (fatal_error) {
-		goto error;
+		goto exit;
 	}
 
 	// initialize WinSock2
@@ -713,23 +714,29 @@ error_mutex:
 		log_error("Could not initialize Windows Sockets 2.2: %s (%d)",
 		          get_errno_name(rc), rc);
 
-		goto error_event;
+		goto cleanup;
 	}
 
 	if (event_init() < 0) {
 		// FIXME: set service_exit_code
-		goto error_event;
+		goto cleanup;
 	}
+
+	phase = 1;
 
 	if (hardware_init() < 0) {
 		// FIXME: set service_exit_code
-		goto error_hardware;
+		goto cleanup;
 	}
+
+	phase = 2;
 
 	if (usb_init() < 0) {
 		// FIXME: set service_exit_code
-		goto error_usb;
+		goto cleanup;
 	}
+
+	phase = 3;
 
 	// create notification pipe
 	if (pipe_create(&_notification_pipe, 0) < 0) {
@@ -738,14 +745,18 @@ error_mutex:
 		log_error("Could not create notification pipe: %s (%d)",
 		          get_errno_name(errno), errno);
 
-		goto error_pipe;
+		goto cleanup;
 	}
+
+	phase = 4;
 
 	if (event_add_source(_notification_pipe.read_end, EVENT_SOURCE_TYPE_GENERIC,
 	                     EVENT_READ, forward_notifications, NULL) < 0) {
 		// FIXME: set service_exit_code
-		goto error_pipe_add;
+		goto cleanup;
 	}
+
+	phase = 5;
 
 	// register device notification
 	ZeroMemory(&notification_filter, sizeof(notification_filter));
@@ -761,7 +772,7 @@ error_mutex:
 	} else {
 		if (message_pump_start() < 0) {
 			// FIXME: set service_exit_code
-			goto error_pipe_add;
+			goto cleanup;
 		}
 
 		notification_handle = RegisterDeviceNotification(_message_pump_hwnd,
@@ -770,6 +781,8 @@ error_mutex:
 		                                                 DEVICE_NOTIFY_ALL_INTERFACE_CLASSES);
 	}
 
+	phase = 6;
+
 	if (notification_handle == NULL) {
 		// FIXME: set service_exit_code
 		rc = ERRNO_WINAPI_OFFSET + GetLastError();
@@ -777,17 +790,23 @@ error_mutex:
 		log_error("Could not register for device notification: %s (%d)",
 		          get_errno_name(rc), rc);
 
-		goto error_notification;
+		goto cleanup;
 	}
+
+	phase = 7;
 
 	if (network_init() < 0) {
 		// FIXME: set service_exit_code
-		goto error_network;
+		goto cleanup;
 	}
 
+	phase = 8;
+
 	if (mesh_init() < 0) {
-		goto error_mesh;
+		goto cleanup;
 	}
+
+	phase = 9;
 
 	// running
 	if (_run_as_service) {
@@ -796,48 +815,49 @@ error_mutex:
 
 	if (event_run(handle_event_cleanup) < 0) {
 		// FIXME: set service_exit_code
-		goto error_run;
+		goto cleanup;
 	}
 
 	exit_code = EXIT_SUCCESS;
 
-/*
- * It is important to call mesh_exit() before calling network_exit() because in
- * mesh_exit(), disconnect is announced to the connected clients for which client
- * objects must be available which are clearned in network_exit().
- */
-error_mesh:
-	mesh_exit();
+cleanup:
+	switch (phase) { // no breaks, all cases fall through intentionally
+	case 9:
+		mesh_exit();
 
-error_run:
-	network_exit();
+	case 8:
+		network_exit();
 
-error_network:
-	UnregisterDeviceNotification(notification_handle);
+	case 7:
+		UnregisterDeviceNotification(notification_handle);
 
-error_notification:
-	if (!_run_as_service) {
-		message_pump_stop();
+	case 6:
+		if (!_run_as_service) {
+			message_pump_stop();
+		}
+
+	case 5:
+		event_remove_source(_notification_pipe.read_end, EVENT_SOURCE_TYPE_GENERIC);
+
+	case 4:
+		pipe_destroy(&_notification_pipe);
+
+	case 3:
+		usb_exit();
+
+	case 2:
+		hardware_exit();
+
+	case 1:
+		event_exit();
+
+	default:
+		break;
 	}
 
-	event_remove_source(_notification_pipe.read_end, EVENT_SOURCE_TYPE_GENERIC);
-
-error_pipe_add:
-	pipe_destroy(&_notification_pipe);
-
-error_pipe:
-	usb_exit();
-
-error_usb:
-	hardware_exit();
-
-error_hardware:
-	event_exit();
-
-error_event:
 	log_info("Brick Daemon %s stopped", VERSION_STRING);
 
-error:
+exit:
 	if (!_run_as_service) {
 		// unregister the console handler before exiting the log. otherwise a
 		// control event might be send to the control handler after the log

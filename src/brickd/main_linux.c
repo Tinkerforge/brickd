@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2012-2016 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2012-2017 Matthias Bolte <matthias@tinkerforge.com>
  * Copyright (C) 2016 Ishraq Ibne Ashraf <ishraq@tinkerforge.com>
  *
  * main_linux.c: Brick Daemon starting point for Linux
@@ -195,6 +195,7 @@ static void handle_event_cleanup(void) {
 }
 
 int main(int argc, char **argv) {
+	int phase = 0;
 	int exit_code = EXIT_FAILURE;
 	int i;
 	bool help = false;
@@ -252,11 +253,13 @@ int main(int argc, char **argv) {
 
 	config_init(_config_filename);
 
+	phase = 1;
+
 	if (config_has_error()) {
 		fprintf(stderr, "Error(s) occurred while reading config file '%s'\n",
 		        _config_filename);
 
-		goto error_config;
+		goto cleanup;
 	}
 
 	log_init();
@@ -271,12 +274,16 @@ int main(int argc, char **argv) {
 		}
 	}
 
+	phase = 2;
+
 	if (pid_fd < 0) {
-		goto error_pid_file;
+		goto cleanup;
 	}
 
 	log_info("Brick Daemon %s started (pid: %u, daemonized: %d)",
 	         VERSION_STRING, getpid(), daemon ? 1 : 0);
+
+	phase = 3;
 
 	if (debug_filter != NULL) {
 		log_enable_debug_override(debug_filter);
@@ -288,66 +295,90 @@ int main(int argc, char **argv) {
 	}
 
 	if (event_init() < 0) {
-		goto error_event;
+		goto cleanup;
 	}
+
+	phase = 4;
 
 	if (signal_init(handle_sighup, handle_sigusr1) < 0) {
-		goto error_signal;
+		goto cleanup;
 	}
+
+	phase = 5;
 
 	if (hardware_init() < 0) {
-		goto error_hardware;
+		goto cleanup;
 	}
 
+	phase = 6;
+
 	if (usb_init() < 0) {
-		goto error_usb;
+		goto cleanup;
 	}
+
+	phase = 7;
 
 #ifdef BRICKD_WITH_LIBUDEV
 	if (!usb_has_hotplug()) {
 		if (udev_init() < 0) {
-			goto error_udev;
+			goto cleanup;
 		}
 
 		initialized_udev = true;
 	}
+
+	phase = 8;
 #endif
 
 	if (network_init() < 0) {
-		goto error_network;
+		goto cleanup;
 	}
 
+	phase = 9;
+
 	if (mesh_init() < 0) {
-		goto error_mesh;
+		goto cleanup;
 	}
+
+	phase = 10;
 
 #ifdef BRICKD_WITH_RED_BRICK
 	if (gpio_init() < 0) {
-		goto error_gpio;
+		goto cleanup;
 	}
+
+	phase = 11;
 
 	if (redapid_init() < 0) {
-		goto error_redapid;
+		goto cleanup;
 	}
+
+	phase = 12;
 
 	if (red_stack_init() < 0) {
-		goto error_red_stack;
+		goto cleanup;
 	}
+
+	phase = 13;
 
 	if (red_extension_init() < 0) {
-		goto error_red_extension;
+		goto cleanup;
 	}
 
+	phase = 14;
+
 	if (red_usb_gadget_init() < 0) {
-		goto error_red_usb_gadget;
+		goto cleanup;
 	}
+
+	phase = 15;
 
 	red_led_set_trigger(RED_LED_GREEN, config_get_option_value("led_trigger.green")->symbol);
 	red_led_set_trigger(RED_LED_RED, config_get_option_value("led_trigger.red")->symbol);
 #endif
 
 	if (event_run(handle_event_cleanup) < 0) {
-		goto error_run;
+		goto cleanup;
 	}
 
 #ifdef BRICKD_WITH_RED_BRICK
@@ -358,66 +389,66 @@ int main(int argc, char **argv) {
 
 	exit_code = EXIT_SUCCESS;
 
-error_run:
+cleanup:
+	switch (phase) { // no breaks, all cases fall through intentionally
 #ifdef BRICKD_WITH_RED_BRICK
-	red_usb_gadget_exit();
+	case 15:
+		red_usb_gadget_exit();
 
-error_red_usb_gadget:
-	red_extension_exit();
+	case 14:
+		red_extension_exit();
 
-error_red_extension:
-	red_stack_exit();
+	case 13:
+		red_stack_exit();
 
-error_red_stack:
-	redapid_exit();
+	case 12:
+		redapid_exit();
 
-error_redapid:
-	//gpio_exit();
-
-error_gpio:
+	case 11:
+		//gpio_exit();
 #endif
 
-/*
- * It is important to call mesh_exit() before calling network_exit() because in
- * mesh_exit(), disconnect is announced to the connected clients for which client
- * objects must be available which are clearned in network_exit().
- */
-error_mesh:
-	mesh_exit();
+	case 10:
+		mesh_exit();
 
-	network_exit();
+	case 9:
+		network_exit();
 
-error_network:
 #ifdef BRICKD_WITH_LIBUDEV
-	if (initialized_udev) {
-		udev_exit();
-	}
-
-error_udev:
+	case 8:
+		if (initialized_udev) {
+			udev_exit();
+		}
 #endif
-	usb_exit();
 
-error_usb:
-	hardware_exit();
+	case 7:
+		usb_exit();
 
-error_hardware:
-	signal_exit();
+	case 6:
+		hardware_exit();
 
-error_signal:
-	event_exit();
+	case 5:
+		signal_exit();
 
-error_event:
-	log_info("Brick Daemon %s stopped", VERSION_STRING);
+	case 4:
+		event_exit();
 
-error_pid_file:
-	if (pid_fd >= 0) {
-		pid_file_release(_pid_filename, pid_fd);
+	case 3:
+		log_info("Brick Daemon %s stopped", VERSION_STRING);
+
+	case 2:
+		if (pid_fd >= 0) {
+			pid_file_release(_pid_filename, pid_fd);
+		}
+
+		log_exit();
+
+	case 1:
+		config_exit();
+
+	default:
+		break;
 	}
-
-	log_exit();
-
-error_config:
-	config_exit();
 
 	return exit_code;
 }
