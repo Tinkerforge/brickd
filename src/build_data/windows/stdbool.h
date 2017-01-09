@@ -24,7 +24,7 @@
 
 #if _MSC_VER >= 1600
 
-#include <../include/stdint.h>
+#include <../include/stdbool.h>
 
 #else
 
