@@ -22,7 +22,6 @@
 #ifndef BRICKD_MESH_H
 #define BRICKD_MESH_H
 
-#include <stdbool.h>
 #include <daemonlib/socket.h>
 
 int mesh_init(void);
@@ -30,5 +29,6 @@ void mesh_exit(void);
 void mesh_handle_accept(void *opaque);
 int mesh_start_listening(uint16_t mesh_listen_port,
                          SocketCreateAllocatedFunction create_allocated);
+void mesh_cleanup_stacks(void);
 
 #endif // BRICKD_MESH_H

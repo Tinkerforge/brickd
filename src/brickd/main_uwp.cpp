@@ -124,6 +124,11 @@ static void forward_cancellation(void *opaque) {
 	event_stop();
 }
 
+static void handle_event_cleanup(void) {
+	network_cleanup_clients_and_zombies();
+	mesh_cleanup_stacks();
+}
+
 namespace brickd_uwp {
 	[Windows::Foundation::Metadata::WebHostHidden]
 	public ref class StartupTask sealed : public IBackgroundTask {
@@ -302,7 +307,7 @@ void brickd_uwp::StartupTask::Run(IBackgroundTaskInstance ^taskInstance) {
 		goto error_mesh;
 	}
 
-	if (event_run(network_cleanup_clients_and_zombies) < 0) {
+	if (event_run(handle_event_cleanup) < 0) {
 		goto error_run;
 	}
 

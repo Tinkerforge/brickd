@@ -71,6 +71,11 @@ static void handle_sigusr1(void) {
 #endif
 }
 
+static void handle_event_cleanup(void) {
+	network_cleanup_clients_and_zombies();
+	mesh_cleanup_stacks();
+}
+
 int main(int argc, char **argv) {
 	int exit_code = EXIT_FAILURE;
 	int i;
@@ -185,7 +190,7 @@ int main(int argc, char **argv) {
 		goto error_mesh;
 	}
 
-	if (event_run(network_cleanup_clients_and_zombies) < 0) {
+	if (event_run(handle_event_cleanup) < 0) {
 		goto error_run;
 	}
 

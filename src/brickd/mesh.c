@@ -35,7 +35,7 @@
 #include <daemonlib/log.h>
 
 #include "mesh.h"
-#include "network.h"
+
 #include "mesh_stack.h"
 
 Array mesh_stacks;
@@ -291,4 +291,19 @@ cleanup:
 	}
 
 	return phase == 3 ? 0 : -1;
+}
+
+void mesh_cleanup_stacks(void) {
+	int i;
+	MeshStack *mesh_stack;
+
+	// iterate backwards for simpler index handling
+	for (i = mesh_stacks.count - 1; i >= 0; --i) {
+		mesh_stack = array_get(&mesh_stacks, i);
+
+		if (mesh_stack->cleanup) {
+			log_debug("Removing mesh stack, %s", mesh_stack->name);
+			array_remove(&mesh_stacks, i, (ItemDestroyFunction)mesh_stack_destroy);
+		}
+	}
 }

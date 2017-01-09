@@ -29,9 +29,10 @@
 #include <daemonlib/event.h>
 #include <daemonlib/base58.h>
 
+#include "mesh_stack.h"
+
 #include "hardware.h"
 #include "network.h"
-#include "mesh_stack.h"
 
 Array mesh_stacks;
 static LogSource _log_source = LOG_SOURCE_INITIALIZER;

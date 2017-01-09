@@ -542,6 +542,11 @@ static BOOL WINAPI console_ctrl_handler(DWORD ctrl_type) {
 	return TRUE;
 }
 
+static void handle_event_cleanup(void) {
+	network_cleanup_clients_and_zombies();
+	mesh_cleanup_stacks();
+}
+
 // NOTE: RegisterServiceCtrlHandlerEx (via service_init) and SetServiceStatus
 //       (via service_set_status) need to be called in all circumstances if
 //       brickd is running as service
@@ -789,7 +794,7 @@ error_mutex:
 		service_set_status(SERVICE_RUNNING, NO_ERROR);
 	}
 
-	if (event_run(network_cleanup_clients_and_zombies) < 0) {
+	if (event_run(handle_event_cleanup) < 0) {
 		// FIXME: set service_exit_code
 		goto error_run;
 	}
