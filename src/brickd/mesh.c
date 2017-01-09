@@ -179,7 +179,7 @@ int mesh_start_listening(uint16_t mesh_listen_socket_port,
 	if(resolved_address->ai_family == AF_INET6) {
 		log_error("Mesh gateway does not support IPv6");
 
-		goto CLEANUP;
+		goto cleanup;
 	}
 
 	if (resolved_address == NULL) {
@@ -189,7 +189,7 @@ int mesh_start_listening(uint16_t mesh_listen_socket_port,
 							get_errno_name(errno),
 							errno);
 
-		goto CLEANUP;
+		goto cleanup;
 	}
 
 	phase = 1;
@@ -200,7 +200,7 @@ int mesh_start_listening(uint16_t mesh_listen_socket_port,
 							get_errno_name(errno),
 							errno);
 
-		goto CLEANUP;
+		goto cleanup;
 	}
 
 	phase = 2;
@@ -214,7 +214,7 @@ int mesh_start_listening(uint16_t mesh_listen_socket_port,
 		          get_errno_name(errno),
 							errno);
 
-		goto CLEANUP;
+		goto cleanup;
 	}
 
 	#ifndef _WIN32
@@ -230,7 +230,7 @@ int mesh_start_listening(uint16_t mesh_listen_socket_port,
 			          get_errno_name(errno),
 								errno);
 
-			goto CLEANUP;
+			goto cleanup;
 		}
 	#endif
 
@@ -245,7 +245,7 @@ int mesh_start_listening(uint16_t mesh_listen_socket_port,
 							get_errno_name(errno),
 							errno);
 
-		goto CLEANUP;
+		goto cleanup;
 	}
 
 	if (socket_listen(&mesh_listen_socket, 10, create_allocated) < 0) {
@@ -256,7 +256,7 @@ int mesh_start_listening(uint16_t mesh_listen_socket_port,
 							get_errno_name(errno),
 							errno);
 
-		goto CLEANUP;
+		goto cleanup;
 	}
 
 	log_info("Mesh gateway started listening on (A: %s, P: %u, F: %s)",
@@ -271,14 +271,14 @@ int mesh_start_listening(uint16_t mesh_listen_socket_port,
 											NULL) < 0) {
 		log_error("Failed to add read event for mesh listen socket");
 
-		goto CLEANUP;
+		goto cleanup;
 	}
 
 	phase = 3;
 
 	freeaddrinfo(resolved_address);
 
-CLEANUP:
+cleanup:
 	switch(phase) { // No breaks, all cases fall through intentionally.
 		case 2:
 			socket_destroy(&mesh_listen_socket);
