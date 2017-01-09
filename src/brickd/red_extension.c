@@ -446,6 +446,66 @@ cleanup:
 	return ret;
 }
 
+int red_extension_save_unsupported_config_to_fs(ExtensionBaseConfig *config) {
+	ConfFile conf_file;
+	ConfFileLine *line;
+	char buffer[1024];
+	int ret = 0;
+
+	// Create file
+	if (conf_file_create(&conf_file) < 0) {
+		log_error("Could not create ethernet conf object: %s (%d)",
+		          get_errno_name(errno), errno);
+
+		return -1;
+	}
+
+	// Write comment
+	line = array_append(&conf_file.lines);
+
+	if (line == NULL) {
+		log_error("Could not add comment to ethernet conf file: %s (%d)",
+		          get_errno_name(errno), errno);
+
+		ret = -1;
+
+		goto cleanup;
+	}
+
+	line->raw = strdup(EXTENSION_CONFIG_COMMENT);
+	line->name = NULL;
+	line->value = NULL;
+
+	// Write options
+	snprintf(buffer, sizeof(buffer), "%d", config->type);
+
+	if (conf_file_set_option_value(&conf_file, "type" , buffer) < 0) {
+		log_error("Could not set '%s' option for RS485: %s (%d)",
+		          "type", get_errno_name(errno), errno);
+
+		ret = -1;
+		goto cleanup;
+	}
+
+	// Write config to filesystem
+	snprintf(buffer, sizeof(buffer), EXTENSION_CONFIG_PATH, config->extension);
+
+	if (conf_file_write(&conf_file, buffer) < 0) {
+		log_error("Could not write config to '%s': %s (%d)",
+		          buffer, get_errno_name(errno), errno);
+
+		ret = -1;
+
+		goto cleanup;
+	}
+
+cleanup:
+	conf_file_destroy(&conf_file);
+
+	return ret;
+}
+
+
 int red_extension_read_ethernet_config(I2CEEPROM *i2c_eeprom, ExtensionEthernetConfig *ethernet_config) {
 	if (i2c_eeprom_read(i2c_eeprom,
 	                    EXTENSION_EEPROM_ETHERNET_MAC_ADDRESS,
@@ -538,6 +598,9 @@ int red_extension_init(void) {
 
 		if ((base_config[i].type != EXTENSION_TYPE_ETHERNET) && (base_config[i].type != EXTENSION_TYPE_RS485)) {
 			log_warn("Extension at position %d not supported (type %d)", i, base_config[i].type);
+			if (red_extension_save_unsupported_config_to_fs(&base_config[i]) < 0) {
+				log_warn("Could not save config for unsupported Extension at position %d.", i);
+			}
 			continue;
 		}
 
