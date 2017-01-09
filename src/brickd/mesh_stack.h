@@ -39,7 +39,6 @@
 #define TIME_HB_WAIT_PONG (TIME_HB_DO_PING/2)
 #define TIME_CLEANUP_AFTER_RESET_SENT 4000000
 
-#define ESP_MESH_VERSION     0
 #define ESP_MESH_ADDRESS_LEN 6
 
 extern Array mesh_stacks;
@@ -69,18 +68,19 @@ enum {
 // Packet types.
 #include "daemonlib/packed_begin.h"
 typedef struct {
-  uint8_t flag_version:2; // Version of mesh.
-  uint8_t flag_option_exist:1; // Option exist flag.
-  uint8_t flag_piggyback_permit:1; // Piggyback congest permit in packet.
-  uint8_t flag_piggyback_request:1; // Piggyback congest request in packet.
-  uint8_t flag_reserved:3; // Future use.
-
-  struct {
-      uint8_t flag_direction:1; // Direction, 1:upwards, 0:downwards
-      uint8_t flag_p2p:1; // Node to node packet.
-      uint8_t flag_protocol:6; // Protocol used by user data.
-  } ATTRIBUTE_PACKED proto;
-
+	/*
+	 * Flag bit size and assignment,
+	 *
+	 * version          :2
+	 * option_exist     :1
+	 * piggyback_permit :1
+	 * piggyback_request:1
+	 * reserved         :3
+	 * direction        :1, Upwards = 1, Downwards = 0
+	 * p2p              :1
+	 * protocol         :6
+	 */
+	uint16_t flags;
 	uint16_t len; // Packet total length (including mesh header).
 	uint8_t dst_addr[ESP_MESH_ADDRESS_LEN]; // Destination address.
 	uint8_t src_addr[ESP_MESH_ADDRESS_LEN]; // Source address.
@@ -153,14 +153,20 @@ void hb_pong_recv_handler(MeshStack *mesh_stack);
 void arm_timer_hb_do_ping(MeshStack *mesh_stack);
 void broadcast_reset_packet(MeshStack *mesh_stack);
 bool hello_root_recv_handler(MeshStack *mesh_stack);
+bool get_esp_mesh_header_flag_p2p(uint16_t *flags);
 bool hello_non_root_recv_handler(MeshStack *mesh_stack);
+bool get_esp_mesh_header_flag_direction(uint16_t *flags);
 bool is_mesh_header_valid(esp_mesh_header_t *mesh_header);
+uint8_t get_esp_mesh_header_flag_protocol(uint16_t *flags);
+void set_esp_mesh_header_flag_p2p(uint16_t *flags, bool val);
 void arm_timer_cleanup_after_reset_sent(MeshStack *mesh_stack);
+void set_esp_mesh_header_flag_protocol(uint16_t *flags, uint8_t val);
+void set_esp_mesh_header_flag_direction(uint16_t *flags, uint8_t val);
 int mesh_stack_dispatch_request(Stack *stack, Packet *request, Recipient *recipient);
 
 // Generate a mesh packet header.
 void *esp_mesh_get_packet_header(uint8_t flag_direction,
-                                 uint8_t flag_p2p,
+                                 bool flag_p2p,
                                  uint8_t flag_protocol,
                                  uint16_t len,
                                  uint8_t *mesh_dst_addr,
