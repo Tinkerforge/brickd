@@ -59,7 +59,7 @@ void red_ethernet_extension_rmmod(void) {
 	}
 }
 
-int red_ethernet_extension_init(ExtensionEthernetConfig *ethernet_config) {
+int red_ethernet_extension_init(ExtensionEthernetConfig *config) {
 	struct utsname uts;
 	FILE *fp;
 	char buf_path[W5X00_PATH_MAX_SIZE + 1] = {0};
@@ -76,7 +76,7 @@ int red_ethernet_extension_init(ExtensionEthernetConfig *ethernet_config) {
 	// Mux SPI CS pins again. They have been overwritten by I2C select!
 	pin.port_index = GPIO_PORT_G;
 
-	switch (ethernet_config->extension) {
+	switch (config->extension) {
 	case 1:
 		param_pin_reset     = 20;
 		param_pin_interrupt = 21;
@@ -87,7 +87,7 @@ int red_ethernet_extension_init(ExtensionEthernetConfig *ethernet_config) {
 
 	default:
 		log_warn("Unsupported extension position (%d), assuming position 0",
-		         ethernet_config->extension);
+		         config->extension);
 
 		// Fallthrough
 
@@ -118,12 +118,11 @@ int red_ethernet_extension_init(ExtensionEthernetConfig *ethernet_config) {
 	         W5X00_PARAM_MAX_SIZE,
 	         "param_pin_reset=%d param_pin_interrupt=%d param_select=%d param_mac=%d,%d,%d,%d,%d,%d",
 	         param_pin_reset, param_pin_interrupt, param_select,
-	         ethernet_config->mac[0], ethernet_config->mac[1], ethernet_config->mac[2],
-	         ethernet_config->mac[3], ethernet_config->mac[4], ethernet_config->mac[5]);
+	         config->mac[0], config->mac[1], config->mac[2],
+	         config->mac[3], config->mac[4], config->mac[5]);
 
 	log_debug("Loading w5x00 kernel module for position %d [%s]",
-	          ethernet_config->extension,
-	          buf_param);
+	          config->extension, buf_param);
 
 	fp = fopen(buf_path, "rb");
 

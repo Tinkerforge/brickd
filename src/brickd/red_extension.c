@@ -83,18 +83,18 @@ typedef struct {
 	GPIOPin pin[2];
 	GPIOMux mux;
 	int value;   // If input: 0 = default, 1 = Pullup. If Output: 0 = low, 1 = high. Else ignored.
-} ExtensionPinConfiguration;
+} ExtensionPinConfig;
 
 typedef struct {
 	int num_configs;
-	ExtensionPinConfiguration config[];
-} ExtensionPinConfigurationArray;
+	ExtensionPinConfig config[];
+} ExtensionPinConfigArray;
 
-static ExtensionPinConfigurationArray extension_startup = {1, {
+static ExtensionPinConfigArray extension_startup = {1, {
 	{{EXTENSION_POS0_SELECT, EXTENSION_POS1_SELECT}, GPIO_MUX_OUTPUT, 0}, // Deselect eeprom
 }};
 
-static ExtensionPinConfigurationArray extension_rs485_pin_config = {7, {
+static ExtensionPinConfigArray extension_rs485_pin_config = {7, {
 	{{EXTENSION_POS0_GPIO0,  EXTENSION_POS1_GPIO0},  GPIO_MUX_OUTPUT, 0}, // RXE low = RX enable
 	{{EXTENSION_POS0_GPIO1,  EXTENSION_POS1_GPIO1},  GPIO_MUX_INPUT,  1}, // Unused
 	{{EXTENSION_POS0_GPIO2,  EXTENSION_POS1_GPIO2},  GPIO_MUX_INPUT,  1}, // Unused
@@ -104,7 +104,7 @@ static ExtensionPinConfigurationArray extension_rs485_pin_config = {7, {
 	{{EXTENSION_SER_RTS,     EXTENSION_SER_RTS},     GPIO_MUX_4,      0}, // Mux to UART3_RTS
 }};
 
-static ExtensionPinConfigurationArray extension_ethernet_pin_config = {7, {
+static ExtensionPinConfigArray extension_ethernet_pin_config = {7, {
 	{{EXTENSION_POS0_GPIO0,  EXTENSION_POS1_GPIO0},  GPIO_MUX_OUTPUT, 1}, // nRESET = high
 	{{EXTENSION_POS0_GPIO1,  EXTENSION_POS1_GPIO1},  GPIO_MUX_6,      0}, // Mux to EINT3/EINT28
 	{{EXTENSION_POS0_GPIO2,  EXTENSION_POS1_GPIO2},  GPIO_MUX_OUTPUT, 0}, // PWDN = low
@@ -117,8 +117,7 @@ static ExtensionPinConfigurationArray extension_ethernet_pin_config = {7, {
 // Discovered extension types (for both extensions)
 static ExtensionType _red_extension_type[EXTENSION_NUM_MAX] = {EXTENSION_TYPE_NONE, EXTENSION_TYPE_NONE};
 
-
-static void red_extension_configure_pin(ExtensionPinConfiguration *config, int extension) {
+static void red_extension_configure_pin(ExtensionPinConfig *config, int extension) {
 	gpio_mux_configure(config->pin[extension], config->mux);
 
 	if (config->value == 0) {
@@ -157,7 +156,7 @@ int red_extension_read_eeprom_from_fs(uint8_t *buffer, int extension) {
 	return length;
 }
 
-int red_extension_save_rs485_config_to_fs(ExtensionRS485Config *rs485_config) {
+int red_extension_save_rs485_config_to_fs(ExtensionRS485Config *config) {
 	ConfFile conf_file;
 	ConfFileLine *line;
 	char buffer[1024];
@@ -189,7 +188,7 @@ int red_extension_save_rs485_config_to_fs(ExtensionRS485Config *rs485_config) {
 	line->value = NULL;
 
 	// Write options
-	snprintf(buffer, sizeof(buffer), "%d", rs485_config->type);
+	snprintf(buffer, sizeof(buffer), "%d", config->type);
 
 	if (conf_file_set_option_value(&conf_file, "type" , buffer) < 0) {
 		log_error("Could not set '%s' option for RS485: %s (%d)",
@@ -200,7 +199,7 @@ int red_extension_save_rs485_config_to_fs(ExtensionRS485Config *rs485_config) {
 		goto cleanup;
 	}
 
-	snprintf(buffer, sizeof(buffer), "%d", rs485_config->address);
+	snprintf(buffer, sizeof(buffer), "%d", config->address);
 
 	if (conf_file_set_option_value(&conf_file, "address" , buffer) < 0) {
 		log_error("Could not set '%s' option for RS485: %s (%d)",
@@ -211,14 +210,14 @@ int red_extension_save_rs485_config_to_fs(ExtensionRS485Config *rs485_config) {
 		goto cleanup;
 	}
 
-	snprintf(buffer, sizeof(buffer), "%d", rs485_config->slave_address[0]);
+	snprintf(buffer, sizeof(buffer), "%d", config->slave_address[0]);
 
-	for (i = 1; i < rs485_config->slave_num; i++) {
-		if (rs485_config->slave_address[i] == 0) {
+	for (i = 1; i < config->slave_num; i++) {
+		if (config->slave_address[i] == 0) {
 			break;
 		}
 
-		snprintf(buffer + strlen(buffer), sizeof(buffer)-strlen(buffer), ", %d", rs485_config->slave_address[i]);
+		snprintf(buffer + strlen(buffer), sizeof(buffer)-strlen(buffer), ", %d", config->slave_address[i]);
 	}
 
 	if (conf_file_set_option_value(&conf_file, "slave_address" , buffer) < 0) {
@@ -230,7 +229,7 @@ int red_extension_save_rs485_config_to_fs(ExtensionRS485Config *rs485_config) {
 		goto cleanup;
 	}
 
-	snprintf(buffer, sizeof(buffer), "%d", rs485_config->baudrate);
+	snprintf(buffer, sizeof(buffer), "%d", config->baudrate);
 
 	if (conf_file_set_option_value(&conf_file, "baudrate" , buffer) < 0) {
 		log_error("Could not set '%s' option for RS485: %s (%d)",
@@ -241,7 +240,7 @@ int red_extension_save_rs485_config_to_fs(ExtensionRS485Config *rs485_config) {
 		goto cleanup;
 	}
 
-	snprintf(buffer, sizeof(buffer), "%c", rs485_config->parity);
+	snprintf(buffer, sizeof(buffer), "%c", config->parity);
 
 	if (conf_file_set_option_value(&conf_file, "parity" , buffer) < 0) {
 		log_error("Could not set '%s' option for RS485: %s (%d)",
@@ -251,7 +250,7 @@ int red_extension_save_rs485_config_to_fs(ExtensionRS485Config *rs485_config) {
 		goto cleanup;
 	}
 
-	snprintf(buffer, sizeof(buffer), "%d", rs485_config->slave_num);
+	snprintf(buffer, sizeof(buffer), "%d", config->slave_num);
 
 	if (conf_file_set_option_value(&conf_file, "slave_num" , buffer) < 0) {
 		log_error("Could not set '%s' option for RS485: %s (%d)",
@@ -261,7 +260,7 @@ int red_extension_save_rs485_config_to_fs(ExtensionRS485Config *rs485_config) {
 		goto cleanup;
 	}
 
-	snprintf(buffer, sizeof(buffer), "%d", rs485_config->stopbits);
+	snprintf(buffer, sizeof(buffer), "%d", config->stopbits);
 
 	if (conf_file_set_option_value(&conf_file, "stopbits" , buffer) < 0) {
 		log_error("Could not set '%s' option for RS485: %s (%d)",
@@ -273,7 +272,7 @@ int red_extension_save_rs485_config_to_fs(ExtensionRS485Config *rs485_config) {
 	}
 
 	// Write config to filesystem
-	snprintf(buffer, sizeof(buffer), EXTENSION_CONFIG_PATH, rs485_config->extension);
+	snprintf(buffer, sizeof(buffer), EXTENSION_CONFIG_PATH, config->extension);
 
 	if (conf_file_write(&conf_file, buffer) < 0) {
 		log_error("Could not write config to '%s': %s (%d)",
@@ -290,7 +289,7 @@ cleanup:
 	return ret;
 }
 
-int red_extension_read_rs485_config(I2CEEPROM *i2c_eeprom, ExtensionRS485Config *rs485_config) {
+int red_extension_read_rs485_config(I2CEEPROM *i2c_eeprom, ExtensionRS485Config *config) {
 	uint8_t buf[4];
 
 	// address
@@ -300,7 +299,7 @@ int red_extension_read_rs485_config(I2CEEPROM *i2c_eeprom, ExtensionRS485Config 
 		return -1;
 	}
 
-	rs485_config->address = (buf[0] << 0) | (buf[1] << 8) | (buf[2] << 16) | (buf[3] << 24);
+	config->address = (buf[0] << 0) | (buf[1] << 8) | (buf[2] << 16) | (buf[3] << 24);
 
 	// baudrate
 	if (i2c_eeprom_read(i2c_eeprom, EXTENSION_EEPROM_RS485_BAUDRATE_LOCATION, buf, 4) < 4) {
@@ -309,9 +308,9 @@ int red_extension_read_rs485_config(I2CEEPROM *i2c_eeprom, ExtensionRS485Config 
 		return -1;
 	}
 
-	rs485_config->baudrate = (buf[0] << 0) | (buf[1] << 8) | (buf[2] << 16) | (buf[3] << 24);
+	config->baudrate = (buf[0] << 0) | (buf[1] << 8) | (buf[2] << 16) | (buf[3] << 24);
 
-	if (rs485_config->baudrate < 8) {
+	if (config->baudrate < 8) {
 		log_error("Configured RS485 baudrate is too low");
 
 		return -1;
@@ -324,12 +323,12 @@ int red_extension_read_rs485_config(I2CEEPROM *i2c_eeprom, ExtensionRS485Config 
 		return -1;
 	}
 
-	if (buf[0] == RS485_EXTENSION_SERIAL_PARITY_NONE) {
-		rs485_config->parity = RS485_EXTENSION_SERIAL_PARITY_NONE;
-	} else if (buf[0] == RS485_EXTENSION_SERIAL_PARITY_EVEN){
-		rs485_config->parity = RS485_EXTENSION_SERIAL_PARITY_EVEN;
+	if (buf[0] == EXTENSION_RS485_PARITY_NONE) {
+		config->parity = EXTENSION_RS485_PARITY_NONE;
+	} else if (buf[0] == EXTENSION_RS485_PARITY_EVEN) {
+		config->parity = EXTENSION_RS485_PARITY_EVEN;
 	} else {
-		rs485_config->parity = RS485_EXTENSION_SERIAL_PARITY_ODD;
+		config->parity = EXTENSION_RS485_PARITY_ODD;
 	}
 
 	// stopbits
@@ -339,17 +338,17 @@ int red_extension_read_rs485_config(I2CEEPROM *i2c_eeprom, ExtensionRS485Config 
 		return -1;
 	}
 
-	rs485_config->stopbits = buf[0];
+	config->stopbits = buf[0];
 
 	// slave addresses
-	if (rs485_config->address == 0) {
-		rs485_config->slave_num = 0;
+	if (config->address == 0) {
+		config->slave_num = 0;
 		uint16_t current_eeprom_location = EXTENSION_EEPROM_RS485_SLAVE_ADDRESSES_START_LOCATION;
 		uint32_t current_slave_address;
 
-		rs485_config->slave_address[0] = 0;
+		config->slave_address[0] = 0;
 
-		while (rs485_config->slave_num < EXTENSION_RS485_SLAVES_MAX) {
+		while (config->slave_num < EXTENSION_RS485_SLAVES_MAX) {
 			if (i2c_eeprom_read(i2c_eeprom, current_eeprom_location, buf, 4) < 4) {
 				log_error("Could not read RS485 slave addresses from EEPROM");
 				return -1;
@@ -357,13 +356,13 @@ int red_extension_read_rs485_config(I2CEEPROM *i2c_eeprom, ExtensionRS485Config 
 
 			current_slave_address = (buf[0] << 0) | (buf[1] << 8) | (buf[2] << 16) | (buf[3] << 24);
 
-			rs485_config->slave_address[rs485_config->slave_num] = current_slave_address;
+			config->slave_address[config->slave_num] = current_slave_address;
 
 			if (current_slave_address == 0) {
 				break;
 			}
 
-			rs485_config->slave_num++;
+			config->slave_num++;
 			current_eeprom_location += 4;
 		}
 	}
@@ -371,7 +370,7 @@ int red_extension_read_rs485_config(I2CEEPROM *i2c_eeprom, ExtensionRS485Config 
 	return 0;
 }
 
-int red_extension_save_ethernet_config_to_fs(ExtensionEthernetConfig *ethernet_config) {
+int red_extension_save_ethernet_config_to_fs(ExtensionEthernetConfig *config) {
 	ConfFile conf_file;
 	ConfFileLine *line;
 	char buffer[1024];
@@ -403,7 +402,7 @@ int red_extension_save_ethernet_config_to_fs(ExtensionEthernetConfig *ethernet_c
 	line->value = NULL;
 
 	// Write options
-	snprintf(buffer, sizeof(buffer), "%d", ethernet_config->type);
+	snprintf(buffer, sizeof(buffer), "%d", config->type);
 
 	if (conf_file_set_option_value(&conf_file, "type" , buffer) < 0) {
 		log_error("Could not set '%s' option for RS485: %s (%d)",
@@ -413,10 +412,10 @@ int red_extension_save_ethernet_config_to_fs(ExtensionEthernetConfig *ethernet_c
 		goto cleanup;
 	}
 
-	snprintf(buffer, sizeof(buffer), "%02x", (unsigned char)ethernet_config->mac[0]);
+	snprintf(buffer, sizeof(buffer), "%02x", (unsigned char)config->mac[0]);
 
 	for (i = 1; i < EXTENSION_ETHERNET_MAC_SIZE; i++) {
-		snprintf(buffer + strlen(buffer), sizeof(buffer)-strlen(buffer), ":%02x", (unsigned char)ethernet_config->mac[i]);
+		snprintf(buffer + strlen(buffer), sizeof(buffer)-strlen(buffer), ":%02x", (unsigned char)config->mac[i]);
 	}
 
 	if (conf_file_set_option_value(&conf_file, "mac", buffer) < 0) {
@@ -429,7 +428,7 @@ int red_extension_save_ethernet_config_to_fs(ExtensionEthernetConfig *ethernet_c
 	}
 
 	// Write config to filesystem
-	snprintf(buffer, sizeof(buffer), EXTENSION_CONFIG_PATH, ethernet_config->extension);
+	snprintf(buffer, sizeof(buffer), EXTENSION_CONFIG_PATH, config->extension);
 
 	if (conf_file_write(&conf_file, buffer) < 0) {
 		log_error("Could not write config to '%s': %s (%d)",
@@ -505,19 +504,19 @@ cleanup:
 	return ret;
 }
 
-
-int red_extension_read_ethernet_config(I2CEEPROM *i2c_eeprom, ExtensionEthernetConfig *ethernet_config) {
+int red_extension_read_ethernet_config(I2CEEPROM *i2c_eeprom, ExtensionEthernetConfig *config) {
 	if (i2c_eeprom_read(i2c_eeprom,
 	                    EXTENSION_EEPROM_ETHERNET_MAC_ADDRESS,
-	                    ethernet_config->mac,
+	                    config->mac,
 	                    EXTENSION_ETHERNET_MAC_SIZE) < EXTENSION_ETHERNET_MAC_SIZE) {
 		log_warn("Can't read MAC address, using default address");
-		ethernet_config->mac[0] = 0x40;
-		ethernet_config->mac[1] = 0xD8;
-		ethernet_config->mac[2] = 0x55;
-		ethernet_config->mac[3] = 0x02;
-		ethernet_config->mac[4] = 0xA1;
-		ethernet_config->mac[5] = 0x00;
+
+		config->mac[0] = 0x40;
+		config->mac[1] = 0xD8;
+		config->mac[2] = 0x55;
+		config->mac[3] = 0x02;
+		config->mac[4] = 0xA1;
+		config->mac[5] = 0x00;
 
 		return -1;
 	}

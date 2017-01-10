@@ -20,18 +20,12 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-#ifndef BRICKD_RS485_EXTENSION_H
-#define BRICKD_RS485_EXTENSION_H
-
-#include <daemonlib/io.h>
+#ifndef BRICKD_RED_RS485_EXTENSION_H
+#define BRICKD_RED_RS485_EXTENSION_H
 
 #include "red_extension.h"
 
-#define RS485_EXTENSION_SERIAL_PARITY_NONE 110
-#define RS485_EXTENSION_SERIAL_PARITY_EVEN 101
-#define RS485_EXTENSION_SERIAL_PARITY_ODD  111
-
-int red_rs485_extension_init(ExtensionRS485Config *rs485_config);
+int red_rs485_extension_init(ExtensionRS485Config *config);
 void red_rs485_extension_exit(void);
 
-#endif // BRICKD_RS485_STACK_H
+#endif // BRICKD_RED_RS485_EXTENSION_H

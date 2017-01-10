@@ -25,7 +25,8 @@
 #include "red_extension.h"
 
 void red_ethernet_extension_rmmod(void);
-int red_ethernet_extension_init(ExtensionEthernetConfig *ethernet_config);
+
+int red_ethernet_extension_init(ExtensionEthernetConfig *config);
 void red_ethernet_extension_exit(void);
 
 #endif // BRICKD_RED_ETHERNET_EXTENSION_H

@@ -271,13 +271,13 @@ int serial_interface_init(const char *serial_interface) {
 		return -1;
 	}
 
-	if (_red_rs485_extension.parity == RS485_EXTENSION_SERIAL_PARITY_NONE) {
+	if (_red_rs485_extension.parity == EXTENSION_RS485_PARITY_NONE) {
 		serial_interface_config.c_cflag &=~ PARENB; // parity disabled
-	} else if (_red_rs485_extension.parity == RS485_EXTENSION_SERIAL_PARITY_EVEN) {
+	} else if (_red_rs485_extension.parity == EXTENSION_RS485_PARITY_EVEN) {
 		/* Even */
 		serial_interface_config.c_cflag |= PARENB;
 		serial_interface_config.c_cflag &=~ PARODD;
-	} else if (_red_rs485_extension.parity == RS485_EXTENSION_SERIAL_PARITY_ODD){
+	} else if (_red_rs485_extension.parity == EXTENSION_RS485_PARITY_ODD) {
 		/* Odd */
 		serial_interface_config.c_cflag |= PARENB;
 		serial_interface_config.c_cflag |= PARODD;
@@ -323,7 +323,7 @@ int serial_interface_init(const char *serial_interface) {
 	serial_interface_config.c_lflag &= ~(ICANON | ECHO | ECHOE | ISIG); // Raw input
 
 	// Input options
-	if (_red_rs485_extension.parity == RS485_EXTENSION_SERIAL_PARITY_NONE) {
+	if (_red_rs485_extension.parity == EXTENSION_RS485_PARITY_NONE) {
 		serial_interface_config.c_iflag &= ~INPCK; // Input check disabled
 	} else {
 		serial_interface_config.c_iflag |= INPCK; // Input check enabled
