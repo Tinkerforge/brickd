@@ -63,15 +63,9 @@ static const char *network_get_address_family_name(int family, bool report_dual_
 
 int mesh_init(void) {
   uint16_t mesh_listen_port = \
-		(uint16_t)config_get_option_value("listen.mesh_port")->integer;
+		(uint16_t)config_get_option_value("listen.mesh_gateway_port")->integer;
 
-  if (mesh_listen_port == 0) {
-    log_info("Mesh support is disabled");
-
-    return 0;
-  }
-
-  log_info("Initializing mesh subsystem");
+  log_debug("Initializing mesh subsystem");
 
   if (mesh_start_listening(mesh_listen_port,
                            socket_create_allocated) >= 0) {
@@ -96,7 +90,7 @@ int mesh_init(void) {
 }
 
 void mesh_exit(void) {
-  log_info("Shutting down mesh subsystem");
+  log_debug("Shutting down mesh subsystem");
 
 	// Cleanup mesh listen socket.
 	if (is_mesh_listen_socket_open) {

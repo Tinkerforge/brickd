@@ -1,5 +1,5 @@
 .\" Process this file with: groff -man -Tascii brickd.conf.5
-.TH BRICKD.CONF 5 2014-11-15 Tinkerforge
+.TH BRICKD.CONF 5 2017-01-10 Tinkerforge
 .\" Turn off justification for nroff. Always turn off hyphenation.
 .if n .ad l
 .nh
@@ -37,7 +37,8 @@ The parameters with
 .B listen
 prefix control how
 .BR brickd (8)
-listens for incoming plain TCP/IP and WebSocket connections.
+listens for incoming plain TCP/IP, WebSocket and special Mesh Gateway
+connections.
 .IP "\fBlisten.address\fR" 4
 .BR brickd (8)
 binds a plain TCP/IP socket and a WebSocket to this address to listen for
@@ -52,6 +53,9 @@ The port number to listen to for incoming WebSocket connections. The default
 value is \fI0\fR (disabled). To enable WebSocket support a port number different
 from 0 has to be configured. The recommended port number is 4280. It is also
 strongly recommend to enable authentication if WebSocket support is enabled.
+.IP "\fBlisten.mesh_gateway_port\fR" 4
+The port number to listen to for incoming Mesh Gateway connections from a WIFI
+Extension 2.0 Mesh. The default value is \fI4240\fR.
 .IP "\fBlisten.dual_stack\fR" 4
 If a IPv6 address is given as
 .B listen.address
@@ -103,7 +107,7 @@ Please report all bugs you discover to
 .SH AUTHOR
 Matthias Bolte <matthias@tinkerforge.com>
 .SH COPYRIGHT
-Copyright (C) 2012-2014 Matthias Bolte
+Copyright (C) 2012-2017 Matthias Bolte
 .SH LICENSE
 brickd is distributed under the terms of the GNU GPL v2+. This is free
 software; see the source for copying conditions. There is NO warranty;
