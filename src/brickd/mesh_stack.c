@@ -123,7 +123,7 @@ static void mesh_stack_recv_handler(void *opaque) {
       break;
     }
 
-    if(get_esp_mesh_header_flag_protocol(&mesh_header->flags) != ESP_MESH_PAYLOAD_BIN) {
+    if(get_esp_mesh_header_flag_protocol((uint8_t *)&mesh_header->flags) != ESP_MESH_PAYLOAD_BIN) {
       log_error("ESP mesh payload is not of binary type");
     }
     else {
@@ -185,10 +185,8 @@ static void timer_cleanup_after_reset_sent_handler(void *opaque) {
   mesh_stack->cleanup = true;
 }
 
-bool get_esp_mesh_header_flag_p2p(uint16_t *flags) {
-  uint8_t *_flags = (uint8_t *)flags;
-
-  if(CHECK_BIT(_flags[1], 0x01) > 0) {
+bool get_esp_mesh_header_flag_p2p(uint8_t *flags) {
+  if(CHECK_BIT(flags[1], 0x01) > 0) {
     return true;
   }
   else {
@@ -196,10 +194,8 @@ bool get_esp_mesh_header_flag_p2p(uint16_t *flags) {
   }
 }
 
-bool get_esp_mesh_header_flag_direction(uint16_t *flags) {
-  uint8_t *_flags = (uint8_t *)flags;
-
-  if(CHECK_BIT(_flags[1], 0x00) > 0) {
+bool get_esp_mesh_header_flag_direction(uint8_t *flags) {
+  if(CHECK_BIT(flags[1], 0x00) > 0) {
     return true;
   }
   else {
@@ -207,39 +203,31 @@ bool get_esp_mesh_header_flag_direction(uint16_t *flags) {
   }
 }
 
-uint8_t get_esp_mesh_header_flag_protocol(uint16_t *flags) {
-  uint8_t *_flags = (uint8_t *)flags;
-
-  return (uint8_t)(_flags[1] >> 0x02);
+uint8_t get_esp_mesh_header_flag_protocol(uint8_t *flags) {
+  return (uint8_t)(flags[1] >> 0x02);
 }
 
 
-void set_esp_mesh_header_flag_p2p(uint16_t *flags, bool val) {
-  uint8_t *_flags = (uint8_t *)flags;
-
+void set_esp_mesh_header_flag_p2p(uint8_t *flags, bool val) {
   if(val) {
-    _flags[1] = (_flags[1] | 0x02);
+    flags[1] = (flags[1] | 0x02);
   }
   else {
-    _flags[1] = (_flags[1] & ~(0x02));
+    flags[1] = (flags[1] & ~(0x02));
   }
 }
 
-void set_esp_mesh_header_flag_protocol(uint16_t *flags, uint8_t val) {
-  uint8_t *_flags = (uint8_t *)flags;
-
-  _flags[1] = _flags[1] & 0x03;
-  _flags[1] = (_flags[1] | (val << 0x02));
+void set_esp_mesh_header_flag_protocol(uint8_t *flags, uint8_t val) {
+  flags[1] = flags[1] & 0x03;
+  flags[1] = (flags[1] | (val << 0x02));
 }
 
-void set_esp_mesh_header_flag_direction(uint16_t *flags, uint8_t val) {
-  uint8_t *_flags = (uint8_t *)flags;
-
+void set_esp_mesh_header_flag_direction(uint8_t *flags, uint8_t val) {
   if(val) {
-    _flags[1] = (_flags[1] | 0x01);
+    flags[1] = (flags[1] | 0x01);
   }
   else {
-    _flags[1] = (_flags[1] & ~(0x01));
+    flags[1] = (flags[1] & ~(0x01));
   }
 }
 
@@ -550,7 +538,7 @@ void hb_ping_recv_handler(MeshStack *mesh_stack) {
   memset(&src, 0, sizeof(src));
   memset(&pkt_mesh_hb_pong, 0, sizeof(pkt_mesh_hb_t));
 
-  set_esp_mesh_header_flag_direction(&pkt_mesh_hb_ping->header.flags, ESP_MESH_PACKET_DOWNWARDS);
+  set_esp_mesh_header_flag_direction((uint8_t *)&pkt_mesh_hb_ping->header.flags, ESP_MESH_PACKET_DOWNWARDS);
   memcpy(&pkt_mesh_hb_ping->header.dst_addr, &pkt_mesh_hb_ping->header.src_addr, sizeof(pkt_mesh_hb_ping->header.src_addr));
   memcpy(&pkt_mesh_hb_ping->header.src_addr, &mesh_stack->gw_addr, sizeof(mesh_stack->gw_addr));
 
@@ -915,13 +903,13 @@ bool is_mesh_header_valid(esp_mesh_header_t *mesh_header) {
     return false;
   }
 
-  if(get_esp_mesh_header_flag_direction(&mesh_header->flags) == ESP_MESH_PACKET_DOWNWARDS) {
+  if(get_esp_mesh_header_flag_direction((uint8_t *)&mesh_header->flags) == ESP_MESH_PACKET_DOWNWARDS) {
     log_error("ESP mesh packet header has downward direction");
 
     return false;
   }
 
-  if(get_esp_mesh_header_flag_protocol(&mesh_header->flags) != ESP_MESH_PAYLOAD_BIN) {
+  if(get_esp_mesh_header_flag_protocol((uint8_t *)&mesh_header->flags) != ESP_MESH_PAYLOAD_BIN) {
     log_error("ESP mesh packet payload type is not binary");
 
     return false;
@@ -1104,9 +1092,9 @@ void *esp_mesh_get_packet_header(uint8_t flag_direction,
 
   memset(mesh_header, 0, sizeof(esp_mesh_header_t));
 
-  set_esp_mesh_header_flag_direction(&mesh_header->flags, flag_direction);
-  set_esp_mesh_header_flag_p2p(&mesh_header->flags, flag_p2p);
-  set_esp_mesh_header_flag_protocol(&mesh_header->flags, flag_protocol);
+  set_esp_mesh_header_flag_direction((uint8_t *)&mesh_header->flags, flag_direction);
+  set_esp_mesh_header_flag_p2p((uint8_t *)&mesh_header->flags, flag_p2p);
+  set_esp_mesh_header_flag_protocol((uint8_t *)&mesh_header->flags, flag_protocol);
   mesh_header->len = sizeof(esp_mesh_header_t) + len;
 
   memcpy(&mesh_header->dst_addr, mesh_dst_addr, sizeof(mesh_header->dst_addr));

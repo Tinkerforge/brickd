@@ -153,15 +153,15 @@ void hb_pong_recv_handler(MeshStack *mesh_stack);
 void arm_timer_hb_do_ping(MeshStack *mesh_stack);
 void broadcast_reset_packet(MeshStack *mesh_stack);
 bool hello_root_recv_handler(MeshStack *mesh_stack);
-bool get_esp_mesh_header_flag_p2p(uint16_t *flags);
+bool get_esp_mesh_header_flag_p2p(uint8_t *flags);
 bool hello_non_root_recv_handler(MeshStack *mesh_stack);
-bool get_esp_mesh_header_flag_direction(uint16_t *flags);
+bool get_esp_mesh_header_flag_direction(uint8_t *flags);
 bool is_mesh_header_valid(esp_mesh_header_t *mesh_header);
-uint8_t get_esp_mesh_header_flag_protocol(uint16_t *flags);
-void set_esp_mesh_header_flag_p2p(uint16_t *flags, bool val);
+uint8_t get_esp_mesh_header_flag_protocol(uint8_t *flags);
+void set_esp_mesh_header_flag_p2p(uint8_t *flags, bool val);
 void arm_timer_cleanup_after_reset_sent(MeshStack *mesh_stack);
-void set_esp_mesh_header_flag_protocol(uint16_t *flags, uint8_t val);
-void set_esp_mesh_header_flag_direction(uint16_t *flags, uint8_t val);
+void set_esp_mesh_header_flag_protocol(uint8_t *flags, uint8_t val);
+void set_esp_mesh_header_flag_direction(uint8_t *flags, uint8_t val);
 int mesh_stack_dispatch_request(Stack *stack, Packet *request, Recipient *recipient);
 
 // Generate a mesh packet header.
