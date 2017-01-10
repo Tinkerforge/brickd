@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2012-2014, 2016 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2012-2014, 2016-2017 Matthias Bolte <matthias@tinkerforge.com>
  * Copyright (C) 2014 Olaf Lüke <olaf@tinkerforge.com>
  *
  * network.c: Network specific functions
@@ -110,137 +110,23 @@ static void network_handle_accept(void *opaque) {
 #endif
 }
 
-static const char *network_get_address_family_name(int family, bool report_dual_stack) {
-	switch (family) {
-	case AF_INET:
-		return "IPv4";
-
-	case AF_INET6:
-		if (report_dual_stack && config_get_option_value("listen.dual_stack")->boolean) {
-			return "IPv6 dual-stack";
-		} else {
-			return "IPv6";
-		}
-
-	default:
-		return "<unknown>";
-	}
-}
-
-static int network_open_server_socket(Socket *server_socket, uint16_t port,
+static int network_open_server_socket(Socket *socket, uint16_t port,
                                       SocketCreateAllocatedFunction create_allocated) {
-	int phase = 0;
 	const char *address = config_get_option_value("listen.address")->string;
-	struct addrinfo *resolved_address = NULL;
-	bool dual_stack;
+	bool dual_stack = config_get_option_value("listen.dual_stack")->boolean;
 
-	log_debug("Opening server socket on port %u", port);
-
-	// resolve listen address
-	// FIXME: bind to all returned addresses, instead of just the first one.
-	//        requires special handling if IPv4 and IPv6 addresses are returned
-	//        and dual-stack mode is enabled
-	resolved_address = socket_hostname_to_address(address, port);
-
-	if (resolved_address == NULL) {
-		log_error("Could not resolve listen address '%s' (port: %u): %s (%d)",
-		          address, port, get_errno_name(errno), errno);
-
-		goto cleanup;
+	if (socket_open_server(socket, address, port, dual_stack, create_allocated) < 0) {
+		return -1;
 	}
 
-	phase = 1;
+	if (event_add_source(socket->base.handle, EVENT_SOURCE_TYPE_GENERIC,
+	                     EVENT_READ, network_handle_accept, socket) < 0) {
+		socket_destroy(socket);
 
-	// create socket
-	if (socket_create(server_socket) < 0) {
-		log_error("Could not create socket: %s (%d)",
-		          get_errno_name(errno), errno);
-
-		goto cleanup;
+		return -1;
 	}
 
-	phase = 2;
-
-	if (socket_open(server_socket, resolved_address->ai_family,
-	                resolved_address->ai_socktype, resolved_address->ai_protocol) < 0) {
-		log_error("Could not open %s server socket: %s (%d)",
-		          network_get_address_family_name(resolved_address->ai_family, false),
-		          get_errno_name(errno), errno);
-
-		goto cleanup;
-	}
-
-	if (resolved_address->ai_family == AF_INET6) {
-		dual_stack = config_get_option_value("listen.dual_stack")->boolean;
-
-		if (socket_set_dual_stack(server_socket, dual_stack) < 0) {
-			log_error("Could not %s dual-stack mode for IPv6 server socket: %s (%d)",
-			          dual_stack ? "enable" : "disable",
-			          get_errno_name(errno), errno);
-
-			goto cleanup;
-		}
-	}
-
-#ifndef _WIN32
-	// on Unix the SO_REUSEADDR socket option allows to rebind sockets in
-	// CLOSE-WAIT state. this is a desired effect. on Windows SO_REUSEADDR
-	// allows to rebind sockets in any state. this is dangerous. therefore,
-	// don't set SO_REUSEADDR on Windows. sockets can be rebound in CLOSE-WAIT
-	// state on Windows by default.
-	if (socket_set_address_reuse(server_socket, true) < 0) {
-		log_error("Could not enable address-reuse mode for server socket: %s (%d)",
-		          get_errno_name(errno), errno);
-
-		goto cleanup;
-	}
-#endif
-
-	// bind socket and start to listen
-	if (socket_bind(server_socket, resolved_address->ai_addr,
-	                resolved_address->ai_addrlen) < 0) {
-		log_error("Could not bind %s server socket to '%s' on port %u: %s (%d)",
-		          network_get_address_family_name(resolved_address->ai_family, true),
-		          address, port, get_errno_name(errno), errno);
-
-		goto cleanup;
-	}
-
-	if (socket_listen(server_socket, 10, create_allocated) < 0) {
-		log_error("Could not listen to %s server socket bound to '%s' on port %u: %s (%d)",
-		          network_get_address_family_name(resolved_address->ai_family, true),
-		          address, port, get_errno_name(errno), errno);
-
-		goto cleanup;
-	}
-
-	log_debug("Started listening to '%s' (%s) on port %u",
-	          address,
-	          network_get_address_family_name(resolved_address->ai_family, true),
-	          port);
-
-	if (event_add_source(server_socket->base.handle, EVENT_SOURCE_TYPE_GENERIC,
-	                     EVENT_READ, network_handle_accept, server_socket) < 0) {
-		goto cleanup;
-	}
-
-	phase = 3;
-
-	freeaddrinfo(resolved_address);
-
-cleanup:
-	switch (phase) { // no breaks, all cases fall through intentionally
-	case 2:
-		socket_destroy(server_socket);
-
-	case 1:
-		freeaddrinfo(resolved_address);
-
-	default:
-		break;
-	}
-
-	return phase == 3 ? 0 : -1;
+	return 0;
 }
 
 // drop all pending requests for the given UID from the global list
