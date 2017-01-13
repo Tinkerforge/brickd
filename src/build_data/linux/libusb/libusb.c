@@ -30,7 +30,7 @@
 
 static LogSource _log_source = LOG_SOURCE_INITIALIZER;
 
-static const char *_libusb = "libusb-1.0.so.0";
+static const char *_libusb = "libusb-1.0.so";
 static void *_libusb_handle = NULL;
 
 libusb_init_fn libusb_init;

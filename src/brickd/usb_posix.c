@@ -117,7 +117,7 @@ static libusbz_hotplug_register_callback_t libusbz_hotplug_register_callback = N
 static libusbz_hotplug_deregister_callback_t libusbz_hotplug_deregister_callback = NULL;
 
 #ifdef BRICKD_WITH_LIBUSB_DLOPEN
-static const char *_libusb = "libusb-1.0.so.0";
+static const char *_libusb = "libusb-1.0.so";
 #else
 static const char *_libusb = NULL;
 #endif
