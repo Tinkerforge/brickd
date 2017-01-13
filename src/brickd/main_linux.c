@@ -294,29 +294,37 @@ int main(int argc, char **argv) {
 		         _config_filename);
 	}
 
-	if (event_init() < 0) {
+#ifdef BRICKD_WITH_LIBUSB_DLOPEN
+	if (libusb_init_dlopen() < 0) {
 		goto cleanup;
 	}
 
 	phase = 4;
+#endif
 
-	if (signal_init(handle_sighup, handle_sigusr1) < 0) {
+	if (event_init() < 0) {
 		goto cleanup;
 	}
 
 	phase = 5;
 
-	if (hardware_init() < 0) {
+	if (signal_init(handle_sighup, handle_sigusr1) < 0) {
 		goto cleanup;
 	}
 
 	phase = 6;
 
-	if (usb_init() < 0) {
+	if (hardware_init() < 0) {
 		goto cleanup;
 	}
 
 	phase = 7;
+
+	if (usb_init() < 0) {
+		goto cleanup;
+	}
+
+	phase = 8;
 
 #ifdef BRICKD_WITH_LIBUDEV
 	if (!usb_has_hotplug()) {
@@ -327,51 +335,51 @@ int main(int argc, char **argv) {
 		initialized_udev = true;
 	}
 
-	phase = 8;
+	phase = 9;
 #endif
 
 	if (network_init() < 0) {
 		goto cleanup;
 	}
 
-	phase = 9;
+	phase = 10;
 
 	if (mesh_init() < 0) {
 		goto cleanup;
 	}
 
-	phase = 10;
+	phase = 11;
 
 #ifdef BRICKD_WITH_RED_BRICK
 	if (gpio_init() < 0) {
 		goto cleanup;
 	}
 
-	phase = 11;
+	phase = 12;
 
 	if (redapid_init() < 0) {
 		goto cleanup;
 	}
 
-	phase = 12;
+	phase = 13;
 
 	if (red_stack_init() < 0) {
 		goto cleanup;
 	}
 
-	phase = 13;
+	phase = 14;
 
 	if (red_extension_init() < 0) {
 		goto cleanup;
 	}
 
-	phase = 14;
+	phase = 15;
 
 	if (red_usb_gadget_init() < 0) {
 		goto cleanup;
 	}
 
-	phase = 15;
+	phase = 16;
 
 	red_led_set_trigger(RED_LED_GREEN, config_get_option_value("led_trigger.green")->symbol);
 	red_led_set_trigger(RED_LED_RED, config_get_option_value("led_trigger.red")->symbol);
@@ -392,46 +400,51 @@ int main(int argc, char **argv) {
 cleanup:
 	switch (phase) { // no breaks, all cases fall through intentionally
 #ifdef BRICKD_WITH_RED_BRICK
-	case 15:
+	case 16:
 		red_usb_gadget_exit();
 
-	case 14:
+	case 15:
 		red_extension_exit();
 
-	case 13:
+	case 14:
 		red_stack_exit();
 
-	case 12:
+	case 13:
 		redapid_exit();
 
-	case 11:
+	case 12:
 		//gpio_exit();
 #endif
 
-	case 10:
+	case 11:
 		mesh_exit();
 
-	case 9:
+	case 10:
 		network_exit();
 
 #ifdef BRICKD_WITH_LIBUDEV
-	case 8:
+	case 9:
 		if (initialized_udev) {
 			udev_exit();
 		}
 #endif
 
-	case 7:
+	case 8:
 		usb_exit();
 
-	case 6:
+	case 7:
 		hardware_exit();
 
-	case 5:
+	case 6:
 		signal_exit();
 
-	case 4:
+	case 5:
 		event_exit();
+
+#ifdef BRICKD_WITH_LIBUSB_DLOPEN
+	case 4:
+		libusb_exit_dlopen();
+#endif
 
 	case 3:
 		log_info("Brick Daemon %s stopped", VERSION_STRING);

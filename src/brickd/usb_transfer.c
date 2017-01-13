@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2012-2014, 2016 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2012-2014, 2016-2017 Matthias Bolte <matthias@tinkerforge.com>
  *
  * usb_transfer.c: libusb transfer specific functions
  *
@@ -20,6 +20,7 @@
  */
 
 #include <libusb.h>
+#include <time.h>
 
 #include <daemonlib/log.h>
 

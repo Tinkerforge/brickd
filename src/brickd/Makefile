@@ -16,6 +16,7 @@
 
 CC ?= gcc
 
+WITH_LIBUSB_DLOPEN ?= no
 WITH_LIBUDEV ?= check
 WITH_LIBUDEV_DLOPEN ?= no
 WITH_LOGGING ?= yes
@@ -118,7 +119,11 @@ ifeq ($(PLATFORM),Windows)
 endif
 
 ifeq ($(PLATFORM),Linux)
+ifeq ($(WITH_LIBUSB_DLOPEN),yes)
+	HOTPLUG := libusb (if supported)
+else
 	HOTPLUG := $(shell pkg-config --exists 'libusb-1.0 >= 1.0.16' && echo libusb || echo libusb \(if supported\))
+endif
 ifeq ($(WITH_LIBUDEV),check)
 ifeq ($(HOTPLUG),libusb)
 	# libusb hotplug, libudev not required
@@ -253,6 +258,10 @@ ifeq ($(WITH_RED_BRICK),yes)
 	                     ../daemonlib/red_led.c
 endif
 
+ifeq ($(WITH_LIBUSB_DLOPEN),yes)
+	SOURCES_BRICKD += ../build_data/linux/libusb/libusb.c
+endif
+
 SOURCES := $(SOURCES_DAEMONLIB) $(SOURCES_BRICKD)
 
 OBJECTS := ${SOURCES:.c=.o}
@@ -294,6 +303,12 @@ ifeq ($(PLATFORM),Windows)
 endif
 
 ifeq ($(PLATFORM),Linux)
+ifeq ($(WITH_LIBUSB_DLOPEN),yes)
+	LIBUSB_STATUS := dlopen
+	LIBUSB_CFLAGS := -I../build_data/linux/libusb
+	LIBUSB_LDFLAGS :=
+	LIBUSB_LIBS :=
+else
 	LIBUSB_VERSION := $(shell pkg-config --exists 'libusb-1.0 >= 1.0.6' && echo okay)
 ifeq ($(LIBUSB_VERSION),okay)
 	LIBUSB_STATUS := $(shell pkg-config --modversion libusb-1.0)
@@ -303,6 +318,7 @@ ifeq ($(LIBUSB_VERSION),okay)
 else
 ifneq ($(MAKECMDGOALS),clean)
 $(error Could not find libusb-1.0 >= 1.0.6)
+endif
 endif
 endif
 endif
@@ -371,6 +387,10 @@ endif
 
 ifeq ($(WITH_EPOLL),yes)
 	CFLAGS += -DDAEMONLIB_WITH_EPOLL
+endif
+
+ifeq ($(WITH_LIBUSB_DLOPEN),yes)
+	CFLAGS += -DBRICKD_WITH_LIBUSB_DLOPEN
 endif
 
 ifeq ($(WITH_PROFILING),yes)

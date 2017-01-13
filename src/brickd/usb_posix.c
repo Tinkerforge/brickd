@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2013-2014 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2013-2014, 2017 Matthias Bolte <matthias@tinkerforge.com>
  *
  * usb_posix.c: POSIX based USB specific functions
  *
@@ -116,6 +116,12 @@ static libusbz_has_capability_t libusbz_has_capability = NULL;
 static libusbz_hotplug_register_callback_t libusbz_hotplug_register_callback = NULL;
 static libusbz_hotplug_deregister_callback_t libusbz_hotplug_deregister_callback = NULL;
 
+#ifdef BRICKD_WITH_LIBUSB_DLOPEN
+static const char *_libusb = "libusb-1.0.so.0";
+#else
+static const char *_libusb = NULL;
+#endif
+
 static void *_libusb_handle = NULL;
 
 #if defined(__clang__) || !defined(__GNUC__) || __GNUC_PREREQ(4, 6)
@@ -142,15 +148,17 @@ static void *_libusb_handle = NULL;
 #endif
 
 static int usb_dlopen(void) {
-	_libusb_handle = dlopen(NULL, RTLD_LAZY);
+	_libusb_handle = dlopen(_libusb, RTLD_LAZY);
 
 	if (_libusb_handle == NULL) {
-		log_error("Could not load brickd (for libusb symbols): %s", dlerror());
+		log_error("Could not load %s: %s",
+		          _libusb != NULL ? _libusb : "brickd (for libusb symbols)",
+		          dlerror());
 
 		return -1;
 	}
 
-	log_debug("Successfully loaded brickd (for libusb symbols)");
+	log_debug("Successfully loaded %s", _libusb != NULL ? _libusb : "brickd (for libusb symbols)");
 
 	USB_DLSYM(libusb_has_capability, libusbz_has_capability);
 	USB_DLSYM(libusb_hotplug_register_callback, libusbz_hotplug_register_callback);
