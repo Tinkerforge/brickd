@@ -41,27 +41,27 @@ test -x $DAEMON || exit 0
 
 case "$1" in
   start)
-	log_daemon_msg "Starting Brick Daemon" "brickd"
-	start_daemon -p $PIDFILE $DAEMON $OPTIONS
-	log_end_msg $?
-	;;
+    log_daemon_msg "Starting Brick Daemon" "brickd"
+    start_daemon -p $PIDFILE $DAEMON $OPTIONS
+    log_end_msg $?
+    ;;
   stop)
-	log_daemon_msg "Stopping Brick Daemon" "brickd"
-	killproc -p $PIDFILE $DAEMON
-	log_end_msg $?
-	;;
+    log_daemon_msg "Stopping Brick Daemon" "brickd"
+    killproc -p $PIDFILE $DAEMON
+    log_end_msg $?
+    ;;
   restart|force-reload)
-	$0 stop
-	sleep 1
-	$0 start
-	;;
+    $0 stop
+    sleep 1
+    $0 start
+    ;;
   status)
-	status_of_proc -p $PIDFILE $DAEMON "brickd" && exit 0 || exit $?
-	;;
+    status_of_proc -p $PIDFILE $DAEMON "brickd" && exit 0 || exit $?
+    ;;
   *)
-	echo "Usage: /etc/init.d/brickd {start|stop|restart|force-reload|status}" >&2
-	exit 1
-	;;
+    echo "Usage: /etc/init.d/brickd {start|stop|restart|force-reload|status}" >&2
+    exit 1
+    ;;
 esac
 
 exit 0
