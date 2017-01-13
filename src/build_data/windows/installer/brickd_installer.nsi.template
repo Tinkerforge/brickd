@@ -213,7 +213,7 @@ Section "Install Brick Daemon ${BRICKD_VERSION}"
   DetailPrint "Install Brick Daemon..."
 
   SetOutPath "$INSTDIR"
-  File /r /x nsis ..\*
+  File /r /x installer ..\*
 
   ; Write the installation path into the registry
   WriteRegStr HKLM "Software\Tinkerforge\Brickd" "Install_Dir" "$INSTDIR"

@@ -165,10 +165,10 @@ def build_windows_pkg():
     print('creating NSIS script from template')
     version = check_output(['dist\\brickd.exe', '--version']).replace('\r\n', '')
     build_data_path = os.path.join(root_path, 'build_data', 'windows')
-    nsis_template_path = os.path.join(build_data_path, 'nsis', 'brickd_installer.nsi.template')
-    nsis_path = os.path.join(dist_path, 'nsis', 'brickd_installer.nsi')
-    os.makedirs(os.path.join(dist_path, 'nsis'))
-    specialize_template(nsis_template_path, nsis_path,
+    installer_template_path = os.path.join(build_data_path, 'installer', 'brickd_installer.nsi.template')
+    installer_path = os.path.join(dist_path, 'installer', 'brickd_installer.nsi')
+    os.makedirs(os.path.join(dist_path, 'installer'))
+    specialize_template(installer_template_path, installer_path,
                         {'<<BRICKD_DOT_VERSION>>': version,
                          '<<BRICKD_UNDERSCORE_VERSION>>': version.replace('.', '_')})
 
@@ -182,13 +182,13 @@ def build_windows_pkg():
     shutil.copy(os.path.join(build_data_path, 'logviewer', 'logviewer.pdb'), dist_path)
 
     print('building NSIS installer')
-    system('"C:\\Program Files\\NSIS\\makensis.exe" dist\\nsis\\brickd_installer.nsi')
+    system('"C:\\Program Files\\NSIS\\makensis.exe" dist\\installer\\brickd_installer.nsi')
     installer = 'brickd_windows_{0}.exe'.format(version.replace('.', '_'))
 
     if os.path.exists(installer):
         os.unlink(installer)
 
-    shutil.move(os.path.join(dist_path, 'nsis', installer), root_path)
+    shutil.move(os.path.join(dist_path, 'installer', installer), root_path)
 
     if os.path.exists('X:\\sign.bat'):
         system('X:\\sign.bat ' + installer)
