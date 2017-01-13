@@ -215,8 +215,8 @@ def build_linux_pkg():
         system('cd brickd; env CC=gcc WITH_LIBUDEV=yes WITH_LIBUDEV_DLOPEN=yes WITH_PM_UTILS=yes make')
 
     print('copying build data')
-    build_data_path = os.path.join(root_path, 'build_data', 'linux')
-    shutil.copytree(build_data_path, dist_path)
+    installer_path = os.path.join(root_path, 'build_data', 'linux', 'installer')
+    shutil.copytree(installer_path, dist_path)
 
     print('copying brickd binary')
     bin_path = os.path.join(dist_path, 'usr', 'bin')
