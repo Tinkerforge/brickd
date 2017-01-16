@@ -11,7 +11,7 @@
 
 # brickd (Brick Daemon)
 # Copyright (C) 2011-2012 Olaf Lüke <olaf@tinkerforge.com>
-# Copyright (C) 2013-2015 Matthias Bolte <matthias@tinkerforge.com>
+# Copyright (C) 2013-2015, 2017 Matthias Bolte <matthias@tinkerforge.com>
 #
 # based on skeleton from Debian GNU/Linux
 #
@@ -38,6 +38,86 @@ PIDFILE=/var/run/brickd.pid
 test -x $DAEMON || exit 0
 
 . /lib/lsb/init-functions
+
+if type log_daemon_msg &> /dev/null || false; then
+    true
+else
+    log_daemon_msg () {
+        if [ -z "${1:-}" ]; then
+            return 1
+        fi
+
+        if [ -z "${2:-}" ]; then
+            echo -n "$1:" || true
+            return
+        fi
+
+        echo -n "$1: $2" || true
+    }
+fi
+
+if type log_end_msg &> /dev/null || false; then
+    true
+else
+    log_end_msg () {
+        if [ -z "${1:-}" ]; then
+            return 1
+        fi
+
+        local retval
+        retval=$1
+
+        if [ $1 -eq 0 ]; then
+            echo "." || true
+        elif [ $1 -eq 255 ]; then
+            /bin/echo -e " (warning)." || true
+        else
+            /bin/echo -e " failed!" || true
+        fi
+
+        return $retval
+    }
+fi
+
+if type status_of_proc &> /dev/null || false; then
+    true
+else
+    status_of_proc () {
+        local pidfile daemon name status OPTIND
+
+        pidfile=
+        OPTIND=1
+
+        while getopts p: opt ; do
+            case "$opt" in
+                p)  pidfile="$OPTARG";;
+            esac
+        done
+
+        shift $(($OPTIND - 1))
+
+        if [ -n "$pidfile" ]; then
+            pidfile="-p $pidfile"
+        fi
+
+        daemon="$1"
+        name="$2"
+        status="0"
+
+        pidofproc $pidfile $daemon >/dev/null || status="$?"
+
+        if [ "$status" = 0 ]; then
+            log_success_msg "$name is running"
+            return 0
+        elif [ "$status" = 4 ]; then
+            log_failure_msg "could not access PID file for $name"
+            return $status
+        else
+            log_failure_msg "$name is not running"
+            return $status
+        fi
+    }
+fi
 
 case "$1" in
   start)
