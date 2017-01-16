@@ -483,29 +483,29 @@ ifeq ($(PLATFORM),Linux)
 
 	@echo "CP brickd.conf"
 ifeq ($(WITH_RED_BRICK),yes)
-	$(E)$(INSTALL) -m 644 ../build_data/linux/etc/brickd-red-brick.conf $(sysconfdir)/brickd.conf
+	$(E)$(INSTALL) -m 644 ../build_data/linux/installer/etc/brickd-red-brick.conf $(sysconfdir)/brickd.conf
 else
-	$(E)$(INSTALL) -m 644 ../build_data/linux/etc/brickd-default.conf $(sysconfdir)/brickd.conf
+	$(E)$(INSTALL) -m 644 ../build_data/linux/installer/etc/brickd-default.conf $(sysconfdir)/brickd.conf
 endif
 
 	@echo "CP brickd (init.d script)"
-	$(E)$(INSTALL) -m 755 ../build_data/linux/etc/init.d/brickd $(sysconfdir)/init.d
+	$(E)$(INSTALL) -m 755 ../build_data/linux/installer/etc/init.d/brickd $(sysconfdir)/init.d
 
 	@echo "CP brickd (logrotate.d script)"
-	$(E)$(INSTALL) -m 644 ../build_data/linux/etc/logrotate.d/brickd $(sysconfdir)/logrotate.d
+	$(E)$(INSTALL) -m 644 ../build_data/linux/installer/etc/logrotate.d/brickd $(sysconfdir)/logrotate.d
 
 	@echo "CP brickd.8 (manpage)"
-	$(E)$(INSTALL) -m 644 ../build_data/linux/usr/share/man/man8/brickd.8 $(datadir)/man/man8
+	$(E)$(INSTALL) -m 644 ../build_data/linux/installer/usr/share/man/man8/brickd.8 $(datadir)/man/man8
 	$(E)gzip -f $(datadir)/man/man8/brickd.8
 
 	@echo "CP brickd.conf.5 (manpage)"
-	$(E)$(INSTALL) -m 644 ../build_data/linux/usr/share/man/man5/brickd.conf.5 $(datadir)/man/man5
+	$(E)$(INSTALL) -m 644 ../build_data/linux/installer/usr/share/man/man5/brickd.conf.5 $(datadir)/man/man5
 	$(E)gzip -f $(datadir)/man/man5/brickd.conf.5
 endif
 
 ifeq ($(WITH_PM_UTILS),yes)
 	@echo "CP 42brickd (pm-utils script)"
-	$(E)$(INSTALL) -m 755 ../build_data/linux/usr/lib/pm-utils/sleep.d/42brickd $(shell pkg-config pm-utils --variable pm_sleephooks)
+	$(E)$(INSTALL) -m 755 ../build_data/linux/installer/usr/lib/pm-utils/sleep.d/42brickd $(shell pkg-config pm-utils --variable pm_sleephooks)
 endif
 
 log_messages.h log_messages.rc: log_messages.mc Makefile
