@@ -7,7 +7,7 @@
   <key>ProgramArguments</key>
   <array>
     <string>/usr/local/libexec/brickd.app/Contents/MacOS/brickd</string>
-    <string>--daemon</string>
+    <string>--launchd</string>
   </array>
   <key>RunAtLoad</key>
   <true/>

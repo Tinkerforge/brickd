@@ -53,13 +53,15 @@ static File _log_file;
 
 static void print_usage(void) {
 	printf("Usage:\n"
-	       "  brickd [--help|--version|--check-config|--daemon] [--debug [<filter>]]\n"
+	       "  brickd [--help|--version|--check-config|--daemon|--launchd]\n"
+	       "         [--debug [<filter>]]\n"
 	       "\n"
 	       "Options:\n"
 	       "  --help              Show this help\n"
 	       "  --version           Show version number\n"
 	       "  --check-config      Check config file for errors\n"
 	       "  --daemon            Run as daemon and write PID and log file\n"
+	       "  --launchd           Run as launchd daemon and write PID and log file\n"
 	       "  --debug [<filter>]  Set log level to debug and apply optional filter\n");
 }
 
@@ -84,6 +86,7 @@ int main(int argc, char **argv) {
 	bool version = false;
 	bool check_config = false;
 	bool daemon = false;
+	bool launchd = false;
 	const char *debug_filter = NULL;
 	int pid_fd = -1;
 
@@ -96,6 +99,8 @@ int main(int argc, char **argv) {
 			check_config = true;
 		} else if (strcmp(argv[i], "--daemon") == 0) {
 			daemon = true;
+		} else if (strcmp(argv[i], "--launchd") == 0) {
+			launchd = true;
 		} else if (strcmp(argv[i], "--debug") == 0) {
 			if (i + 1 < argc && strncmp(argv[i + 1], "--", 2) != 0) {
 				debug_filter = argv[++i];
@@ -139,8 +144,8 @@ int main(int argc, char **argv) {
 
 	log_init();
 
-	if (daemon) {
-		pid_fd = daemon_start(LOG_FILENAME, &_log_file, PID_FILENAME, false);
+	if (daemon || launchd) {
+		pid_fd = daemon_start(LOG_FILENAME, &_log_file, PID_FILENAME, !launchd);
 	} else {
 		pid_fd = pid_file_acquire(PID_FILENAME, getpid());
 
