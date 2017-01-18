@@ -163,7 +163,7 @@ static void mesh_stack_recv_handler(void *opaque) {
 static void timer_wait_hello_handler(void *opaque) {
   MeshStack *mesh_stack = (MeshStack *)opaque;
 
-  log_info("Wait hello timed out, destroying mesh stack (N: %s)",
+  log_warn("Wait hello timed out, destroying mesh stack (N: %s)",
            mesh_stack->name);
 
   broadcast_reset_packet(mesh_stack);
@@ -180,7 +180,7 @@ static void timer_wait_hello_handler(void *opaque) {
 static void timer_cleanup_after_reset_sent_handler(void *opaque) {
   MeshStack *mesh_stack = (MeshStack *)opaque;
 
-  log_info("Cleaning up mesh stack (N: %s)", mesh_stack->name);
+  log_debug("Cleaning up mesh stack (N: %s)", mesh_stack->name);
 
   mesh_stack->cleanup = true;
 }
@@ -253,7 +253,7 @@ void timer_hb_do_ping_handler(void *opaque) {
 
   pkt_mesh_hb.type = MESH_PACKET_HB_PING;
 
-  log_info("Sending ping to mesh root node");
+  log_debug("Sending ping to mesh root node");
 
   // TODO: Integrate buffered IO write.
   if(socket_send(mesh_stack->sock, &pkt_mesh_hb, pkt_mesh_hb.header.len) < 0) {
@@ -262,7 +262,7 @@ void timer_hb_do_ping_handler(void *opaque) {
     mesh_stack->cleanup = true;
   }
   else {
-    log_info("Arming wait pong timer");
+    log_debug("Arming wait pong timer");
 
     if(timer_configure(&mesh_stack->timer_hb_wait_pong,
                        TIME_HB_WAIT_PONG,
@@ -280,7 +280,7 @@ void timer_hb_do_ping_handler(void *opaque) {
 void timer_hb_wait_pong_handler(void *opaque) {
   MeshStack *mesh_stack = (MeshStack *)opaque;
 
-  log_info("Wait pong timed out, cleaning up mesh stack");
+  log_debug("Wait pong timed out, cleaning up mesh stack");
 
   mesh_stack->cleanup = true;
 }
@@ -291,7 +291,7 @@ void hello_recv_handler(MeshStack *mesh_stack) {
   pkt_mesh_hello_t *pkt_mesh_hello = \
     (pkt_mesh_hello_t *)&mesh_stack->incoming_buffer;
 
-  log_info("Received mesh packet (T: HELLO, L: %d)", pkt_mesh_hello->header.len);
+  log_debug("Received mesh packet (T: HELLO, L: %d)", pkt_mesh_hello->header.len);
 
   timer_configure(&mesh_stack->timer_wait_hello, 0, 0);
 
@@ -514,7 +514,7 @@ int mesh_stack_create(char *name, Socket *sock) {
     return -1;
    }
 
-  log_info("Mesh stack is waiting for hello packet (N: %s)", mesh_stack->name);
+  log_debug("Mesh stack is waiting for hello packet (N: %s)", mesh_stack->name);
 
   return 0;
 }
@@ -551,7 +551,7 @@ void hb_ping_recv_handler(MeshStack *mesh_stack) {
     log_error("Failed to send mesh pong packet");
   }
   else {
-    log_info("Sent mesh pong packet (A: %02X-%02X-%02X-%02X-%02X-%02X)",
+    log_debug("Sent mesh pong packet (A: %02X-%02X-%02X-%02X-%02X-%02X)",
               pkt_mesh_hb_pong.header.dst_addr[0],
               pkt_mesh_hb_pong.header.dst_addr[1],
               pkt_mesh_hb_pong.header.dst_addr[2],
@@ -625,7 +625,7 @@ void broadcast_reset_packet(MeshStack *mesh_stack) {
     log_error("Failed to send broadcast reset stack packet, LEN=%d", pkt_mesh_reset.header.len);
   }
   else {
-    log_info("Broadcast reset stack packet sent");
+    log_debug("Broadcast reset stack packet sent");
   }
 }
 
@@ -788,7 +788,7 @@ bool hello_root_recv_handler(MeshStack *mesh_stack) {
        * the same mesh node.
        */
       if(root_node_addr_from_existing_stack == src_addr_from_hello_pkt) {
-        log_info("Removing previously existing mesh stack");
+        log_debug("Removing previously existing mesh stack");
 
         mesh_stack_from_list->cleanup = true;
       }
@@ -850,7 +850,7 @@ bool hello_root_recv_handler(MeshStack *mesh_stack) {
     return false;
   }
 
-  log_info("Olleh packet sent (L: %d)", olleh_mesh_pkt.header.len);
+  log_debug("Olleh packet sent (L: %d)", olleh_mesh_pkt.header.len);
 
   // Update mesh stack parameters.
   memcpy(&mesh_stack->prefix,
@@ -987,7 +987,7 @@ int mesh_stack_dispatch_request(Stack *stack, Packet *request, Recipient *recipi
                 dst_addr[5]);
     }
 
-    log_info("Marking mesh stack for cleanup (N: %s)", mesh_stack->name);
+    log_debug("Marking mesh stack for cleanup (N: %s)", mesh_stack->name);
     mesh_stack->cleanup = true;
 
     return -1;
@@ -1026,7 +1026,7 @@ void arm_timer_cleanup_after_reset_sent(MeshStack *mesh_stack) {
     return;
   }
 
-  log_info("Stack cleanup timer armed (N: %s)", mesh_stack->name);
+  log_debug("Stack cleanup timer armed (N: %s)", mesh_stack->name);
 }
 
 bool hello_non_root_recv_handler(MeshStack *mesh_stack) {
@@ -1070,7 +1070,7 @@ bool hello_non_root_recv_handler(MeshStack *mesh_stack) {
     return false;
   }
 
-  log_info("Olleh packet sent (A: %02X-%02X-%02X-%02X-%02X-%02X)",
+  log_debug("Olleh packet sent (A: %02X-%02X-%02X-%02X-%02X-%02X)",
            hello_mesh_pkt->header.src_addr[0],
            hello_mesh_pkt->header.src_addr[1],
            hello_mesh_pkt->header.src_addr[2],
