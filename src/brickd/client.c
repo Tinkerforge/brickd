@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2012-2016 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2012-2017 Matthias Bolte <matthias@tinkerforge.com>
  * Copyright (C) 2014 Olaf Lüke <olaf@tinkerforge.com>
  *
  * client.c: Client specific functions
@@ -184,7 +184,7 @@ static void client_handle_request(Client *client, Packet *request) {
 			}
 
 			client_handle_authenticate_request(client, (AuthenticateRequest *)request);
-		} else {
+		} else if (packet_header_get_response_expected(&request->header)) {
 			response.header = request->header;
 			response.header.length = sizeof(response);
 
