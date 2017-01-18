@@ -180,3 +180,14 @@
 - Properly quote path to brickd.exe for service registration on Windows
 - Switch to .pkg based installer for Mac OS X
 - Fix crash in RS485 Extension code for RED Brick
+
+2017-01-18: 2.3.0 (<unknown>)
+- Add support for WIFI Extension 2.0 Mesh mode
+- Improve RED Brick SPI stack protocol ACK handling
+- Add Co-MCU Bricklet handling to RED Brick SPI stack protocol
+- Avoid crash due to improperly cancelled USB transfers at device disconnect on
+  Mac OS X
+- Update bundled libusb to 1.0.21 on Windows and Mac OS X
+- Also read config from unsupported Extensions on RED Brick to allow Brick
+  Viewer showing them as unsupported
+- Avoid using Debian specific init script helper functions on Linux
