@@ -123,32 +123,27 @@ static void mesh_stack_recv_handler(void *opaque) {
       break;
     }
 
-    if(get_esp_mesh_header_flag_protocol((uint8_t *)&mesh_header->flags) != ESP_MESH_PAYLOAD_BIN) {
-      log_error("ESP mesh payload is not of binary type");
-    }
-    else {
-      mesh_pkt_type = mesh_stack->incoming_buffer[sizeof(esp_mesh_header_t)];
+    mesh_pkt_type = mesh_stack->incoming_buffer[sizeof(esp_mesh_header_t)];
 
-      // Handle mesh hello packet.
-      if(mesh_pkt_type == MESH_PACKET_HELLO) {
-        hello_recv_handler(mesh_stack);
-      }
-      // Handle heart beat ping packet.
-      else if(mesh_pkt_type == MESH_PACKET_HB_PING) {
-        hb_ping_recv_handler(mesh_stack);
-      }
-      // Handle heart beat pong packet.
-      else if(mesh_pkt_type == MESH_PACKET_HB_PONG) {
-        hb_pong_recv_handler(mesh_stack);
-      }
-      // Handle TFP packet.
-      else if(mesh_pkt_type == MESH_PACKET_TFP) {
-        tfp_recv_handler(mesh_stack);
-      }
-      //Packet type is unknown.
-      else {
-        log_error("Unknown mesh packet type received");
-      }
+    // Handle mesh hello packet.
+    if(mesh_pkt_type == MESH_PACKET_HELLO) {
+      hello_recv_handler(mesh_stack);
+    }
+    // Handle heart beat ping packet.
+    else if(mesh_pkt_type == MESH_PACKET_HB_PING) {
+      hb_ping_recv_handler(mesh_stack);
+    }
+    // Handle heart beat pong packet.
+    else if(mesh_pkt_type == MESH_PACKET_HB_PONG) {
+      hb_pong_recv_handler(mesh_stack);
+    }
+    // Handle TFP packet.
+    else if(mesh_pkt_type == MESH_PACKET_TFP) {
+      tfp_recv_handler(mesh_stack);
+    }
+    //Packet type is unknown.
+    else {
+      log_error("Unknown mesh packet type received");
     }
 
     memmove(&mesh_stack->incoming_buffer,
