@@ -181,7 +181,7 @@
 - Switch to .pkg based installer for Mac OS X
 - Fix crash in RS485 Extension code for RED Brick
 
-2017-01-23: 2.3.0 (<unknown>)
+2017-01-24: 2.3.0 (<unknown>)
 - Add support for WIFI Extension 2.0 Mesh mode
 - Improve RED Brick SPI stack protocol ACK handling
 - Add Co-MCU Bricklet handling to RED Brick SPI stack protocol
