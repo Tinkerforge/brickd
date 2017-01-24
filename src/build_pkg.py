@@ -126,7 +126,7 @@ def build_macosx_pkg():
     print('building pkg')
     scripts_path = os.path.join(root_path, 'build_data', 'macosx', 'installer', 'scripts')
     component_path = os.path.join(root_path, 'build_data', 'macosx', 'installer', 'component.plist')
-    # NOTE: codesign_application_identity contains "Developer ID Installer: ..."
+    # NOTE: codesign_installer_identity contains "Developer ID Installer: ..."
     system('pkgbuild --sign "`cat codesign_installer_identity`" --root dist/root --identifier com.tinkerforge.brickd --version {0} --scripts {1} --install-location / --component-plist {2} dist/brickd.pkg'.format(version, scripts_path, component_path))
     distribution_path = os.path.join(root_path, 'build_data', 'macosx', 'installer', 'distribution.xml')
     shutil.copy(distribution_path, dist_path)
