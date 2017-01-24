@@ -17,6 +17,7 @@
 CC ?= gcc
 
 WITH_LIBUSB_DLOPEN ?= no
+WITH_LIBUSB_STATIC ?= no
 WITH_LIBUDEV ?= check
 WITH_LIBUDEV_DLOPEN ?= no
 WITH_LOGGING ?= yes
@@ -120,6 +121,9 @@ endif
 
 ifeq ($(PLATFORM),Linux)
 ifeq ($(WITH_LIBUSB_DLOPEN),yes)
+ifeq ($(WITH_LIBUSB_STATIC),yes)
+$(error Cannot use dlopen and static linking for libusb)
+endif
 	HOTPLUG := libusb (if supported)
 else
 	HOTPLUG := $(shell pkg-config --exists 'libusb-1.0 >= 1.0.16' && echo libusb || echo libusb \(if supported\))
@@ -302,6 +306,8 @@ ifeq ($(PLATFORM),Windows)
 	LIBUSB_LIBS := -lusb-1.0
 endif
 
+LIBUDEV_LINK := no
+
 ifeq ($(PLATFORM),Linux)
 ifeq ($(WITH_LIBUSB_DLOPEN),yes)
 	LIBUSB_STATUS := dlopen
@@ -314,7 +320,15 @@ ifeq ($(LIBUSB_VERSION),okay)
 	LIBUSB_STATUS := $(shell pkg-config --modversion libusb-1.0)
 	LIBUSB_CFLAGS := $(shell pkg-config --cflags libusb-1.0)
 	LIBUSB_LDFLAGS := $(shell pkg-config --libs-only-other --libs-only-L libusb-1.0)
+ifeq ($(WITH_LIBUSB_STATIC),yes)
+	LIBUSB_STATUS := $(LIBUSB_STATUS) (static)
+	LIBUSB_LIBS := -Wl,-Bstatic $(shell pkg-config --libs-only-l libusb-1.0) -Wl,-Bdynamic
+ifeq ($(findstring -ludev,$(shell pkg-config --libs-only-l --static libusb-1.0)),-ludev)
+	LIBUDEV_LINK := yes
+endif
+else
 	LIBUSB_LIBS := $(shell pkg-config --libs-only-l libusb-1.0)
+endif
 else
 ifneq ($(MAKECMDGOALS),clean)
 $(error Could not find libusb-1.0 >= 1.0.6)
@@ -340,6 +354,14 @@ ifeq ($(WITH_LIBUDEV_DLOPEN),yes)
 	LIBUDEV_STATUS := dlopen
 	CFLAGS += -DBRICKD_WITH_LIBUDEV_DLOPEN
 else
+	LIBUDEV_LINK := yes
+endif
+ifeq ($(HOTPLUG),libusb)
+	LIBUDEV_STATUS := $(LIBUDEV_STATUS) (unused)
+endif
+endif
+
+ifeq ($(LIBUDEV_LINK),yes)
 	LIBUDEV_EXISTS := $(shell pkg-config --exists libudev && echo yes || echo no)
 ifeq ($(LIBUDEV_EXISTS),yes)
 	LIBUDEV_STATUS := $(shell pkg-config --modversion libudev)
@@ -353,10 +375,6 @@ else
 ifneq ($(MAKECMDGOALS),clean)
 $(error Could not find libudev)
 endif
-endif
-endif
-ifeq ($(HOTPLUG),libusb)
-	LIBUDEV_STATUS := $(LIBUDEV_STATUS) (unused)
 endif
 endif
 
