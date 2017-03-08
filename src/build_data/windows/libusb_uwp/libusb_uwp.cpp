@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2016 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2016-2017 Matthias Bolte <matthias@tinkerforge.com>
  *
  * libusb_uwp.cpp: Emulating libusb API for Universal Windows Platform
  *
@@ -641,6 +641,11 @@ static int usbi_create_device(libusb_context *ctx, DeviceInformation ^info,
                               libusb_device **dev_ptr) {
 	libusb_device *dev = (libusb_device *)calloc(1, sizeof(libusb_device));
 	int rc;
+	const char *brick_id_prefix1 = "\\\\?\\USB#"; // according to libusb: "\\?\" == "\\.\" == "##?#" == "##.#" and "\" == "#"
+	const char *brick_id_prefix2 = "VID_16D0&PID_063D#"; // according to libusb: "Vid_" == "VID_"
+	const char *red_brick_id_prefix2 = "VID_16D0&PID_09E5#"; // according to libusb: "Vid_" == "VID_"
+	char *uid_start = nullptr;
+	char *uid_end = nullptr;
 
 	if (dev == nullptr) {
 		usbi_log_error(ctx, "Could not allocate device");
@@ -674,7 +679,7 @@ static int usbi_create_device(libusb_context *ctx, DeviceInformation ^info,
 		return rc;
 	}
 
-	string_copy(dev->manufacturer, sizeof(dev->manufacturer), "Tinkerforge GmbH"); // FIXME
+	string_copy(dev->manufacturer, sizeof(dev->manufacturer), "Tinkerforge GmbH", -1); // FIXME
 
 	dev->product = info->Name;
 	dev->product_ascii = usbi_strdup_ascii(info->Name);
@@ -688,7 +693,27 @@ static int usbi_create_device(libusb_context *ctx, DeviceInformation ^info,
 		return LIBUSB_ERROR_NO_MEM;
 	}
 
-	string_copy(dev->serial_number, sizeof(dev->serial_number), "Unknown"); // FIXME
+	// parse UID from device ID expecting this format:
+	// \\?\USB#VID_16D0&PID_063D#6xD12f#{dee824ef-729b-4a0e-9c14-b7117d33a817}
+	if (strlen(dev->id_ascii) > strlen(brick_id_prefix1)) {
+		if (strncasecmp(dev->id_ascii + strlen(brick_id_prefix1), brick_id_prefix2,
+			            strlen(brick_id_prefix2)) == 0) {
+			uid_start = dev->id_ascii + strlen(brick_id_prefix1) + strlen(brick_id_prefix2);
+		} else if (strncasecmp(dev->id_ascii + strlen(brick_id_prefix1), red_brick_id_prefix2,
+			                   strlen(red_brick_id_prefix2)) == 0) {
+			uid_start = dev->id_ascii + strlen(brick_id_prefix1) + strlen(red_brick_id_prefix2);
+		}
+	}
+
+	if (uid_start != nullptr) {
+		uid_end = strchr(uid_start, '#');
+	}
+
+	if (uid_start != nullptr && uid_end != nullptr) {
+		string_copy(dev->serial_number, sizeof(dev->serial_number), uid_start, uid_end - uid_start);
+	} else {
+		string_copy(dev->serial_number, sizeof(dev->serial_number), "<unknown>", -1);
+	}
 
 	usbi_log_debug(ctx, "Created device %p (context: %p, id: %s)",
 	               dev, ctx, dev->id_ascii);
