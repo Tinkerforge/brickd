@@ -47,7 +47,7 @@ static LogSource _log_source = LOG_SOURCE_INITIALIZER;
 
 int stack_create(Stack *stack, const char *name,
                  StackDispatchRequestFunction dispatch_request) {
-	string_copy(stack->name, sizeof(stack->name), name);
+	string_copy(stack->name, sizeof(stack->name), name, -1);
 
 	stack->dispatch_request = dispatch_request;
 

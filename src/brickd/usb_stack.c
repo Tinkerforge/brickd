@@ -548,7 +548,7 @@ void usb_stack_destroy(USBStack *usb_stack) {
 
 	usb_destroy_context(usb_stack->context);
 
-	string_copy(name, sizeof(name), usb_stack->base.name);
+	string_copy(name, sizeof(name), usb_stack->base.name, -1);
 
 	stack_destroy(&usb_stack->base);
 
