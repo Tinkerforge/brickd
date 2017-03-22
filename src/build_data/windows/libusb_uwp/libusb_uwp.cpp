@@ -29,6 +29,7 @@ extern "C" {
 #include <daemonlib/macros.h>
 #include <daemonlib/node.h>
 #include <daemonlib/utils.h>
+#include <daemonlib/utils_uwp.h>
 
 }
 
@@ -412,27 +413,6 @@ extern "C" int usbi_poll(struct usbi_pollfd *fds, unsigned int nfds, int timeout
 	return ready;
 }
 
-static char *usbi_strdup_ascii(String ^string) {
-	int length = string->Length();
-	const wchar_t *data = string->Data();
-	int i;
-	char *ascii = (char *)calloc(length + 1, 1);
-
-	if (ascii == nullptr) {
-		return nullptr;
-	}
-
-	for (i = 0; i < length; ++i) {
-		if (data[i] < 32 || data[i] > 126) {
-			ascii[i] = '?';
-		} else {
-			ascii[i] = (char)data[i];
-		}
-	}
-
-	return ascii;
-}
-
 static void usbi_get_fake_device_address(String ^id, uint8_t *bus_number,
                                          uint8_t *device_address) {
 	std::wstring id_wchar(id->Data());
@@ -578,7 +558,7 @@ static int usbi_get_cached_descriptors(libusb_context *ctx, String ^id,
 			try {
 				device = previous.get();
 			} catch (...) { // FIXME: too generic
-				id_ascii = usbi_strdup_ascii(id);
+				id_ascii = string_convert_ascii(id);
 
 				usbi_log_warning(ctx, "Could not open device %s: <exception>", // FIXME
 				                 id_ascii != nullptr ? id_ascii : "<unknown>");
@@ -591,7 +571,7 @@ static int usbi_get_cached_descriptors(libusb_context *ctx, String ^id,
 			}
 
 			if (device == nullptr) {
-				id_ascii = usbi_strdup_ascii(id);
+				id_ascii = string_convert_ascii(id);
 
 				usbi_log_warning(ctx, "Could not open device %s",
 				                 id_ascii != nullptr ? id_ascii : "<unknown>");
@@ -658,10 +638,10 @@ static int usbi_create_device(libusb_context *ctx, DeviceInformation ^info,
 	dev->ctx = ctx;
 	dev->ref_count = 1;
 	dev->id = info->Id;
-	dev->id_ascii = usbi_strdup_ascii(info->Id);
+	dev->id_ascii = string_convert_ascii(info->Id);
 
 	if (dev->id_ascii == nullptr) {
-		usbi_log_error(ctx, "Could not duplicate device identifier");
+		usbi_log_error(ctx, "Could not convert device identifier");
 
 		free(dev);
 
@@ -682,10 +662,10 @@ static int usbi_create_device(libusb_context *ctx, DeviceInformation ^info,
 	string_copy(dev->manufacturer, sizeof(dev->manufacturer), "Tinkerforge GmbH", -1); // FIXME
 
 	dev->product = info->Name;
-	dev->product_ascii = usbi_strdup_ascii(info->Name);
+	dev->product_ascii = string_convert_ascii(info->Name);
 
 	if (dev->product_ascii == nullptr) {
-		usbi_log_error(ctx, "Could not duplicate device name");
+		usbi_log_error(ctx, "Could not convert device name");
 
 		free(dev->id_ascii);
 		free(dev);
