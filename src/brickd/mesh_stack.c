@@ -1082,10 +1082,7 @@ void *esp_mesh_get_packet_header(uint8_t flag_direction,
                                  uint16_t len,
                                  uint8_t *mesh_dst_addr,
                                  uint8_t *mesh_src_addr) {
-  esp_mesh_header_t *mesh_header = \
-    (esp_mesh_header_t *)malloc(sizeof(esp_mesh_header_t));
-
-  memset(mesh_header, 0, sizeof(esp_mesh_header_t));
+  esp_mesh_header_t *mesh_header = calloc(1, sizeof(esp_mesh_header_t)); // FIXME: calloc can return NULL
 
   set_esp_mesh_header_flag_direction((uint8_t *)&mesh_header->flags, flag_direction);
   set_esp_mesh_header_flag_p2p((uint8_t *)&mesh_header->flags, flag_p2p);
