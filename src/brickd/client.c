@@ -340,7 +340,8 @@ static void client_recipient_disconnect(void *opaque) {
 int client_create(Client *client, const char *name, IO *io,
                   uint32_t authentication_nonce,
                   ClientDestroyDoneFunction destroy_done) {
-	log_debug("Creating client from %s (handle: %d)", io->type, io->handle);
+	log_debug("Creating client from %s (handle: %d/%d)",
+	          io->type, io->read_handle, io->write_handle);
 
 	string_copy(client->name, sizeof(client->name), name, -1);
 
@@ -371,7 +372,7 @@ int client_create(Client *client, const char *name, IO *io,
 	}
 
 	// add I/O object as event source
-	return event_add_source(client->io->handle, EVENT_SOURCE_TYPE_GENERIC,
+	return event_add_source(client->io->read_handle, EVENT_SOURCE_TYPE_GENERIC,
 	                        EVENT_READ, client_handle_read, client);
 }
 
@@ -393,7 +394,7 @@ void client_destroy(Client *client) {
 
 	writer_destroy(&client->response_writer);
 
-	event_remove_source(client->io->handle, EVENT_SOURCE_TYPE_GENERIC);
+	event_remove_source(client->io->read_handle, EVENT_SOURCE_TYPE_GENERIC);
 	io_destroy(client->io);
 	free(client->io);
 

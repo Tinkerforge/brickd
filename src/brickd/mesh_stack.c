@@ -1,6 +1,7 @@
 /*
  * brickd
  * Copyright (C) 2016 Ishraq Ibne Ashraf <ishraq@tinkerforge.com>
+ * Copyright (C) 2017 Matthias Bolte <matthias@tinkerforge.com>
  *
  * mesh_stack.c: Mesh stack specific functions
  *
@@ -374,8 +375,7 @@ void mesh_stack_destroy(MeshStack *mesh_stack) {
   timer_destroy(&mesh_stack->timer_hb_wait_pong);
   timer_destroy(&mesh_stack->timer_cleanup_after_reset_sent);
 
-  event_remove_source(mesh_stack->sock->base.handle,
-                      EVENT_SOURCE_TYPE_GENERIC);
+  event_remove_source(mesh_stack->sock->handle, EVENT_SOURCE_TYPE_GENERIC);
 
   socket_destroy(mesh_stack->sock);
   free(mesh_stack->sock);
@@ -418,7 +418,7 @@ int mesh_stack_create(char *name, Socket *sock) {
    */
   mesh_stack->state = MESH_STACK_STATE_WAIT_HELLO;
 
-  if(event_add_source(sock->base.handle,
+  if(event_add_source(sock->handle,
                       EVENT_SOURCE_TYPE_GENERIC,
                       EVENT_READ,
                       mesh_stack_recv_handler,

@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2014-2016 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2014-2017 Matthias Bolte <matthias@tinkerforge.com>
  *
  * red_usb_gadget.c: RED Brick USB gadget interface
  *
@@ -222,7 +222,7 @@ int red_usb_gadget_init(void) {
 
 	phase = 1;
 
-	if (event_add_source(_state_file.base.handle, EVENT_SOURCE_TYPE_GENERIC,
+	if (event_add_source(_state_file.handle, EVENT_SOURCE_TYPE_GENERIC,
 	                     EVENT_READ, red_usb_gadget_handle_state_change, NULL) < 0) {
 		goto cleanup;
 	}
@@ -245,7 +245,7 @@ int red_usb_gadget_init(void) {
 cleanup:
 	switch (phase) { // no breaks, all cases fall through intentionally
 	case 2:
-		event_remove_source(_state_file.base.handle, EVENT_SOURCE_TYPE_GENERIC);
+		event_remove_source(_state_file.handle, EVENT_SOURCE_TYPE_GENERIC);
 
 	case 1:
 		file_destroy(&_state_file);
@@ -264,7 +264,7 @@ void red_usb_gadget_exit(void) {
 		red_usb_gadget_disconnect();
 	}
 
-	event_remove_source(_state_file.base.handle, EVENT_SOURCE_TYPE_GENERIC);
+	event_remove_source(_state_file.handle, EVENT_SOURCE_TYPE_GENERIC);
 
 	file_destroy(&_state_file);
 }

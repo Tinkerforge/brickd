@@ -57,7 +57,7 @@ static LogSource _log_source = LOG_SOURCE_INITIALIZER;
 
 static Pipe _cancellation_pipe;
 
-static void forward_cancellation(void *opaque) {
+static void handle_cancellation(void *opaque) {
 	int value;
 	const char *reason = "<unknown>";
 
@@ -296,8 +296,8 @@ void brickd_uwp::StartupTask::Run(IBackgroundTaskInstance ^taskInstance) {
 
 	phase = 6;
 
-	if (event_add_source(_cancellation_pipe.read_end, EVENT_SOURCE_TYPE_GENERIC,
-	                     EVENT_READ, forward_cancellation, nullptr) < 0) {
+	if (event_add_source(_cancellation_pipe.base.read_handle, EVENT_SOURCE_TYPE_GENERIC,
+	                     EVENT_READ, handle_cancellation, nullptr) < 0) {
 		goto cleanup;
 	}
 
@@ -338,7 +338,7 @@ cleanup:
 		network_exit();
 
 	case 7:
-		event_remove_source(_cancellation_pipe.read_end, EVENT_SOURCE_TYPE_GENERIC);
+		event_remove_source(_cancellation_pipe.base.read_handle, EVENT_SOURCE_TYPE_GENERIC);
 
 	case 6:
 		pipe_destroy(&_cancellation_pipe);

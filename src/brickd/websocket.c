@@ -1,7 +1,7 @@
 /*
  * brickd
  * Copyright (C) 2014 Olaf Lüke <olaf@tinkerforge.com>
- * Copyright (C) 2014-2016 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2014-2017 Matthias Bolte <matthias@tinkerforge.com>
  *
  * websocket.c: Miniature WebSocket server implementation
  *
@@ -393,10 +393,8 @@ int websocket_parse(Websocket *websocket, void *buffer, int length) {
 
 // sets errno on error
 int websocket_create(Websocket *websocket) {
-	int rc = socket_create(&websocket->base);
-
-	if (rc < 0) {
-		return rc;
+	if (socket_create(&websocket->base) < 0) {
+		return -1;
 	}
 
 	websocket->base.base.type = "WebSocket";

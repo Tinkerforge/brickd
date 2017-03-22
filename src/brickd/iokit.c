@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2012-2014 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2012-2014, 2017 Matthias Bolte <matthias@tinkerforge.com>
  *
  * iokit.c: IOKit specific functions
  *
@@ -190,7 +190,7 @@ int iokit_init(void) {
 
 	phase = 1;
 
-	if (event_add_source(_notification_pipe.read_end, EVENT_SOURCE_TYPE_GENERIC,
+	if (event_add_source(_notification_pipe.base.read_handle, EVENT_SOURCE_TYPE_GENERIC,
 	                     EVENT_READ, iokit_forward_notifications, NULL) < 0) {
 		goto cleanup;
 	}
@@ -226,7 +226,7 @@ cleanup:
 		thread_destroy(&_poll_thread);
 
 	case 2:
-		event_remove_source(_notification_pipe.read_end, EVENT_SOURCE_TYPE_GENERIC);
+		event_remove_source(_notification_pipe.base.read_handle, EVENT_SOURCE_TYPE_GENERIC);
 
 	case 1:
 		pipe_destroy(&_notification_pipe);
@@ -252,7 +252,7 @@ void iokit_exit(void) {
 
 	thread_destroy(&_poll_thread);
 
-	event_remove_source(_notification_pipe.read_end, EVENT_SOURCE_TYPE_GENERIC);
+	event_remove_source(_notification_pipe.base.read_handle, EVENT_SOURCE_TYPE_GENERIC);
 
 	pipe_destroy(&_notification_pipe);
 }

@@ -84,7 +84,7 @@ static void network_handle_accept(void *opaque) {
 	                               hostname, sizeof(hostname),
 	                               port, sizeof(port)) < 0) {
 		log_warn("Could not get hostname and port of client (socket: %d): %s (%d)",
-		         client_socket->base.handle, get_errno_name(errno), errno);
+		         client_socket->handle, get_errno_name(errno), errno);
 	} else {
 		if (address.ss_family == AF_INET6) {
 			snprintf(buffer, sizeof(buffer), "[%s]:%s", hostname, port);
@@ -119,7 +119,7 @@ static int network_open_server_socket(Socket *socket, uint16_t port,
 		return -1;
 	}
 
-	if (event_add_source(socket->base.handle, EVENT_SOURCE_TYPE_GENERIC,
+	if (event_add_source(socket->handle, EVENT_SOURCE_TYPE_GENERIC,
 	                     EVENT_READ, network_handle_accept, socket) < 0) {
 		socket_destroy(socket);
 
@@ -226,14 +226,12 @@ void network_exit(void) {
 	array_destroy(&_zombies, (ItemDestroyFunction)zombie_destroy);
 
 	if (_plain_server_socket_open) {
-		event_remove_source(_plain_server_socket.base.handle,
-		                    EVENT_SOURCE_TYPE_GENERIC);
+		event_remove_source(_plain_server_socket.handle, EVENT_SOURCE_TYPE_GENERIC);
 		socket_destroy(&_plain_server_socket);
 	}
 
 	if (_websocket_server_socket_open) {
-		event_remove_source(_websocket_server_socket.base.handle,
-		                    EVENT_SOURCE_TYPE_GENERIC);
+		event_remove_source(_websocket_server_socket.handle, EVENT_SOURCE_TYPE_GENERIC);
 		socket_destroy(&_websocket_server_socket);
 	}
 }

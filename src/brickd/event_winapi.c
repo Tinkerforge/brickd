@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2012-2014 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2012-2014, 2017 Matthias Bolte <matthias@tinkerforge.com>
  *
  * event_winapi.c: Select based event loop
  *
@@ -354,7 +354,7 @@ int event_init_platform(void) {
 
 	phase = 4;
 
-	if (event_add_source(_stop_pipe.read_end, EVENT_SOURCE_TYPE_GENERIC,
+	if (event_add_source(_stop_pipe.base.read_handle, EVENT_SOURCE_TYPE_GENERIC,
 	                     EVENT_READ, NULL, NULL) < 0) {
 		goto cleanup;
 	}
@@ -425,7 +425,7 @@ cleanup:
 		usbi_close(_usb_poll_suspend_pipe[1]);
 
 	case 5:
-		event_remove_source(_stop_pipe.read_end, EVENT_SOURCE_TYPE_GENERIC);
+		event_remove_source(_stop_pipe.base.read_handle, EVENT_SOURCE_TYPE_GENERIC);
 
 	case 4:
 		pipe_destroy(&_stop_pipe);
@@ -457,7 +457,7 @@ void event_exit_platform(void) {
 	usbi_close(_usb_poll_suspend_pipe[0]);
 	usbi_close(_usb_poll_suspend_pipe[1]);
 
-	event_remove_source(_stop_pipe.read_end, EVENT_SOURCE_TYPE_GENERIC);
+	event_remove_source(_stop_pipe.base.read_handle, EVENT_SOURCE_TYPE_GENERIC);
 	pipe_destroy(&_stop_pipe);
 
 	free(_socket_error_set);
@@ -495,7 +495,7 @@ int event_run_platform(Array *event_sources, bool *running, EventCleanupFunction
 	int event_source_count;
 	uint32_t received_events;
 
-	if (event_add_source(_usb_poll_ready_pipe.read_end,
+	if (event_add_source(_usb_poll_ready_pipe.base.read_handle,
 	                     EVENT_SOURCE_TYPE_GENERIC, EVENT_READ,
 	                     event_forward_usb_events, event_sources) < 0) {
 		return -1;
@@ -692,7 +692,7 @@ cleanup:
 
 	thread_destroy(&_usb_poll_thread);
 
-	event_remove_source(_usb_poll_ready_pipe.read_end, EVENT_SOURCE_TYPE_GENERIC);
+	event_remove_source(_usb_poll_ready_pipe.base.read_handle, EVENT_SOURCE_TYPE_GENERIC);
 
 	return result;
 }

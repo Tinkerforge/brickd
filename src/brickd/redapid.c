@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2014-2015 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2014-2015, 2017 Matthias Bolte <matthias@tinkerforge.com>
  *
  * redapid.c: RED Brick API Daemon interface
  *
@@ -61,7 +61,7 @@ uint8_t _redapid_version[3] = { 2, 0, 0 };
 static void redapid_disconnect(bool reconnect) {
 	writer_destroy(&_redapid.request_writer);
 
-	event_remove_source(_redapid.socket.base.handle, EVENT_SOURCE_TYPE_GENERIC);
+	event_remove_source(_redapid.socket.handle, EVENT_SOURCE_TYPE_GENERIC);
 	socket_destroy(&_redapid.socket);
 
 	_connected = false;
@@ -274,7 +274,7 @@ static void redapid_handle_reconnect(void *opaque) {
 	}
 
 	// add socket as event source
-	if (event_add_source(_redapid.socket.base.handle, EVENT_SOURCE_TYPE_GENERIC,
+	if (event_add_source(_redapid.socket.handle, EVENT_SOURCE_TYPE_GENERIC,
 	                     EVENT_READ, redapid_handle_read, NULL) < 0) {
 		goto cleanup;
 	}
@@ -314,7 +314,7 @@ cleanup:
 		writer_destroy(&_redapid.request_writer);
 
 	case 2:
-		event_remove_source(_redapid.socket.base.handle, EVENT_SOURCE_TYPE_GENERIC);
+		event_remove_source(_redapid.socket.handle, EVENT_SOURCE_TYPE_GENERIC);
 
 	case 1:
 		socket_destroy(&_redapid.socket);

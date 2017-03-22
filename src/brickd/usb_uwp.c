@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2016 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2016-2017 Matthias Bolte <matthias@tinkerforge.com>
  *
  * usb_uwp.c: Universal Windows Platform USB hotplug implementation
  *
@@ -295,7 +295,7 @@ int usb_init_platform(void) {
 		return -1;
 	}
 
-	if (event_add_source(_notification_pipe.read_end, EVENT_SOURCE_TYPE_GENERIC,
+	if (event_add_source(_notification_pipe.base.read_handle, EVENT_SOURCE_TYPE_GENERIC,
 	                     EVENT_READ, usb_forward_notifications, NULL) < 0) {
 		pipe_destroy(&_notification_pipe);
 
@@ -306,7 +306,7 @@ int usb_init_platform(void) {
 }
 
 void usb_exit_platform(void) {
-	event_remove_source(_notification_pipe.read_end, EVENT_SOURCE_TYPE_GENERIC);
+	event_remove_source(_notification_pipe.base.read_handle, EVENT_SOURCE_TYPE_GENERIC);
 	pipe_destroy(&_notification_pipe);
 }
 

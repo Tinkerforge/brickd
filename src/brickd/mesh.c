@@ -1,6 +1,7 @@
 /*
  * brickd
  * Copyright (C) 2016 Ishraq Ibne Ashraf <ishraq@tinkerforge.com>
+ * Copyright (C) 2017 Matthias Bolte <matthias@tinkerforge.com>
  *
  * mesh.c: Mesh specific functions
  *
@@ -67,7 +68,7 @@ int mesh_init(void) {
 void mesh_exit(void) {
 	log_debug("Shutting down mesh subsystem");
 
-	event_remove_source(mesh_listen_socket.base.handle, EVENT_SOURCE_TYPE_GENERIC);
+	event_remove_source(mesh_listen_socket.handle, EVENT_SOURCE_TYPE_GENERIC);
 	socket_destroy(&mesh_listen_socket);
 
 	array_destroy(&mesh_stacks, (ItemDestroyFunction)mesh_stack_destroy);
@@ -108,7 +109,7 @@ void mesh_handle_accept(void *opaque) {
 	                               port,
 																 sizeof(port)) < 0) {
 		log_warn("Could not get hostname and port of mesh client (socket: %d): %s (%d)",
-		         mesh_client_socket->base.handle, get_errno_name(errno), errno);
+		         mesh_client_socket->handle, get_errno_name(errno), errno);
 	}
   else {
 		snprintf(buffer, sizeof(buffer), "%s:%s", hostname, port);
@@ -138,7 +139,7 @@ int mesh_start_listening(void) {
 		return -1;
 	}
 
-	if (event_add_source(mesh_listen_socket.base.handle, EVENT_SOURCE_TYPE_GENERIC,
+	if (event_add_source(mesh_listen_socket.handle, EVENT_SOURCE_TYPE_GENERIC,
 	                     EVENT_READ, mesh_handle_accept, NULL) < 0) {
 		socket_destroy(&mesh_listen_socket);
 
