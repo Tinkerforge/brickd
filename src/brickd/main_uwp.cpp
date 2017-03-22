@@ -22,6 +22,7 @@
 #include <fcntl.h>
 #include <winsock2.h>
 #include <ppltasks.h>
+#include <agile.h>
 
 extern "C" {
 
@@ -31,7 +32,9 @@ extern "C" {
 #include <daemonlib\pipe.h>
 #include <daemonlib\socket.h>
 #include <daemonlib\utils.h>
+#include <daemonlib\utils_uwp.h>
 
+#include "app_service.h"
 #include "hardware.h"
 #include "network.h"
 #include "usb.h"
@@ -43,10 +46,18 @@ extern "C" {
 using namespace concurrency;
 using namespace Platform;
 using namespace Windows::ApplicationModel;
+using namespace Windows::ApplicationModel::AppService;
 using namespace Windows::ApplicationModel::Background;
 using namespace Windows::Foundation;
+using namespace Windows::Foundation::Collections;
 using namespace Windows::Storage;
 using namespace Windows::Storage::Search;
+
+typedef struct {
+	char *caller;
+	Agile<BackgroundTaskDeferral ^> deferral;
+	Agile<AppServiceConnection ^> connection;
+} AppServiceAccept;
 
 extern "C" void LIBUSB_CALL usbi_init(void);
 
@@ -55,7 +66,9 @@ extern "C" void LIBUSB_CALL usbi_init(void);
 
 static LogSource _log_source = LOG_SOURCE_INITIALIZER;
 
+static bool _main_running = false;
 static Pipe _cancellation_pipe;
+static Pipe _app_service_accept_pipe;
 
 static void handle_cancellation(void *opaque) {
 	int value;
@@ -124,6 +137,128 @@ static void handle_cancellation(void *opaque) {
 	event_stop();
 }
 
+static void handle_app_service_accept(void *opaque) {
+	int phase = 0;
+	AppServiceAccept *accept;
+	AppService_ *app_service;
+
+	(void)opaque;
+
+	if (pipe_read(&_app_service_accept_pipe, &accept, sizeof(accept)) < 0) {
+		log_error("Could not read from AppService accept pipe: %s (%d)",
+		          get_errno_name(errno), errno);
+
+		return;
+	}
+
+	phase = 1;
+
+	// create new AppService
+	app_service = (AppService_ *)calloc(1, sizeof(AppService_));
+
+	if (app_service == nullptr) {
+		log_error("Could not allocate AppService (caller: %s): %s (%d)",
+		          accept->caller, get_errno_name(ENOMEM), ENOMEM);
+
+		goto error;
+	}
+
+	phase = 2;
+
+	if (app_service_create(app_service, accept->caller,
+	                       accept->deferral, accept->connection) < 0) {
+		log_error("Could not create AppService (caller: %s): %s (%d)",
+		          accept->caller, get_errno_name(errno), errno);
+
+		goto error;
+	}
+
+	phase = 3;
+
+	// create new client
+	if (network_create_client(accept->caller, &app_service->base) == NULL) {
+		goto error;
+	}
+
+	free(accept->caller);
+	free(accept);
+
+	return;
+
+error:
+	accept->deferral->Complete();
+
+	switch (phase) { // no breaks, all cases fall through intentionally
+	case 3:
+		app_service_destroy(app_service);
+
+	case 2:
+		free(app_service);
+
+	case 1:
+		free(accept->caller);
+		free(accept);
+
+	default:
+		break;
+	}
+}
+
+// NOTE: assumes that main is running
+static void accept_app_service(IBackgroundTaskInstance ^task_instance) {
+	AppServiceTriggerDetails ^trigger_details;
+	char *caller;
+	BackgroundTaskDeferral ^deferral;
+	AppServiceConnection ^connection;
+	AppServiceAccept *accept;
+
+	trigger_details = dynamic_cast<AppServiceTriggerDetails ^>(task_instance->TriggerDetails);
+
+	if (trigger_details == nullptr) {
+		return;
+	}
+
+	caller = string_convert_ascii(trigger_details->CallerPackageFamilyName);
+
+	if (caller == nullptr) {
+		log_error("Could not convert AppService caller name: %s (%d)",
+		          get_errno_name(errno), errno);
+
+		return;
+	}
+
+	log_info("Accepting AppService (caller: %s)", caller);
+
+	deferral = task_instance->GetDeferral();
+	connection = trigger_details->AppServiceConnection;
+	accept = (AppServiceAccept *)calloc(1, sizeof(AppServiceAccept));
+
+	if (accept == nullptr) {
+		log_error("Could not allocate AppService (caller: %s) accept: %s (%d)",
+		          caller, get_errno_name(ENOMEM), ENOMEM);
+
+		deferral->Complete();
+		free(caller);
+
+		return;
+	}
+
+	accept->caller = caller;
+	accept->deferral = Agile<BackgroundTaskDeferral ^>(deferral);
+	accept->connection = Agile<AppServiceConnection ^>(connection);
+
+	if (pipe_write(&_app_service_accept_pipe, &accept, sizeof(accept)) < 0) {
+		log_error("Could not write to AppService accept pipe: %s (%d)",
+		          get_errno_name(errno), errno);
+
+		deferral->Complete();
+		free(caller);
+		free(accept);
+
+		return;
+	}
+}
+
 static void handle_event_cleanup(void) {
 	network_cleanup_clients_and_zombies();
 	mesh_cleanup_stacks();
@@ -131,13 +266,13 @@ static void handle_event_cleanup(void) {
 
 namespace brickd_uwp {
 	[Windows::Foundation::Metadata::WebHostHidden]
-	public ref class StartupTask sealed : public IBackgroundTask {
+	public ref class MainTask sealed : public IBackgroundTask {
 	public:
 		virtual void Run(IBackgroundTaskInstance ^taskInstance);
 	};
 }
 
-void brickd_uwp::StartupTask::Run(IBackgroundTaskInstance ^taskInstance) {
+void brickd_uwp::MainTask::Run(IBackgroundTaskInstance ^taskInstance) {
 	int phase = 0;
 	char config_filename[1024];
 	char buffer[1024];
@@ -148,6 +283,14 @@ void brickd_uwp::StartupTask::Run(IBackgroundTaskInstance ^taskInstance) {
 	WSADATA wsa_data;
 	IStorageQueryResultBase ^query;
 	File *log_file_ptr = &log_file;
+
+	if (_main_running) {
+		accept_app_service(taskInstance);
+
+		return;
+	}
+
+	_main_running = true;
 
 	fixes_init();
 
@@ -163,7 +306,7 @@ void brickd_uwp::StartupTask::Run(IBackgroundTaskInstance ^taskInstance) {
 
 		OutputDebugStringA(buffer);
 
-		return;
+		goto cleanup;
 	}
 
 	config_init(config_filename);
@@ -325,12 +468,36 @@ void brickd_uwp::StartupTask::Run(IBackgroundTaskInstance ^taskInstance) {
 
 	phase = 9;
 
+	if (pipe_create(&_app_service_accept_pipe, 0) < 0) {
+		log_error("Could not create AppService accept pipe: %s (%d)",
+		          get_errno_name(errno), errno);
+
+		goto cleanup;
+	}
+
+	phase = 10;
+
+	if (event_add_source(_app_service_accept_pipe.base.read_handle, EVENT_SOURCE_TYPE_GENERIC,
+	                     EVENT_READ, handle_app_service_accept, nullptr) < 0) {
+		goto cleanup;
+	}
+
+	phase = 11;
+
+	accept_app_service(taskInstance);
+
 	if (event_run(handle_event_cleanup) < 0) {
 		goto cleanup;
 	}
 
 cleanup:
 	switch (phase) { // no breaks, all cases fall through intentionally
+	case 11:
+		event_remove_source(_app_service_accept_pipe.base.read_handle, EVENT_SOURCE_TYPE_GENERIC);
+
+	case 10:
+		pipe_destroy(&_app_service_accept_pipe);
+
 	case 9:
 		mesh_exit();
 
@@ -362,4 +529,6 @@ cleanup:
 	default:
 		break;
 	}
+
+	_main_running = false;
 }
