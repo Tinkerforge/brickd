@@ -117,6 +117,8 @@ static void mesh_stack_recv_handler(void *opaque) {
 
     read_len = mesh_header->len;
 
+    // FIXME: add mesh_header->len validation
+
     if (mesh_stack->incoming_buffer_used < read_len) {
       // Wait for complete packet.
       log_debug("Waiting for complete mesh packet");
@@ -161,6 +163,8 @@ static void timer_wait_hello_handler(void *opaque) {
 
   log_warn("Wait hello timed out, destroying mesh stack (N: %s)",
            mesh_stack->name);
+
+  // FIXME: dont send reset, just close the connection and destroy the stack immediatly
 
   broadcast_reset_packet(mesh_stack);
 
