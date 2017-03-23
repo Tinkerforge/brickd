@@ -48,10 +48,9 @@ using namespace Platform;
 using namespace Windows::ApplicationModel;
 using namespace Windows::ApplicationModel::AppService;
 using namespace Windows::ApplicationModel::Background;
-using namespace Windows::Foundation;
-using namespace Windows::Foundation::Collections;
-using namespace Windows::Storage;
-using namespace Windows::Storage::Search;
+
+//#define LOG_SERVER_ADDRESS "192.168.178.52"
+//#define LOG_SERVER_PORT 11111
 
 typedef struct {
 	char *caller;
@@ -61,14 +60,22 @@ typedef struct {
 
 extern "C" void LIBUSB_CALL usbi_init(void);
 
-#define CONFIG_FILENAME (ApplicationData::Current->LocalFolder->Path + "\\brickd.ini")
-#define LOG_FILENAME (ApplicationData::Current->LocalFolder->Path + "\\brickd.log")
-
 static LogSource _log_source = LOG_SOURCE_INITIALIZER;
 
 static bool _main_running = false;
 static Pipe _cancellation_pipe;
 static Pipe _app_service_accept_pipe;
+
+static void debugf(const char *format, ...) {
+	va_list arguments;
+	char buffer[1024];
+
+	va_start(arguments, format);
+	vsnprintf(buffer, sizeof(buffer), format, arguments);
+	va_end(arguments);
+
+	OutputDebugStringA(buffer);
+}
 
 static void handle_cancellation(void *opaque) {
 	int value;
@@ -274,15 +281,12 @@ namespace brickd_uwp {
 
 void brickd_uwp::MainTask::Run(IBackgroundTaskInstance ^taskInstance) {
 	int phase = 0;
-	char config_filename[1024];
-	char buffer[1024];
-	char log_filename[1024];
-	char *log_filename_ptr = log_filename;
 	int rc;
-	File log_file;
 	WSADATA wsa_data;
-	IStorageQueryResultBase ^query;
-	File *log_file_ptr = &log_file;
+#ifdef LOG_SERVER_ADDRESS
+	Socket log_socket;
+	struct addrinfo *resolved_address = nullptr;
+#endif
 
 	if (_main_running) {
 		accept_app_service(taskInstance);
@@ -296,139 +300,96 @@ void brickd_uwp::MainTask::Run(IBackgroundTaskInstance ^taskInstance) {
 
 	usbi_init();
 
-	if (WideCharToMultiByte(CP_UTF8, 0, CONFIG_FILENAME->Data(), -1, config_filename,
-	                        sizeof(config_filename), NULL, NULL) == 0) {
-		rc = ERRNO_WINAPI_OFFSET + GetLastError();
+	config_init(nullptr);
 
-		snprintf(buffer, sizeof(buffer),
-		         "Could not convert config filename to UTF-8: %s (%d)\n",
-		         get_errno_name(rc), rc);
+	phase = 1;
 
-		OutputDebugStringA(buffer);
+#if false // FIXME: config cannot have errors, because not config file is loaded
+	if (config_has_error()) {
+		debugf("Error(s) occurred while reading config file '%s'\n",
+		       config_filename);
+
+		goto cleanup;
+	}
+#endif
+
+	if (WSAStartup(MAKEWORD(2, 2), &wsa_data) != 0) {
+		rc = ERRNO_WINAPI_OFFSET + WSAGetLastError();
+
+		debugf("Could not initialize Windows Sockets 2.2: %s (%d)\n",
+		       get_errno_name(rc), rc);
 
 		goto cleanup;
 	}
 
-	config_init(config_filename);
+#ifdef LOG_SERVER_ADDRESS
+	if (socket_create(&log_socket) < 0) {
+		debugf("Could not create log socket: %s (%d)\n", get_errno_name(errno), errno);
 
-	phase = 1;
+		goto cleanup;
+	}
 
-	if (config_has_error()) {
-		snprintf(buffer, sizeof(buffer),
-		         "Error(s) occurred while reading config file '%s'\n",
-		         config_filename);
+	phase = 2;
+	resolved_address = socket_hostname_to_address(LOG_SERVER_ADDRESS, LOG_SERVER_PORT);
 
-		OutputDebugStringA(buffer);
+	if (resolved_address == NULL) {
+		debugf("Could not resolve log server address '%s' (port: %u): %s (%d)\n",
+		       LOG_SERVER_ADDRESS, LOG_SERVER_PORT, get_errno_name(errno), errno);
+
+		goto cleanup;
+	}
+
+	phase = 3;
+
+	if (socket_open(&log_socket, resolved_address->ai_family,
+		            resolved_address->ai_socktype, resolved_address->ai_protocol) < 0) {
+		debugf("Could not open log server socket: %s (%d)\n",
+		       get_errno_name(errno), errno);
+
+		goto cleanup;
+	}
+
+	if (socket_connect(&log_socket, resolved_address->ai_addr,
+		               resolved_address->ai_addrlen) < 0) {
+		debugf("Could not connect to log server '%s' on port %u: %s (%d)\n",
+		       LOG_SERVER_ADDRESS, LOG_SERVER_PORT, get_errno_name(errno), errno);
 
 		goto cleanup;
 	}
 
 	log_init();
+	log_set_output(&log_socket.base);
+#else
+	log_init();
+#endif
 
-	if (WideCharToMultiByte(CP_UTF8, 0, LOG_FILENAME->Data(), -1, log_filename,
-	                        sizeof(log_filename), NULL, NULL) == 0) {
-		rc = ERRNO_WINAPI_OFFSET + GetLastError();
-
-		log_warn("Could not convert log filename to UTF-8: %s (%d)",
-		         get_errno_name(rc), rc);
-	} else {
-		if (file_create(&log_file, log_filename,
-		                O_CREAT | O_WRONLY | O_APPEND | O_BINARY,
-		                S_IREAD | S_IWRITE) < 0) {
-			log_warn("Could not open log file '%s': %s (%d)",
-			         log_filename, get_errno_name(errno), errno);
-		} else {
-			log_set_output(&log_file.base);
-		}
-	}
+	phase = 4;
 
 	log_info("Brick Daemon %s started", VERSION_STRING);
 
+#if false // FIXME: config cannot have warnings, because not config file is loaded
 	if (config_has_warning()) {
 		log_warn("Warning(s) in config file '%s'", config_filename);
 	}
-
-	phase = 2;
-
-	// initialize WinSock2
-	if (WSAStartup(MAKEWORD(2, 2), &wsa_data) != 0) {
-		rc = ERRNO_WINAPI_OFFSET + WSAGetLastError();
-
-		log_error("Could not initialize Windows Sockets 2.2: %s (%d)",
-		          get_errno_name(rc), rc);
-
-		goto cleanup;
-	}
+#endif
 
 	if (event_init() < 0) {
 		goto cleanup;
 	}
 
-	phase = 3;
-	query = ApplicationData::Current->LocalFolder->CreateFileQuery();
-
-	query->ContentsChanged += ref new TypedEventHandler<IStorageQueryResultBase ^, Object ^>(
-	[log_filename_ptr, log_file_ptr](IStorageQueryResultBase ^sender, Object ^args) {
-		create_task(ApplicationData::Current->LocalFolder->GetFilesAsync())
-		.then([log_filename_ptr, log_file_ptr](Collections::IVectorView<StorageFile ^> ^files) {
-			for (size_t i = 0; i < files->Size; ++i) {
-				if (files->GetAt(i)->Name->Equals("open-log.action")) {
-					create_task(files->GetAt(i)->DeleteAsync(StorageDeleteOption::PermanentDelete)).wait();
-
-					log_info("Found open-log.action file");
-
-					if (log_get_output() == &log_file_ptr->base) {
-						log_info("Log file is already open");
-
-						continue;
-					}
-
-					if (file_create(log_file_ptr, log_filename_ptr,
-						            O_CREAT | O_WRONLY | O_APPEND | O_BINARY,
-						            S_IREAD | S_IWRITE) < 0) {
-						log_warn("Could not open log file '%s': %s (%d)",
-						         log_filename_ptr, get_errno_name(errno), errno);
-
-						continue;
-					}
-
-					log_set_output(&log_file_ptr->base);
-
-					log_info("Opened log file '%s'", log_filename_ptr);
-				} else if (files->GetAt(i)->Name->Equals("close-log.action")) {
-					create_task(files->GetAt(i)->DeleteAsync(StorageDeleteOption::PermanentDelete)).wait();
-
-					log_info("Found close-log.action file");
-
-					if (log_get_output() != &log_file_ptr->base) {
-						log_info("Log file is already closed");
-
-						continue;
-					}
-
-					log_set_output(&log_stderr_output);
-
-					file_destroy(log_file_ptr);
-
-					log_info("Closed log file '%s'", log_filename_ptr);
-				}
-			}
-		}).wait();
-	});
-
-	query->GetItemCountAsync();
+	phase = 5;
 
 	if (hardware_init() < 0) {
 		goto cleanup;
 	}
 
-	phase = 4;
+	phase = 6;
 
 	if (usb_init() < 0) {
 		goto cleanup;
 	}
 
-	phase = 5;
+	phase = 7;
 
 	if (pipe_create(&_cancellation_pipe, 0) < 0) {
 		log_error("Could not create cancellation pipe: %s (%d)",
@@ -437,14 +398,14 @@ void brickd_uwp::MainTask::Run(IBackgroundTaskInstance ^taskInstance) {
 		goto cleanup;
 	}
 
-	phase = 6;
+	phase = 8;
 
 	if (event_add_source(_cancellation_pipe.base.read_handle, EVENT_SOURCE_TYPE_GENERIC,
 	                     EVENT_READ, handle_cancellation, nullptr) < 0) {
 		goto cleanup;
 	}
 
-	phase = 7;
+	phase = 9;
 
 	taskInstance->Canceled += ref new BackgroundTaskCanceledEventHandler(
 	[](IBackgroundTaskInstance ^sender, BackgroundTaskCancellationReason reason) {
@@ -460,13 +421,13 @@ void brickd_uwp::MainTask::Run(IBackgroundTaskInstance ^taskInstance) {
 		goto cleanup;
 	}
 
-	phase = 8;
+	phase = 10;
 
 	if (mesh_init() < 0) {
 		goto cleanup;
 	}
 
-	phase = 9;
+	phase = 11;
 
 	if (pipe_create(&_app_service_accept_pipe, 0) < 0) {
 		log_error("Could not create AppService accept pipe: %s (%d)",
@@ -475,14 +436,14 @@ void brickd_uwp::MainTask::Run(IBackgroundTaskInstance ^taskInstance) {
 		goto cleanup;
 	}
 
-	phase = 10;
+	phase = 12;
 
 	if (event_add_source(_app_service_accept_pipe.base.read_handle, EVENT_SOURCE_TYPE_GENERIC,
 	                     EVENT_READ, handle_app_service_accept, nullptr) < 0) {
 		goto cleanup;
 	}
 
-	phase = 11;
+	phase = 13;
 
 	accept_app_service(taskInstance);
 
@@ -492,36 +453,44 @@ void brickd_uwp::MainTask::Run(IBackgroundTaskInstance ^taskInstance) {
 
 cleanup:
 	switch (phase) { // no breaks, all cases fall through intentionally
-	case 11:
+	case 13:
 		event_remove_source(_app_service_accept_pipe.base.read_handle, EVENT_SOURCE_TYPE_GENERIC);
 
-	case 10:
+	case 12:
 		pipe_destroy(&_app_service_accept_pipe);
 
-	case 9:
+	case 11:
 		mesh_exit();
 
-	case 8:
+	case 10:
 		network_exit();
 
-	case 7:
+	case 9:
 		event_remove_source(_cancellation_pipe.base.read_handle, EVENT_SOURCE_TYPE_GENERIC);
 
-	case 6:
+	case 8:
 		pipe_destroy(&_cancellation_pipe);
 
-	case 5:
+	case 7:
 		usb_exit();
 
-	case 4:
+	case 6:
 		hardware_exit();
 
-	case 3:
+	case 5:
 		event_exit();
 
-	case 2:
+	case 4:
 		log_info("Brick Daemon %s stopped", VERSION_STRING);
 		log_exit();
+
+#ifdef LOG_SERVER_ADDRESS
+	case 3:
+		freeaddrinfo(resolved_address);
+
+	case 2:
+		socket_destroy(&log_socket);
+#endif
 
 	case 1:
 		config_exit();
