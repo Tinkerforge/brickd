@@ -111,8 +111,12 @@ static const uint8_t _red_stack_spi_pearson_permutation[RED_STACK_SPI_PEARSON_PE
 #define RED_STACK_TRANSCEIVE_RESULT_MASK_SEND   0x7
 #define RED_STACK_TRANSCEIVE_RESULT_MASK_READ   0x38
 
-#define RED_STACK_RESET_PIN_GPIO_NUM            16           // defined in fex file
-#define RED_STACK_RESET_PIN_GPIO_NAME           "gpio16_pb5" // defined in fex file
+/*
+ * ((PORT_ALPHABET_INDEX - 1) * 32) + PIN_NR
+ * Example: For PB5, ((2 - 1) * 32) + 5 = 37
+ */
+#define RED_STACK_RESET_PIN_GPIO_NUM            37
+#define RED_STACK_RESET_PIN_GPIO_NAME           "gpio37"
 
 static char packet_signature[PACKET_MAX_SIGNATURE_LENGTH];
 
