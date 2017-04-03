@@ -78,8 +78,12 @@ int red_ethernet_extension_init(ExtensionEthernetConfig *config) {
 
 	switch (config->extension) {
 	case 1:
-		param_pin_reset     = 20;
-		param_pin_interrupt = 21;
+		/*
+		 * ((PORT_ALPHABET_INDEX - 1) * 32) + PIN_NR
+		 * Example: For PB5, ((2 - 1) * 32) + 5 = 37
+		 */
+		param_pin_reset     = 197; //20; // PG05
+		param_pin_interrupt = 195; //21; // PG03
 		param_select        = 1;
 		pin.pin_index       = GPIO_PIN_13; // CS1
 
@@ -92,10 +96,14 @@ int red_ethernet_extension_init(ExtensionEthernetConfig *config) {
 		// Fallthrough
 
 	case 0:
-		param_pin_reset     = 15;
-		param_pin_interrupt = 17;
-		param_select        = 0;
-		pin.pin_index       = GPIO_PIN_9; // CS0
+		/*
+		 * ((PORT_ALPHABET_INDEX - 1) * 32) + PIN_NR
+		 * Example: For PB5, ((2 - 1) * 32) + 5 = 37
+		 */
+			param_pin_reset     = 45; //15; // PB13
+			param_pin_interrupt = 46; //17; // PB14
+			param_select        = 0;
+			pin.pin_index       = GPIO_PIN_9; // CS0
 
 		break;
 	}
