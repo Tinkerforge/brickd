@@ -199,7 +199,6 @@ int red_usb_gadget_init(void) {
 
 	log_debug("Initializing RED Brick USB gadget subsystem");
 
-	// read UID from /proc/red_brick_uid
 	if (red_brick_uid(&_uid) < 0) {
 		log_error("Could not get RED Brick UID: %s (%d)",
 		          get_errno_name(errno), errno);
