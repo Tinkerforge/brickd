@@ -24,6 +24,8 @@
 
 #include <stdint.h>
 #include <stdlib.h>
+#include <sys/types.h> // for ssize_t
+#include <sys/time.h> // for struct timeval
 
 #define LIBUSB_ENDPOINT_DIR_MASK 0x80
 
