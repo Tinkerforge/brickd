@@ -11,7 +11,11 @@ Brick Daemon uses the common Tinkerforge daemonlib::
  http://github.com/Tinkerforge/daemonlib
 
 It has to be cloned or symlinked to the ``src/daemonlib`` directory before
-the source code can be compiled.
+the source code can be compiled. Make sure that you're using matching versions
+of the brickd and daemonlib source code. If you're using the the current git
+version of brickd then you also need the current git version of daemonlib. If
+you're using a specific release of brickd (e.g. tagged v2.3.0) then you also
+need the matching release of daemonlib (e.g. tagged brickd-2.3.0).
 
 Also the following libraries are required:
 
