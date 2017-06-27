@@ -46,6 +46,7 @@
 #include <daemonlib/red_gpio.h>
 #include <daemonlib/red_i2c_eeprom.h>
 #include <daemonlib/threads.h>
+#include <daemonlib/timer.h>
 #include <daemonlib/conf_file.h>
 
 #include "red_rs485_extension.h"
