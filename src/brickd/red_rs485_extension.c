@@ -228,7 +228,7 @@ bool is_current_request_empty(void);
 void seq_pop_poll(void);
 void arm_master_poll_slave_interval_timer(void);
 bool init_crc_error_count_to_fs(void);
-static void update_crc_error_count_to_fs(void *opaque);
+static void update_crc_error_count_to_fs(void);
 
 // CRC16 function
 uint16_t crc16(uint8_t *buffer, uint16_t buffer_length) {
@@ -1176,7 +1176,7 @@ bool init_crc_error_count_to_fs(void) {
 	return true;
 }
 
-static void update_crc_error_count_to_fs(void *opaque) {
+static void update_crc_error_count_to_fs(void) {
 	char buffer[1024];
 
 	// Write options
@@ -1187,5 +1187,5 @@ static void update_crc_error_count_to_fs(void *opaque) {
 		          "type", get_errno_name(errno), errno);
 	}
 
-	log_debug("CRC error count updated, current value: %d", crc_error_count_value);
+	log_debug("CRC error count updated, current value: %ju", crc_error_count_value);
 }
