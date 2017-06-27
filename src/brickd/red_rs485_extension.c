@@ -46,6 +46,7 @@
 #include <daemonlib/red_gpio.h>
 #include <daemonlib/red_i2c_eeprom.h>
 #include <daemonlib/threads.h>
+#include <daemonlib/conf_file.h>
 
 #include "red_rs485_extension.h"
 
@@ -54,6 +55,14 @@
 #include "stack.h"
 
 static LogSource _log_source = LOG_SOURCE_INITIALIZER;
+
+#define CRC_ERROR_COUNT_UPDATE_INTERVAL 4000000 // 4 seconds in microseconds
+#define RS485_EXTENSION_CRC_ERROR_COUNT_COMMENT   "# This file is written by brickd's RS485 stack."
+#define RS485_EXTENSION_CRC_ERROR_COUNT_FILE_PATH "/tmp/rs485_extension_crc_error_count.conf"
+
+static ConfFile crc_error_count_file;
+static uint64_t crc_error_count_value = 0;
+static Timer crc_error_count_update_timer;
 
 #define RS485_EXTENSION_FUNCTION_CODE                                   100 // Custom modbus function code
 
@@ -217,6 +226,8 @@ void pop_packet_from_slave_queue(void);
 bool is_current_request_empty(void);
 void seq_pop_poll(void);
 void arm_master_poll_slave_interval_timer(void);
+bool init_crc_error_count_to_fs(void);
+static void update_crc_error_count_to_fs(uint64_t count);
 
 // CRC16 function
 uint16_t crc16(uint8_t *buffer, uint16_t buffer_length) {
@@ -460,6 +471,9 @@ void verify_buffer(void) {
 	crc16_on_packet = (_receive.buffer[frame_length - 2] << 8) | _receive.buffer[frame_length - 1];
 
 	if (crc16_calculated != crc16_on_packet) {
+		// Increase CRC error count
+		crc_error_count_value++;
+
 		// Move on to next slave
 		disable_master_timer();
 		log_error("Received response (frame: %s) with CRC-16 mismatch (actual: %04X != expected: %04X)",
@@ -921,6 +935,7 @@ int red_rs485_extension_init(ExtensionRS485Config *rs485_config) {
 	int phase = 0;
 	bool cleanup_return_zero = false;
 	int i;
+	bool init_crc_error_count = false;
 
 	log_info("Initializing extension subsystem");
 
@@ -1018,9 +1033,20 @@ int red_rs485_extension_init(ExtensionRS485Config *rs485_config) {
 		_initialized = true;
 		log_info("Initialized as master");
 		master_poll_slave();
-	} else {
-		log_warn("No slaves configured");
+	}
+
+	init_crc_error_count = init_crc_error_count_to_fs();
+
+	if (!init_crc_error_count || _red_rs485_extension.slave_num <= 0){
+		if(_red_rs485_extension.slave_num <= 0) {
+			log_warn("No slaves configured");
+		}
+
 		cleanup_return_zero = true;
+
+		if (!init_crc_error_count) {
+			cleanup_return_zero = false;
+		}
 
 		goto cleanup;
 	}
@@ -1086,4 +1112,81 @@ void red_rs485_extension_exit(void) {
 			queue_destroy(&_red_rs485_extension.slaves[i].packet_queue, NULL);
 		}
 	}
+
+	conf_file_destroy(&crc_error_count_file);
+	timer_destroy(&crc_error_count_update_timer);
+}
+
+bool init_crc_error_count_to_fs(void) {
+	ConfFileLine *line;
+	char buffer[4];
+	int ret = 0;
+	uint8_t i = 0;
+
+	// Create file
+	if (conf_file_create(&crc_error_count_file) < 0) {
+		log_error("Could not create RS485 CRC error count file: %s (%d)",
+		          get_errno_name(errno), errno);
+
+		return false;
+	}
+
+	// Write comment
+	line = array_append(&crc_error_count_file.lines);
+
+	if (line == NULL) {
+		log_error("Could not add comment to RS485 CRC error count file: %s (%d)",
+		          get_errno_name(errno), errno);
+
+		conf_file_destroy(&crc_error_count_file);
+
+		return false;
+	}
+
+	line->raw = strdup(RS485_EXTENSION_CRC_ERROR_COUNT_COMMENT);
+	line->name = NULL;
+	line->value = NULL;
+
+	// Write options
+	snprintf(buffer, sizeof(buffer), "%d", 0);
+
+	if (conf_file_set_option_value(&crc_error_count_file, "crc_errors" , buffer) < 0) {
+		log_error("Could not set '%s' option for RS485 CRC error count file: %s (%d)",
+		          "type", get_errno_name(errno), errno);
+
+		conf_file_destroy(&crc_error_count_file);
+
+		return false;
+	}
+
+	// Setup and start CRC error count value update timer
+	if (timer_create_(&crc_error_count_update_timer, update_crc_error_count_to_fs, NULL) < 0) {
+		log_error("Could not create CRC error count update timer: %s (%d)",
+							get_errno_name(errno), errno);
+
+		return false;
+	}
+
+	if (timer_configure(&crc_error_count_update_timer, 0, CRC_ERROR_COUNT_UPDATE_INTERVAL) < 0) {
+		log_error("Could not start CRC error count update timer: %s (%d)",
+							get_errno_name(errno), errno);
+
+		return false;
+	}
+
+	return true;
+}
+
+static void update_crc_error_count_to_fs() {
+	char buffer[1024];
+
+	// Write options
+	snprintf(buffer, sizeof(buffer), "%d", crc_error_count_value);
+
+	if (conf_file_set_option_value(&crc_error_count_file, "crc_errors" , buffer) < 0) {
+		log_error("Could not set '%s' option for RS485 CRC error count file: %s (%d)",
+		          "type", get_errno_name(errno), errno);
+	}
+
+	log_debug("CRC error count updated, current value: %d", crc_error_count_value);
 }
