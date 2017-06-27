@@ -1178,7 +1178,7 @@ bool init_crc_error_count_to_fs(void) {
 
 static void update_crc_error_count_to_fs(void *opaque) {
 	char buffer[1024];
-	uint64_t _crc_error_count_value = (uint64_t)*opaque;
+	uint64_t _crc_error_count_value = *((uint64_t *)opaque);
 
 	// Write options
 	snprintf(buffer, sizeof(buffer), "%d", (int)_crc_error_count_value);
