@@ -228,7 +228,7 @@ bool is_current_request_empty(void);
 void seq_pop_poll(void);
 void arm_master_poll_slave_interval_timer(void);
 bool init_crc_error_count_to_fs(void);
-static void update_crc_error_count_to_fs(void);
+static void update_crc_error_count_to_fs(void *opaque);
 
 // CRC16 function
 uint16_t crc16(uint8_t *buffer, uint16_t buffer_length) {
@@ -1159,7 +1159,7 @@ bool init_crc_error_count_to_fs(void) {
 	}
 
 	// Setup and start CRC error count value update timer
-	if (timer_create_(&crc_error_count_update_timer, update_crc_error_count_to_fs, NULL) < 0) {
+	if (timer_create_(&crc_error_count_update_timer, update_crc_error_count_to_fs, &crc_error_count_value) < 0) {
 		log_error("Could not create CRC error count update timer: %s (%d)",
 							get_errno_name(errno), errno);
 
@@ -1176,16 +1176,17 @@ bool init_crc_error_count_to_fs(void) {
 	return true;
 }
 
-static void update_crc_error_count_to_fs(void) {
+static void update_crc_error_count_to_fs(void *opaque) {
 	char buffer[1024];
+	uint64_t _crc_error_count_value = (uint64_t)*opaque;
 
 	// Write options
-	snprintf(buffer, sizeof(buffer), "%ju", crc_error_count_value);
+	snprintf(buffer, sizeof(buffer), "%d", (int)_crc_error_count_value);
 
 	if (conf_file_set_option_value(&crc_error_count_file, "crc_errors" , buffer) < 0) {
 		log_error("Could not set '%s' option for RS485 CRC error count file: %s (%d)",
 		          "type", get_errno_name(errno), errno);
 	}
 
-	log_debug("CRC error count updated, current value: %ju", crc_error_count_value);
+	log_debug("CRC error count updated, current value: %d", (int)_crc_error_count_value);
 }
