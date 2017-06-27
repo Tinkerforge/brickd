@@ -228,7 +228,7 @@ bool is_current_request_empty(void);
 void seq_pop_poll(void);
 void arm_master_poll_slave_interval_timer(void);
 bool init_crc_error_count_to_fs(void);
-static void update_crc_error_count_to_fs(uint64_t count);
+static void update_crc_error_count_to_fs(void *opaque);
 
 // CRC16 function
 uint16_t crc16(uint8_t *buffer, uint16_t buffer_length) {
@@ -1121,8 +1121,6 @@ void red_rs485_extension_exit(void) {
 bool init_crc_error_count_to_fs(void) {
 	ConfFileLine *line;
 	char buffer[4];
-	int ret = 0;
-	uint8_t i = 0;
 
 	// Create file
 	if (conf_file_create(&crc_error_count_file) < 0) {
@@ -1178,11 +1176,11 @@ bool init_crc_error_count_to_fs(void) {
 	return true;
 }
 
-static void update_crc_error_count_to_fs() {
+static void update_crc_error_count_to_fs(void *opaque) {
 	char buffer[1024];
 
 	// Write options
-	snprintf(buffer, sizeof(buffer), "%d", crc_error_count_value);
+	snprintf(buffer, sizeof(buffer), "%ju", crc_error_count_value);
 
 	if (conf_file_set_option_value(&crc_error_count_file, "crc_errors" , buffer) < 0) {
 		log_error("Could not set '%s' option for RS485 CRC error count file: %s (%d)",
