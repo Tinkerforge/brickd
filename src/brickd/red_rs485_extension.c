@@ -1120,7 +1120,7 @@ void red_rs485_extension_exit(void) {
 
 bool init_crc_error_count_to_fs(void) {
 	ConfFileLine *line;
-	char buffer[4];
+	char buffer[1024];
 
 	// Create file
 	if (conf_file_create(&crc_error_count_file) < 0) {
@@ -1158,6 +1158,14 @@ bool init_crc_error_count_to_fs(void) {
 		return false;
 	}
 
+	// Write config to filesystem
+	if (conf_file_write(&crc_error_count_file, RS485_EXTENSION_CRC_ERROR_COUNT_FILE_PATH) < 0) {
+		log_error("Could not write config to '%s': %s (%d)",
+		          buffer, get_errno_name(errno), errno);
+
+		return false;
+	}
+
 	// Setup and start CRC error count value update timer
 	if (timer_create_(&crc_error_count_update_timer, update_crc_error_count_to_fs, &crc_error_count_value) < 0) {
 		log_error("Could not create CRC error count update timer: %s (%d)",
@@ -1186,6 +1194,12 @@ static void update_crc_error_count_to_fs(void *opaque) {
 	if (conf_file_set_option_value(&crc_error_count_file, "crc_errors" , buffer) < 0) {
 		log_error("Could not set '%s' option for RS485 CRC error count file: %s (%d)",
 		          "type", get_errno_name(errno), errno);
+	}
+
+	// Write config to filesystem
+	if (conf_file_write(&crc_error_count_file, RS485_EXTENSION_CRC_ERROR_COUNT_FILE_PATH) < 0) {
+		log_error("Could not write config to '%s': %s (%d)",
+		          buffer, get_errno_name(errno), errno);
 	}
 
 	log_debug("CRC error count updated, current value: %d", (int)_crc_error_count_value);
