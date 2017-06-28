@@ -59,7 +59,7 @@ static LogSource _log_source = LOG_SOURCE_INITIALIZER;
 
 #define CRC_ERROR_COUNT_UPDATE_INTERVAL 4000000 // 4 seconds in microseconds
 #define RS485_EXTENSION_CRC_ERROR_COUNT_COMMENT   "# This file is written by brickd's RS485 stack."
-#define RS485_EXTENSION_CRC_ERROR_COUNT_FILE_PATH "/tmp/rs485_extension_crc_error_count.conf"
+#define RS485_EXTENSION_CRC_ERROR_COUNT_FILE_PATH "/tmp/extension_rs485_crc_error_count.conf"
 
 static ConfFile crc_error_count_file;
 static uint64_t crc_error_count_value = 0;
