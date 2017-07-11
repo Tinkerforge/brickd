@@ -401,7 +401,7 @@ void log_set_output_platform(IO *output) {
 		return;
 	}
 
-	console = (HANDLE)_get_osfhandle(_output->handle);
+	console = (HANDLE)_get_osfhandle(_output->write_handle);
 
 	if (console == INVALID_HANDLE_VALUE) {
 		return;
@@ -525,7 +525,7 @@ void log_write_platform(struct timeval *timestamp, LogLevel level,
 		message.line = line;
 
 		string_copy(message.source, sizeof(message.source),
-		            libusb ? function : source->name);
+		            libusb ? function : source->name, -1);
 
 		log_send_pipe_message(&message);
 	}

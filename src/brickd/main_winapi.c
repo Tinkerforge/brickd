@@ -750,7 +750,7 @@ init:
 
 	phase = 4;
 
-	if (event_add_source(_notification_pipe.read_end, EVENT_SOURCE_TYPE_GENERIC,
+	if (event_add_source(_notification_pipe.base.read_handle, EVENT_SOURCE_TYPE_GENERIC,
 	                     EVENT_READ, forward_notifications, NULL) < 0) {
 		// FIXME: set service_exit_code
 		goto cleanup;
@@ -837,7 +837,8 @@ cleanup:
 		}
 
 	case 5:
-		event_remove_source(_notification_pipe.read_end, EVENT_SOURCE_TYPE_GENERIC);
+		event_remove_source(_notification_pipe.base.read_handle,
+		                    EVENT_SOURCE_TYPE_GENERIC);
 
 	case 4:
 		pipe_destroy(&_notification_pipe);
