@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2012-2014, 2016 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2012-2014, 2016-2017 Matthias Bolte <matthias@tinkerforge.com>
  *
  * usb_stack.c: USB stack specific functions
  *
@@ -44,6 +44,15 @@ static LogSource _log_source = LOG_SOURCE_INITIALIZER;
 #define MAX_READ_TRANSFERS 10
 #define MAX_WRITE_TRANSFERS 10
 #define MAX_QUEUED_WRITES 32768
+#define STALL_TIMER_DELAY 1000000 // 1 second in microseconds
+
+static void usb_stack_handle_stall(void *opaque) {
+	USBStack *usb_stack = opaque;
+
+	log_info("Reopening %s to recover from stalled transfer", usb_stack->base.name);
+
+	usb_reopen(usb_stack);
+}
 
 static void usb_stack_read_callback(USBTransfer *usb_transfer) {
 	const char *message = NULL;
@@ -417,6 +426,16 @@ int usb_stack_create(USBStack *usb_stack, uint8_t bus_number, uint8_t device_add
 	log_debug("Got display name for %s: %s",
 	          preliminary_name, usb_stack->base.name);
 
+	// create stall timer
+	if (timer_create_(&usb_stack->stall_timer, usb_stack_handle_stall, usb_stack) < 0) {
+		log_error("Could not create stall timer for %s: %s (%d)",
+		          usb_stack->base.name, get_errno_name(errno), errno);
+
+		goto cleanup;
+	}
+
+	phase = 5;
+
 	// allocate and submit read transfers
 	if (array_create(&usb_stack->read_transfers, MAX_READ_TRANSFERS,
 	                 sizeof(USBTransfer), true) < 0) {
@@ -426,7 +445,7 @@ int usb_stack_create(USBStack *usb_stack, uint8_t bus_number, uint8_t device_add
 		goto cleanup;
 	}
 
-	phase = 5;
+	phase = 6;
 
 	log_debug("Submitting read transfers to %s", usb_stack->base.name);
 
@@ -461,7 +480,7 @@ int usb_stack_create(USBStack *usb_stack, uint8_t bus_number, uint8_t device_add
 		goto cleanup;
 	}
 
-	phase = 6;
+	phase = 7;
 
 	// allocate write transfers
 	if (array_create(&usb_stack->write_transfers, MAX_WRITE_TRANSFERS,
@@ -472,7 +491,7 @@ int usb_stack_create(USBStack *usb_stack, uint8_t bus_number, uint8_t device_add
 		goto cleanup;
 	}
 
-	phase = 7;
+	phase = 8;
 
 	for (i = 0; i < MAX_WRITE_TRANSFERS; ++i) {
 		usb_transfer = array_append(&usb_stack->write_transfers);
@@ -498,18 +517,21 @@ int usb_stack_create(USBStack *usb_stack, uint8_t bus_number, uint8_t device_add
 		goto cleanup;
 	}
 
-	phase = 8;
+	phase = 9;
 
 cleanup:
 	switch (phase) { // no breaks, all cases fall through intentionally
-	case 7:
+	case 8:
 		array_destroy(&usb_stack->write_transfers, (ItemDestroyFunction)usb_transfer_destroy);
 
-	case 6:
+	case 7:
 		queue_destroy(&usb_stack->write_queue, NULL);
 
-	case 5:
+	case 6:
 		array_destroy(&usb_stack->read_transfers, (ItemDestroyFunction)usb_transfer_destroy);
+
+	case 5:
+		timer_destroy(&usb_stack->stall_timer);
 
 	case 4:
 		libusb_release_interface(usb_stack->device_handle, usb_stack->interface_number);
@@ -527,7 +549,7 @@ cleanup:
 		break;
 	}
 
-	return phase == 8 ? 0 : -1;
+	return phase == 9 ? 0 : -1;
 }
 
 void usb_stack_destroy(USBStack *usb_stack) {
@@ -539,6 +561,8 @@ void usb_stack_destroy(USBStack *usb_stack) {
 
 	array_destroy(&usb_stack->read_transfers, (ItemDestroyFunction)usb_transfer_destroy);
 	array_destroy(&usb_stack->write_transfers, (ItemDestroyFunction)usb_transfer_destroy);
+
+	timer_destroy(&usb_stack->stall_timer);
 
 	queue_destroy(&usb_stack->write_queue, NULL);
 
@@ -554,4 +578,13 @@ void usb_stack_destroy(USBStack *usb_stack) {
 
 	log_debug("Released USB device (bus: %u, device: %u), was %s",
 	          usb_stack->bus_number, usb_stack->device_address, name);
+}
+
+void usb_stack_start_stall_timer(USBStack *usb_stack) {
+	if (timer_configure(&usb_stack->stall_timer, STALL_TIMER_DELAY, 0) < 0) {
+		log_error("Could not start stall timer for %s: %s (%d)",
+		          usb_stack->base.name, get_errno_name(errno), errno);
+
+		return;
+	}
 }

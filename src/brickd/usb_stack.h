@@ -27,6 +27,7 @@
 
 #include <daemonlib/array.h>
 #include <daemonlib/queue.h>
+#include <daemonlib/timer.h>
 
 #include "stack.h"
 
@@ -40,6 +41,7 @@ typedef struct {
 	int interface_number;
 	uint8_t endpoint_in;
 	uint8_t endpoint_out;
+	Timer stall_timer;
 	Array read_transfers;
 	Array write_transfers;
 	Queue write_queue;
@@ -52,5 +54,7 @@ typedef struct {
 
 int usb_stack_create(USBStack *usb_stack, uint8_t bus_number, uint8_t device_address);
 void usb_stack_destroy(USBStack *usb_stack);
+
+void usb_stack_start_stall_timer(USBStack *usb_stack);
 
 #endif // BRICKD_USB_STACK_H

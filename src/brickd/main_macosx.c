@@ -67,7 +67,7 @@ static void print_usage(void) {
 
 static void handle_sigusr1(void) {
 #ifdef BRICKD_WITH_USB_REOPEN_ON_SIGUSR1
-	usb_reopen();
+	usb_reopen(NULL);
 #else
 	usb_rescan();
 #endif

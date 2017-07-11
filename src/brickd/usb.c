@@ -395,20 +395,30 @@ int usb_rescan(void) {
 	return 0;
 }
 
-int usb_reopen(void) {
+int usb_reopen(USBStack *usb_stack) {
 	int i;
-	USBStack *usb_stack;
+	USBStack *candidate;
 
-	log_debug("Reopening all USB devices");
+	if (usb_stack == NULL) {
+		log_debug("Reopening all USB devices to get fresh libusb devices handles");
+	} else {
+		log_debug("Reopening USB device (bus: %u, device: %u): %s",
+		          usb_stack->bus_number, usb_stack->device_address,
+		          usb_stack->base.name);
+	}
 
 	// iterate backwards for simpler index handling and to avoid memmove in
 	// array_remove call
 	for (i = _usb_stacks.count - 1; i >= 0; --i) {
-		usb_stack = array_get(&_usb_stacks, i);
+		candidate = array_get(&_usb_stacks, i);
+
+		if (usb_stack != NULL && candidate != usb_stack) {
+			continue;
+		}
 
 		log_info("Temporarily removing USB device (bus: %u, device: %u) at index %d: %s",
-		         usb_stack->bus_number, usb_stack->device_address, i,
-		         usb_stack->base.name);
+		         candidate->bus_number, candidate->device_address, i,
+		         candidate->base.name);
 
 		array_remove(&_usb_stacks, i, (ItemDestroyFunction)usb_stack_destroy);
 	}

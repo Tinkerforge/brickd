@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2012-2014, 2016 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2012-2014, 2016-2017 Matthias Bolte <matthias@tinkerforge.com>
  *
  * usb.h: USB specific functions
  *
@@ -25,6 +25,8 @@
 #include <stdbool.h>
 #include <libusb.h>
 
+#include "usb_stack.h"
+
 // newer libusb defines LIBUSB_CALL but older libusb doesn't
 #ifndef LIBUSB_CALL
 	#define LIBUSB_CALL
@@ -46,7 +48,7 @@ void usb_exit(void);
 bool usb_has_hotplug(void);
 
 int usb_rescan(void);
-int usb_reopen(void);
+int usb_reopen(USBStack *usb_stack);
 
 int usb_create_context(libusb_context **context);
 void usb_destroy_context(libusb_context *context);

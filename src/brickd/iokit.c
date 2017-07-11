@@ -57,7 +57,7 @@ static void iokit_forward_notifications(void *opaque) {
 		return;
 	}
 
-	usb_reopen();
+	usb_reopen(NULL);
 }
 
 static void iokit_handle_notifications(void *opaque, io_service_t service,
