@@ -70,11 +70,14 @@ static void LIBUSB_CALL usb_transfer_wrapper(struct libusb_transfer *handle) {
 	usb_transfer->submitted = false;
 
 	if (handle->status == LIBUSB_TRANSFER_CANCELLED) {
-		usb_transfer->usb_stack->expecting_disconnect = true;
-
-		log_debug("%s transfer %p (%p) for %s was cancelled, marking device as about to be removed",
+		log_debug("%s transfer %p (%p) for %s was cancelled%s",
 		          usb_transfer_get_type_name(usb_transfer->type, true),
-		          usb_transfer, handle, usb_transfer->usb_stack->base.name);
+		          usb_transfer, handle, usb_transfer->usb_stack->base.name,
+		          !usb_transfer->usb_stack->expecting_disconnect
+		          ? ", marking device as about to be removed"
+		          : "");
+
+		usb_transfer->usb_stack->expecting_disconnect = true;
 
 		return;
 	} else if (handle->status == LIBUSB_TRANSFER_NO_DEVICE) {
