@@ -68,7 +68,6 @@ static void LIBUSB_CALL usb_transfer_wrapper(struct libusb_transfer *handle) {
 	}
 
 	usb_transfer->submitted = false;
-	usb_transfer->completed = true;
 
 	if (handle->status == LIBUSB_TRANSFER_CANCELLED) {
 		usb_transfer->usb_stack->expecting_disconnect = true;
@@ -147,7 +146,6 @@ int usb_transfer_create(USBTransfer *usb_transfer, USBStack *usb_stack,
 	usb_transfer->usb_stack = usb_stack;
 	usb_transfer->type = type;
 	usb_transfer->submitted = false;
-	usb_transfer->completed = false;
 	usb_transfer->cancelled = false;
 	usb_transfer->function = function;
 	usb_transfer->handle = libusb_alloc_transfer(0);
@@ -174,7 +172,6 @@ void usb_transfer_destroy(USBTransfer *usb_transfer) {
 	          usb_transfer->handle, usb_transfer->usb_stack->base.name);
 
 	if (usb_transfer->submitted) {
-		usb_transfer->completed = false;
 		usb_transfer->cancelled = true;
 
 		rc = libusb_cancel_transfer(usb_transfer->handle);
@@ -202,7 +199,7 @@ void usb_transfer_destroy(USBTransfer *usb_transfer) {
 			now = start;
 
 			// FIXME: don't wait 1 second per transfer
-			while (!usb_transfer->completed && now >= start && now < start + 1) {
+			while (usb_transfer->submitted && now >= start && now < start + 1) {
 				rc = libusb_handle_events_timeout(usb_transfer->usb_stack->context, &tv);
 
 				if (rc < 0) {
@@ -216,7 +213,7 @@ void usb_transfer_destroy(USBTransfer *usb_transfer) {
 				now = time(NULL);
 			}
 
-			if (!usb_transfer->completed) {
+			if (usb_transfer->submitted) {
 				log_warn("Attempt to cancel pending %s transfer %p (%p) for %s timed out",
 				         usb_transfer_get_type_name(usb_transfer->type, false), usb_transfer,
 				         usb_transfer->handle, usb_transfer->usb_stack->base.name);

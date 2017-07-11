@@ -42,7 +42,6 @@ struct _USBTransfer {
 	USBStack *usb_stack;
 	USBTransferType type;
 	bool submitted;
-	bool completed;
 	bool cancelled;
 	USBTransferFunction function;
 	struct libusb_transfer *handle;
