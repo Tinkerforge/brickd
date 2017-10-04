@@ -388,17 +388,42 @@ int usb_stack_create(USBStack *usb_stack, uint8_t bus_number, uint8_t device_add
 	rc = libusb_claim_interface(usb_stack->device_handle, usb_stack->interface_number);
 
 	if (rc < 0) {
-		// claiming the interface might fail on Linux because the uevent for
+		// on Linux claiming the interface might fail because the uevent for
 		// a USB device arrival was received before the USB subsystem had time
-		// to create the USBFS entry for the new device. retry to claim the
-		// interface but sleep in between tries so the USB subsystem has time
-		// to do something
+		// to create the USBFS entry for the new device
+		//
+		// on Mac OS X claiming the interface might fail because something is
+		// opening the USB device on hotplug to probe it. libusb will still open
+		// an already open USB device but in a limited mode that doesn't allow
+		// to claim the interface
+		//
+		// retry to claim the interface but sleep in between tries so the USB
+		// subsystem has time to create the USBFS entry for the new device on
+		// Linux. also reopen the USB device on Mac OS X to getter a proper
+		// device handle that allows to claim the interface
 		while (rc < 0 && retries < 10) {
-			millisleep(10);
+#ifdef __APPLE__
+			device = libusb_get_device(usb_stack->device_handle);
 
-			++retries;
+			libusb_close(usb_stack->device_handle);
+#endif
+
+			millisleep(50);
+
+#ifdef __APPLE__
+			rc = libusb_open(device, &usb_stack->device_handle);
+
+			if (rc < 0) {
+				log_error("Could not reopen %s: %s (%d)",
+				          usb_stack->base.name, usb_get_error_name(rc), rc);
+
+				goto cleanup;
+			}
+#endif
 
 			rc = libusb_claim_interface(usb_stack->device_handle, usb_stack->interface_number);
+
+			++retries;
 		}
 
 		if (rc < 0) {
