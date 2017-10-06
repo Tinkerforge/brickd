@@ -89,12 +89,17 @@ endif
 
 ifeq ($(PLATFORM),Linux)
 ifeq ($(WITH_RED_BRICK),check)
-ifeq ($(shell hostname),red-brick)
-	# Linux and RED Brick
+ifneq ($(wildcard /proc/red_brick_uid),)
+	# Linux and RED Brick <= 1.9
+	WITH_RED_BRICK := yes
+else
+ifeq ($(findstring red-brick,$(shell uname -r)),red-brick)
+	# Linux and RED Brick > 1.9
 	WITH_RED_BRICK := yes
 else
 	# Linux, but no RED Brick
 	WITH_RED_BRICK := no
+endif
 endif
 endif
 else
