@@ -100,10 +100,10 @@ int red_ethernet_extension_init(ExtensionEthernetConfig *config) {
 		 * ((PORT_ALPHABET_INDEX - 1) * 32) + PIN_NR
 		 * Example: For PB5, ((2 - 1) * 32) + 5 = 37
 		 */
-			param_pin_reset     = 45; //15; // PB13
-			param_pin_interrupt = 46; //17; // PB14
-			param_select        = 0;
-			pin.pin_index       = GPIO_PIN_9; // CS0
+		param_pin_reset     = 45;         //15; // PB13
+		param_pin_interrupt = 46;         //17; // PB14
+		param_select        = 0;
+		pin.pin_index       = GPIO_PIN_9;         // CS0
 
 		break;
 	}

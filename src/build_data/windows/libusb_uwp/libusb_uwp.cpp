@@ -677,10 +677,10 @@ static int usbi_create_device(libusb_context *ctx, DeviceInformation ^info,
 	// \\?\USB#VID_16D0&PID_063D#6xD12f#{dee824ef-729b-4a0e-9c14-b7117d33a817}
 	if (strlen(dev->id_ascii) > strlen(brick_id_prefix1)) {
 		if (strncasecmp(dev->id_ascii + strlen(brick_id_prefix1), brick_id_prefix2,
-			            strlen(brick_id_prefix2)) == 0) {
+		                strlen(brick_id_prefix2)) == 0) {
 			uid_start = dev->id_ascii + strlen(brick_id_prefix1) + strlen(brick_id_prefix2);
 		} else if (strncasecmp(dev->id_ascii + strlen(brick_id_prefix1), red_brick_id_prefix2,
-			                   strlen(red_brick_id_prefix2)) == 0) {
+		                       strlen(red_brick_id_prefix2)) == 0) {
 			uid_start = dev->id_ascii + strlen(brick_id_prefix1) + strlen(red_brick_id_prefix2);
 		}
 	}
@@ -1116,7 +1116,7 @@ uint8_t libusb_get_device_address(libusb_device *dev) {
 }
 
 int libusb_get_config_descriptor(libusb_device *dev, uint8_t config_index,
-	                             struct libusb_config_descriptor **config_ptr) {
+                                 struct libusb_config_descriptor **config_ptr) {
 	if (config_index != 0) {
 		return LIBUSB_ERROR_NOT_FOUND;
 	}

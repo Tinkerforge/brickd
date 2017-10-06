@@ -352,7 +352,7 @@ static DWORD CALLBACK usb_handle_notify_event(HCMNOTIFICATION hnotify,
 	}
 
 	if (WideCharToMultiByte(CP_UTF8, 0, event_data->u.DeviceInterface.SymbolicLink,
-		                    -1, symbolic_link, sizeof(symbolic_link), NULL, NULL) == 0) {
+	                        -1, symbolic_link, sizeof(symbolic_link), NULL, NULL) == 0) {
 		rc = ERRNO_WINAPI_OFFSET + GetLastError();
 
 		log_error("Could not convert device interface symbolic link to UTF-8: %s (%d)",

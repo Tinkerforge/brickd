@@ -273,7 +273,7 @@ int serial_interface_init(const char *serial_interface) {
 	serial_interface_config.c_cflag |= CS8; // Setting data bits
 
 	if (_red_rs485_extension.stopbits == 1) {
-		serial_interface_config.c_cflag &=~ CSTOPB; // Setting one stop bits
+		serial_interface_config.c_cflag &= ~CSTOPB;  // Setting one stop bits
 	} else if (_red_rs485_extension.stopbits == 2) {
 		serial_interface_config.c_cflag |= CSTOPB; // Setting two stop bits
 	} else {
@@ -284,11 +284,11 @@ int serial_interface_init(const char *serial_interface) {
 	}
 
 	if (_red_rs485_extension.parity == EXTENSION_RS485_PARITY_NONE) {
-		serial_interface_config.c_cflag &=~ PARENB; // parity disabled
+		serial_interface_config.c_cflag &= ~PARENB;  // parity disabled
 	} else if (_red_rs485_extension.parity == EXTENSION_RS485_PARITY_EVEN) {
 		/* Even */
 		serial_interface_config.c_cflag |= PARENB;
-		serial_interface_config.c_cflag &=~ PARODD;
+		serial_interface_config.c_cflag &= ~PARODD;
 	} else if (_red_rs485_extension.parity == EXTENSION_RS485_PARITY_ODD) {
 		/* Odd */
 		serial_interface_config.c_cflag |= PARENB;
@@ -312,7 +312,7 @@ int serial_interface_init(const char *serial_interface) {
 	serial_config.flags &= ~ASYNC_SPD_MASK;
 	serial_config.flags |= ASYNC_SPD_CUST;
 	serial_config.custom_divisor = (serial_config.baud_base + (_red_rs485_extension.baudrate / 2)) /
-	                                _red_rs485_extension.baudrate;
+	                               _red_rs485_extension.baudrate;
 
 	if (serial_config.custom_divisor < 1) {
 		serial_config.custom_divisor = 1;
@@ -344,7 +344,7 @@ int serial_interface_init(const char *serial_interface) {
 	serial_interface_config.c_iflag &= ~(IXON | IXOFF | IXANY); // Software iflow control is disabled
 
 	// Output options
-	serial_interface_config.c_oflag &=~ OPOST;
+	serial_interface_config.c_oflag &= ~OPOST;
 
 	// Control character options
 	serial_interface_config.c_cc[VMIN] = 0;
@@ -486,7 +486,7 @@ void verify_buffer(void) {
 	}
 
 	// Checking address
-	if (_receive.frame.address != current_request_as_byte_array[0]){
+	if (_receive.frame.address != current_request_as_byte_array[0]) {
 		// Move on to next slave
 		disable_master_timer();
 		log_error("Received response (frame: %s) with address mismatch (actual: %u != expected: %u)",
@@ -615,7 +615,7 @@ void send_packet(void) {
 
 	uint8_t rs485_packet[packet_to_send->packet.header.length + RS485_FRAME_OVERHEAD];
 
-    // Assemble packet header
+	// Assemble packet header
 	rs485_packet[0] = current_slave->address;
 	rs485_packet[1] = RS485_EXTENSION_FUNCTION_CODE;
 	rs485_packet[2] = current_slave->sequence;
@@ -987,9 +987,8 @@ int red_rs485_extension_init(ExtensionRS485Config *rs485_config) {
 	}
 
 	// Calculate time to send number of bytes of max packet length and to receive the same amount
-	TIMEOUT = (((double)(TIMEOUT_BYTES /
-	           (double)(_red_rs485_extension.baudrate / 8)) *
-	           (double)1000000000) * (double)2) + (double)8000000;
+	TIMEOUT = (((double)(TIMEOUT_BYTES / (double)(_red_rs485_extension.baudrate / 8)) *
+	            (double)1000000000) * (double)2) + (double)8000000;
 
 	// Configuring serial interface from the configs
 	if (serial_interface_init(RS485_EXTENSION_SERIAL_DEVICE) < 0) {
@@ -1038,7 +1037,7 @@ int red_rs485_extension_init(ExtensionRS485Config *rs485_config) {
 
 	init_crc_error_count = init_crc_error_count_to_fs();
 
-	if (!init_crc_error_count || _red_rs485_extension.slave_num <= 0){
+	if (!init_crc_error_count || _red_rs485_extension.slave_num <= 0) {
 		if(_red_rs485_extension.slave_num <= 0) {
 			log_warn("No slaves configured");
 		}
@@ -1149,7 +1148,7 @@ bool init_crc_error_count_to_fs(void) {
 	// Write options
 	snprintf(buffer, sizeof(buffer), "%d", 0);
 
-	if (conf_file_set_option_value(&crc_error_count_file, "crc_errors" , buffer) < 0) {
+	if (conf_file_set_option_value(&crc_error_count_file, "crc_errors", buffer) < 0) {
 		log_error("Could not set '%s' option for RS485 CRC error count file: %s (%d)",
 		          "type", get_errno_name(errno), errno);
 
@@ -1169,14 +1168,14 @@ bool init_crc_error_count_to_fs(void) {
 	// Setup and start CRC error count value update timer
 	if (timer_create_(&crc_error_count_update_timer, update_crc_error_count_to_fs, &crc_error_count_value) < 0) {
 		log_error("Could not create CRC error count update timer: %s (%d)",
-							get_errno_name(errno), errno);
+		          get_errno_name(errno), errno);
 
 		return false;
 	}
 
 	if (timer_configure(&crc_error_count_update_timer, 0, CRC_ERROR_COUNT_UPDATE_INTERVAL) < 0) {
 		log_error("Could not start CRC error count update timer: %s (%d)",
-							get_errno_name(errno), errno);
+		          get_errno_name(errno), errno);
 
 		return false;
 	}
@@ -1191,7 +1190,7 @@ static void update_crc_error_count_to_fs(void *opaque) {
 	// Write options
 	snprintf(buffer, sizeof(buffer), "%d", (int)_crc_error_count_value);
 
-	if (conf_file_set_option_value(&crc_error_count_file, "crc_errors" , buffer) < 0) {
+	if (conf_file_set_option_value(&crc_error_count_file, "crc_errors", buffer) < 0) {
 		log_error("Could not set '%s' option for RS485 CRC error count file: %s (%d)",
 		          "type", get_errno_name(errno), errno);
 	}

@@ -57,12 +57,12 @@ enum {
 };
 
 enum {
-  MESH_PACKET_HELLO = 1,
-  MESH_PACKET_OLLEH,
-  MESH_PACKET_RESET,
-  MESH_PACKET_HB_PING,
-  MESH_PACKET_HB_PONG,
-  MESH_PACKET_TFP
+	MESH_PACKET_HELLO = 1,
+	MESH_PACKET_OLLEH,
+	MESH_PACKET_RESET,
+	MESH_PACKET_HB_PING,
+	MESH_PACKET_HB_PONG,
+	MESH_PACKET_TFP
 };
 
 // Packet types.
@@ -87,59 +87,59 @@ typedef struct {
 } ATTRIBUTE_PACKED esp_mesh_header_t;
 
 typedef struct {
-  esp_mesh_header_t header;
-  uint8_t type;
-  bool is_root_node;
-  uint8_t group_id[6];
-  char prefix[16];
-  uint8_t firmware_version[3];
+	esp_mesh_header_t header;
+	uint8_t type;
+	bool is_root_node;
+	uint8_t group_id[6];
+	char prefix[16];
+	uint8_t firmware_version[3];
 } ATTRIBUTE_PACKED pkt_mesh_hello_t;
 
 typedef struct {
-  esp_mesh_header_t header;
-  uint8_t type;
+	esp_mesh_header_t header;
+	uint8_t type;
 } ATTRIBUTE_PACKED pkt_mesh_olleh_t;
 
 typedef struct {
 	esp_mesh_header_t header;
-  uint8_t type;
+	uint8_t type;
 } ATTRIBUTE_PACKED pkt_mesh_reset_t;
 
 typedef struct {
 	esp_mesh_header_t header;
-  uint8_t type;
+	uint8_t type;
 } ATTRIBUTE_PACKED pkt_mesh_hb_t;
 
 typedef struct {
 	esp_mesh_header_t header;
-  uint8_t type;
-  Packet pkt_tfp;
+	uint8_t type;
+	Packet pkt_tfp;
 } ATTRIBUTE_PACKED pkt_mesh_tfp_t;
 #include "daemonlib/packed_end.h"
 
 // Mesh stack struct.
 typedef struct {
-  /*
-   * Generic stack structure, used to store the
-   * stack in the central list of stacks.
-   */
-  Stack base;
-  Socket *sock;
-  bool cleanup;
-  uint8_t state;
-  char prefix[16];
-  uint8_t group_id[6];
-  Timer timer_wait_hello;
-  Timer timer_hb_do_ping;
-  Timer timer_hb_wait_pong;
-  int incoming_buffer_used;
-  bool mesh_header_checked;
-  char name[STACK_MAX_NAME_LENGTH];
-  Timer timer_cleanup_after_reset_sent;
-  uint8_t root_node_firmware_version[3];
-  uint8_t gw_addr[ESP_MESH_ADDRESS_LEN];
-  uint8_t root_node_addr[ESP_MESH_ADDRESS_LEN];
-  uint8_t incoming_buffer[sizeof(esp_mesh_header_t) + sizeof(Packet) + 1];
+	/*
+	 * Generic stack structure, used to store the
+	 * stack in the central list of stacks.
+	 */
+	Stack base;
+	Socket *sock;
+	bool cleanup;
+	uint8_t state;
+	char prefix[16];
+	uint8_t group_id[6];
+	Timer timer_wait_hello;
+	Timer timer_hb_do_ping;
+	Timer timer_hb_wait_pong;
+	int incoming_buffer_used;
+	bool mesh_header_checked;
+	char name[STACK_MAX_NAME_LENGTH];
+	Timer timer_cleanup_after_reset_sent;
+	uint8_t root_node_firmware_version[3];
+	uint8_t gw_addr[ESP_MESH_ADDRESS_LEN];
+	uint8_t root_node_addr[ESP_MESH_ADDRESS_LEN];
+	uint8_t incoming_buffer[sizeof(esp_mesh_header_t) + sizeof(Packet) + 1];
 } MeshStack;
 
 void timer_hb_do_ping_handler(void *opaque);

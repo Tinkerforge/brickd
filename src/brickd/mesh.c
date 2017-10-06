@@ -76,13 +76,13 @@ void mesh_exit(void) {
 
 void mesh_handle_accept(void *opaque) {
 	char port[NI_MAXSERV];
-  char *name = "<unknown>";
-  char hostname[NI_MAXHOST];
+	char *name = "<unknown>";
+	char hostname[NI_MAXHOST];
 	Socket *mesh_client_socket;
 	// Socket that is created to the root node of a mesh network.
-  struct sockaddr_storage address;
-  socklen_t length = sizeof(address);
-  char buffer[NI_MAXHOST + NI_MAXSERV + 4];
+	struct sockaddr_storage address;
+	socklen_t length = sizeof(address);
+	char buffer[NI_MAXHOST + NI_MAXSERV + 4];
 
 	(void)opaque;
 
@@ -90,8 +90,8 @@ void mesh_handle_accept(void *opaque) {
 
 	// Accept new mesh client socket.
 	mesh_client_socket = socket_accept(&mesh_listen_socket,
-                                     (struct sockaddr *)&address,
-                                     &length);
+	                                   (struct sockaddr *)&address,
+	                                   &length);
 
 	if (mesh_client_socket == NULL) {
 		if (!errno_interrupted()) {
@@ -103,15 +103,14 @@ void mesh_handle_accept(void *opaque) {
 	}
 
 	if (socket_address_to_hostname((struct sockaddr *)&address,
-																 length,
+	                               length,
 	                               hostname,
-																 sizeof(hostname),
+	                               sizeof(hostname),
 	                               port,
-																 sizeof(port)) < 0) {
+	                               sizeof(port)) < 0) {
 		log_warn("Could not get hostname and port of mesh client (socket: %d): %s (%d)",
 		         mesh_client_socket->handle, get_errno_name(errno), errno);
-	}
-  else {
+	} else {
 		snprintf(buffer, sizeof(buffer), "%s:%s", hostname, port);
 
 		name = buffer;
@@ -123,8 +122,7 @@ void mesh_handle_accept(void *opaque) {
 	 */
 	if (mesh_stack_create(name, mesh_client_socket) < 0) {
 		log_error("Could not create new mesh stack");
-	}
-	else {
+	} else {
 		log_info("New mesh stack created");
 	}
 }

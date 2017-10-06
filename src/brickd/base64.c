@@ -37,7 +37,7 @@
 #include "base64.h"
 
 static const char _alphabet[] =
-	"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+  "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
 int base64_encode(const char *in, int in_len, char *out, int out_len) {
 	unsigned char triple[3];

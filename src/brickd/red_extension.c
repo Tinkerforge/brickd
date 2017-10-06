@@ -191,7 +191,7 @@ int red_extension_save_rs485_config_to_fs(ExtensionRS485Config *config) {
 	// Write options
 	snprintf(buffer, sizeof(buffer), "%d", config->type);
 
-	if (conf_file_set_option_value(&conf_file, "type" , buffer) < 0) {
+	if (conf_file_set_option_value(&conf_file, "type", buffer) < 0) {
 		log_error("Could not set '%s' option for RS485: %s (%d)",
 		          "type", get_errno_name(errno), errno);
 
@@ -202,7 +202,7 @@ int red_extension_save_rs485_config_to_fs(ExtensionRS485Config *config) {
 
 	snprintf(buffer, sizeof(buffer), "%d", config->address);
 
-	if (conf_file_set_option_value(&conf_file, "address" , buffer) < 0) {
+	if (conf_file_set_option_value(&conf_file, "address", buffer) < 0) {
 		log_error("Could not set '%s' option for RS485: %s (%d)",
 		          "address", get_errno_name(errno), errno);
 
@@ -221,7 +221,7 @@ int red_extension_save_rs485_config_to_fs(ExtensionRS485Config *config) {
 		snprintf(buffer + strlen(buffer), sizeof(buffer)-strlen(buffer), ", %d", config->slave_address[i]);
 	}
 
-	if (conf_file_set_option_value(&conf_file, "slave_address" , buffer) < 0) {
+	if (conf_file_set_option_value(&conf_file, "slave_address", buffer) < 0) {
 		log_error("Could not set '%s' option for RS485: %s (%d)",
 		          "slave_address", get_errno_name(errno), errno);
 
@@ -232,7 +232,7 @@ int red_extension_save_rs485_config_to_fs(ExtensionRS485Config *config) {
 
 	snprintf(buffer, sizeof(buffer), "%d", config->baudrate);
 
-	if (conf_file_set_option_value(&conf_file, "baudrate" , buffer) < 0) {
+	if (conf_file_set_option_value(&conf_file, "baudrate", buffer) < 0) {
 		log_error("Could not set '%s' option for RS485: %s (%d)",
 		          "baudrate", get_errno_name(errno), errno);
 
@@ -243,7 +243,7 @@ int red_extension_save_rs485_config_to_fs(ExtensionRS485Config *config) {
 
 	snprintf(buffer, sizeof(buffer), "%c", config->parity);
 
-	if (conf_file_set_option_value(&conf_file, "parity" , buffer) < 0) {
+	if (conf_file_set_option_value(&conf_file, "parity", buffer) < 0) {
 		log_error("Could not set '%s' option for RS485: %s (%d)",
 		          "parity", get_errno_name(errno), errno);
 
@@ -253,7 +253,7 @@ int red_extension_save_rs485_config_to_fs(ExtensionRS485Config *config) {
 
 	snprintf(buffer, sizeof(buffer), "%d", config->slave_num);
 
-	if (conf_file_set_option_value(&conf_file, "slave_num" , buffer) < 0) {
+	if (conf_file_set_option_value(&conf_file, "slave_num", buffer) < 0) {
 		log_error("Could not set '%s' option for RS485: %s (%d)",
 		          "slave_num", get_errno_name(errno), errno);
 
@@ -263,7 +263,7 @@ int red_extension_save_rs485_config_to_fs(ExtensionRS485Config *config) {
 
 	snprintf(buffer, sizeof(buffer), "%d", config->stopbits);
 
-	if (conf_file_set_option_value(&conf_file, "stopbits" , buffer) < 0) {
+	if (conf_file_set_option_value(&conf_file, "stopbits", buffer) < 0) {
 		log_error("Could not set '%s' option for RS485: %s (%d)",
 		          "stopbits", get_errno_name(errno), errno);
 
@@ -405,7 +405,7 @@ int red_extension_save_ethernet_config_to_fs(ExtensionEthernetConfig *config) {
 	// Write options
 	snprintf(buffer, sizeof(buffer), "%d", config->type);
 
-	if (conf_file_set_option_value(&conf_file, "type" , buffer) < 0) {
+	if (conf_file_set_option_value(&conf_file, "type", buffer) < 0) {
 		log_error("Could not set '%s' option for RS485: %s (%d)",
 		          "type", get_errno_name(errno), errno);
 
@@ -479,7 +479,7 @@ int red_extension_save_unsupported_config_to_fs(ExtensionBaseConfig *config) {
 	// Write options
 	snprintf(buffer, sizeof(buffer), "%d", config->type);
 
-	if (conf_file_set_option_value(&conf_file, "type" , buffer) < 0) {
+	if (conf_file_set_option_value(&conf_file, "type", buffer) < 0) {
 		log_error("Could not set '%s' option for RS485: %s (%d)",
 		          "type", get_errno_name(errno), errno);
 
