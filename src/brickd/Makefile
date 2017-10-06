@@ -300,7 +300,7 @@ else
 endif
 
 ifeq ($(PLATFORM),Windows)
-	LIBUSB_STATUS := 1.0.20 (fork)
+	LIBUSB_STATUS := 1.0.21 (fork)
 	LIBUSB_CFLAGS := -I../build_data/windows/libusb
 	LIBUSB_LDFLAGS := -L../build_data/windows/libusb
 	LIBUSB_LIBS := -lusb-1.0
