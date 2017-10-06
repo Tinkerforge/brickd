@@ -100,7 +100,7 @@ static void LIBUSB_CALL usb_transfer_wrapper(struct libusb_transfer *handle) {
 			usb_transfer->usb_stack->expecting_read_stall_before_removal = false;
 			usb_transfer->usb_stack->expecting_disconnect = true;
 
-			log_debug("%s transfer %p (%p) for %s got stalled as expected before device removal, marking device as about to be removed",
+			log_debug("%s transfer %p (%p) for %s aborted by stall condition as expected before device removal",
 			          usb_transfer_get_type_name(usb_transfer->type, true),
 			          usb_transfer, handle, usb_transfer->usb_stack->base.name);
 		} else {

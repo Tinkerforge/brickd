@@ -49,7 +49,7 @@ static LogSource _log_source = LOG_SOURCE_INITIALIZER;
 static void usb_stack_handle_stall(void *opaque) {
 	USBStack *usb_stack = opaque;
 
-	log_info("Reopening %s to recover from stalled transfer", usb_stack->base.name);
+	log_warn("Reopening %s to recover from stalled transfer", usb_stack->base.name);
 
 	usb_reopen(usb_stack);
 }

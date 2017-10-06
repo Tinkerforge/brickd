@@ -396,11 +396,21 @@ int usb_rescan(void) {
 }
 
 int usb_reopen(USBStack *usb_stack) {
+	Array recipients;
 	int i;
 	USBStack *candidate;
+	uint8_t bus_number;
+	uint8_t device_address;
+
+	if (array_create(&recipients, 1, sizeof(Recipient), true) < 0) {
+		log_error("Could not create temporary recipient array: %s (%d)",
+		          get_errno_name(errno), errno);
+
+		return -1;
+	}
 
 	if (usb_stack == NULL) {
-		log_debug("Reopening all USB devices to get fresh libusb devices handles");
+		log_debug("Reopening all USB devices");
 	} else {
 		log_debug("Reopening USB device (bus: %u, device: %u): %s",
 		          usb_stack->bus_number, usb_stack->device_address,
@@ -416,12 +426,32 @@ int usb_reopen(USBStack *usb_stack) {
 			continue;
 		}
 
-		log_info("Temporarily removing USB device (bus: %u, device: %u) at index %d: %s",
-		         candidate->bus_number, candidate->device_address, i,
-		         candidate->base.name);
+		log_debug("Reopening USB device (bus: %u, device: %u) at index %d: %s",
+		          candidate->bus_number, candidate->device_address, i,
+		          candidate->base.name);
 
-		array_remove(&_usb_stacks, i, (ItemDestroyFunction)usb_stack_destroy);
+		bus_number = candidate->bus_number;
+		device_address = candidate->device_address;
+
+		array_swap(&candidate->base.recipients, &recipients);
+
+		usb_stack_destroy(candidate);
+
+		if (usb_stack_create(candidate, bus_number, device_address) < 0) {
+			array_remove(&_usb_stacks, i, NULL);
+
+			log_warn("Could not reopen USB device (bus: %u, device: %u) due to an error",
+			         bus_number, device_address);
+		} else {
+			array_swap(&recipients, &candidate->base.recipients);
+		}
+
+		if (usb_stack != NULL && candidate == usb_stack) {
+			break;
+		}
 	}
+
+	array_destroy(&recipients, NULL);
 
 	return usb_rescan();
 }
