@@ -180,6 +180,7 @@
 - Properly quote path to brickd.exe for service registration on Windows
 - Switch to .pkg based installer for Mac OS X
 - Fix crash in RS485 Extension code for RED Brick
+- Add initial Windows 10 IoT Core (Universal Windows Platform) support
 
 2017-01-24: 2.3.0 (7b487f2)
 - Add support for WIFI Extension 2.0 Mesh mode
@@ -191,3 +192,12 @@
 - Also read config from unsupported Extensions on RED Brick to allow Brick
   Viewer showing them as unsupported
 - Avoid using Debian specific init script helper functions on Linux
+
+2017-10-06: 2.3.1 (<unknown>)
+- Add support for RED Brick Image 1.10 and drop support for older RED Brick
+  Image versions
+- Add AppService as alternative to TCP/IP connection onWindows 10 IoT Core to
+  allow C# Bindings (since 2.1.3) to connect from the same device
+- Adapt to Windows 10 IoT Core version 15063
+- Add logic to reopen USB devices to recover from stalled USB transfers
+- Avoid race condition with USB prober on Mac OS X while opening USB devices
