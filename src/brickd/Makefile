@@ -449,6 +449,10 @@ $(info - profiling:             $(WITH_PROFILING))
 $(info - red-brick:             $(WITH_RED_BRICK))
 $(info - hotplug:               $(HOTPLUG))
 $(info - mesh-single-root-node: $(WITH_MESH_SINGLE_ROOT_NODE))
+$(info options:)
+$(info - CFLAGS:                $(CFLAGS))
+$(info - LDFLAGS:               $(LDFLAGS))
+$(info - LIBS:                  $(LIBS))
 endif
 
 .PHONY: all clean
