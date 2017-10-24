@@ -184,19 +184,19 @@ static LogSource _log_source = LOG_SOURCE_INITIALIZER;
 // general USB device GUID, applies to all Bricks. for the RED Brick this only
 // applies to the composite device itself, but not to its functions
 static const GUID GUID_DEVINTERFACE_USB_DEVICE =
-{ 0xA5DCBF10L, 0x6530, 0x11D2,{ 0x90, 0x1F, 0x00, 0xC0, 0x4F, 0xB9, 0x51, 0xED } };
+{ 0xA5DCBF10L, 0x6530, 0x11D2, { 0x90, 0x1F, 0x00, 0xC0, 0x4F, 0xB9, 0x51, 0xED } };
 
 // Brick device GUID (does not apply to the RED Brick). only set by the
 // brick.inf driver, not reported by the Brick itself if used driverless since
 // Windows 8. therefore it cannot be used as the only way to detect Bricks
 static const GUID GUID_DEVINTERFACE_BRICK_DEVICE =
-{ 0x870013DDL, 0xFB1D, 0x4BD7,{ 0xA9, 0x6C, 0x1F, 0x0B, 0x7D, 0x31, 0xAF, 0x41 } };
+{ 0x870013DDL, 0xFB1D, 0x4BD7, { 0xA9, 0x6C, 0x1F, 0x0B, 0x7D, 0x31, 0xAF, 0x41 } };
 
 // RED Brick device GUID (only applies to the Brick function). set by the
 // red_brick.inf driver and reported by the RED Brick itself if used driverless
 // since Windows 8. therefore it can be used as the sole way to detect RED Bricks
 static const GUID GUID_DEVINTERFACE_RED_BRICK_DEVICE =
-{ 0x9536B3B1L, 0x6077, 0x4A3B,{ 0x9B, 0xAC, 0x7C, 0x2C, 0xFA, 0x8A, 0x2B, 0xF3 } };
+{ 0x9536B3B1L, 0x6077, 0x4A3B, { 0x9B, 0xAC, 0x7C, 0x2C, 0xFA, 0x8A, 0x2B, 0xF3 } };
 
 static Pipe _notification_pipe;
 static HCMNOTIFICATION _notification_handle;
