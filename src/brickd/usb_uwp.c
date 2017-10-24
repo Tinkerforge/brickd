@@ -202,10 +202,10 @@ static Pipe _notification_pipe;
 static int _registered = 0;
 static HCMNOTIFICATION _hnotification;
 
-const char *get_confiret_name(int confiret) {
+const char *get_configret_name(int configret) {
 #define CONFIGRET_NAME(code) case code: return #code
 
-	switch (confiret) {
+	switch (configret) {
 	CONFIGRET_NAME(CR_SUCCESS);
 	CONFIGRET_NAME(CR_DEFAULT);
 	CONFIGRET_NAME(CR_OUT_OF_MEMORY);
@@ -426,7 +426,7 @@ int usb_init_hotplug(libusb_context *context) {
 
 		if (cr != CR_SUCCESS) {
 			log_error("Could not register configuration manager notification: %s (%d)",
-			          get_confiret_name(cr), cr);
+			          get_configret_name(cr), cr);
 
 			return -1;
 		}
@@ -449,7 +449,7 @@ void usb_exit_hotplug(libusb_context *context) {
 
 		if (cr != CR_SUCCESS) {
 			log_error("Could not unregister configuration manager notification: %s (%d)",
-			          get_confiret_name(cr), cr);
+			          get_configret_name(cr), cr);
 		}
 	}
 
