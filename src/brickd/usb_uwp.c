@@ -199,8 +199,7 @@ static const GUID GUID_DEVINTERFACE_RED_BRICK_DEVICE =
 { 0x9536B3B1L, 0x6077, 0x4A3B,{ 0x9B, 0xAC, 0x7C, 0x2C, 0xFA, 0x8A, 0x2B, 0xF3 } };
 
 static Pipe _notification_pipe;
-static int _registered = 0;
-static HCMNOTIFICATION _hnotification;
+static HCMNOTIFICATION _notification_handle;
 
 const char *get_configret_name(int configret) {
 #define CONFIGRET_NAME(code) case code: return #code
@@ -285,29 +284,6 @@ static void usb_forward_notifications(void *opaque) {
 	}
 
 	usb_rescan();
-}
-
-int usb_init_platform(void) {
-	if (pipe_create(&_notification_pipe, 0) < 0) {
-		log_error("Could not create hotplug pipe: %s (%d)",
-		          get_errno_name(errno), errno);
-
-		return -1;
-	}
-
-	if (event_add_source(_notification_pipe.base.read_handle, EVENT_SOURCE_TYPE_GENERIC,
-	                     EVENT_READ, usb_forward_notifications, NULL) < 0) {
-		pipe_destroy(&_notification_pipe);
-
-		return -1;
-	}
-
-	return 0;
-}
-
-void usb_exit_platform(void) {
-	event_remove_source(_notification_pipe.base.read_handle, EVENT_SOURCE_TYPE_GENERIC);
-	pipe_destroy(&_notification_pipe);
 }
 
 static DWORD CALLBACK usb_handle_notify_event(HCMNOTIFICATION hnotify,
@@ -406,54 +382,84 @@ static DWORD CALLBACK usb_handle_notify_event(HCMNOTIFICATION hnotify,
 	return ERROR_SUCCESS;
 }
 
+int usb_init_platform(void) {
+}
+
+void usb_exit_platform(void) {
+}
+
 int usb_init_hotplug(libusb_context *context) {
+	int phase = 0;
 	CM_NOTIFY_FILTER notify_filter;
 	CONFIGRET cr;
 
 	(void)context;
 
-	if (_registered == 0) {
-		log_debug("Registering configuration manager notification");
+	// create notification pipe
+	if (pipe_create(&_notification_pipe, 0) < 0) {
+		log_error("Could not create hotplug pipe: %s (%d)",
+		          get_errno_name(errno), errno);
 
-		ZeroMemory(&notify_filter, sizeof(notify_filter));
-
-		notify_filter.cbSize = sizeof(notify_filter);
-		notify_filter.Flags = CM_NOTIFY_FILTER_FLAG_ALL_INTERFACE_CLASSES;
-		notify_filter.FilterType = CM_NOTIFY_FILTER_TYPE_DEVICEINTERFACE;
-
-		cr = CM_Register_Notification(&notify_filter, NULL,
-		                              usb_handle_notify_event, &_hnotification);
-
-		if (cr != CR_SUCCESS) {
-			log_error("Could not register configuration manager notification: %s (%d)",
-			          get_configret_name(cr), cr);
-
-			return -1;
-		}
+		goto cleanup;
 	}
 
-	++_registered;
+	phase = 1;
 
-	return 0;
+	if (event_add_source(_notification_pipe.base.read_handle, EVENT_SOURCE_TYPE_GENERIC,
+	                     EVENT_READ, usb_forward_notifications, NULL) < 0) {
+		goto cleanup;
+	}
+
+	phase = 2;
+
+	// register for notifications
+	memset(&notify_filter, 0, sizeof(notify_filter));
+
+	notify_filter.cbSize = sizeof(notify_filter);
+	notify_filter.Flags = CM_NOTIFY_FILTER_FLAG_ALL_INTERFACE_CLASSES;
+	notify_filter.FilterType = CM_NOTIFY_FILTER_TYPE_DEVICEINTERFACE;
+
+	cr = CM_Register_Notification(&notify_filter, NULL,
+	                              usb_handle_notify_event, &_notification_handle);
+
+	if (cr != CR_SUCCESS) {
+		log_error("Could not register configuration manager notification: %s (%d)",
+		          get_configret_name(cr), cr);
+
+		goto cleanup;
+	}
+
+	phase = 3;
+
+cleanup:
+	switch (phase) { // no breaks, all cases fall through intentionally
+	case 2:
+		event_remove_source(_notification_pipe.base.read_handle, EVENT_SOURCE_TYPE_GENERIC);
+
+	case 1:
+		pipe_destroy(&_notification_pipe);
+
+	default:
+		break;
+	}
+
+	return phase == 3 ? 0 : -1;
 }
 
 void usb_exit_hotplug(libusb_context *context) {
 	CONFIGRET cr;
 
-	--_registered;
+	(void)context;
 
-	if (_registered == 0) {
-		log_debug("Unregistering configuration manager notification");
+	cr = CM_Unregister_Notification(_notification_handle);
 
-		cr = CM_Unregister_Notification(_hnotification);
-
-		if (cr != CR_SUCCESS) {
-			log_error("Could not unregister configuration manager notification: %s (%d)",
-			          get_configret_name(cr), cr);
-		}
+	if (cr != CR_SUCCESS) {
+		log_error("Could not unregister configuration manager notification: %s (%d)",
+		          get_configret_name(cr), cr);
 	}
 
-	(void)context;
+	event_remove_source(_notification_pipe.base.read_handle, EVENT_SOURCE_TYPE_GENERIC);
+	pipe_destroy(&_notification_pipe);
 }
 
 bool usb_has_hotplug(void) {
