@@ -223,27 +223,22 @@ static BOOL WINAPI console_ctrl_handler(DWORD ctrl_type) {
 	switch (ctrl_type) {
 	case CTRL_C_EVENT:
 		log_info("Received CTRL_C_EVENT");
-
 		break;
 
 	case CTRL_CLOSE_EVENT:
 		log_info("Received CTRL_CLOSE_EVENT");
-
 		break;
 
 	case CTRL_BREAK_EVENT:
 		log_info("Received CTRL_BREAK_EVENT");
-
 		break;
 
 	case CTRL_LOGOFF_EVENT:
 		log_info("Received CTRL_LOGOFF_EVENT");
-
 		break;
 
 	case CTRL_SHUTDOWN_EVENT:
 		log_info("Received CTRL_SHUTDOWN_EVENT");
-
 		break;
 
 	default:

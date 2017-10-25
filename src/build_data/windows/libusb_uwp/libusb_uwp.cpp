@@ -119,6 +119,7 @@ struct _libusb_device_handle {
 };
 
 static libusb_log_function _log_function;
+
 static usbi_fake_fd _fake_fds[USBI_MAX_FAKE_FDS];
 static std::unordered_map<std::wstring, uint16_t> _fake_device_addresses;
 static std::unordered_map<std::wstring, usbi_cached_descriptor *> _cached_descriptors;

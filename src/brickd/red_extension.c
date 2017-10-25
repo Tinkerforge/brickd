@@ -654,6 +654,7 @@ int red_extension_init(void) {
 			}
 
 			_red_extension_type[i] = EXTENSION_TYPE_RS485;
+
 			break;
 
 		case EXTENSION_TYPE_ETHERNET:
@@ -668,6 +669,7 @@ int red_extension_init(void) {
 			}
 
 			_red_extension_type[i] = EXTENSION_TYPE_ETHERNET;
+
 			break;
 		}
 	}
@@ -684,12 +686,10 @@ void red_extension_exit(void) {
 		switch (_red_extension_type[i]) {
 		case EXTENSION_TYPE_RS485:
 			red_rs485_extension_exit();
-
 			break;
 
 		case EXTENSION_TYPE_ETHERNET:
 			red_ethernet_extension_exit();
-
 			break;
 
 		default:

@@ -70,7 +70,6 @@ static void iokit_handle_notifications(void *opaque, io_service_t service,
 	switch (message_type) {
 	case kIOMessageCanSystemSleep:
 		IOAllowPowerChange(*root_port, (long)message_argument);
-
 		break;
 
 	case kIOMessageSystemWillSleep:

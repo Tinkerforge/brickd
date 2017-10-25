@@ -667,13 +667,11 @@ void init_rxe_pin_state(int extension) {
 	case 0:
 		_rx_pin.port_index = GPIO_PORT_B;
 		_rx_pin.pin_index = GPIO_PIN_13;
-
 		break;
 
 	case 1:
 		_rx_pin.port_index = GPIO_PORT_G;
 		_rx_pin.pin_index = GPIO_PIN_5;
-
 		break;
 	}
 

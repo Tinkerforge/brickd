@@ -250,13 +250,11 @@ int usb_transfer_submit(USBTransfer *usb_transfer) {
 	case USB_TRANSFER_TYPE_READ:
 		endpoint = usb_transfer->usb_stack->endpoint_in;
 		length = sizeof(Packet);
-
 		break;
 
 	case USB_TRANSFER_TYPE_WRITE:
 		endpoint = usb_transfer->usb_stack->endpoint_out;
 		length = usb_transfer->packet.header.length;
-
 		break;
 
 	default:

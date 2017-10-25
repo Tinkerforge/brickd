@@ -433,23 +433,19 @@ void log_apply_color_platform(LogLevel level, bool begin) {
 
 		case LOG_LEVEL_ERROR:
 			attributes = log_prepare_color_attributes(FOREGROUND_RED | FOREGROUND_INTENSITY);
-
 			break;
 
 		case LOG_LEVEL_WARN:
 			// FIXME: select blue or yellow depending on background color
 			attributes = log_prepare_color_attributes(FOREGROUND_BLUE | FOREGROUND_INTENSITY);
-
 			break;
 
 		case LOG_LEVEL_INFO:
 			attributes = log_prepare_color_attributes(FOREGROUND_WHITE | FOREGROUND_INTENSITY);
-
 			break;
 
 		case LOG_LEVEL_DEBUG:
 			attributes = log_prepare_color_attributes(FOREGROUND_WHITE);
-
 			break;
 		}
 
