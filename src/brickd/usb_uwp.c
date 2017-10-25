@@ -383,6 +383,7 @@ static DWORD CALLBACK usb_handle_notify_event(HCMNOTIFICATION hnotify,
 }
 
 int usb_init_platform(void) {
+	return 0;
 }
 
 void usb_exit_platform(void) {
