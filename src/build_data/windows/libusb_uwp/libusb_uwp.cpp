@@ -216,7 +216,7 @@ extern "C" int usbi_pipe(int fd[2]) {
 		return -1;
 	}
 
-	fake_pipe->ref_count = 2;
+	fake_pipe->ref_count = 2; // one ref for each end of the pipe
 	fake_pipe->semaphore = CreateSemaphore(nullptr, 0, INT32_MAX, nullptr);
 
 	if (fake_pipe->semaphore == nullptr) {
@@ -403,6 +403,8 @@ extern "C" int usbi_poll(struct usbi_pollfd *fds, unsigned int nfds, int timeout
 
 		i = rc - WAIT_OBJECT_0;
 
+		// WaitForMultipleObjects decreases the counter of the semaphore. undo
+		// this to allow usbi_read to decrease it again
 		ReleaseSemaphore(handles[i], 1, nullptr);
 
 		fds[i].revents = USBI_POLLIN;
@@ -622,9 +624,9 @@ static int usbi_create_device(libusb_context *ctx, DeviceInformation ^info,
                               libusb_device **dev_ptr) {
 	libusb_device *dev = (libusb_device *)calloc(1, sizeof(libusb_device));
 	int rc;
-	const char *brick_id_prefix1 = "\\\\?\\USB#"; // according to libusb: "\\?\" == "\\.\" == "##?#" == "##.#" and "\" == "#"
-	const char *brick_id_prefix2 = "VID_16D0&PID_063D#"; // according to libusb: "Vid_" == "VID_"
-	const char *red_brick_id_prefix2 = "VID_16D0&PID_09E5#"; // according to libusb: "Vid_" == "VID_"
+	const char *brick_id_prefix1 = "\\\\?\\USB#";
+	const char *brick_id_prefix2 = "VID_16D0&PID_063D#";
+	const char *red_brick_id_prefix2 = "VID_16D0&PID_09E5#";
 	char *uid_start = nullptr;
 	char *uid_end = nullptr;
 
