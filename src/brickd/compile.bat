@@ -84,6 +84,7 @@
  usb_stack.c^
  usb_transfer.c^
  usb_winapi.c^
+ usb_windows.c^
  websocket.c^
  zombie.c
 

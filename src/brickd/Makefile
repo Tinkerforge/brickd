@@ -213,7 +213,8 @@ ifeq ($(PLATFORM),Windows)
 	                  fixes_mingw.c \
 	                  log_winapi.c \
 	                  service.c \
-	                  usb_winapi.c
+	                  usb_winapi.c \
+	                  usb_windows.c
 else
 	SOURCES_DAEMONLIB += ../daemonlib/daemon.c \
 	                     ../daemonlib/log_posix.c \

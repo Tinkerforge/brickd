@@ -39,25 +39,9 @@
 #include "usb.h"
 
 #include "service.h"
+#include "usb_windows.h"
 
 static LogSource _log_source = LOG_SOURCE_INITIALIZER;
-
-// general USB device GUID, applies to all Bricks. for the RED Brick this only
-// applies to the composite device itself, but not to its functions
-static const GUID GUID_DEVINTERFACE_USB_DEVICE =
-{ 0xA5DCBF10L, 0x6530, 0x11D2, { 0x90, 0x1F, 0x00, 0xC0, 0x4F, 0xB9, 0x51, 0xED } };
-
-// Brick device GUID (does not apply to the RED Brick). only set by the
-// brick.inf driver, not reported by the Brick itself if used driverless since
-// Windows 8. therefore it cannot be used as the only way to detect Bricks
-static const GUID GUID_DEVINTERFACE_BRICK_DEVICE =
-{ 0x870013DDL, 0xFB1D, 0x4BD7, { 0xA9, 0x6C, 0x1F, 0x0B, 0x7D, 0x31, 0xAF, 0x41 } };
-
-// RED Brick device GUID (only applies to the Brick function). set by the
-// red_brick.inf driver and reported by the RED Brick itself if used driverless
-// since Windows 8. therefore it can be used as the sole way to detect RED Bricks
-static const GUID GUID_DEVINTERFACE_RED_BRICK_DEVICE =
-{ 0x9536B3B1L, 0x6077, 0x4A3B, { 0x9B, 0xAC, 0x7C, 0x2C, 0xFA, 0x8A, 0x2B, 0xF3 } };
 
 static Pipe _notification_pipe;
 static HWND _message_pump_hwnd = NULL;
@@ -80,41 +64,27 @@ static void usb_forward_notifications(void *opaque) {
 	usb_rescan();
 }
 
-
 /*static*/ void usb_handle_device_event(DWORD event_type,
                                         DEV_BROADCAST_DEVICEINTERFACE *event_data) {
-	bool possibly_brick = false;
-	bool definitely_brick = false;
-	bool definitely_red_brick = false;
-	const char *brick_name_prefix1 = "\\\\?\\USB\\"; // according to libusb: "\\?\" == "\\.\" == "##?#" == "##.#" and "\" == "#"
-	const char *brick_name_prefix2 = "VID_16D0&PID_063D"; // according to libusb: "Vid_" == "VID_"
-	const char *red_brick_name_prefix2 = "VID_16D0&PID_09E5"; // according to libusb: "Vid_" == "VID_"
+	USBHotplugType type;
 	char buffer[1024] = "<unknown>";
 	int rc;
 	char *name;
-	char guid[64] = "<unknown>";
 	uint8_t byte = 0;
 
-	// check event type
-	if (event_type != DBT_DEVICEARRIVAL && event_type != DBT_DEVICEREMOVECOMPLETE) {
+	switch (event_type) {
+	case DBT_DEVICEARRIVAL:
+		type = USB_HOTPLUG_TYPE_ARRIVAL;
+		break;
+
+	case DBT_DEVICEREMOVECOMPLETE:
+		type = USB_HOTPLUG_TYPE_REMOVAL;
+		break;
+
+	default:
 		return;
 	}
 
-	// check class GUID
-	if (memcmp(&event_data->dbcc_classguid,
-	           &GUID_DEVINTERFACE_USB_DEVICE, sizeof(GUID)) == 0) {
-		possibly_brick = true;
-	} else if (memcmp(&event_data->dbcc_classguid,
-	                  &GUID_DEVINTERFACE_BRICK_DEVICE, sizeof(GUID)) == 0) {
-		definitely_brick = true;
-	} else if (memcmp(&event_data->dbcc_classguid,
-	                  &GUID_DEVINTERFACE_RED_BRICK_DEVICE, sizeof(GUID)) == 0) {
-		definitely_red_brick = true;
-	} else {
-		return;
-	}
-
-	// convert name
 	if (service_get_status_handle() != NULL) {
 		if (WideCharToMultiByte(CP_UTF8, 0, (LPCWSTR)&event_data->dbcc_name[0],
 		                        -1, buffer, sizeof(buffer), NULL, NULL) == 0) {
@@ -131,40 +101,9 @@ static void usb_forward_notifications(void *opaque) {
 		name = event_data->dbcc_name;
 	}
 
-	if (possibly_brick) {
-		// check if name contains (RED) Brick vendor and product ID
-		if (strlen(name) > strlen(brick_name_prefix1)) {
-			if (strncasecmp(name + strlen(brick_name_prefix1), brick_name_prefix2,
-			                strlen(brick_name_prefix2)) == 0) {
-				definitely_brick = true;
-			} else if (strncasecmp(name + strlen(brick_name_prefix1), red_brick_name_prefix2,
-			                       strlen(red_brick_name_prefix2)) == 0) {
-				definitely_red_brick = true;
-			}
-		}
-	}
-
-	if (!definitely_brick && !definitely_red_brick) {
+	if (!usb_check_hotplug_event(type, &event_data->dbcc_classguid, name)) {
 		return;
 	}
-
-	snprintf(guid, sizeof(guid),
-	         "{%08X-%04X-%04X-%02X%02X-%02X%02X%02X%02X%02X%02X}",
-	         event_data->dbcc_classguid.Data1,
-	         event_data->dbcc_classguid.Data2,
-	         event_data->dbcc_classguid.Data3,
-	         event_data->dbcc_classguid.Data4[0],
-	         event_data->dbcc_classguid.Data4[1],
-	         event_data->dbcc_classguid.Data4[2],
-	         event_data->dbcc_classguid.Data4[3],
-	         event_data->dbcc_classguid.Data4[4],
-	         event_data->dbcc_classguid.Data4[5],
-	         event_data->dbcc_classguid.Data4[6],
-	         event_data->dbcc_classguid.Data4[7]);
-
-	log_debug("Received device notification (type: %s, guid: %s, name: %s)",
-	          event_type == DBT_DEVICEARRIVAL ? "arrival" : "removal",
-	          guid, name);
 
 	if (pipe_write(&_notification_pipe, &byte, sizeof(byte)) < 0) {
 		log_error("Could not write to notification pipe: %s (%d)",
