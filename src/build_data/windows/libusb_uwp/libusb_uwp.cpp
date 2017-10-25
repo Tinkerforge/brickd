@@ -542,8 +542,8 @@ static int usbi_create_config_descriptor(libusb_context *ctx, UsbDevice ^device,
 	return LIBUSB_SUCCESS;
 }
 
-static int usbi_get_cached_descriptors(libusb_context *ctx, String ^id,
-                                       usbi_cached_descriptor **descriptor_ptr) {
+static int usbi_get_cached_descriptor(libusb_context *ctx, String ^id,
+                                      usbi_cached_descriptor **descriptor_ptr) {
 	std::wstring id_wchar(id->Data());
 	auto iter = _cached_descriptors.find(id_wchar);
 	int rc = LIBUSB_SUCCESS;
@@ -653,7 +653,7 @@ static int usbi_create_device(libusb_context *ctx, DeviceInformation ^info,
 
 	usbi_get_fake_device_address(info->Id, &dev->bus_number, &dev->device_address);
 
-	rc = usbi_get_cached_descriptors(ctx, info->Id, &dev->descriptor);
+	rc = usbi_get_cached_descriptor(ctx, info->Id, &dev->descriptor);
 
 	if (rc < 0) {
 		free(dev->id_ascii);
