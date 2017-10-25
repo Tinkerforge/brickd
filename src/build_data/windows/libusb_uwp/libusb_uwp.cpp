@@ -1398,9 +1398,6 @@ void libusb_free_transfer(struct libusb_transfer *transfer) {
 	free(itransfer);
 }
 
-void libusb_set_log_file(FILE *file) {
-}
-
 void libusb_set_log_function(libusb_log_function function) {
 	_log_function = function;
 }
