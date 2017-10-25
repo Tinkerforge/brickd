@@ -716,8 +716,8 @@ static int usbi_get_device_list(libusb_context *ctx, uint16_t vendor_id,
                                 uint16_t product_id, Node *sentinel) {
 	int rc = LIBUSB_SUCCESS;
 	int *rc_ptr = &rc;
-	ssize_t length = 0;
-	ssize_t *length_ptr = &length;
+	int length = 0;
+	int *length_ptr = &length;
 
 	create_task(DeviceInformation::FindAllAsync(UsbDevice::GetDeviceSelector(vendor_id, product_id)))
 	.then([ctx, rc_ptr, sentinel, length_ptr](task<DeviceInformationCollection ^> previous) {
