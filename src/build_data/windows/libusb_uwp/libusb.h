@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2016 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2016-2017 Matthias Bolte <matthias@tinkerforge.com>
  *
  * libusb.h: Emulating libusb API for Universal Windows Platform
  *
@@ -104,7 +104,7 @@ enum libusb_transfer_status {
 
 struct libusb_transfer;
 
-typedef void (*libusb_transfer_cb_fn)(struct libusb_transfer *transfer);
+typedef void (*libusb_transfer_callback)(struct libusb_transfer *transfer);
 
 struct libusb_transfer {
 	libusb_device_handle *dev_handle;
@@ -113,7 +113,7 @@ struct libusb_transfer {
 	enum libusb_transfer_status status;
 	int length;
 	int actual_length;
-	libusb_transfer_cb_fn callback;
+	libusb_transfer_callback callback;
 	void *user_data;
 	unsigned char *buffer;
 };
@@ -125,6 +125,18 @@ enum libusb_log_level {
 	LIBUSB_LOG_LEVEL_INFO,
 	LIBUSB_LOG_LEVEL_DEBUG,
 };
+
+struct libusb_pollfd {
+	int fd;
+	short events;
+};
+
+typedef void (*libusb_pollfd_added_callback)(int fd, short events, void *user_data);
+typedef void (*libusb_pollfd_removed_callback)(int fd, void *user_data);
+
+typedef void (*libusb_log_callback)(libusb_context *ctx, enum libusb_log_level level,
+                                    const char *function, const char *format,
+                                    va_list args);
 
 int libusb_init(libusb_context **ctx);
 void libusb_exit(libusb_context *ctx);
@@ -155,22 +167,11 @@ struct libusb_transfer *libusb_alloc_transfer(int iso_packets);
 int libusb_submit_transfer(struct libusb_transfer *transfer);
 int libusb_cancel_transfer(struct libusb_transfer *transfer);
 void libusb_free_transfer(struct libusb_transfer *transfer);
-
-static inline void libusb_fill_bulk_transfer(struct libusb_transfer *transfer,
-                                             libusb_device_handle *dev_handle,
-                                             unsigned char endpoint,
-                                             unsigned char *buffer, int length,
-                                             libusb_transfer_cb_fn callback,
-                                             void *user_data,
-                                             unsigned int timeout) {
-	transfer->dev_handle = dev_handle;
-	transfer->endpoint = endpoint;
-	transfer->timeout = timeout;
-	transfer->buffer = buffer;
-	transfer->length = length;
-	transfer->user_data = user_data;
-	transfer->callback = callback;
-}
+void libusb_fill_bulk_transfer(struct libusb_transfer *transfer,
+                               libusb_device_handle *dev_handle,
+                               unsigned char endpoint, unsigned char *buffer,
+                               int length, libusb_transfer_callback callback,
+                               void *user_data, unsigned int timeout);
 
 int libusb_get_string_descriptor_ascii(libusb_device_handle *dev_handle,
                                        uint8_t desc_index, unsigned char *data,
@@ -179,24 +180,14 @@ int libusb_get_string_descriptor_ascii(libusb_device_handle *dev_handle,
 int libusb_handle_events_timeout(libusb_context *ctx, struct timeval *tv);
 int libusb_pollfds_handle_timeouts(libusb_context *ctx);
 
-struct libusb_pollfd {
-	int fd;
-	short events;
-};
-
-typedef void (*libusb_pollfd_added_cb)(int fd, short events, void *user_data);
-typedef void (*libusb_pollfd_removed_cb)(int fd, void *user_data);
-
 const struct libusb_pollfd **libusb_get_pollfds(libusb_context *ctx);
 void libusb_free_pollfds(const struct libusb_pollfd **pollfds);
-void libusb_set_pollfd_notifiers(libusb_context *ctx, libusb_pollfd_added_cb added_cb,
-                                 libusb_pollfd_removed_cb removed_cb, void *user_data);
+void libusb_set_pollfd_notifiers(libusb_context *ctx,
+                                 libusb_pollfd_added_callback added_callback,
+                                 libusb_pollfd_removed_callback removed_callback,
+                                 void *user_data);
 
-typedef void (*libusb_log_function)(libusb_context *ctx, enum libusb_log_level level,
-                                    const char *function, const char *format,
-                                    va_list args);
-
-void libusb_set_log_function(libusb_log_function function);
+void libusb_set_log_function(libusb_log_callback callback);
 
 #ifdef __cplusplus
 }

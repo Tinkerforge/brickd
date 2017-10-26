@@ -118,28 +118,28 @@ struct _libusb_device_handle {
 	Node write_itransfer_sentinel;
 };
 
-static libusb_log_function _log_function;
+static libusb_log_callback _log_callback;
 
 static usbi_fake_fd _fake_fds[USBI_MAX_FAKE_FDS];
 static std::unordered_map<std::wstring, uint16_t> _fake_device_addresses;
 static uint32_t _next_read_itransfer_sequence_number;
 static uint32_t _next_write_itransfer_sequence_number;
 
-// NOTE: assumes _log_function is not nullptr
-static void usbi_log_message(libusb_context *ctx, libusb_log_level level,
+// NOTE: assumes _log_callback is not nullptr
+static void usbi_log_message(libusb_context *ctx, enum libusb_log_level level,
                              const char *function, const char *format, ...) {
 	va_list args;
 
 	va_start(args, format);
 
-	_log_function(ctx, level, function, format, args);
+	_log_callback(ctx, level, function, format, args);
 
 	va_end(args);
 }
 
 #define usbi_log_message_checked(ctx, level, ...) \
 	do { \
-		if (_log_function != nullptr) { \
+		if (_log_callback != nullptr) { \
 			usbi_log_message(ctx, level, __FUNCTION__, __VA_ARGS__); \
 		} \
 	__pragma(warning(push)) \
@@ -843,11 +843,13 @@ void libusb_free_pollfds(const struct libusb_pollfd **pollfds) {
 	free(pollfds);
 }
 
-void libusb_set_pollfd_notifiers(libusb_context *ctx, libusb_pollfd_added_cb added_cb,
-                                 libusb_pollfd_removed_cb removed_cb, void *user_data) {
+void libusb_set_pollfd_notifiers(libusb_context *ctx,
+                                 libusb_pollfd_added_callback added_callback,
+                                 libusb_pollfd_removed_callback removed_callback,
+                                 void *user_data) {
 	(void)ctx;
-	(void)added_cb;
-	(void)removed_cb;
+	(void)added_callback;
+	(void)removed_callback;
 	(void)user_data;
 }
 
@@ -1382,6 +1384,20 @@ void libusb_free_transfer(struct libusb_transfer *transfer) {
 	free(itransfer);
 }
 
-void libusb_set_log_function(libusb_log_function function) {
-	_log_function = function;
+void libusb_fill_bulk_transfer(struct libusb_transfer *transfer,
+                               libusb_device_handle *dev_handle,
+                               unsigned char endpoint, unsigned char *buffer,
+                               int length, libusb_transfer_callback callback,
+                               void *user_data, unsigned int timeout) {
+	transfer->dev_handle = dev_handle;
+	transfer->endpoint = endpoint;
+	transfer->timeout = timeout;
+	transfer->buffer = buffer;
+	transfer->length = length;
+	transfer->user_data = user_data;
+	transfer->callback = callback;
+}
+
+void libusb_set_log_function(libusb_log_callback callback) {
+	_log_callback = callback;
 }

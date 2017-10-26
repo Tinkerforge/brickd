@@ -106,10 +106,10 @@ typedef enum {
 } libusbz_hotplug_event;
 
 typedef int libusbz_hotplug_callback_handle;
-typedef int LIBUSB_CALL (*libusbz_hotplug_callback_fn)(libusb_context *ctx, libusb_device *device, libusbz_hotplug_event event, void *user_data);
+typedef int LIBUSB_CALL (*libusbz_hotplug_callback)(libusb_context *ctx, libusb_device *device, libusbz_hotplug_event event, void *user_data);
 
 typedef int LIBUSB_CALL (*libusbz_has_capability_t)(uint32_t capability);
-typedef int LIBUSB_CALL (*libusbz_hotplug_register_callback_t)(libusb_context *ctx, libusbz_hotplug_event events, libusbz_hotplug_flag flags, int vendor_id, int product_id, int dev_class, libusbz_hotplug_callback_fn cb_fn, void *user_data, libusbz_hotplug_callback_handle *handle);
+typedef int LIBUSB_CALL (*libusbz_hotplug_register_callback_t)(libusb_context *ctx, libusbz_hotplug_event events, libusbz_hotplug_flag flags, int vendor_id, int product_id, int dev_class, libusbz_hotplug_callback callback, void *user_data, libusbz_hotplug_callback_handle *handle);
 typedef void LIBUSB_CALL (*libusbz_hotplug_deregister_callback_t)(libusb_context *ctx, libusbz_hotplug_callback_handle handle);
 
 static libusbz_has_capability_t libusbz_has_capability = NULL;

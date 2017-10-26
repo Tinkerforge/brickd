@@ -144,7 +144,7 @@ struct libusb_iso_packet_descriptor {
 
 struct libusb_transfer;
 
-typedef void (*libusb_transfer_cb_fn)(struct libusb_transfer *transfer);
+typedef void (*libusb_transfer_callback)(struct libusb_transfer *transfer);
 
 struct libusb_transfer {
 	libusb_device_handle *dev_handle;
@@ -155,7 +155,7 @@ struct libusb_transfer {
 	enum libusb_transfer_status status;
 	int length;
 	int actual_length;
-	libusb_transfer_cb_fn callback;
+	libusb_transfer_callback callback;
 	void *user_data;
 	unsigned char *buffer;
 	int num_iso_packets;
@@ -181,79 +181,79 @@ struct libusb_pollfd {
 	short events;
 };
 
-typedef void (*libusb_pollfd_added_cb)(int fd, short events, void *user_data);
-typedef void (*libusb_pollfd_removed_cb)(int fd, void *user_data);
+typedef void (*libusb_pollfd_added_callback)(int fd, short events, void *user_data);
+typedef void (*libusb_pollfd_removed_callback)(int fd, void *user_data);
 
-typedef int (*libusb_init_fn)(libusb_context **ctx);
-typedef void (*libusb_exit_fn)(libusb_context *ctx);
-typedef void (*libusb_set_debug_fn)(libusb_context *ctx, int level);
+typedef int (*libusb_init_t)(libusb_context **ctx);
+typedef void (*libusb_exit_t)(libusb_context *ctx);
+typedef void (*libusb_set_debug_t)(libusb_context *ctx, int level);
 
-typedef ssize_t (*libusb_get_device_list_fn)(libusb_context *ctx, libusb_device ***list);
-typedef void (*libusb_free_device_list_fn)(libusb_device **list, int unref_devices);
-typedef libusb_device *(*libusb_ref_device_fn)(libusb_device *dev);
-typedef void (*libusb_unref_device_fn)(libusb_device *dev);
+typedef ssize_t (*libusb_get_device_list_t)(libusb_context *ctx, libusb_device ***list);
+typedef void (*libusb_free_device_list_t)(libusb_device **list, int unref_devices);
+typedef libusb_device *(*libusb_ref_device_t)(libusb_device *dev);
+typedef void (*libusb_unref_device_t)(libusb_device *dev);
 
-typedef int (*libusb_get_device_descriptor_fn)(libusb_device *dev, struct libusb_device_descriptor *desc);
-typedef int (*libusb_get_config_descriptor_fn)(libusb_device *dev, uint8_t config_index, struct libusb_config_descriptor **config);
-typedef void (*libusb_free_config_descriptor_fn)(struct libusb_config_descriptor *config);
+typedef int (*libusb_get_device_descriptor_t)(libusb_device *dev, struct libusb_device_descriptor *desc);
+typedef int (*libusb_get_config_descriptor_t)(libusb_device *dev, uint8_t config_index, struct libusb_config_descriptor **config);
+typedef void (*libusb_free_config_descriptor_t)(struct libusb_config_descriptor *config);
 
-typedef uint8_t (*libusb_get_bus_number_fn)(libusb_device *dev);
-typedef uint8_t (*libusb_get_device_address_fn)(libusb_device *dev);
+typedef uint8_t (*libusb_get_bus_number_t)(libusb_device *dev);
+typedef uint8_t (*libusb_get_device_address_t)(libusb_device *dev);
 
-typedef int (*libusb_open_fn)(libusb_device *dev, libusb_device_handle **handle);
-typedef void (*libusb_close_fn)(libusb_device_handle *dev_handle);
-typedef libusb_device *(*libusb_get_device_fn)(libusb_device_handle *dev_handle);
+typedef int (*libusb_open_t)(libusb_device *dev, libusb_device_handle **handle);
+typedef void (*libusb_close_t)(libusb_device_handle *dev_handle);
+typedef libusb_device *(*libusb_get_device_t)(libusb_device_handle *dev_handle);
 
-typedef int (*libusb_claim_interface_fn)(libusb_device_handle *dev, int interface_number);
-typedef int (*libusb_release_interface_fn)(libusb_device_handle *dev, int interface_number);
+typedef int (*libusb_claim_interface_t)(libusb_device_handle *dev, int interface_number);
+typedef int (*libusb_release_interface_t)(libusb_device_handle *dev, int interface_number);
 
-typedef struct libusb_transfer *(*libusb_alloc_transfer_fn)(int iso_packets);
-typedef int (*libusb_submit_transfer_fn)(struct libusb_transfer *transfer);
-typedef int (*libusb_cancel_transfer_fn)(struct libusb_transfer *transfer);
-typedef void (*libusb_free_transfer_fn)(struct libusb_transfer *transfer);
+typedef struct libusb_transfer *(*libusb_alloc_transfer_t)(int iso_packets);
+typedef int (*libusb_submit_transfer_t)(struct libusb_transfer *transfer);
+typedef int (*libusb_cancel_transfer_t)(struct libusb_transfer *transfer);
+typedef void (*libusb_free_transfer_t)(struct libusb_transfer *transfer);
 
-typedef int (*libusb_get_string_descriptor_ascii_fn)(libusb_device_handle *dev_handle, uint8_t desc_index, unsigned char *data, int length);
+typedef int (*libusb_get_string_descriptor_ascii_t)(libusb_device_handle *dev_handle, uint8_t desc_index, unsigned char *data, int length);
 
-typedef int (*libusb_handle_events_timeout_fn)(libusb_context *ctx, struct timeval *tv);
-typedef int (*libusb_pollfds_handle_timeouts_fn)(libusb_context *ctx);
+typedef int (*libusb_handle_events_timeout_t)(libusb_context *ctx, struct timeval *tv);
+typedef int (*libusb_pollfds_handle_timeouts_t)(libusb_context *ctx);
 
-typedef const struct libusb_pollfd **(*libusb_get_pollfds_fn)(libusb_context *ctx);
-typedef void (*libusb_free_pollfds_fn)(const struct libusb_pollfd **pollfds);
-typedef void (*libusb_set_pollfd_notifiers_fn)(libusb_context *ctx, libusb_pollfd_added_cb added_cb, libusb_pollfd_removed_cb removed_cb, void *user_data);
+typedef const struct libusb_pollfd **(*libusb_get_pollfds_t)(libusb_context *ctx);
+typedef void (*libusb_free_pollfds_t)(const struct libusb_pollfd **pollfds);
+typedef void (*libusb_set_pollfd_notifiers_t)(libusb_context *ctx, libusb_pollfd_added_callback added_callback, libusb_pollfd_removed_callback removed_callback, void *user_data);
 
-extern libusb_init_fn libusb_init;
-extern libusb_exit_fn libusb_exit;
-extern libusb_set_debug_fn libusb_set_debug;
+extern libusb_init_t libusb_init;
+extern libusb_exit_t libusb_exit;
+extern libusb_set_debug_t libusb_set_debug;
 
-extern libusb_get_device_list_fn libusb_get_device_list;
-extern libusb_free_device_list_fn libusb_free_device_list;
-extern libusb_ref_device_fn libusb_ref_device;
-extern libusb_unref_device_fn libusb_unref_device;
+extern libusb_get_device_list_t libusb_get_device_list;
+extern libusb_free_device_list_t libusb_free_device_list;
+extern libusb_ref_device_t libusb_ref_device;
+extern libusb_unref_device_t libusb_unref_device;
 
-extern libusb_get_device_descriptor_fn libusb_get_device_descriptor;
-extern libusb_get_config_descriptor_fn libusb_get_config_descriptor;
-extern libusb_free_config_descriptor_fn libusb_free_config_descriptor;
+extern libusb_get_device_descriptor_t libusb_get_device_descriptor;
+extern libusb_get_config_descriptor_t libusb_get_config_descriptor;
+extern libusb_free_config_descriptor_t libusb_free_config_descriptor;
 
-extern libusb_get_bus_number_fn libusb_get_bus_number;
-extern libusb_get_device_address_fn libusb_get_device_address;
+extern libusb_get_bus_number_t libusb_get_bus_number;
+extern libusb_get_device_address_t libusb_get_device_address;
 
-extern libusb_open_fn libusb_open;
-extern libusb_close_fn libusb_close;
-extern libusb_get_device_fn libusb_get_device;
+extern libusb_open_t libusb_open;
+extern libusb_close_t libusb_close;
+extern libusb_get_device_t libusb_get_device;
 
-extern libusb_claim_interface_fn libusb_claim_interface;
-extern libusb_release_interface_fn libusb_release_interface;
+extern libusb_claim_interface_t libusb_claim_interface;
+extern libusb_release_interface_t libusb_release_interface;
 
-extern libusb_alloc_transfer_fn libusb_alloc_transfer;
-extern libusb_submit_transfer_fn libusb_submit_transfer;
-extern libusb_cancel_transfer_fn libusb_cancel_transfer;
-extern libusb_free_transfer_fn libusb_free_transfer;
+extern libusb_alloc_transfer_t libusb_alloc_transfer;
+extern libusb_submit_transfer_t libusb_submit_transfer;
+extern libusb_cancel_transfer_t libusb_cancel_transfer;
+extern libusb_free_transfer_t libusb_free_transfer;
 
 static inline void libusb_fill_bulk_transfer(struct libusb_transfer *transfer,
                                              libusb_device_handle *dev_handle,
                                              unsigned char endpoint,
                                              unsigned char *buffer, int length,
-                                             libusb_transfer_cb_fn callback,
+                                             libusb_transfer_callback callback,
                                              void *user_data, unsigned int timeout)
 {
 	transfer->dev_handle = dev_handle;
@@ -266,14 +266,14 @@ static inline void libusb_fill_bulk_transfer(struct libusb_transfer *transfer,
 	transfer->callback = callback;
 }
 
-extern libusb_get_string_descriptor_ascii_fn libusb_get_string_descriptor_ascii;
+extern libusb_get_string_descriptor_ascii_t libusb_get_string_descriptor_ascii;
 
-extern libusb_handle_events_timeout_fn libusb_handle_events_timeout;
-extern libusb_pollfds_handle_timeouts_fn libusb_pollfds_handle_timeouts;
+extern libusb_handle_events_timeout_t libusb_handle_events_timeout;
+extern libusb_pollfds_handle_timeouts_t libusb_pollfds_handle_timeouts;
 
-extern libusb_get_pollfds_fn libusb_get_pollfds;
-extern libusb_free_pollfds_fn libusb_free_pollfds;
-extern libusb_set_pollfd_notifiers_fn libusb_set_pollfd_notifiers;
+extern libusb_get_pollfds_t libusb_get_pollfds;
+extern libusb_free_pollfds_t libusb_free_pollfds;
+extern libusb_set_pollfd_notifiers_t libusb_set_pollfd_notifiers;
 
 int libusb_init_dlopen(void);
 void libusb_exit_dlopen(void);

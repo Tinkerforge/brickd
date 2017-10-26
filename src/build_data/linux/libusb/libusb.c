@@ -33,42 +33,42 @@ static LogSource _log_source = LOG_SOURCE_INITIALIZER;
 static const char *_libusb = "libusb-1.0.so";
 static void *_libusb_handle = NULL;
 
-libusb_init_fn libusb_init;
-libusb_exit_fn libusb_exit;
-libusb_set_debug_fn libusb_set_debug;
+libusb_init_t libusb_init;
+libusb_exit_t libusb_exit;
+libusb_set_debug_t libusb_set_debug;
 
-libusb_get_device_list_fn libusb_get_device_list;
-libusb_free_device_list_fn libusb_free_device_list;
-libusb_ref_device_fn libusb_ref_device;
-libusb_unref_device_fn libusb_unref_device;
+libusb_get_device_list_t libusb_get_device_list;
+libusb_free_device_list_t libusb_free_device_list;
+libusb_ref_device_t libusb_ref_device;
+libusb_unref_device_t libusb_unref_device;
 
-libusb_get_device_descriptor_fn libusb_get_device_descriptor;
-libusb_get_config_descriptor_fn libusb_get_config_descriptor;
-libusb_free_config_descriptor_fn libusb_free_config_descriptor;
+libusb_get_device_descriptor_t libusb_get_device_descriptor;
+libusb_get_config_descriptor_t libusb_get_config_descriptor;
+libusb_free_config_descriptor_t libusb_free_config_descriptor;
 
-libusb_get_bus_number_fn libusb_get_bus_number;
-libusb_get_device_address_fn libusb_get_device_address;
+libusb_get_bus_number_t libusb_get_bus_number;
+libusb_get_device_address_t libusb_get_device_address;
 
-libusb_open_fn libusb_open;
-libusb_close_fn libusb_close;
-libusb_get_device_fn libusb_get_device;
+libusb_open_t libusb_open;
+libusb_close_t libusb_close;
+libusb_get_device_t libusb_get_device;
 
-libusb_claim_interface_fn libusb_claim_interface;
-libusb_release_interface_fn libusb_release_interface;
+libusb_claim_interface_t libusb_claim_interface;
+libusb_release_interface_t libusb_release_interface;
 
-libusb_alloc_transfer_fn libusb_alloc_transfer;
-libusb_submit_transfer_fn libusb_submit_transfer;
-libusb_cancel_transfer_fn libusb_cancel_transfer;
-libusb_free_transfer_fn libusb_free_transfer;
+libusb_alloc_transfer_t libusb_alloc_transfer;
+libusb_submit_transfer_t libusb_submit_transfer;
+libusb_cancel_transfer_t libusb_cancel_transfer;
+libusb_free_transfer_t libusb_free_transfer;
 
-libusb_get_string_descriptor_ascii_fn libusb_get_string_descriptor_ascii;
+libusb_get_string_descriptor_ascii_t libusb_get_string_descriptor_ascii;
 
-libusb_handle_events_timeout_fn libusb_handle_events_timeout;
-libusb_pollfds_handle_timeouts_fn libusb_pollfds_handle_timeouts;
+libusb_handle_events_timeout_t libusb_handle_events_timeout;
+libusb_pollfds_handle_timeouts_t libusb_pollfds_handle_timeouts;
 
-libusb_get_pollfds_fn libusb_get_pollfds;
-libusb_free_pollfds_fn libusb_free_pollfds;
-libusb_set_pollfd_notifiers_fn libusb_set_pollfd_notifiers;
+libusb_get_pollfds_t libusb_get_pollfds;
+libusb_free_pollfds_t libusb_free_pollfds;
+libusb_set_pollfd_notifiers_t libusb_set_pollfd_notifiers;
 
 #if defined(__clang__) || !defined(__GNUC__) || __GNUC_PREREQ(4, 6)
 
