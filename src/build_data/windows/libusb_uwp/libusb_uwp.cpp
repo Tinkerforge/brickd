@@ -290,6 +290,8 @@ extern "C" int usbi_close(int fd) {
 extern "C" ssize_t usbi_read(int fd, void *buf, size_t count) {
 	usbi_fake_fd *fake_fd;
 
+	(void)buf;
+
 	if (count != sizeof(uint8_t)) {
 		errno = ERANGE;
 
@@ -316,6 +318,8 @@ extern "C" ssize_t usbi_read(int fd, void *buf, size_t count) {
 // sets errno on error
 extern "C" ssize_t usbi_write(int fd, const void *buf, size_t count) {
 	usbi_fake_fd *fake_fd;
+
+	(void)buf;
 
 	if (count != sizeof(uint8_t)) {
 		errno = ERANGE;
@@ -845,6 +849,8 @@ void libusb_set_debug(libusb_context *ctx, int level) {
 }
 
 int libusb_pollfds_handle_timeouts(libusb_context *ctx) {
+	(void)ctx;
+
 	return 1;
 }
 
@@ -873,6 +879,10 @@ void libusb_free_pollfds(const struct libusb_pollfd **pollfds) {
 
 void libusb_set_pollfd_notifiers(libusb_context *ctx, libusb_pollfd_added_cb added_cb,
                                  libusb_pollfd_removed_cb removed_cb, void *user_data) {
+	(void)ctx;
+	(void)added_cb;
+	(void)removed_cb;
+	(void)user_data;
 }
 
 int libusb_handle_events_timeout(libusb_context *ctx, struct timeval *tv) {
@@ -1130,6 +1140,8 @@ int libusb_get_config_descriptor(libusb_device *dev, uint8_t config_index,
 }
 
 void libusb_free_config_descriptor(struct libusb_config_descriptor *config) {
+	(void)config;
+
 	// nothing to free, because libusb_get_config_descriptor doesn't allocate memory
 }
 
@@ -1223,10 +1235,16 @@ int libusb_get_string_descriptor_ascii(libusb_device_handle *dev_handle,
 }
 
 int libusb_claim_interface(libusb_device_handle *dev_handle, int interface_number) {
+	(void)dev_handle;
+	(void)interface_number;
+
 	return LIBUSB_SUCCESS;
 }
 
 int libusb_release_interface(libusb_device_handle *dev_handle, int interface_number) {
+	(void)dev_handle;
+	(void)interface_number;
+
 	return LIBUSB_SUCCESS;
 }
 

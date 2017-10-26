@@ -157,6 +157,7 @@
       <DisableSpecificWarnings>4200;4996;28204</DisableSpecificWarnings>
       <ForcedIncludeFiles>fixes_msvc.h</ForcedIncludeFiles>
       <AdditionalIncludeDirectories>..;..\build_data\windows\libusb_uwp;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <WarningLevel>Level4</WarningLevel>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -175,6 +176,7 @@
       <DisableSpecificWarnings>4200;4996;28204</DisableSpecificWarnings>
       <ForcedIncludeFiles>fixes_msvc.h</ForcedIncludeFiles>
       <AdditionalIncludeDirectories>..;..\build_data\windows\libusb_uwp;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <WarningLevel>Level4</WarningLevel>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>

@@ -282,6 +282,10 @@ static DWORD CALLBACK usb_handle_notify_event(HCMNOTIFICATION hnotify,
 	int rc;
 	uint8_t byte = 0;
 
+	(void)hnotify;
+	(void)context;
+	(void)event_data_size;
+
 	switch (action) {
 	case CM_NOTIFY_ACTION_DEVICEINTERFACEARRIVAL:
 		type = USB_HOTPLUG_TYPE_ARRIVAL;
