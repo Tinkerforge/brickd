@@ -119,7 +119,7 @@
       <AdditionalUsingDirectories>$(WindowsSDK_WindowsMetadata);$(AdditionalUsingDirectories)</AdditionalUsingDirectories>
       <AdditionalOptions>/bigobj %(AdditionalOptions)</AdditionalOptions>
       <DisableSpecificWarnings>4200;4996;28204</DisableSpecificWarnings>
-      <ForcedIncludeFiles>fixes_msvc.h</ForcedIncludeFiles>
+      <ForcedIncludeFiles>..\..\..\brickd\fixes_msvc.h</ForcedIncludeFiles>
       <AdditionalIncludeDirectories>..\..\..;..\libusb_uwp;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
