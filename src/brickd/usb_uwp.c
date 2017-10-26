@@ -278,9 +278,8 @@ static DWORD CALLBACK usb_handle_notify_event(HCMNOTIFICATION hnotify,
                                               CM_NOTIFY_EVENT_DATA *event_data,
                                               DWORD event_data_size) {
 	USBHotplugType type;
-	char buffer[1024] = "<unknown>";
+	char name[1024] = "<unknown>";
 	int rc;
-	char *name;
 	uint8_t byte = 0;
 
 	switch (action) {
@@ -301,7 +300,7 @@ static DWORD CALLBACK usb_handle_notify_event(HCMNOTIFICATION hnotify,
 	}
 
 	if (WideCharToMultiByte(CP_UTF8, 0, event_data->u.DeviceInterface.SymbolicLink,
-	                        -1, buffer, sizeof(buffer), NULL, NULL) == 0) {
+	                        -1, name, sizeof(name), NULL, NULL) == 0) {
 		rc = ERRNO_WINAPI_OFFSET + GetLastError();
 
 		log_error("Could not convert device interface symbolic link to UTF-8: %s (%d)",
