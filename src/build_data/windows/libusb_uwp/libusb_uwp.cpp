@@ -54,6 +54,10 @@ using namespace Windows::Storage::Streams;
 #define USBI_STRING_PRODUCT 2
 #define USBI_STRING_SERIAL_NUMBER 3
 
+#define USBI_REQUEST_GET_DESCRIPTOR 0x06
+
+#define USBI_DESCRIPTOR_TYPE_STRING 0x03
+
 struct usbi_pollfd {
 	int fd;
 	short events;
@@ -99,10 +103,6 @@ struct _libusb_device {
 	uint8_t bus_number;
 	uint8_t device_address;
 	usbi_descriptor *descriptor;
-	char manufacturer[128];
-	String ^product;
-	char *product_ascii;
-	char serial_number[128];
 };
 
 struct _libusb_context {
@@ -610,11 +610,6 @@ static int usbi_create_device(libusb_context *ctx, DeviceInformation ^info,
                               libusb_device **dev_ptr) {
 	libusb_device *dev = (libusb_device *)calloc(1, sizeof(libusb_device));
 	int rc;
-	const char *brick_id_prefix1 = "\\\\?\\USB#";
-	const char *brick_id_prefix2 = "VID_16D0&PID_063D#";
-	const char *red_brick_id_prefix2 = "VID_16D0&PID_09E5#";
-	char *uid_start = nullptr;
-	char *uid_end = nullptr;
 
 	if (dev == nullptr) {
 		usbi_log_error(ctx, "Could not allocate device");
@@ -648,42 +643,6 @@ static int usbi_create_device(libusb_context *ctx, DeviceInformation ^info,
 		return rc;
 	}
 
-	string_copy(dev->manufacturer, sizeof(dev->manufacturer), "Tinkerforge GmbH", -1); // FIXME
-
-	dev->product = info->Name;
-	dev->product_ascii = string_convert_ascii(info->Name);
-
-	if (dev->product_ascii == nullptr) {
-		usbi_log_error(ctx, "Could not convert device name");
-
-		free(dev->id_ascii);
-		free(dev);
-
-		return LIBUSB_ERROR_NO_MEM;
-	}
-
-	// parse UID from device ID expecting this format:
-	// \\?\USB#VID_16D0&PID_063D#6xD12f#{dee824ef-729b-4a0e-9c14-b7117d33a817}
-	if (strlen(dev->id_ascii) > strlen(brick_id_prefix1)) {
-		if (strncasecmp(dev->id_ascii + strlen(brick_id_prefix1), brick_id_prefix2,
-		                strlen(brick_id_prefix2)) == 0) {
-			uid_start = dev->id_ascii + strlen(brick_id_prefix1) + strlen(brick_id_prefix2);
-		} else if (strncasecmp(dev->id_ascii + strlen(brick_id_prefix1), red_brick_id_prefix2,
-		                       strlen(red_brick_id_prefix2)) == 0) {
-			uid_start = dev->id_ascii + strlen(brick_id_prefix1) + strlen(red_brick_id_prefix2);
-		}
-	}
-
-	if (uid_start != nullptr) {
-		uid_end = strchr(uid_start, '#');
-	}
-
-	if (uid_start != nullptr && uid_end != nullptr) {
-		string_copy(dev->serial_number, sizeof(dev->serial_number), uid_start, uid_end - uid_start);
-	} else {
-		string_copy(dev->serial_number, sizeof(dev->serial_number), "<unknown>", -1);
-	}
-
 	usbi_log_debug(ctx, "Created device %p (context: %p, id: %s)",
 	               dev, ctx, dev->id_ascii);
 
@@ -703,7 +662,6 @@ static void usbi_free_device(libusb_device *dev) {
 		free(dev->descriptor);
 	}
 
-	free(dev->product_ascii);
 	free(dev->id_ascii);
 	free(dev);
 }
@@ -753,6 +711,40 @@ static int usbi_get_device_list(libusb_context *ctx, uint16_t vendor_id,
 	}
 
 	return length;
+}
+
+static int usbi_get_string_descriptor(libusb_device_handle *dev_handle,
+                                      uint8_t desc_index, uint16_t language_id,
+                                      unsigned char *data, int length) {
+	UsbControlRequestType ^request_type = ref new UsbControlRequestType();
+	UsbSetupPacket ^setup_packet = ref new UsbSetupPacket();
+	Buffer ^buffer = ref new Buffer(length);
+	int rc = LIBUSB_ERROR_OTHER; // FIXME: use better error code
+	int *rc_ptr = &rc;
+
+	request_type->Direction = UsbTransferDirection::In;
+	request_type->Recipient = UsbControlRecipient::Device;
+	request_type->ControlTransferType = UsbControlTransferType::Standard;
+
+	setup_packet->RequestType = request_type;
+	setup_packet->Request = USBI_REQUEST_GET_DESCRIPTOR;
+	setup_packet->Value = (USBI_DESCRIPTOR_TYPE_STRING << 8) | desc_index;
+	setup_packet->Index = language_id;
+	setup_packet->Length = length;
+
+	create_task(dev_handle->device->SendControlInTransferAsync(setup_packet, buffer))
+		.then([data, rc_ptr](task<IBuffer ^> previous) {
+		IBuffer ^buffer = previous.get();
+		DataReader ^reader = DataReader::FromBuffer(buffer);
+		Array<unsigned char> ^foobar = ref new Array<unsigned char>(buffer->Length);
+
+		reader->ReadBytes(foobar);
+		memcpy(data, foobar->Data, buffer->Length);
+
+		*rc_ptr = buffer->Length;
+	}).wait();
+
+	return rc;
 }
 
 static void usbi_set_transfer_status(struct libusb_transfer *transfer,
@@ -1202,27 +1194,57 @@ libusb_device *libusb_get_device(libusb_device_handle *dev_handle) {
 int libusb_get_string_descriptor_ascii(libusb_device_handle *dev_handle,
                                        uint8_t desc_index, unsigned char *data,
                                        int length) {
-	const char *string = nullptr;
+	int rc;
+	unsigned char buffer[255];
+	uint16_t language_id;
+	int d;
+	int s;
 
-	if (desc_index == USBI_STRING_MANUFACTURER) {
-		string = dev_handle->dev->manufacturer;
-	} else if (desc_index == USBI_STRING_PRODUCT) {
-		string = dev_handle->dev->product_ascii;
-	} else if (desc_index == USBI_STRING_SERIAL_NUMBER) {
-		string = dev_handle->dev->serial_number;
-	}
-
-	if (string == nullptr) {
+	if (desc_index == 0) {
 		return LIBUSB_ERROR_INVALID_PARAM;
 	}
 
-	length = strnlen(string, length - 1);
+	rc = usbi_get_string_descriptor(dev_handle, 0, 0, buffer, sizeof(buffer));
 
-	strncpy((char *)data, string, length);
+	if (rc < 0) {
+		return rc;
+	}
 
-	data[length] = '\0';
+	if (rc < 4) {
+		return LIBUSB_ERROR_IO;
+	}
 
-	return length;
+	language_id = (buffer[3] << 8) | buffer[2];
+
+	rc = usbi_get_string_descriptor(dev_handle, desc_index, language_id, buffer, sizeof(buffer));
+
+	if (rc < 0) {
+		return rc;
+	}
+
+	if (buffer[1] != USBI_DESCRIPTOR_TYPE_STRING) {
+		return LIBUSB_ERROR_IO;
+	}
+
+	if (buffer[0] > rc) {
+		return LIBUSB_ERROR_IO;
+	}
+
+	for (d = 0, s = 2; s < buffer[0]; s += 2) {
+		if (d >= length - 1) {
+			break;
+		}
+
+		if ((buffer[s] & 0x80) != 0 || buffer[s + 1] != 0) {
+			data[d++] = '?'; // non-ASCII
+		} else {
+			data[d++] = buffer[s];
+		}
+	}
+
+	data[d] = '\0';
+
+	return d;
 }
 
 int libusb_claim_interface(libusb_device_handle *dev_handle, int interface_number) {
