@@ -72,6 +72,7 @@ typedef struct {
 } usbi_fake_fd;
 
 typedef struct {
+	int ref_count;
 	struct libusb_device_descriptor device;
 	struct libusb_config_descriptor config;
 } usbi_descriptor;
@@ -97,7 +98,7 @@ struct _libusb_device {
 	char *id_ascii;
 	uint8_t bus_number;
 	uint8_t device_address;
-	usbi_descriptor descriptor;
+	usbi_descriptor *descriptor;
 	char manufacturer[128];
 	String ^product;
 	char *product_ascii;
@@ -122,6 +123,7 @@ static libusb_log_callback _log_callback;
 
 static usbi_fake_fd _fake_fds[USBI_MAX_FAKE_FDS];
 static std::unordered_map<std::wstring, uint16_t> _fake_device_addresses;
+static std::unordered_map<std::wstring, usbi_descriptor *> _cached_descriptors;
 static uint32_t _next_read_itransfer_sequence_number;
 static uint32_t _next_write_itransfer_sequence_number;
 
@@ -460,8 +462,8 @@ static void usbi_free_interface_descriptor(struct libusb_config_descriptor *conf
 	free((void *)config->interface);
 }
 
-static int usbi_cache_config_descriptor(libusb_context *ctx, UsbDevice ^device,
-                                        struct libusb_config_descriptor *config) {
+static int usbi_get_config_descriptor(libusb_context *ctx, UsbDevice ^device,
+                                      struct libusb_config_descriptor *config) {
 	unsigned int i;
 	UsbInterface ^interface;
 	struct libusb_interface *iface;
@@ -534,57 +536,72 @@ static int usbi_cache_config_descriptor(libusb_context *ctx, UsbDevice ^device,
 	return LIBUSB_SUCCESS;
 }
 
-static int usbi_cache_descriptor(libusb_context *ctx, String ^id,
-                                 usbi_descriptor *descriptor) {
+static int usbi_get_descriptor(libusb_context *ctx, String ^id, const char *id_ascii,
+                               usbi_descriptor **descriptor_ptr) {
+	std::wstring id_wchar(id->Data());
+	auto iter = _cached_descriptors.find(id_wchar);
 	int rc = LIBUSB_SUCCESS;
 	int *rc_ptr = &rc;
 
-	create_task(UsbDevice::FromIdAsync(id))
-	.then([ctx, id, descriptor, rc_ptr](task<UsbDevice ^> previous) {
-		UsbDevice ^device;
-		char *id_ascii;
+	if (iter != _cached_descriptors.end()) {
+		*descriptor_ptr = iter->second;
 
-		try {
-			device = previous.get();
-		} catch (...) { // FIXME: too generic
-			id_ascii = string_convert_ascii(id);
+		++(*descriptor_ptr)->ref_count;
+	} else {
+		create_task(UsbDevice::FromIdAsync(id))
+		.then([ctx, id_ascii, rc_ptr, descriptor_ptr](task<UsbDevice ^> previous) {
+			UsbDevice ^device;
+			usbi_descriptor *descriptor;
 
-			usbi_log_error(ctx, "Could not open device %s: <exception>", // FIXME
-			               id_ascii != nullptr ? id_ascii : "<unknown>");
+			try {
+				device = previous.get();
+			} catch (...) { // FIXME: too generic
+				usbi_log_error(ctx, "Could not open device %s: <exception>", id_ascii);  // FIXME
 
-			free(id_ascii);
+				*rc_ptr = LIBUSB_ERROR_NO_DEVICE; // FIXME: use more specific error case based on exception
 
-			*rc_ptr = LIBUSB_ERROR_NO_DEVICE;
+				return;
+			}
 
-			return;
+			if (device == nullptr) {
+				usbi_log_error(ctx, "Could not open device %s", id_ascii);
+
+				*rc_ptr = LIBUSB_ERROR_NO_DEVICE;
+
+				return;
+			}
+
+			descriptor = (usbi_descriptor *)calloc(1, sizeof(usbi_descriptor));
+
+			if (descriptor == nullptr) {
+				usbi_log_error(ctx, "Could not allocate cached descriptor");
+
+				*rc_ptr = LIBUSB_ERROR_NO_MEM;
+
+				return;
+			}
+
+			descriptor->ref_count = 1;
+			descriptor->device.idVendor = device->DeviceDescriptor->VendorId;
+			descriptor->device.idProduct = device->DeviceDescriptor->ProductId;
+			descriptor->device.bcdDevice = device->DeviceDescriptor->BcdDeviceRevision;
+			descriptor->device.iManufacturer = USBI_STRING_MANUFACTURER;
+			descriptor->device.iProduct = USBI_STRING_PRODUCT;
+			descriptor->device.iSerialNumber = USBI_STRING_SERIAL_NUMBER;
+
+			*rc_ptr = usbi_get_config_descriptor(ctx, device, &descriptor->config);
+
+			if (*rc_ptr < 0) {
+				return;
+			}
+
+			*descriptor_ptr = descriptor;
+		}).wait();
+
+		if (rc == LIBUSB_SUCCESS) {
+			_cached_descriptors.insert_or_assign(id_wchar, *descriptor_ptr);
 		}
-
-		if (device == nullptr) {
-			id_ascii = string_convert_ascii(id);
-
-			usbi_log_error(ctx, "Could not open device %s",
-			               id_ascii != nullptr ? id_ascii : "<unknown>");
-
-			free(id_ascii);
-
-			*rc_ptr = LIBUSB_ERROR_NO_DEVICE;
-
-			return;
-		}
-
-		descriptor->device.idVendor = device->DeviceDescriptor->VendorId;
-		descriptor->device.idProduct = device->DeviceDescriptor->ProductId;
-		descriptor->device.bcdDevice = device->DeviceDescriptor->BcdDeviceRevision;
-		descriptor->device.iManufacturer = USBI_STRING_MANUFACTURER;
-		descriptor->device.iProduct = USBI_STRING_PRODUCT;
-		descriptor->device.iSerialNumber = USBI_STRING_SERIAL_NUMBER;
-
-		*rc_ptr = usbi_cache_config_descriptor(ctx, device, &descriptor->config);
-
-		if (*rc_ptr < 0) {
-			return;
-		}
-	}).wait();
+	}
 
 	return rc;
 }
@@ -620,9 +637,9 @@ static int usbi_create_device(libusb_context *ctx, DeviceInformation ^info,
 		return LIBUSB_ERROR_NO_MEM;
 	}
 
-	usbi_get_fake_device_address(info->Id, &dev->bus_number, &dev->device_address);
+	usbi_get_fake_device_address(dev->id, &dev->bus_number, &dev->device_address);
 
-	rc = usbi_cache_descriptor(ctx, info->Id, &dev->descriptor);
+	rc = usbi_get_descriptor(ctx, dev->id, dev->id_ascii, &dev->descriptor);
 
 	if (rc < 0) {
 		free(dev->id_ascii);
@@ -679,7 +696,13 @@ static void usbi_free_device(libusb_device *dev) {
 	usbi_log_debug(dev->ctx, "Destroying device %p (context: %p, id: %s)",
 	               dev, dev->ctx, dev->id_ascii);
 
-	usbi_free_interface_descriptor(&dev->descriptor.config);
+	if (--dev->descriptor->ref_count == 0) {
+		_cached_descriptors.erase(std::wstring(dev->id->Data()));
+
+		usbi_free_interface_descriptor(&dev->descriptor->config);
+		free(dev->descriptor);
+	}
+
 	free(dev->product_ascii);
 	free(dev->id_ascii);
 	free(dev);
@@ -1083,7 +1106,7 @@ int libusb_get_device_descriptor(libusb_device *dev,
 		return LIBUSB_ERROR_INVALID_PARAM;
 	}
 
-	memcpy(device, &dev->descriptor.device, sizeof(struct libusb_device_descriptor));
+	memcpy(device, &dev->descriptor->device, sizeof(struct libusb_device_descriptor));
 
 	return LIBUSB_SUCCESS;
 }
@@ -1102,7 +1125,7 @@ int libusb_get_config_descriptor(libusb_device *dev, uint8_t config_index,
 		return LIBUSB_ERROR_NOT_FOUND;
 	}
 
-	*config_ptr = &dev->descriptor.config;
+	*config_ptr = &dev->descriptor->config;
 
 	return LIBUSB_SUCCESS;
 }
