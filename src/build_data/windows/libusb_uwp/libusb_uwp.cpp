@@ -1318,6 +1318,11 @@ int libusb_submit_transfer(struct libusb_transfer *transfer) {
 					usbi_log_error(ctx, "Could not submit read transfer %p [%u] (length: %d): <exception>", // FIXME
 					               transfer, itransfer->sequence_number, transfer->length);
 
+					itransfer->submitted = false;
+					itransfer->reader = nullptr;
+
+					libusb_unref_device(dev_handle->dev);
+
 					return LIBUSB_ERROR_NO_DEVICE; // FIXME: assumes that this happend because of device hotunplug
 				}
 
@@ -1376,6 +1381,11 @@ int libusb_submit_transfer(struct libusb_transfer *transfer) {
 				} catch (...) { // FIXME: too generic
 					usbi_log_error(ctx, "Could not submit write transfer %p [%u] (length: %d): <exception>", // FIXME
 					               transfer, itransfer->sequence_number, transfer->length);
+
+					itransfer->submitted = false;
+					itransfer->writer = nullptr;
+
+					libusb_unref_device(dev_handle->dev);
 
 					return LIBUSB_ERROR_NO_DEVICE; // FIXME: assumes that this happend because of device hotunplug
 				}
