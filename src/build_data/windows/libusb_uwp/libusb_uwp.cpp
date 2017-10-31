@@ -652,8 +652,10 @@ static int usbi_create_device(libusb_context *ctx, DeviceInformation ^info,
 }
 
 static void usbi_free_device(libusb_device *dev) {
-	usbi_log_debug(dev->ctx, "Destroying device %p (context: %p, id: %s)",
-	               dev, dev->ctx, dev->id_ascii);
+	libusb_context *ctx = dev->ctx;
+
+	usbi_log_debug(ctx, "Destroying device %p (context: %p, id: %s)",
+	               dev, ctx, dev->id_ascii);
 
 	if (--dev->descriptor->ref_count == 0) {
 		_cached_descriptors.erase(std::wstring(dev->id->Data()));
@@ -1129,23 +1131,24 @@ void libusb_free_config_descriptor(struct libusb_config_descriptor *config) {
 }
 
 int libusb_open(libusb_device *dev, libusb_device_handle **dev_handle_ptr) {
+	libusb_context *ctx = dev->ctx;
 	libusb_device_handle *dev_handle;
 
 	dev_handle = (libusb_device_handle *)calloc(1, sizeof(libusb_device_handle));
 
 	if (dev_handle == nullptr) {
-		usbi_log_error(dev->ctx, "Could not allocate device handle");
+		usbi_log_error(ctx, "Could not allocate device handle");
 
 		return LIBUSB_ERROR_NO_MEM;
 	}
 
 	create_task(UsbDevice::FromIdAsync(dev->id))
-	.then([dev, dev_handle](task<UsbDevice ^> previous) {
+	.then([ctx, dev, dev_handle](task<UsbDevice ^> previous) {
 		try {
 			dev_handle->device = previous.get();
 		} catch (...) { // FIXME: too generic
-			usbi_log_error(dev->ctx, "Could not open device %p (context: %p, id: %s): <exception>", // FIXME
-			               dev, dev->ctx, dev->id_ascii);
+			usbi_log_error(ctx, "Could not open device %p (context: %p, id: %s): <exception>", // FIXME
+			               dev, ctx, dev->id_ascii);
 
 			dev_handle->device = nullptr;
 		}
@@ -1162,21 +1165,22 @@ int libusb_open(libusb_device *dev, libusb_device_handle **dev_handle_ptr) {
 	node_reset(&dev_handle->read_itransfer_sentinel);
 	node_reset(&dev_handle->write_itransfer_sentinel);
 
-	node_insert_before(&dev->ctx->dev_handle_sentinel, &dev_handle->node);
+	node_insert_before(&ctx->dev_handle_sentinel, &dev_handle->node);
 
 	*dev_handle_ptr = dev_handle;
 
-	usbi_log_debug(dev->ctx, "Opened device %p (context: %p, id: %s)",
-	               dev, dev->ctx, dev->id_ascii);
+	usbi_log_debug(ctx, "Opened device %p (context: %p, id: %s)",
+	               dev, ctx, dev->id_ascii);
 
 	return LIBUSB_SUCCESS;
 }
 
 void libusb_close(libusb_device_handle *dev_handle) {
 	libusb_device *dev = dev_handle->dev;
+	libusb_context *ctx = dev->ctx;
 
-	usbi_log_debug(dev->ctx, "Closing device %p (context: %p, id: %s)",
-	               dev, dev->ctx, dev->id_ascii);
+	usbi_log_debug(ctx, "Closing device %p (context: %p, id: %s)",
+	               dev, ctx, dev->id_ascii);
 
 	delete dev_handle->device;
 
@@ -1286,9 +1290,10 @@ struct libusb_transfer *libusb_alloc_transfer(int iso_packets) {
 
 int libusb_submit_transfer(struct libusb_transfer *transfer) {
 	usbi_transfer *itransfer = (usbi_transfer *)transfer;
-	libusb_context *ctx = transfer->dev_handle->dev->ctx;
+	libusb_device_handle *dev_handle = transfer->dev_handle;
+	libusb_context *ctx = dev_handle->dev->ctx;
 	unsigned int i;
-	UsbInterface ^interface = transfer->dev_handle->device->DefaultInterface;
+	UsbInterface ^interface = dev_handle->device->DefaultInterface;
 	UsbBulkInPipe ^pipe_in;
 	UsbBulkOutPipe ^pipe_out;
 	Array<unsigned char> ^data;
@@ -1306,7 +1311,7 @@ int libusb_submit_transfer(struct libusb_transfer *transfer) {
 			pipe_in = interface->BulkInPipes->GetAt(i);
 
 			if ((LIBUSB_ENDPOINT_IN | pipe_in->EndpointDescriptor->EndpointNumber) == transfer->endpoint) {
-				libusb_ref_device(transfer->dev_handle->dev);
+				libusb_ref_device(dev_handle->dev);
 
 				itransfer->submitted = true;
 				itransfer->sequence_number = _next_read_itransfer_sequence_number++;
@@ -1353,7 +1358,7 @@ int libusb_submit_transfer(struct libusb_transfer *transfer) {
 					}
 				});
 
-				node_insert_before(&transfer->dev_handle->read_itransfer_sentinel,
+				node_insert_before(&dev_handle->read_itransfer_sentinel,
 				                   &itransfer->node);
 
 				return LIBUSB_SUCCESS;
@@ -1364,7 +1369,7 @@ int libusb_submit_transfer(struct libusb_transfer *transfer) {
 			pipe_out = interface->BulkOutPipes->GetAt(i);
 
 			if (pipe_out->EndpointDescriptor->EndpointNumber == transfer->endpoint) {
-				libusb_ref_device(transfer->dev_handle->dev);
+				libusb_ref_device(dev_handle->dev);
 
 				itransfer->submitted = true;
 				itransfer->sequence_number = _next_write_itransfer_sequence_number++;
@@ -1408,7 +1413,7 @@ int libusb_submit_transfer(struct libusb_transfer *transfer) {
 					}
 				});
 
-				node_insert_before(&transfer->dev_handle->write_itransfer_sentinel,
+				node_insert_before(&dev_handle->write_itransfer_sentinel,
 				                   &itransfer->node);
 
 				return LIBUSB_SUCCESS;
