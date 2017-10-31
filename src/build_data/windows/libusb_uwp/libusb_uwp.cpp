@@ -933,7 +933,7 @@ int libusb_handle_events_timeout(libusb_context *ctx, struct timeval *tv) {
 
 					transfer->callback(transfer); // might free or submit transfer
 
-					libusb_unref_device(itransfer->transfer.dev_handle->dev);
+					libusb_unref_device(dev_handle->dev);
 
 					++count;
 				}
@@ -975,7 +975,7 @@ int libusb_handle_events_timeout(libusb_context *ctx, struct timeval *tv) {
 
 				transfer->callback(transfer); // might free or submit transfer
 
-				libusb_unref_device(itransfer->transfer.dev_handle->dev);
+				libusb_unref_device(dev_handle->dev);
 
 				++count;
 			}
