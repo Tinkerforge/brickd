@@ -733,7 +733,7 @@ static int usbi_get_string_descriptor(libusb_device_handle *dev_handle,
 	setup_packet->Length = length;
 
 	create_task(dev_handle->device->SendControlInTransferAsync(setup_packet, buffer))
-		.then([data, rc_ptr](task<IBuffer ^> previous) {
+	.then([data, rc_ptr](task<IBuffer ^> previous) {
 		IBuffer ^buffer = previous.get();
 		DataReader ^reader = DataReader::FromBuffer(buffer);
 		Array<unsigned char> ^foobar = ref new Array<unsigned char>(buffer->Length);
