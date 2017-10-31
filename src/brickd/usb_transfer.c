@@ -179,7 +179,7 @@ void usb_transfer_destroy(USBTransfer *usb_transfer) {
 
 		rc = libusb_cancel_transfer(usb_transfer->handle);
 
-		// if libusb_cancel_transfer fails with LIBUSB_ERROR_NO_DEVICE if the
+		// if libusb_cancel_transfer fails with LIBUSB_ERROR_NO_DEVICE then the
 		// device was disconnected before the transfer could be cancelled. but
 		// the transfer might be cancelled anyway and we need to wait for the
 		// transfer to complete. this can result in waiting for a transfer that
