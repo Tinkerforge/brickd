@@ -2,6 +2,7 @@
  * brickd
  * Copyright (C) 2014 Olaf Lüke <olaf@tinkerforge.com>
  * Copyright (C) 2014-2016 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2017 Ishraq Ibne Ashraf <ishraq@tinkerforge.com>
  *
  * red_stack.c: SPI stack support for RED Brick
  *

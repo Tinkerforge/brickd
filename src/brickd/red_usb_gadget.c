@@ -1,6 +1,7 @@
 /*
  * brickd
  * Copyright (C) 2014-2017 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2017 Ishraq Ibne Ashraf <ishraq@tinkerforge.com>
  *
  * red_usb_gadget.c: RED Brick USB gadget interface
  *
