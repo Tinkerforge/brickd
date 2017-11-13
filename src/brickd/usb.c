@@ -409,14 +409,6 @@ int usb_reopen(USBStack *usb_stack) {
 		return -1;
 	}
 
-	if (usb_stack == NULL) {
-		log_debug("Reopening all USB devices");
-	} else {
-		log_debug("Reopening USB device (bus: %u, device: %u): %s",
-		          usb_stack->bus_number, usb_stack->device_address,
-		          usb_stack->base.name);
-	}
-
 	// iterate backwards for simpler index handling and to avoid memmove in
 	// array_remove call
 	for (i = _usb_stacks.count - 1; i >= 0; --i) {

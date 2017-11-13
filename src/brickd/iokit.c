@@ -57,6 +57,8 @@ static void iokit_forward_notifications(void *opaque) {
 		return;
 	}
 
+	log_info("Reopening all USB devices to recover from system sleep");
+
 	usb_reopen(NULL);
 }
 
