@@ -243,9 +243,9 @@ def build_linux_pkg():
         os.rename('dist/etc/brickd-default.conf', 'dist/etc/brickd.conf')
         os.remove('dist/etc/brickd-red-brick.conf')
 
-    system('gzip -9 dist/usr/share/doc/brickd/changelog')
-    system('gzip -9 dist/usr/share/man/man8/brickd.8')
-    system('gzip -9 dist/usr/share/man/man5/brickd.conf.5')
+    system('gzip -n -9 dist/usr/share/doc/brickd/changelog')
+    system('gzip -n -9 dist/usr/share/man/man8/brickd.8')
+    system('gzip -n -9 dist/usr/share/man/man5/brickd.conf.5')
 
     system('cd dist; find usr -type f -exec md5sum {} \; >> DEBIAN/md5sums')
 

@@ -524,11 +524,11 @@ endif
 
 	@echo "CP brickd.8 (manpage)"
 	$(E)$(INSTALL) -m 644 ../build_data/linux/installer/usr/share/man/man8/brickd.8 $(datadir)/man/man8
-	$(E)gzip -f $(datadir)/man/man8/brickd.8
+	$(E)gzip -n -f $(datadir)/man/man8/brickd.8
 
 	@echo "CP brickd.conf.5 (manpage)"
 	$(E)$(INSTALL) -m 644 ../build_data/linux/installer/usr/share/man/man5/brickd.conf.5 $(datadir)/man/man5
-	$(E)gzip -f $(datadir)/man/man5/brickd.conf.5
+	$(E)gzip -n -f $(datadir)/man/man5/brickd.conf.5
 endif
 
 ifeq ($(WITH_PM_UTILS),yes)
