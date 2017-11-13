@@ -280,7 +280,7 @@ def build_linux_pkg():
     system('sudo chown -R ${USER}:${USER} dist')
 
     print('checking Debian package')
-    system('lintian --pedantic brickd-{0}_{1}.deb'.format(version, architecture))
+    system('lintian --pedantic brickd-{0}_{1}.deb || true'.format(version, architecture))
 
     print('cleaning up')
     system('cd brickd; make clean')
