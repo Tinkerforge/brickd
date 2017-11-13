@@ -277,7 +277,7 @@ def build_linux_pkg():
     system('dpkg -b dist brickd-{0}_{1}.deb'.format(version, architecture))
 
     print('changing owner back to original user')
-    system('sudo chown -R `logname`:`logname` dist')
+    system('sudo chown -R ${USER}:${USER} dist')
 
     print('checking Debian package')
     system('lintian --pedantic brickd-{0}_{1}.deb'.format(version, architecture))
