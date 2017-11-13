@@ -247,7 +247,7 @@ def build_linux_pkg():
     system('gzip -n -9 dist/usr/share/man/man8/brickd.8')
     system('gzip -n -9 dist/usr/share/man/man5/brickd.conf.5')
 
-    system('cd dist; find usr -type f -exec md5sum {} \; >> DEBIAN/md5sums')
+    system('cd dist; find usr -type f -exec md5sum {} \; >> DEBIAN/md5sums; find lib -type f -exec md5sum {} \; >> DEBIAN/md5sums')
 
     system('find dist -type d -exec chmod 0755 {} \;')
 
@@ -262,10 +262,12 @@ def build_linux_pkg():
     os.chmod('dist/etc/brickd.conf', 0644)
     os.chmod('dist/etc/init.d/brickd', 0755)
     os.chmod('dist/etc/logrotate.d/brickd', 0644)
+    os.chmod('dist/lib/systemd/system/brickd-resume.service', 0644)
     os.chmod('dist/usr/share/doc/brickd/changelog.gz', 0644)
     os.chmod('dist/usr/share/doc/brickd/copyright', 0644)
     os.chmod('dist/usr/share/man/man8/brickd.8.gz', 0644)
     os.chmod('dist/usr/share/man/man5/brickd.conf.5.gz', 0644)
+    os.chmod('dist/usr/lib/pm-utils/power.d/42brickd', 0755)
     os.chmod('dist/usr/lib/pm-utils/sleep.d/42brickd', 0755)
 
     print('changing owner to root')

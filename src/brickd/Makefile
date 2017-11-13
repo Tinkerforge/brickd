@@ -26,6 +26,7 @@ WITH_DEBUG ?= no
 WITH_PROFILING ?= no
 WITH_USB_REOPEN_ON_SIGUSR1 ?= yes
 WITH_PM_UTILS ?= check
+WITH_SYSTEMD ?= check
 WITH_RED_BRICK ?= check
 WITH_MESH_SINGLE_ROOT_NODE ?= no
 
@@ -119,6 +120,7 @@ endif
 LIBUSB_STATUS := no
 LIBUDEV_STATUS := no
 PM_UTILS_STATUS := no
+SYSTEMD_STATUS := no
 
 ifeq ($(PLATFORM),Windows)
 	HOTPLUG := WinAPI
@@ -169,6 +171,19 @@ endif
 endif
 else
 	WITH_PM_UTILS := no
+endif
+
+ifeq ($(PLATFORM),Linux)
+	SYSTEMD_EXISTS := $(shell systemctl --version &> /dev/null && echo yes || echo no)
+ifeq ($(WITH_SYSTEMD),check)
+ifeq ($(SYSTEMD_EXISTS),yes)
+	WITH_SYSTEMD := yes
+else
+	WITH_SYSTEMD := no
+endif
+endif
+else
+	WITH_SYSTEMD := no
 endif
 
 SOURCES_DAEMONLIB := $(call FIX_PATH,../daemonlib/array.c) \
@@ -395,6 +410,17 @@ endif
 endif
 endif
 
+ifeq ($(WITH_SYSTEMD),yes)
+	SYSTEMD_EXISTS := $(shell systemctl --version &> /dev/null && echo yes || echo no)
+ifeq ($(SYSTEMD_EXISTS),yes)
+	SYSTEMD_STATUS := $(shell systemctl --version | head -n1 | awk '{{ print $$2 }}')
+else
+ifneq ($(MAKECMDGOALS),clean)
+$(error Could not find systemd)
+endif
+endif
+endif
+
 ifneq ($(PLATFORM),Windows)
 	LIBS += -ldl
 endif
@@ -442,6 +468,7 @@ $(info libraries/tools:)
 $(info - libusb:                $(LIBUSB_STATUS))
 $(info - libudev:               $(LIBUDEV_STATUS))
 $(info - pm-utils:              $(PM_UTILS_STATUS))
+$(info - systemd:               $(SYSTEMD_STATUS))
 $(info features:)
 $(info - logging:               $(WITH_LOGGING))
 $(info - epoll:                 $(WITH_EPOLL))
@@ -533,7 +560,14 @@ endif
 
 ifeq ($(WITH_PM_UTILS),yes)
 	@echo "CP 42brickd (pm-utils script)"
+	$(E)$(INSTALL) -m 755 ../build_data/linux/installer/usr/lib/pm-utils/power.d/42brickd $(shell pkg-config pm-utils --variable pm_powerhooks)
 	$(E)$(INSTALL) -m 755 ../build_data/linux/installer/usr/lib/pm-utils/sleep.d/42brickd $(shell pkg-config pm-utils --variable pm_sleephooks)
+endif
+
+ifeq ($(WITH_SYSTEMD),yes)
+	@echo "CP brickd-resume.service (systemd service)"
+	$(E)$(INSTALL) -m 644 ../build_data/linux/installer/etc/systemd/system/brickd-resume.service $(sysconfdir)/systemd/system
+	$(E)systemctl enable brickd-resume.service
 endif
 
 log_messages.h log_messages.rc: log_messages.mc Makefile

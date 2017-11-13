@@ -1,0 +1,13 @@
+[Unit]
+Description=Brick Daemon (Resume)
+After=suspend.target
+
+[Service]
+User=root
+Type=oneshot
+ExecStart=/usr/lib/pm-utils/sleep.d/42brickd resume
+TimeoutSec=0
+StandardOutput=syslog
+
+[Install]
+WantedBy=suspend.target

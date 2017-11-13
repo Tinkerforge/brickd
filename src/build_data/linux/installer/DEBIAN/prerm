@@ -24,4 +24,9 @@ if [ "$1" = "remove" ] && [ -x /etc/init.d/brickd ] && [ -n "${PIDFILE:-}" -a -r
 	fi
 fi
 
+if [ "$1" = "remove" ] && [ -d /run/systemd/system ] && [ -e /lib/systemd/system/brickd-resume.service ]; then
+	systemctl stop brickd-resume.service
+	systemctl disable brickd-resume.service
+fi
+
 exit 0

@@ -12,4 +12,8 @@ if [ "$1" = "configure" ] && [ -x /etc/init.d/brickd ]; then
 	fi
 fi
 
+if [ "$1" = "configure" ] && [ -d /run/systemd/system ] && [ -e /lib/systemd/system/brickd-resume.service ]; then
+	systemctl enable brickd-resume.service
+fi
+
 exit 0
