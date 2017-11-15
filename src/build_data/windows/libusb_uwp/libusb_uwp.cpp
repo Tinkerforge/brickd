@@ -1261,14 +1261,20 @@ int libusb_get_string_descriptor_ascii(libusb_device_handle *dev_handle,
 
 int libusb_claim_interface(libusb_device_handle *dev_handle, int interface_number) {
 	(void)dev_handle;
-	(void)interface_number;
+
+	if (interface_number != 0) {
+		return LIBUSB_ERROR_INVALID_PARAM;
+	}
 
 	return LIBUSB_SUCCESS;
 }
 
 int libusb_release_interface(libusb_device_handle *dev_handle, int interface_number) {
 	(void)dev_handle;
-	(void)interface_number;
+
+	if (interface_number != 0) {
+		return LIBUSB_ERROR_INVALID_PARAM;
+	}
 
 	return LIBUSB_SUCCESS;
 }
