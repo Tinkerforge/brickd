@@ -56,9 +56,11 @@ extern int LIBUSB_CALL usbi_close(int fd);
 extern ssize_t LIBUSB_CALL usbi_write(int fd, const void *buf, size_t count);
 extern ssize_t LIBUSB_CALL usbi_read(int fd, void *buf, size_t count);
 
-// mimic fd_set
+// mimic fd_set, the dummy member is necessary to get the correct alignment for
+// the count and sockets members when compiling for 64-bit architecture
 typedef struct {
 	int allocated;
+	int dummy;
 	int count;
 	SOCKET sockets[0];
 } SocketSet;
