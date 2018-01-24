@@ -23,7 +23,6 @@ WITH_LIBUDEV_DLOPEN ?= no
 WITH_LOGGING ?= yes
 WITH_EPOLL ?= check
 WITH_DEBUG ?= no
-WITH_PROFILING ?= no
 WITH_USB_REOPEN_ON_SIGUSR1 ?= yes
 WITH_PM_UTILS ?= check
 WITH_SYSTEMD ?= check
@@ -443,10 +442,6 @@ ifeq ($(WITH_LIBUSB_DLOPEN),yes)
 	CFLAGS += -DBRICKD_WITH_LIBUSB_DLOPEN
 endif
 
-ifeq ($(WITH_PROFILING),yes)
-	CFLAGS += -DBRICKD_WITH_PROFILING
-endif
-
 ifeq ($(WITH_USB_REOPEN_ON_SIGUSR1),yes)
 	CFLAGS += -DBRICKD_WITH_USB_REOPEN_ON_SIGUSR1
 endif
@@ -473,7 +468,6 @@ $(info features:)
 $(info - logging:               $(WITH_LOGGING))
 $(info - epoll:                 $(WITH_EPOLL))
 $(info - debug:                 $(WITH_DEBUG))
-$(info - profiling:             $(WITH_PROFILING))
 $(info - red-brick:             $(WITH_RED_BRICK))
 $(info - hotplug:               $(HOTPLUG))
 $(info - mesh-single-root-node: $(WITH_MESH_SINGLE_ROOT_NODE))

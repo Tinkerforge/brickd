@@ -353,10 +353,6 @@ void network_client_expects_response(Client *client, Packet *request) {
 
 	memcpy(&pending_request->header, &request->header, sizeof(PacketHeader));
 
-#ifdef BRICKD_WITH_PROFILING
-	pending_request->arrival_time = microseconds();
-#endif
-
 	log_packet_debug("Added pending request (%s) for client ("CLIENT_SIGNATURE_FORMAT")",
 	                 packet_get_request_signature(packet_signature, request),
 	                 client_expand_signature(client));

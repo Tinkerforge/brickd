@@ -59,9 +59,6 @@ struct _PendingRequest {
 	Client *client;
 	Zombie *zombie;
 	PacketHeader header;
-#ifdef BRICKD_WITH_PROFILING
-	uint64_t arrival_time; // in usec
-#endif
 };
 
 struct _Client {

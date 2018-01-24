@@ -415,9 +415,6 @@ void client_dispatch_response(Client *client, PendingRequest *pending_request,
                               Packet *response, bool force, bool ignore_authentication) {
 	Node *pending_request_client_node = NULL;
 	int enqueued = 0;
-#ifdef BRICKD_WITH_PROFILING
-	uint64_t elapsed;
-#endif
 
 	if (!ignore_authentication &&
 	    client->authentication_state != CLIENT_AUTHENTICATION_STATE_DISABLED &&
@@ -469,18 +466,9 @@ void client_dispatch_response(Client *client, PendingRequest *pending_request,
 			log_packet_debug("Forced to %s response to client ("CLIENT_SIGNATURE_FORMAT")",
 			                 enqueued ? "enqueue" : "send", client_expand_signature(client));
 		} else {
-#ifdef BRICKD_WITH_PROFILING
-			elapsed = microseconds() - pending_request->arrival_time;
-
-			log_packet_debug("%s response to client ("CLIENT_SIGNATURE_FORMAT"), was requested %u.%03u msec ago, %d request(s) still pending",
-			                 enqueued ? "Enqueued" : "Sent", client_expand_signature(client),
-			                 (unsigned int)(elapsed / 1000), (unsigned int)(elapsed % 1000),
-			                 client->pending_request_count - 1);
-#else
 			log_packet_debug("%s response to client ("CLIENT_SIGNATURE_FORMAT"), %d request(s) still pending",
 			                 enqueued ? "Enqueued" : "Sent", client_expand_signature(client),
 			                 client->pending_request_count - 1);
-#endif
 		}
 	}
 
