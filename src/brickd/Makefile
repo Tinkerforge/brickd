@@ -23,6 +23,7 @@ WITH_LIBUDEV_DLOPEN ?= no
 WITH_LOGGING ?= yes
 WITH_EPOLL ?= check
 WITH_DEBUG ?= no
+WITH_GPROF ?= no
 WITH_USB_REOPEN_ON_SIGUSR1 ?= yes
 WITH_PM_UTILS ?= check
 WITH_SYSTEMD ?= check
@@ -310,6 +311,11 @@ else
 	CFLAGS += -O2
 endif
 
+ifeq ($(WITH_GPROF),yes)
+	CFLAGS += -pg -no-pie
+	LDFLAGS += -pg -no-pie
+endif
+
 ifeq ($(PLATFORM),Windows)
 	CFLAGS += -DWIN32_LEAN_AND_MEAN -DNDEBUG -DWINVER=0x0501 -D_WIN32_WINNT=0x0501 -mconsole -include fixes_mingw.h
 	LDFLAGS += -Wl,-subsystem,console
@@ -468,6 +474,7 @@ $(info features:)
 $(info - logging:               $(WITH_LOGGING))
 $(info - epoll:                 $(WITH_EPOLL))
 $(info - debug:                 $(WITH_DEBUG))
+$(info - gprof:                 $(WITH_GPROF))
 $(info - red-brick:             $(WITH_RED_BRICK))
 $(info - hotplug:               $(HOTPLUG))
 $(info - mesh-single-root-node: $(WITH_MESH_SINGLE_ROOT_NODE))
