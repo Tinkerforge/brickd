@@ -201,18 +201,23 @@ error:
 	switch (phase) { // no breaks, all cases fall through intentionally
 	case 5:
 		event_remove_source(app_service->close_pipe.base.read_handle, EVENT_SOURCE_TYPE_GENERIC);
+		// fall through
 
 	case 4:
 		pipe_destroy(&app_service->close_pipe);
+		// fall through
 
 	case 3:
 		event_remove_source(app_service->write_pipe.base.read_handle, EVENT_SOURCE_TYPE_GENERIC);
+		// fall through
 
 	case 2:
 		pipe_destroy(&app_service->write_pipe);
+		// fall through
 
 	case 1:
 		pipe_destroy(&app_service->read_pipe);
+		// fall through
 
 	default:
 		break;

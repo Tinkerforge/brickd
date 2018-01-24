@@ -346,12 +346,16 @@ cleanup:
 			usb_message_pump_stop();
 		}
 
+		// fall through
+
 	case 2:
 		event_remove_source(_notification_pipe.base.read_handle,
 		                    EVENT_SOURCE_TYPE_GENERIC);
+		// fall through
 
 	case 1:
 		pipe_destroy(&_notification_pipe);
+		// fall through
 
 	default:
 		break;

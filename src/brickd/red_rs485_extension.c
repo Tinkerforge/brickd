@@ -1056,10 +1056,12 @@ cleanup:
 	case 5:
 		close(_master_timer_event);
 		event_remove_source(_master_timer_event, EVENT_SOURCE_TYPE_GENERIC);
+		// fall through
 
 	case 4:
 		close(_red_rs485_serial_fd);
 		event_remove_source(_red_rs485_serial_fd, EVENT_SOURCE_TYPE_GENERIC);
+		// fall through
 
 	case 3:
 		if (_red_rs485_extension.address == 0) {
@@ -1068,11 +1070,15 @@ cleanup:
 			}
 		}
 
+		// fall through
+
 	case 2:
 		hardware_remove_stack(&_red_rs485_extension.base);
+		// fall through
 
 	case 1:
 		stack_destroy(&_red_rs485_extension.base);
+		// fall through
 
 	default:
 		break;

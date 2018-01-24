@@ -312,12 +312,15 @@ cleanup:
 	switch (phase) { // no breaks, all cases fall through intentionally
 	case 3:
 		writer_destroy(&_redapid.request_writer);
+		// fall through
 
 	case 2:
 		event_remove_source(_redapid.socket.handle, EVENT_SOURCE_TYPE_GENERIC);
+		// fall through
 
 	case 1:
 		socket_destroy(&_redapid.socket);
+		// fall through
 
 	default:
 		break;
@@ -428,9 +431,11 @@ cleanup:
 	switch (phase) { // no breaks, all cases fall through intentionally
 	case 2:
 		timer_destroy(&_reconnect_timer);
+		// fall through
 
 	case 1:
 		stack_destroy(&_redapid.base);
+		// fall through
 
 	default:
 		break;

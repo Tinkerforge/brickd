@@ -228,27 +228,35 @@ cleanup:
 	switch (phase) { // no breaks, all cases fall through intentionally
 	case 10:
 		mesh_exit();
+		// fall through
 
 	case 9:
 		network_exit();
+		// fall through
 
 	case 8:
 		iokit_exit();
+		// fall through
 
 	case 7:
 		usb_exit();
+		// fall through
 
 	case 6:
 		hardware_exit();
+		// fall through
 
 	case 5:
 		signal_exit();
+		// fall through
 
 	case 4:
 		event_exit();
+		// fall through
 
 	case 3:
 		log_info("Brick Daemon %s stopped", VERSION_STRING);
+		// fall through
 
 	case 2:
 		if (pid_fd >= 0) {
@@ -256,9 +264,11 @@ cleanup:
 		}
 
 		log_exit();
+		// fall through
 
 	case 1:
 		config_exit();
+		// fall through
 
 	default:
 		break;

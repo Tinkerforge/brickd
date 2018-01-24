@@ -548,27 +548,35 @@ cleanup:
 	switch (phase) { // no breaks, all cases fall through intentionally
 	case 8:
 		array_destroy(&usb_stack->write_transfers, (ItemDestroyFunction)usb_transfer_destroy);
+		// fall through
 
 	case 7:
 		queue_destroy(&usb_stack->write_queue, NULL);
+		// fall through
 
 	case 6:
 		array_destroy(&usb_stack->read_transfers, (ItemDestroyFunction)usb_transfer_destroy);
+		// fall through
 
 	case 5:
 		timer_destroy(&usb_stack->stall_timer);
+		// fall through
 
 	case 4:
 		libusb_release_interface(usb_stack->device_handle, usb_stack->interface_number);
+		// fall through
 
 	case 3:
 		libusb_close(usb_stack->device_handle);
+		// fall through
 
 	case 2:
 		usb_destroy_context(usb_stack->context);
+		// fall through
 
 	case 1:
 		stack_destroy(&usb_stack->base);
+		// fall through
 
 	default:
 		break;

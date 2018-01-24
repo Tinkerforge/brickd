@@ -162,11 +162,13 @@ cleanup:
 	case 2:
 		CFRunLoopRemoveSource(CFRunLoopGetCurrent(), notification_run_loop_source,
 		                      kCFRunLoopDefaultMode);
+		// fall through
 
 	case 1:
 		IODeregisterForSystemPower(&notifier);
 		IOServiceClose(root_port);
 		IONotificationPortDestroy(notification_port);
+		// fall through
 
 	default:
 		break;
@@ -225,12 +227,15 @@ cleanup:
 	switch (phase) { // no breaks, all cases fall through intentionally
 	case 3:
 		thread_destroy(&_poll_thread);
+		// fall through
 
 	case 2:
 		event_remove_source(_notification_pipe.base.read_handle, EVENT_SOURCE_TYPE_GENERIC);
+		// fall through
 
 	case 1:
 		pipe_destroy(&_notification_pipe);
+		// fall through
 
 	default:
 		break;

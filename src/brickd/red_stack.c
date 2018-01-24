@@ -984,6 +984,7 @@ cleanup:
 		}
 
 		semaphore_destroy(&_red_stack_dispatch_packet_from_spi_semaphore);
+		// fall through
 
 	case 4:
 		for (i--; i >= 0; i--) {
@@ -991,15 +992,19 @@ cleanup:
 		}
 
 		event_remove_source(_red_stack_notification_event, EVENT_SOURCE_TYPE_GENERIC);
+		// fall through
 
 	case 3:
 		close(_red_stack_notification_event);
+		// fall through
 
 	case 2:
 		hardware_remove_stack(&_red_stack.base);
+		// fall through
 
 	case 1:
 		stack_destroy(&_red_stack.base);
+		// fall through
 
 	default:
 		break;

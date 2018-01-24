@@ -404,25 +404,32 @@ cleanup:
 #ifdef BRICKD_WITH_RED_BRICK
 	case 16:
 		red_usb_gadget_exit();
+		// fall through
 
 	case 15:
 		red_extension_exit();
+		// fall through
 
 	case 14:
 		red_stack_exit();
+		// fall through
 
 	case 13:
 		redapid_exit();
+		// fall through
 
 	case 12:
 		//gpio_exit();
+		// fall through
 #endif
 
 	case 11:
 		mesh_exit();
+		// fall through
 
 	case 10:
 		network_exit();
+		// fall through
 
 #ifdef BRICKD_WITH_LIBUDEV
 	case 9:
@@ -430,26 +437,33 @@ cleanup:
 			udev_exit();
 		}
 #endif
+		// fall through
 
 	case 8:
 		usb_exit();
+		// fall through
 
 	case 7:
 		hardware_exit();
+		// fall through
 
 	case 6:
 		signal_exit();
+		// fall through
 
 	case 5:
 		event_exit();
+		// fall through
 
 #ifdef BRICKD_WITH_LIBUSB_DLOPEN
 	case 4:
 		libusb_exit_dlopen();
 #endif
+		// fall through
 
 	case 3:
 		log_info("Brick Daemon %s stopped", VERSION_STRING);
+		// fall through
 
 	case 2:
 		if (pid_fd >= 0) {
@@ -457,9 +471,11 @@ cleanup:
 		}
 
 		log_exit();
+		// fall through
 
 	case 1:
 		config_exit();
+		// fall through
 
 	default:
 		break;

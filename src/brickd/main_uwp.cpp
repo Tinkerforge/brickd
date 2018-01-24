@@ -198,13 +198,16 @@ error:
 	switch (phase) { // no breaks, all cases fall through intentionally
 	case 3:
 		app_service_destroy(app_service);
+		// fall through
 
 	case 2:
 		free(app_service);
+		// fall through
 
 	case 1:
 		free(accept->caller);
 		free(accept);
+		// fall through
 
 	default:
 		break;
@@ -455,45 +458,58 @@ cleanup:
 	switch (phase) { // no breaks, all cases fall through intentionally
 	case 13:
 		event_remove_source(_app_service_accept_pipe.base.read_handle, EVENT_SOURCE_TYPE_GENERIC);
+		// fall through
 
 	case 12:
 		pipe_destroy(&_app_service_accept_pipe);
+		// fall through
 
 	case 11:
 		mesh_exit();
+		// fall through
 
 	case 10:
 		network_exit();
+		// fall through
 
 	case 9:
 		event_remove_source(_cancellation_pipe.base.read_handle, EVENT_SOURCE_TYPE_GENERIC);
+		// fall through
 
 	case 8:
 		pipe_destroy(&_cancellation_pipe);
+		// fall through
 
 	case 7:
 		usb_exit();
+		// fall through
 
 	case 6:
 		hardware_exit();
+		// fall through
 
 	case 5:
 		event_exit();
+		// fall through
 
 	case 4:
 		log_info("Brick Daemon %s stopped", VERSION_STRING);
 		log_exit();
+		// fall through
 
 #ifdef LOG_SERVER_ADDRESS
 	case 3:
 		freeaddrinfo(resolved_address);
+		// fall through
 
 	case 2:
 		socket_destroy(&log_socket);
+		// fall through
 #endif
 
 	case 1:
 		config_exit();
+		// fall through
 
 	default:
 		break;

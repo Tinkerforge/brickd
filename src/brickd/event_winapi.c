@@ -415,31 +415,40 @@ cleanup:
 	switch (phase) { // no breaks, all cases fall through intentionally
 	case 9:
 		semaphore_destroy(&_usb_poll_suspend);
+		// fall through
 
 	case 8:
 		semaphore_destroy(&_usb_poll_resume);
+		// fall through
 
 	case 7:
 		pipe_destroy(&_usb_poll_ready_pipe);
+		// fall through
 
 	case 6:
 		usbi_close(_usb_poll_suspend_pipe[0]);
 		usbi_close(_usb_poll_suspend_pipe[1]);
+		// fall through
 
 	case 5:
 		event_remove_source(_stop_pipe.base.read_handle, EVENT_SOURCE_TYPE_GENERIC);
+		// fall through
 
 	case 4:
 		pipe_destroy(&_stop_pipe);
+		// fall through
 
 	case 3:
 		free(_socket_error_set);
+		// fall through
 
 	case 2:
 		free(_socket_write_set);
+		// fall through
 
 	case 1:
 		free(_socket_read_set);
+		// fall through
 
 	default:
 		break;

@@ -282,9 +282,11 @@ cleanup:
 	switch (phase) { // no breaks, all cases fall through intentionally
 	case 2:
 		CloseHandle(_named_pipe_stop_event);
+		// fall through
 
 	case 1:
 		CloseHandle(overlapped_event);
+		// fall through
 
 	default:
 		break;

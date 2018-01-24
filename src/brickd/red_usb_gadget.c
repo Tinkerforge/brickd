@@ -246,9 +246,11 @@ cleanup:
 	switch (phase) { // no breaks, all cases fall through intentionally
 	case 2:
 		event_remove_source(_state_file.handle, EVENT_SOURCE_TYPE_GENERIC);
+		// fall through
 
 	case 1:
 		file_destroy(&_state_file);
+		// fall through
 
 	default:
 		break;

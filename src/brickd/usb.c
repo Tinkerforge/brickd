@@ -323,12 +323,15 @@ cleanup:
 	switch (phase) { // no breaks, all cases fall through intentionally
 	case 3:
 		array_destroy(&_usb_stacks, (ItemDestroyFunction)usb_stack_destroy);
+		// fall through
 
 	case 2:
 		usb_destroy_context(_context);
+		// fall through
 
 	case 1:
 		usb_exit_platform();
+		// fall through
 
 	default:
 		break;
@@ -526,8 +529,11 @@ cleanup:
 			event_remove_source((*pollfd)->fd, EVENT_SOURCE_TYPE_USB);
 		}
 
+		// fall through
+
 	case 1:
 		libusb_exit(*context);
+		// fall through
 
 	default:
 		break;

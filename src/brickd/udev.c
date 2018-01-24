@@ -335,13 +335,16 @@ cleanup:
 	switch (phase) { // no breaks, all cases fall through intentionally
 	case 3:
 		udev_monitor_unref(_udev_monitor);
+		// fall through
 
 	case 2:
 		udev_unref(_udev_context);
+		// fall through
 
 #ifdef BRICKD_WITH_LIBUDEV_DLOPEN
 	case 1:
 		udev_dlclose();
+		// fall through
 #endif
 
 	default:

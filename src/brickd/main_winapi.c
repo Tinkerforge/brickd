@@ -478,18 +478,23 @@ cleanup:
 	switch (phase) { // no breaks, all cases fall through intentionally
 	case 5:
 		mesh_exit();
+		// fall through
 
 	case 4:
 		network_exit();
+		// fall through
 
 	case 3:
 		usb_exit();
+		// fall through
 
 	case 2:
 		hardware_exit();
+		// fall through
 
 	case 1:
 		event_exit();
+		// fall through
 
 	default:
 		break;
