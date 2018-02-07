@@ -92,11 +92,11 @@ ifeq ($(PLATFORM),Linux)
 ifeq ($(WITH_RED_BRICK),check)
 ifneq ($(wildcard /proc/red_brick_uid),)
 	# Linux and RED Brick <= 1.9
-	WITH_RED_BRICK := yes
+	WITH_RED_BRICK := 9
 else
 ifeq ($(findstring red-brick,$(shell uname -r)),red-brick)
 	# Linux and RED Brick > 1.9
-	WITH_RED_BRICK := yes
+	WITH_RED_BRICK := 10
 else
 	# Linux, but no RED Brick
 	WITH_RED_BRICK := no
@@ -270,7 +270,7 @@ ifeq ($(WITH_LIBUDEV),yes)
 	SOURCES_BRICKD += udev.c
 endif
 
-ifeq ($(WITH_RED_BRICK),yes)
+ifneq ($(WITH_RED_BRICK),no)
 	SOURCES_BRICKD += redapid.c \
 	                  red_stack.c \
 	                  red_usb_gadget.c \
@@ -452,8 +452,8 @@ ifeq ($(WITH_USB_REOPEN_ON_SIGUSR1),yes)
 	CFLAGS += -DBRICKD_WITH_USB_REOPEN_ON_SIGUSR1
 endif
 
-ifeq ($(WITH_RED_BRICK),yes)
-	CFLAGS += -DBRICKD_WITH_RED_BRICK
+ifneq ($(WITH_RED_BRICK),no)
+	CFLAGS += -DBRICKD_WITH_RED_BRICK=${WITH_RED_BRICK}
 endif
 
 ifeq ($(WITH_MESH_SINGLE_ROOT_NODE),yes)

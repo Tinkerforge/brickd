@@ -69,7 +69,12 @@ static Timer crc_error_count_update_timer;
 
 // Serial interface config stuffs
 #define RECEIVE_BUFFER_SIZE                                             1024
-#define RS485_EXTENSION_SERIAL_DEVICE                                   "/dev/ttyS3"
+
+#if BRICKD_WITH_RED_BRICK == 9
+	#define RS485_EXTENSION_SERIAL_DEVICE                               "/dev/ttyS0"
+#else
+	#define RS485_EXTENSION_SERIAL_DEVICE                               "/dev/ttyS3"
+#endif
 
 // Time related constants
 static uint64_t TIMEOUT = 0;
@@ -671,7 +676,11 @@ void init_rxe_pin_state(int extension) {
 
 	case 1:
 		_rx_pin.port_index = GPIO_PORT_G;
+#if BRICKD_WITH_RED_BRICK == 9
+		_rx_pin.pin_index = GPIO_PIN_2;
+#else
 		_rx_pin.pin_index = GPIO_PIN_5;
+#endif
 		break;
 	}
 
