@@ -47,7 +47,7 @@ typedef struct {
 	Queue write_queue;
 	uint32_t dropped_requests;
 	bool connected;
-	bool expecting_short_A1_response;
+	bool expecting_short_Ax_response;
 	bool expecting_read_stall_before_removal;
 	bool expecting_disconnect;
 } USBStack;

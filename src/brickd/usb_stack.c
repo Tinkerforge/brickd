@@ -65,17 +65,19 @@ static void usb_stack_read_callback(USBTransfer *usb_transfer) {
 		// Brick. if the first USB transfer was queued to the A10s USB hardware
 		// before the USB OTG connection got established then the payload of
 		// the USB transfer is mangled. the first 12 bytes are overwritten with
-		// a fixed pattern that starts with 0xA1. to deal with this problem the
-		// RED Brick sends a USB transfer with one byte payload before sending
-		// anything else. this short response with 0xA1 as payload is detected
-		// here and dropped
-		if (usb_transfer->usb_stack->expecting_short_A1_response &&
+		// a fixed pattern that starts with 0xA1/0xAA. to deal with this problem
+		// the RED Brick sends a USB transfer with one byte payload before
+		// sending anything else. this short response with 0xA1/0xAA as payload
+		// is detected here and dropped
+		if (usb_transfer->usb_stack->expecting_short_Ax_response &&
 		    usb_transfer->handle->actual_length == 1 &&
-		    *(uint8_t *)&usb_transfer->packet == 0xA1) {
-			usb_transfer->usb_stack->expecting_short_A1_response = false;
+		    (*(uint8_t *)&usb_transfer->packet == 0xA1 ||
+		     *(uint8_t *)&usb_transfer->packet == 0xAA)) {
+			usb_transfer->usb_stack->expecting_short_Ax_response = false;
 
-			log_debug("Read transfer %p returned expected short 0xA1 response from %s, dropping response",
-			          usb_transfer, usb_transfer->usb_stack->base.name);
+			log_debug("Read transfer %p returned expected short 0x%02X response from %s, dropping response",
+			          usb_transfer, *(uint8_t *)&usb_transfer->packet,
+			          usb_transfer->usb_stack->base.name);
 		} else {
 			log_error("Read transfer %p returned response%s%s%s with incomplete header (actual: %u < minimum: %d) from %s",
 			          usb_transfer,
@@ -92,9 +94,9 @@ static void usb_stack_read_callback(USBTransfer *usb_transfer) {
 	}
 
 	// only the first response from the RED Brick is expected to be a short
-	// 0xA1 response. after the first non-short response arrived stop expecting
-	// a short response
-	usb_transfer->usb_stack->expecting_short_A1_response = false;
+	// 0xA1/0xAA response. after the first non-short response arrived stop
+	// expecting a short response
+	usb_transfer->usb_stack->expecting_short_Ax_response = false;
 
 	// check if USB transfer length and packet length in header mismatches
 	if (usb_transfer->handle->actual_length != usb_transfer->packet.header.length) {
@@ -264,7 +266,7 @@ int usb_stack_create(USBStack *usb_stack, uint8_t bus_number, uint8_t device_add
 	usb_stack->device_handle = NULL;
 	usb_stack->dropped_requests = 0;
 	usb_stack->connected = true;
-	usb_stack->expecting_short_A1_response = false;
+	usb_stack->expecting_short_Ax_response = false;
 	usb_stack->expecting_read_stall_before_removal = false;
 	usb_stack->expecting_disconnect = false;
 
@@ -324,7 +326,7 @@ int usb_stack_create(USBStack *usb_stack, uint8_t bus_number, uint8_t device_add
 			}
 
 			usb_stack->interface_number = USB_BRICK_INTERFACE;
-			usb_stack->expecting_short_A1_response = false;
+			usb_stack->expecting_short_Ax_response = false;
 			usb_stack->expecting_read_stall_before_removal = false;
 		} else if (descriptor.idVendor == USB_RED_BRICK_VENDOR_ID &&
 		           descriptor.idProduct == USB_RED_BRICK_PRODUCT_ID) {
@@ -336,7 +338,7 @@ int usb_stack_create(USBStack *usb_stack, uint8_t bus_number, uint8_t device_add
 			}
 
 			usb_stack->interface_number = USB_RED_BRICK_INTERFACE;
-			usb_stack->expecting_short_A1_response = true;
+			usb_stack->expecting_short_Ax_response = true;
 #ifdef _WIN32
 			usb_stack->expecting_read_stall_before_removal = true;
 #else
