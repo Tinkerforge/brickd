@@ -104,7 +104,10 @@ void zombie_destroy(Zombie *zombie) {
 	timer_destroy(&zombie->timer);
 }
 
-void zombie_dispatch_response(Zombie *zombie, PendingRequest *pending_request) {
+void zombie_dispatch_response(Zombie *zombie, PendingRequest *pending_request,
+                              Packet *response) {
+	packet_add_trace(response);
+
 	pending_request_remove_and_free(pending_request);
 
 	if (zombie->pending_request_count == 0) {

@@ -43,6 +43,7 @@ struct _Zombie {
 int zombie_create(Zombie *zombie, Client *client);
 void zombie_destroy(Zombie *zombie);
 
-void zombie_dispatch_response(Zombie *zombie, PendingRequest *pending_request);
+void zombie_dispatch_response(Zombie *zombie, PendingRequest *pending_request,
+                              Packet *response);
 
 #endif // BRICKD_ZOMBIE_H

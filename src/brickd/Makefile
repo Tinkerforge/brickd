@@ -22,6 +22,7 @@ WITH_LIBUDEV ?= check
 WITH_LIBUDEV_DLOPEN ?= no
 WITH_LOGGING ?= yes
 WITH_EPOLL ?= check
+WITH_PACKET_TRACE ?= no
 WITH_DEBUG ?= no
 WITH_GPROF ?= no
 WITH_USB_REOPEN_ON_SIGUSR1 ?= yes
@@ -444,6 +445,10 @@ ifeq ($(WITH_EPOLL),yes)
 	CFLAGS += -DDAEMONLIB_WITH_EPOLL
 endif
 
+ifeq ($(WITH_PACKET_TRACE),yes)
+	CFLAGS += -DDAEMONLIB_WITH_PACKET_TRACE
+endif
+
 ifneq ($(WITH_RED_BRICK),no)
 	CFLAGS += -DDAEMONLIB_WITH_RED_BRICK=${WITH_RED_BRICK}
 endif
@@ -477,6 +482,7 @@ $(info - systemd:               $(SYSTEMD_STATUS))
 $(info features:)
 $(info - logging:               $(WITH_LOGGING))
 $(info - epoll:                 $(WITH_EPOLL))
+$(info - packet-trace:          $(WITH_PACKET_TRACE))
 $(info - debug:                 $(WITH_DEBUG))
 $(info - gprof:                 $(WITH_GPROF))
 $(info - red-brick:             $(WITH_RED_BRICK))

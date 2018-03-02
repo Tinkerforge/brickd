@@ -366,6 +366,8 @@ void network_dispatch_response(Packet *response) {
 	Node *pending_request_global_node;
 	PendingRequest *pending_request;
 
+	packet_add_trace(response);
+
 	if (packet_header_get_sequence_number(&response->header) == 0) {
 		if (response->header.function_id == CALLBACK_ENUMERATE) {
 			enumerate_callback = (EnumerateCallback *)response;
@@ -389,6 +391,8 @@ void network_dispatch_response(Packet *response) {
 		                 packet_get_response_signature(packet_signature, response),
 		                 _clients.count);
 
+		packet_add_trace(response);
+
 		for (i = 0; i < _clients.count; ++i) {
 			client = array_get(&_clients, i);
 
@@ -407,10 +411,13 @@ void network_dispatch_response(Packet *response) {
 
 			if (packet_is_matching_response(response, &pending_request->header)) {
 				if (pending_request->client != NULL) {
+					packet_add_trace(response);
 					client_dispatch_response(pending_request->client, pending_request,
 					                         response, false, false);
 				} else {
-					zombie_dispatch_response(pending_request->zombie, pending_request);
+					packet_add_trace(response);
+					zombie_dispatch_response(pending_request->zombie, pending_request,
+					                         response);
 				}
 
 				return;
@@ -422,6 +429,8 @@ void network_dispatch_response(Packet *response) {
 		log_warn("Broadcasting response (%s) because no client/zombie has a matching pending request",
 		         packet_get_response_signature(packet_signature, response));
 
+		packet_add_trace(response);
+
 		for (i = 0; i < _clients.count; ++i) {
 			client = array_get(&_clients, i);
 
@@ -430,6 +439,8 @@ void network_dispatch_response(Packet *response) {
 	} else {
 		log_packet_debug("No clients/zombies connected, dropping response (%s)",
 		                 packet_get_response_signature(packet_signature, response));
+
+		packet_add_trace(response);
 	}
 }
 

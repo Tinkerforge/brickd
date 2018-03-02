@@ -65,9 +65,12 @@ struct _Client {
 	char name[CLIENT_MAX_NAME_LENGTH]; // for display purpose
 	IO *io;
 	bool disconnected;
-	Packet request;
-	int request_used;
-	bool request_header_checked;
+	union {
+		uint8_t buffer[512];
+		Packet request;
+	};
+	int buffer_used;
+	bool header_checked;
 	Node pending_request_sentinel;
 	int pending_request_count;
 	Writer response_writer;

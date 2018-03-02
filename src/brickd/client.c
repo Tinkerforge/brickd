@@ -48,7 +48,10 @@ extern uint8_t _redapid_version[3];
 
 static void client_handle_get_authentication_nonce_request(Client *client,
                                                            GetAuthenticationNonceRequest *request) {
-	GetAuthenticationNonceResponse response;
+	union {
+		GetAuthenticationNonceResponse response;
+		Packet packet;
+	} u;
 
 	if (client->authentication_state == CLIENT_AUTHENTICATION_STATE_DISABLED) {
 		log_error("Client ("CLIENT_SIGNATURE_FORMAT") tries to authenticate, but authentication is disabled, disconnecting client",
@@ -77,13 +80,18 @@ static void client_handle_get_authentication_nonce_request(Client *client,
 		return;
 	}
 
-	response.header = request->header;
-	response.header.length = sizeof(response);
+	u.response.header = request->header;
+	u.response.header.length = sizeof(u.response);
 
-	memcpy(response.server_nonce, &client->authentication_nonce,
-	       sizeof(response.server_nonce));
+	memcpy(u.response.server_nonce, &client->authentication_nonce,
+	       sizeof(u.response.server_nonce));
 
-	client_dispatch_response(client, NULL, (Packet *)&response, false, true);
+#ifdef DAEMONLIB_WITH_PACKET_TRACE
+	u.packet.trace_id = packet_get_next_response_trace_id();
+#endif
+
+	packet_add_trace(&u.packet);
+	client_dispatch_response(client, NULL, &u.packet, false, true);
 
 	client->authentication_state = CLIENT_AUTHENTICATION_STATE_NONCE_SEND;
 }
@@ -94,7 +102,10 @@ static void client_handle_authenticate_request(Client *client,
 	uint8_t digest[SHA1_DIGEST_LENGTH];
 	const char *secret;
 	char packet_signature[PACKET_MAX_SIGNATURE_LENGTH];
-	AuthenticateResponse response;
+	union {
+		AuthenticateResponse response;
+		Packet packet;
+	} u;
 
 	if (client->authentication_state == CLIENT_AUTHENTICATION_STATE_DISABLED) {
 		log_error("Client ("CLIENT_SIGNATURE_FORMAT") tries to authenticate, but authentication is disabled, disconnecting client",
@@ -140,18 +151,28 @@ static void client_handle_authenticate_request(Client *client,
 	         client_expand_signature(client));
 
 	if (packet_header_get_response_expected(&request->header)) {
-		response.header = request->header;
-		response.header.length = sizeof(response);
+		u.response.header = request->header;
+		u.response.header.length = sizeof(u.response);
 
-		packet_header_set_error_code(&response.header, PACKET_E_SUCCESS);
+		packet_header_set_error_code(&u.response.header, PACKET_E_SUCCESS);
 
-		client_dispatch_response(client, NULL, (Packet *)&response, false, false);
+#ifdef DAEMONLIB_WITH_PACKET_TRACE
+		u.packet.trace_id = packet_get_next_response_trace_id();
+#endif
+
+		packet_add_trace(&u.packet);
+		client_dispatch_response(client, NULL, &u.packet, false, false);
 	}
 }
 
 static void client_handle_request(Client *client, Packet *request) {
 	char packet_signature[PACKET_MAX_SIGNATURE_LENGTH];
-	EmptyResponse response;
+	union {
+		EmptyResponse response;
+		Packet packet;
+	} u;
+
+	packet_add_trace(request);
 
 	// handle requests meant for brickd
 	if (uint32_from_le(request->header.uid) == UID_BRICK_DAEMON) {
@@ -185,13 +206,18 @@ static void client_handle_request(Client *client, Packet *request) {
 
 			client_handle_authenticate_request(client, (AuthenticateRequest *)request);
 		} else if (packet_header_get_response_expected(&request->header)) {
-			response.header = request->header;
-			response.header.length = sizeof(response);
+			u.response.header = request->header;
+			u.response.header.length = sizeof(u.response);
 
-			packet_header_set_error_code(&response.header,
+			packet_header_set_error_code(&u.response.header,
 			                             PACKET_E_FUNCTION_NOT_SUPPORTED);
 
-			client_dispatch_response(client, NULL, (Packet *)&response, false, false);
+#ifdef DAEMONLIB_WITH_PACKET_TRACE
+			u.packet.trace_id = packet_get_next_response_trace_id();
+#endif
+
+			packet_add_trace(&u.packet);
+			client_dispatch_response(client, NULL, &u.packet, false, false);
 		}
 	} else if (client->authentication_state == CLIENT_AUTHENTICATION_STATE_DISABLED ||
 	           client->authentication_state == CLIENT_AUTHENTICATION_STATE_DONE) {
@@ -201,6 +227,7 @@ static void client_handle_request(Client *client, Packet *request) {
 		}
 
 		// ...then dispatch it to the hardware
+		packet_add_trace(request);
 		hardware_dispatch_request(request);
 	} else {
 		log_packet_debug("Client ("CLIENT_SIGNATURE_FORMAT") is not authenticated, dropping request (%s)",
@@ -214,9 +241,10 @@ static void client_handle_read(void *opaque) {
 	int length;
 	const char *message = NULL;
 	char packet_signature[PACKET_MAX_SIGNATURE_LENGTH];
+	Packet request;
 
-	length = io_read(client->io, (uint8_t *)&client->request + client->request_used,
-	                 sizeof(Packet) - client->request_used);
+	length = io_read(client->io, client->buffer + client->buffer_used,
+	                 sizeof(client->buffer) - client->buffer_used);
 
 	if (length == 0) {
 		log_info("Client ("CLIENT_SIGNATURE_FORMAT") disconnected by peer",
@@ -246,15 +274,15 @@ static void client_handle_read(void *opaque) {
 		return;
 	}
 
-	client->request_used += length;
+	client->buffer_used += length;
 
-	while (!client->disconnected && client->request_used > 0) {
-		if (client->request_used < (int)sizeof(PacketHeader)) {
+	while (!client->disconnected && client->buffer_used > 0) {
+		if (client->buffer_used < (int)sizeof(PacketHeader)) {
 			// wait for complete header
 			break;
 		}
 
-		if (!client->request_header_checked) {
+		if (!client->header_checked) {
 			if (!packet_header_is_valid_request(&client->request.header, &message)) {
 				// FIXME: include packet_get_content_dump output in the error message
 				log_error("Received invalid request (%s) from client ("CLIENT_SIGNATURE_FORMAT"), disconnecting client: %s",
@@ -266,12 +294,12 @@ static void client_handle_read(void *opaque) {
 				return;
 			}
 
-			client->request_header_checked = true;
+			client->header_checked = true;
 		}
 
 		length = client->request.header.length;
 
-		if (client->request_used < length) {
+		if (client->buffer_used < length) {
 			// wait for complete packet
 			break;
 		}
@@ -280,18 +308,24 @@ static void client_handle_read(void *opaque) {
 			log_packet_debug("Received disconnect probe from client ("CLIENT_SIGNATURE_FORMAT"), dropping request",
 			                 client_expand_signature(client));
 		} else {
+			memcpy(&request, client->buffer, length);
+
+#ifdef DAEMONLIB_WITH_PACKET_TRACE
+			request.trace_id = packet_get_next_request_trace_id();
+#endif
+
 			log_packet_debug("Received request (%s) from client ("CLIENT_SIGNATURE_FORMAT")",
-			                 packet_get_request_signature(packet_signature, &client->request),
+			                 packet_get_request_signature(packet_signature, &request),
 			                 client_expand_signature(client));
 
-			client_handle_request(client, &client->request);
+			client_handle_request(client, &request);
 		}
 
-		memmove(&client->request, (uint8_t *)&client->request + length,
-		        client->request_used - length);
+		memmove(client->buffer, &client->buffer[length],
+		        client->buffer_used - length);
 
-		client->request_used -= length;
-		client->request_header_checked = false;
+		client->buffer_used -= length;
+		client->header_checked = false;
 	}
 }
 
@@ -347,8 +381,8 @@ int client_create(Client *client, const char *name, IO *io,
 
 	client->io = io;
 	client->disconnected = false;
-	client->request_used = 0;
-	client->request_header_checked = false;
+	client->buffer_used = 0;
+	client->header_checked = false;
 	client->pending_request_count = 0;
 	client->authentication_state = CLIENT_AUTHENTICATION_STATE_DISABLED;
 	client->authentication_nonce = authentication_nonce;
@@ -416,6 +450,8 @@ void client_dispatch_response(Client *client, PendingRequest *pending_request,
 	Node *pending_request_client_node = NULL;
 	int enqueued = 0;
 
+	packet_add_trace(response);
+
 	if (!ignore_authentication &&
 	    client->authentication_state != CLIENT_AUTHENTICATION_STATE_DISABLED &&
 	    client->authentication_state != CLIENT_AUTHENTICATION_STATE_DONE) {
@@ -481,30 +517,39 @@ cleanup:
 #ifdef BRICKD_WITH_RED_BRICK
 
 void client_send_red_brick_enumerate(Client *client, EnumerationType type) {
-	EnumerateCallback enumerate_callback;
+	union {
+		EnumerateCallback response;
+		Packet packet;
+	} u;
+
 	uint32_t uid = red_usb_gadget_get_uid(); // always little endian
 
-	memset(&enumerate_callback, 0, sizeof(enumerate_callback));
+	memset(&u.packet, 0, sizeof(u.packet));
 
-	enumerate_callback.header.uid = uid;
-	enumerate_callback.header.length = sizeof(enumerate_callback);
-	enumerate_callback.header.function_id = CALLBACK_ENUMERATE;
-	packet_header_set_sequence_number(&enumerate_callback.header, 0);
-	packet_header_set_response_expected(&enumerate_callback.header, true);
+	u.response.header.uid = uid;
+	u.response.header.length = sizeof(u.response);
+	u.response.header.function_id = CALLBACK_ENUMERATE;
+	packet_header_set_sequence_number(&u.response.header, 0);
+	packet_header_set_response_expected(&u.response.header, true);
 
-	base58_encode(enumerate_callback.uid, uint32_from_le(uid));
-	enumerate_callback.connected_uid[0] = '0';
-	enumerate_callback.position = '0';
-	enumerate_callback.hardware_version[0] = 1; // FIXME
-	enumerate_callback.hardware_version[1] = 0;
-	enumerate_callback.hardware_version[2] = 0;
-	enumerate_callback.firmware_version[0] = _redapid_version[0];
-	enumerate_callback.firmware_version[1] = _redapid_version[1];
-	enumerate_callback.firmware_version[2] = _redapid_version[2];
-	enumerate_callback.device_identifier = uint16_to_le(RED_BRICK_DEVICE_IDENTIFIER);
-	enumerate_callback.enumeration_type = type;
+	base58_encode(u.response.uid, uint32_from_le(uid));
+	u.response.connected_uid[0] = '0';
+	u.response.position = '0';
+	u.response.hardware_version[0] = 1; // FIXME
+	u.response.hardware_version[1] = 0;
+	u.response.hardware_version[2] = 0;
+	u.response.firmware_version[0] = _redapid_version[0];
+	u.response.firmware_version[1] = _redapid_version[1];
+	u.response.firmware_version[2] = _redapid_version[2];
+	u.response.device_identifier = uint16_to_le(RED_BRICK_DEVICE_IDENTIFIER);
+	u.response.enumeration_type = type;
 
-	client_dispatch_response(client, NULL, (Packet *)&enumerate_callback, true, false);
+#ifdef DAEMONLIB_WITH_PACKET_TRACE
+	u.packet.trace_id = packet_get_next_response_trace_id();
+#endif
+
+	packet_add_trace(&u.packet);
+	client_dispatch_response(client, NULL, &u.packet, true, false);
 }
 
 #endif

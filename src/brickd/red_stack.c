@@ -298,6 +298,8 @@ static int red_stack_spi_transceive_message(REDStackRequest *packet_send, REDSta
 	uint8_t tx[RED_STACK_SPI_PACKET_SIZE] = {0};
 	uint8_t rx[RED_STACK_SPI_PACKET_SIZE] = {0};
 
+	packet_add_trace(&packet_send->packet);
+
 	// We assume that we don't receive anything. If we receive a packet the
 	// length will be overwritten again
 	packet_recv->packet.header.length = 0;
@@ -472,6 +474,12 @@ static int red_stack_spi_transceive_message(REDStackRequest *packet_send, REDSta
 		} else {
 			// Everything seems OK, we can copy to buffer
 			memcpy(&packet_recv->packet, rx+2, length - RED_STACK_SPI_PACKET_EMPTY_SIZE);
+
+#ifdef DAEMONLIB_WITH_PACKET_TRACE
+			packet_recv->packet.trace_id = packet_get_next_response_trace_id();
+#endif
+
+			packet_add_trace(&packet_recv->packet);
 
 			log_packet_debug("Received packet over SPI (%s)",
 			                 packet_get_response_signature(packet_signature, &packet_recv->packet));

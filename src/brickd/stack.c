@@ -115,6 +115,8 @@ Recipient *stack_get_recipient(Stack *stack, uint32_t uid /* always little endia
 int stack_dispatch_request(Stack *stack, Packet *request, bool force) {
 	Recipient *recipient = NULL;
 
+	packet_add_trace(request);
+
 	if (!force) {
 		recipient = stack_get_recipient(stack, request->header.uid);
 

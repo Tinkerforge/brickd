@@ -129,6 +129,12 @@ static void usb_stack_read_callback(USBTransfer *usb_transfer) {
 	                 packet_get_response_signature(packet_signature, &usb_transfer->packet),
 	                 usb_transfer->usb_stack->base.name);
 
+#ifdef DAEMONLIB_WITH_PACKET_TRACE
+	usb_transfer->packet.trace_id = packet_get_next_response_trace_id();
+#endif
+
+	packet_add_trace(&usb_transfer->packet);
+
 	if (stack_add_recipient(&usb_transfer->usb_stack->base,
 	                        usb_transfer->packet.header.uid, 0) < 0) {
 		return;
