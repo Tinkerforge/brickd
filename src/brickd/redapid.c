@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2014-2015, 2017 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2014-2015, 2017-2018 Matthias Bolte <matthias@tinkerforge.com>
  *
  * redapid.c: RED Brick API Daemon interface
  *
@@ -172,7 +172,7 @@ static int redapid_dispatch_request(Stack *stack, Packet *request,
 	if (request->header.function_id == FUNCTION_ENUMERATE) {
 		uid = red_usb_gadget_get_uid();
 
-		log_packet_debug("Received enumerate request, sending enumerate-avialable callback for RED Brick [%s]",
+		log_packet_debug("Received enumerate request, sending enumerate-available callback for RED Brick [%s]",
 		                 base58_encode(base58, uint32_from_le(uid)));
 
 		// respond with enumerate-connected callback
