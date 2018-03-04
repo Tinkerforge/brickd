@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2012-2014, 2016-2017 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2012-2014, 2016-2018 Matthias Bolte <matthias@tinkerforge.com>
  *
  * usb_stack.c: USB stack specific functions
  *
@@ -316,6 +316,9 @@ int usb_stack_create(USBStack *usb_stack, uint8_t bus_number, uint8_t device_add
 			continue;
 		}
 
+		log_debug("Looking at USB device (bus: %u, device: %u, vendor-id: 0x%04X, product-id: 0x%04X, release: 0x%04X)",
+		          bus_number, device_address, descriptor.idVendor, descriptor.idProduct, descriptor.bcdDevice);
+
 		if (descriptor.idVendor == USB_BRICK_VENDOR_ID &&
 		    descriptor.idProduct == USB_BRICK_PRODUCT_ID) {
 			if (descriptor.bcdDevice < USB_BRICK_DEVICE_RELEASE) {
@@ -372,6 +375,8 @@ int usb_stack_create(USBStack *usb_stack, uint8_t bus_number, uint8_t device_add
 
 		goto cleanup;
 	}
+
+	log_debug("Found %s", usb_stack->base.name);
 
 	phase = 3;
 

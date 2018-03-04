@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2012-2014, 2016-2017 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2012-2014, 2016-2018 Matthias Bolte <matthias@tinkerforge.com>
  *
  * usb.h: USB specific functions
  *
@@ -34,12 +34,12 @@
 
 #define USB_BRICK_VENDOR_ID 0x16D0
 #define USB_BRICK_PRODUCT_ID 0x063D
-#define USB_BRICK_DEVICE_RELEASE ((1 << 8) | (1 << 4) | (0 << 0)) /* 1.10 */
+#define USB_BRICK_DEVICE_RELEASE 0x0110 /* 1.10 */
 #define USB_BRICK_INTERFACE 0
 
 #define USB_RED_BRICK_VENDOR_ID 0x16D0
 #define USB_RED_BRICK_PRODUCT_ID 0x09E5
-#define USB_RED_BRICK_DEVICE_RELEASE ((1 << 8) | (1 << 4) | (0 << 0)) /* 1.10 */
+#define USB_RED_BRICK_DEVICE_RELEASE 0x0110 /* 1.10 */
 #define USB_RED_BRICK_INTERFACE 0
 
 int usb_init(void);
