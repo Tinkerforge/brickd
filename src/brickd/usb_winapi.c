@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2013-2014, 2017 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2013-2014, 2017-2018 Matthias Bolte <matthias@tinkerforge.com>
  *
  * usb_winapi.c: WinAPI based USB specific functions
  *
@@ -64,13 +64,19 @@ static void usb_forward_notifications(void *opaque) {
 	usb_rescan();
 }
 
-/*static*/ void usb_handle_device_event(DWORD event_type,
-                                        DEV_BROADCAST_DEVICEINTERFACE *event_data) {
+/*static*/ void usb_handle_device_event(DWORD event_type, DEV_BROADCAST_HDR *event_data) {
+	DEV_BROADCAST_DEVICEINTERFACE_A *event_data_a;
 	USBHotplugType type;
 	char buffer[1024] = "<unknown>";
 	int rc;
 	char *name;
 	uint8_t byte = 0;
+
+	if (event_data->dbch_devicetype != DBT_DEVTYP_DEVICEINTERFACE) {
+		return;
+	}
+
+	event_data_a = (DEV_BROADCAST_DEVICEINTERFACE_A *)event_data;
 
 	switch (event_type) {
 	case DBT_DEVICEARRIVAL:
@@ -86,7 +92,8 @@ static void usb_forward_notifications(void *opaque) {
 	}
 
 	if (service_get_status_handle() != NULL) {
-		if (WideCharToMultiByte(CP_UTF8, 0, (LPCWSTR)&event_data->dbcc_name[0],
+		// services always receive the DEV_BROADCAST_DEVICEINTERFACE_W flavor
+		if (WideCharToMultiByte(CP_UTF8, 0, (LPCWSTR)event_data_a->dbcc_name,
 		                        -1, buffer, sizeof(buffer), NULL, NULL) == 0) {
 			rc = ERRNO_WINAPI_OFFSET + GetLastError();
 
@@ -98,10 +105,10 @@ static void usb_forward_notifications(void *opaque) {
 
 		name = buffer;
 	} else {
-		name = event_data->dbcc_name;
+		name = event_data_a->dbcc_name;
 	}
 
-	if (!usb_check_hotplug_event(type, &event_data->dbcc_classguid, name)) {
+	if (!usb_check_hotplug_event(type, &event_data_a->dbcc_classguid, name)) {
 		return;
 	}
 
@@ -137,7 +144,7 @@ static LRESULT CALLBACK usb_message_pump_window_proc(HWND hwnd, UINT msg,
 		return 0;
 
 	case WM_DEVICECHANGE:
-		usb_handle_device_event(wparam, (DEV_BROADCAST_DEVICEINTERFACE *)lparam);
+		usb_handle_device_event(wparam, (DEV_BROADCAST_HDR *)lparam);
 
 		return TRUE;
 	}
@@ -148,7 +155,7 @@ static LRESULT CALLBACK usb_message_pump_window_proc(HWND hwnd, UINT msg,
 static void usb_message_pump_thread_proc(void *opaque) {
 	const char *class_name = "tinkerforge-brick-daemon-message-pump";
 	Semaphore *handshake = opaque;
-	WNDCLASSEX wc;
+	WNDCLASSEXA wc;
 	int rc;
 	MSG msg;
 
@@ -169,7 +176,7 @@ static void usb_message_pump_thread_proc(void *opaque) {
 	wc.lpszClassName = class_name;
 	wc.hIconSm = NULL;
 
-	if (RegisterClassEx(&wc) == 0) {
+	if (RegisterClassExA(&wc) == 0) {
 		rc = ERRNO_WINAPI_OFFSET + GetLastError();
 
 		log_error("Could not register message pump window class: %s (%d)",
@@ -178,9 +185,9 @@ static void usb_message_pump_thread_proc(void *opaque) {
 		goto cleanup;
 	}
 
-	_message_pump_hwnd = CreateWindowEx(0, class_name, "brickd message pump",
-	                                    0, 0, 0, 0, 0, HWND_MESSAGE,
-	                                    NULL, NULL, NULL);
+	_message_pump_hwnd = CreateWindowExA(0, class_name, "brickd message pump",
+	                                     0, 0, 0, 0, 0, HWND_MESSAGE,
+	                                     NULL, NULL, NULL);
 
 	if (_message_pump_hwnd == NULL) {
 		rc = ERRNO_WINAPI_OFFSET + GetLastError();
@@ -195,7 +202,7 @@ static void usb_message_pump_thread_proc(void *opaque) {
 	semaphore_release(handshake);
 
 	while (_message_pump_running &&
-	       (rc = GetMessage(&msg, _message_pump_hwnd, 0, 0)) != 0) {
+	       (rc = GetMessageA(&msg, _message_pump_hwnd, 0, 0)) != 0) {
 		if (rc < 0) {
 			rc = ERRNO_WINAPI_OFFSET + GetLastError();
 
@@ -209,7 +216,7 @@ static void usb_message_pump_thread_proc(void *opaque) {
 			         get_errno_name(rc), rc);
 		} else {
 			TranslateMessage(&msg);
-			DispatchMessage(&msg);
+			DispatchMessageA(&msg);
 		}
 	}
 
@@ -255,7 +262,7 @@ static void usb_message_pump_stop(void) {
 
 	_message_pump_running = false;
 
-	if (!PostMessage(_message_pump_hwnd, WM_USER, 0, 0)) {
+	if (!PostMessageA(_message_pump_hwnd, WM_USER, 0, 0)) {
 		rc = ERRNO_WINAPI_OFFSET + GetLastError();
 
 		log_warn("Could not trigger destruction of message pump window: %s (%d)",
@@ -317,15 +324,15 @@ int usb_init_hotplug(libusb_context *context) {
 	notification_filter.dbcc_devicetype = DBT_DEVTYP_DEVICEINTERFACE;
 
 	if (service_status_handle != NULL) {
-		_notification_handle = RegisterDeviceNotification((HANDLE)service_status_handle,
-		                                                  &notification_filter,
-		                                                  DEVICE_NOTIFY_SERVICE_HANDLE |
-		                                                  DEVICE_NOTIFY_ALL_INTERFACE_CLASSES);
+		_notification_handle = RegisterDeviceNotificationA((HANDLE)service_status_handle,
+		                                                   &notification_filter,
+		                                                   DEVICE_NOTIFY_SERVICE_HANDLE |
+		                                                   DEVICE_NOTIFY_ALL_INTERFACE_CLASSES);
 	} else {
-		_notification_handle = RegisterDeviceNotification(_message_pump_hwnd,
-		                                                  &notification_filter,
-		                                                  DEVICE_NOTIFY_WINDOW_HANDLE |
-		                                                  DEVICE_NOTIFY_ALL_INTERFACE_CLASSES);
+		_notification_handle = RegisterDeviceNotificationA(_message_pump_hwnd,
+		                                                   &notification_filter,
+		                                                   DEVICE_NOTIFY_WINDOW_HANDLE |
+		                                                   DEVICE_NOTIFY_ALL_INTERFACE_CLASSES);
 	}
 
 	if (_notification_handle == NULL) {

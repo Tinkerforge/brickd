@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2012-2014 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2012-2014, 2018 Matthias Bolte <matthias@tinkerforge.com>
  *
  * service.c: Windows service specific functions
  *
@@ -46,8 +46,8 @@ int service_init(LPHANDLER_FUNCTION_EX handler) {
 	_service_status.dwCheckPoint = 0;
 	_service_status.dwWaitHint = 0;
 
-	_service_status_handle = RegisterServiceCtrlHandlerEx(_service_name,
-	                                                      handler, NULL);
+	_service_status_handle = RegisterServiceCtrlHandlerExA(_service_name,
+	                                                       handler, NULL);
 
 	if (_service_status_handle == 0) {
 		rc = ERRNO_WINAPI_OFFSET + GetLastError();
@@ -68,7 +68,7 @@ int service_is_running(void) {
 	SERVICE_STATUS service_status;
 
 	// open service control manager
-	service_control_manager = OpenSCManager(0, 0, SC_MANAGER_CONNECT);
+	service_control_manager = OpenSCManagerA(NULL, NULL, SC_MANAGER_CONNECT);
 
 	if (service_control_manager == NULL) {
 		rc = ERRNO_WINAPI_OFFSET + GetLastError();
@@ -80,8 +80,8 @@ int service_is_running(void) {
 	}
 
 	// open service
-	service = OpenService(service_control_manager, _service_name,
-	                      SERVICE_QUERY_STATUS);
+	service = OpenServiceA(service_control_manager, _service_name,
+	                       SERVICE_QUERY_STATUS);
 
 	if (service == NULL) {
 		rc = GetLastError();
@@ -150,10 +150,10 @@ int service_install(bool log_to_file, const char *debug_filter) {
 	HKEY key = NULL;
 	DWORD types = EVENTLOG_ERROR_TYPE | EVENTLOG_WARNING_TYPE;
 	SC_HANDLE service;
-	SERVICE_DESCRIPTION description;
-	LPCTSTR buffer[3];
+	SERVICE_DESCRIPTIONA description;
+	const char *buffer[3];
 	DWORD argc = 0;
-	LPCTSTR *argv = NULL;
+	const char **argv = NULL;
 
 	if (log_to_file) {
 		buffer[argc++] = "--log-to-file";
@@ -170,7 +170,7 @@ int service_install(bool log_to_file, const char *debug_filter) {
 		argv = buffer;
 	}
 
-	if (GetModuleFileName(NULL, filename, sizeof(filename)) == 0) {
+	if (GetModuleFileNameA(NULL, filename, sizeof(filename)) == 0) {
 		rc = ERRNO_WINAPI_OFFSET + GetLastError();
 
 		fprintf(stderr, "Could not get module file name: %s (%d)\n",
@@ -180,16 +180,16 @@ int service_install(bool log_to_file, const char *debug_filter) {
 	}
 
 	// register message catalog for event log
-	if (RegCreateKey(HKEY_LOCAL_MACHINE, _event_log_key_name, &key) == ERROR_SUCCESS) {
-		RegSetValueEx(key, "EventMessageFile", 0, REG_EXPAND_SZ,
-		              (PBYTE)filename, strlen(filename));
-		RegSetValueEx(key, "TypesSupported", 0, REG_DWORD,
-		              (LPBYTE)&types, sizeof(DWORD));
+	if (RegCreateKeyA(HKEY_LOCAL_MACHINE, _event_log_key_name, &key) == ERROR_SUCCESS) {
+		RegSetValueExA(key, "EventMessageFile", 0, REG_EXPAND_SZ,
+		               (PBYTE)filename, strlen(filename));
+		RegSetValueExA(key, "TypesSupported", 0, REG_DWORD,
+		               (LPBYTE)&types, sizeof(DWORD));
 		RegCloseKey(key);
 	}
 
 	// open service control manager
-	service_control_manager = OpenSCManager(0, 0, SC_MANAGER_CREATE_SERVICE);
+	service_control_manager = OpenSCManagerA(NULL, NULL, SC_MANAGER_CREATE_SERVICE);
 
 	if (service_control_manager == NULL) {
 		rc = ERRNO_WINAPI_OFFSET + GetLastError();
@@ -203,10 +203,10 @@ int service_install(bool log_to_file, const char *debug_filter) {
 	// install service
 	snprintf(quoted_filename, sizeof(quoted_filename), "\"%s\"", filename);
 
-	service = CreateService(service_control_manager, _service_name, _service_name,
-	                        SERVICE_ALL_ACCESS, SERVICE_WIN32_OWN_PROCESS,
-	                        SERVICE_AUTO_START, SERVICE_ERROR_NORMAL, quoted_filename,
-	                        NULL, NULL, NULL, NULL, NULL);
+	service = CreateServiceA(service_control_manager, _service_name, _service_name,
+	                         SERVICE_ALL_ACCESS, SERVICE_WIN32_OWN_PROCESS,
+	                         SERVICE_AUTO_START, SERVICE_ERROR_NORMAL, quoted_filename,
+	                         NULL, NULL, NULL, NULL, NULL);
 
 	if (service == NULL) {
 		rc = GetLastError();
@@ -223,8 +223,8 @@ int service_install(bool log_to_file, const char *debug_filter) {
 		} else {
 			printf("'%s' service is already installed\n", _service_name);
 
-			service = OpenService(service_control_manager, _service_name,
-			                      SERVICE_CHANGE_CONFIG | SERVICE_START);
+			service = OpenServiceA(service_control_manager, _service_name,
+			                       SERVICE_CHANGE_CONFIG | SERVICE_START);
 
 			if (service == NULL) {
 				rc = ERRNO_WINAPI_OFFSET + GetLastError();
@@ -244,8 +244,8 @@ int service_install(bool log_to_file, const char *debug_filter) {
 	// update description
 	description.lpDescription = _service_description;
 
-	if (!ChangeServiceConfig2(service, SERVICE_CONFIG_DESCRIPTION,
-	                          &description)) {
+	if (!ChangeServiceConfig2A(service, SERVICE_CONFIG_DESCRIPTION,
+	                           &description)) {
 		rc = ERRNO_WINAPI_OFFSET + GetLastError();
 
 		fprintf(stderr, "Could not update description of '%s' service: %s (%d)\n",
@@ -258,7 +258,7 @@ int service_install(bool log_to_file, const char *debug_filter) {
 	}
 
 	// start service
-	if (!StartService(service, argc, argv)) {
+	if (!StartServiceA(service, argc, argv)) {
 		rc = GetLastError();
 
 		if (rc != ERROR_SERVICE_ALREADY_RUNNING) {
@@ -302,7 +302,7 @@ int service_uninstall(void) {
 	int tries = 0;
 
 	// open service control manager
-	service_control_manager = OpenSCManager(0, 0, SC_MANAGER_CONNECT);
+	service_control_manager = OpenSCManagerA(NULL, NULL, SC_MANAGER_CONNECT);
 
 	if (service_control_manager == NULL) {
 		rc = ERRNO_WINAPI_OFFSET + GetLastError();
@@ -314,8 +314,8 @@ int service_uninstall(void) {
 	}
 
 	// open service
-	service = OpenService(service_control_manager, _service_name,
-	                      SERVICE_QUERY_STATUS | SERVICE_STOP | DELETE);
+	service = OpenServiceA(service_control_manager, _service_name,
+	                       SERVICE_QUERY_STATUS | SERVICE_STOP | DELETE);
 
 	if (service == NULL) {
 		rc = GetLastError();
@@ -415,7 +415,7 @@ int service_uninstall(void) {
 	CloseServiceHandle(service_control_manager);
 
 	// unregister message catalog for event log
-	RegDeleteKey(HKEY_LOCAL_MACHINE, _event_log_key_name);
+	RegDeleteKeyA(HKEY_LOCAL_MACHINE, _event_log_key_name);
 
 	return 0;
 }

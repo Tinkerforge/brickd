@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2012-2014, 2016-2017 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2012-2014, 2016-2018 Matthias Bolte <matthias@tinkerforge.com>
  *
  * main_winapi.c: Brick Daemon starting point for Windows
  *
@@ -72,14 +72,14 @@ static char _config_filename[1024];
 static bool _run_as_service = true;
 static bool _pause_before_exit = false;
 
-typedef BOOL (WINAPI *QUERYFULLPROCESSIMAGENAME)(HANDLE, DWORD, LPTSTR, PDWORD);
+typedef BOOL (WINAPI *query_full_process_image_name_t)(HANDLE, DWORD, char *, DWORD *);
 
-extern void usb_handle_device_event(DWORD event_type, DEV_BROADCAST_DEVICEINTERFACE *event_data);
+extern void usb_handle_device_event(DWORD event_type, DEV_BROADCAST_HDR *event_data);
 
 static int get_process_image_name(PROCESSENTRY32 entry, char *buffer, DWORD length) {
 	int rc;
 	HANDLE handle = NULL;
-	QUERYFULLPROCESSIMAGENAME query_full_process_image_name = NULL;
+	query_full_process_image_name_t query_full_process_image_name = NULL;
 
 	handle = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE,
 	                     entry.th32ProcessID);
@@ -99,8 +99,8 @@ static int get_process_image_name(PROCESSENTRY32 entry, char *buffer, DWORD leng
 	}
 
 	query_full_process_image_name =
-	  (QUERYFULLPROCESSIMAGENAME)GetProcAddress(GetModuleHandleA("kernel32"),
-	                                            "QueryFullProcessImageNameA");
+	  (query_full_process_image_name_t)GetProcAddress(GetModuleHandleA("kernel32"),
+	                                                  "QueryFullProcessImageNameA");
 
 	if (query_full_process_image_name != NULL) {
 		if (query_full_process_image_name(handle, 0, buffer, &length) == 0) {
@@ -275,7 +275,7 @@ static int generic_main(bool log_to_file, const char *debug_filter) {
 	File log_file;
 	WSADATA wsa_data;
 
-	mutex_handle = OpenMutex(SYNCHRONIZE, FALSE, mutex_name);
+	mutex_handle = OpenMutexA(SYNCHRONIZE, FALSE, mutex_name);
 
 	if (mutex_handle == NULL) {
 		rc = GetLastError();
@@ -321,7 +321,7 @@ static int generic_main(bool log_to_file, const char *debug_filter) {
 		goto init;
 	}
 
-	mutex_handle = CreateMutex(NULL, FALSE, mutex_name);
+	mutex_handle = CreateMutexA(NULL, FALSE, mutex_name);
 
 	if (mutex_handle == NULL) {
 		fatal_error = true;
@@ -335,7 +335,7 @@ static int generic_main(bool log_to_file, const char *debug_filter) {
 	}
 
 	if (log_to_file) {
-		if (GetModuleFileName(NULL, filename, sizeof(filename)) == 0) {
+		if (GetModuleFileNameA(NULL, filename, sizeof(filename)) == 0) {
 			rc = ERRNO_WINAPI_OFFSET + GetLastError();
 
 			log_warn("Could not get module file name: %s (%d)",
@@ -542,7 +542,7 @@ exit:
 	return exit_code;
 }
 
-static void WINAPI service_main(DWORD argc, LPTSTR *argv) {
+static void WINAPI service_main(DWORD argc, char **argv) {
 	DWORD i;
 	bool log_to_file = false;
 	const char *debug_filter = NULL;
@@ -565,7 +565,7 @@ static void WINAPI service_main(DWORD argc, LPTSTR *argv) {
 }
 
 static int service_run(bool log_to_file, const char *debug_filter) {
-	SERVICE_TABLE_ENTRY service_table[2];
+	SERVICE_TABLE_ENTRYA service_table[2];
 	int rc;
 
 	service_table[0].lpServiceName = service_get_name();
@@ -574,7 +574,7 @@ static int service_run(bool log_to_file, const char *debug_filter) {
 	service_table[1].lpServiceName = NULL;
 	service_table[1].lpServiceProc = NULL;
 
-	if (!StartServiceCtrlDispatcher(service_table)) {
+	if (!StartServiceCtrlDispatcherA(service_table)) {
 		rc = ERRNO_WINAPI_OFFSET + GetLastError();
 
 		if (rc == ERRNO_WINAPI_OFFSET + ERROR_FAILED_SERVICE_CONTROLLER_CONNECT) {
@@ -690,7 +690,7 @@ int main(int argc, char **argv) {
 		return EXIT_SUCCESS;
 	}
 
-	if (GetModuleFileName(NULL, _config_filename, sizeof(_config_filename)) == 0) {
+	if (GetModuleFileNameA(NULL, _config_filename, sizeof(_config_filename)) == 0) {
 		rc = ERRNO_WINAPI_OFFSET + GetLastError();
 
 		fprintf(stderr, "Could not get module file name: %s (%d)\n",

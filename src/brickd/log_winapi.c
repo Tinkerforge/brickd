@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2012, 2014, 2016 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2012, 2014, 2016, 2018 Matthias Bolte <matthias@tinkerforge.com>
  *
  * log_winapi.c: Windows Event Log and log viewer handling
  *
@@ -304,7 +304,7 @@ void log_init_platform(IO *output) {
 	mutex_create(&_named_pipe_write_event_mutex);
 
 	// open event log
-	_event_log = RegisterEventSource(NULL, "Brick Daemon");
+	_event_log = RegisterEventSourceA(NULL, "Brick Daemon");
 
 	if (_event_log == NULL) {
 		rc = ERRNO_WINAPI_OFFSET + GetLastError();
@@ -314,7 +314,7 @@ void log_init_platform(IO *output) {
 	}
 
 	// create named pipe for log messages
-	_named_pipe_write_event = CreateEvent(NULL, TRUE, FALSE, NULL);
+	_named_pipe_write_event = CreateEventA(NULL, TRUE, FALSE, NULL);
 
 	if (_named_pipe_write_event == NULL) {
 		rc = ERRNO_WINAPI_OFFSET + GetLastError();
@@ -322,17 +322,17 @@ void log_init_platform(IO *output) {
 		log_error("Could not create named pipe overlapped write event: %s (%d)",
 		          get_errno_name(rc), rc);
 	} else {
-		_named_pipe = CreateNamedPipe("\\\\.\\pipe\\tinkerforge-brick-daemon-debug-log",
-		                              PIPE_ACCESS_DUPLEX |
-		                              FILE_FLAG_OVERLAPPED |
-		                              FILE_FLAG_FIRST_PIPE_INSTANCE,
-		                              PIPE_TYPE_MESSAGE |
-		                              PIPE_WAIT,
-		                              1,
-		                              NAMED_PIPE_BUFFER_LENGTH,
-		                              NAMED_PIPE_BUFFER_LENGTH,
-		                              0,
-		                              NULL);
+		_named_pipe = CreateNamedPipeA("\\\\.\\pipe\\tinkerforge-brick-daemon-debug-log",
+		                               PIPE_ACCESS_DUPLEX |
+		                               FILE_FLAG_OVERLAPPED |
+		                               FILE_FLAG_FIRST_PIPE_INSTANCE,
+		                               PIPE_TYPE_MESSAGE |
+		                               PIPE_WAIT,
+		                               1,
+		                               NAMED_PIPE_BUFFER_LENGTH,
+		                               NAMED_PIPE_BUFFER_LENGTH,
+		                               0,
+		                               NULL);
 
 		if (_named_pipe == INVALID_HANDLE_VALUE) {
 			rc = ERRNO_WINAPI_OFFSET + GetLastError();
@@ -510,8 +510,8 @@ void log_write_platform(struct timeval *timestamp, LogLevel level,
 		}
 
 		if (insert_strings[0] != NULL) {
-			ReportEvent(_event_log, type, 0, event_id, NULL, 1, 0,
-			            insert_strings, NULL);
+			ReportEventA(_event_log, type, 0, event_id, NULL, 1, 0,
+			             insert_strings, NULL);
 		}
 	}
 
