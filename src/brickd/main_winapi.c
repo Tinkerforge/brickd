@@ -350,7 +350,7 @@ static int generic_main(bool log_to_file, const char *debug_filter) {
 				string_append(filename, sizeof(filename), "log");
 
 				if (file_create(&log_file, filename,
-				                _O_CREAT | _O_WRONLY | _O_APPEND,
+				                _O_CREAT | _O_WRONLY | _O_APPEND | _O_BINARY,
 				                _S_IREAD | _S_IWRITE) < 0) {
 					log_warn("Could not open log file '%s': %s (%d)",
 					         filename, get_errno_name(errno), errno);
