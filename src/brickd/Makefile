@@ -470,7 +470,7 @@ ifeq ($(WITH_MESH_SINGLE_ROOT_NODE),yes)
 endif
 
 ifeq ($(PLATFORM),Windows)
-	GENERATED := log_messages.h log_messages.rc
+	GENERATED := log_messages.h log_messages.rc log_messages_MSG0409.bin
 endif
 
 ifneq ($(MAKECMDGOALS),clean)
@@ -581,7 +581,7 @@ ifeq ($(WITH_SYSTEMD),yes)
 	$(E)systemctl enable brickd-resume.service
 endif
 
-log_messages.h log_messages.rc: log_messages.mc Makefile
+log_messages.h log_messages.rc log_messages_MSG0409.bin: log_messages.mc Makefile
 	@echo GEN $@
 	$(E)windmc -A -b log_messages.mc
 

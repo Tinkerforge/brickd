@@ -4,6 +4,7 @@ src/brickd/brickd
 src/brickd/brickd.exe
 src/brickd/log_messages.h
 src/brickd/log_messages.rc
+src/brickd/log_messages_MSG0409.bin
 src/brickd/objfre_wxp_x86
 src/build_data/windows/msvc_uwp/.vs
 src/build_data/windows/msvc_uwp/AppPackages

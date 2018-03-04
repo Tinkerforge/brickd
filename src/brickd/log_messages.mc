@@ -1,3 +1,5 @@
+LanguageNames=(English=0x0409:MSG0409)
+
 MessageId=0x01
 Severity=Warning
 SymbolicName=BRICKD_GENERIC_WARNING

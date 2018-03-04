@@ -39,7 +39,7 @@
 @set CC=%CC% /I..\build_data\windows /I..\build_data\windows\libusb /I..
 @set LD=%LD% /libpath:..\build_data\windows\libusb
 
-@del *.obj *.res *.bin *.exp *.manifest *.pdb *.exe
+@del *.obj *.res *.bin *.exp *.manifest *.pdb *.exe log_messages.h log_messages.rc
 
 %MC% -A -b log_messages.mc
 
@@ -96,7 +96,7 @@
 @if exist brickd.exe.manifest^
  %MT% /manifest brickd.exe.manifest -outputresource:brickd.exe
 
-@del *.obj *.res *.bin *.exp *.manifest
+@del *.obj *.res *.bin *.exp *.manifest log_messages.h log_messages.rc
 
 @if not exist ..\dist mkdir ..\dist
 copy brickd.exe ..\dist\
