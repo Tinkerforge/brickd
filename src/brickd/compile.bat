@@ -16,7 +16,7 @@
  goto done
 )
 
-@set CC=cl /nologo /c /MD /O2 /W4 /wd4200 /wd4214^
+@set CC=cl /nologo /c /MD /O2 /W4 /wd4200 /wd4201 /wd4214^
  /DWINVER=0x0501 /D_WIN32_WINNT=0x0501 /DWIN32_LEAN_AND_MEAN /DNDEBUG^
  /DDAEMONLIB_WITH_LOGGING
 @set MC=mc
