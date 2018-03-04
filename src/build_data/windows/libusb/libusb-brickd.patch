@@ -6,10 +6,10 @@ index 99aab7b..4666a0c 100644
  	UNUSED(level);
  }
  
-+static libusb_log_function usbi_log_function = NULL;
++static libusb_log_callback usbi_log_callback = NULL;
 +
-+void API_EXPORTED libusb_set_log_function(libusb_log_function function) {
-+	usbi_log_function = function;
++void API_EXPORTED libusb_set_log_callback(libusb_log_callback callback) {
++	usbi_log_callback = callback;
 +}
 +
  void usbi_log_v(struct libusb_context *ctx, enum libusb_log_level level,
@@ -22,8 +22,8 @@ index 99aab7b..4666a0c 100644
  	int global_debug, header_len, text_len;
  	static int has_debug_header_been_displayed = 0;
  
-+	if (usbi_log_function != NULL) {
-+		usbi_log_function(ctx, level, function, format, args);
++	if (usbi_log_callback != NULL) {
++		usbi_log_callback(ctx, level, function, format, args);
 +		return;
 +	}
 +
@@ -79,8 +79,8 @@ index 2443d9b..617aa01 100644
 +  usbi_read@12 = usbi_read
 +  usbi_close
 +  usbi_close@4 = usbi_close
-+  libusb_set_log_function
-+  libusb_set_log_function@4 = libusb_set_log_function
++  libusb_set_log_callback
++  libusb_set_log_callback@4 = libusb_set_log_callback
 diff --git a/libusb/libusb-1.0.rc b/libusb/libusb-1.0.rc
 index 3dce6d5..6eeff3e 100644
 --- a/libusb/libusb-1.0.rc
@@ -90,7 +90,7 @@ index 3dce6d5..6eeff3e 100644
  			VALUE "OriginalFilename", "libusb-1.0.dll\0"
  			VALUE "PrivateBuild", "\0"
 -			VALUE "ProductName", "libusb-1.0\0"
-+			VALUE "ProductName", "libusb-1.0-b14d0a49e8014c0043673160ace2910e5742a1d2-tf-17\0"
++			VALUE "ProductName", "libusb-1.0-b14d0a49e8014c0043673160ace2910e5742a1d2-tf-18\0"
  			VALUE "ProductVersion", LIBUSB_VERSIONSTRING
  			VALUE "SpecialBuild", "\0"
  		END
@@ -118,12 +118,12 @@ index f73e31c..2d79d8d 100644
  void LIBUSB_CALL libusb_hotplug_deregister_callback(libusb_context *ctx,
  						libusb_hotplug_callback_handle callback_handle);
  
-+typedef void (LIBUSB_CALL *libusb_log_function)(libusb_context *ctx,
++typedef void (LIBUSB_CALL *libusb_log_callback)(libusb_context *ctx,
 +                                                enum libusb_log_level level,
 +                                                const char *function,
 +                                                const char *format,
 +                                                va_list args);
-+void LIBUSB_CALL libusb_set_log_function(libusb_log_function function);
++void LIBUSB_CALL libusb_set_log_callback(libusb_log_callback callback);
 +
  #ifdef __cplusplus
  }

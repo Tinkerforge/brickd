@@ -187,7 +187,7 @@ void libusb_set_pollfd_notifiers(libusb_context *ctx,
                                  libusb_pollfd_removed_callback removed_callback,
                                  void *user_data);
 
-void libusb_set_log_function(libusb_log_callback callback);
+void libusb_set_log_callback(libusb_log_callback callback);
 
 #ifdef __cplusplus
 }

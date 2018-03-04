@@ -1472,6 +1472,6 @@ void libusb_fill_bulk_transfer(struct libusb_transfer *transfer,
 	transfer->callback = callback;
 }
 
-void libusb_set_log_function(libusb_log_callback callback) {
+void libusb_set_log_callback(libusb_log_callback callback) {
 	_log_callback = callback;
 }

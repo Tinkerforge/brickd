@@ -2003,12 +2003,12 @@ int LIBUSB_CALL libusb_hotplug_register_callback(libusb_context *ctx,
 void LIBUSB_CALL libusb_hotplug_deregister_callback(libusb_context *ctx,
 						libusb_hotplug_callback_handle callback_handle);
 
-typedef void (LIBUSB_CALL *libusb_log_function)(libusb_context *ctx,
+typedef void (LIBUSB_CALL *libusb_log_callback)(libusb_context *ctx,
                                                 enum libusb_log_level level,
                                                 const char *function,
                                                 const char *format,
                                                 va_list args);
-void LIBUSB_CALL libusb_set_log_function(libusb_log_function function);
+void LIBUSB_CALL libusb_set_log_callback(libusb_log_callback callback);
 
 #ifdef __cplusplus
 }

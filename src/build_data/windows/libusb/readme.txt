@@ -8,7 +8,7 @@ The MinGW import lib libusb-1.0.dll.a was created from libusb-1.0.def using:
 dlltool -k -d libusb-1.0.def -l libusb-1.0.dll.a
 
 Changes:
-- Add libusb_set_log_function function to intercept all log output.
+- Add libusb_set_log_callback function to intercept all log output.
 - Make libusb_get_pollfds work on Windows.
 - Expose internal functions for fake file descriptors, to allow integration
   into the brickd event loop.

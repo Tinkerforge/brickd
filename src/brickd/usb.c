@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2012-2014, 2016 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2012-2014, 2016, 2018 Matthias Bolte <matthias@tinkerforge.com>
  *
  * usb.c: USB specific functions
  *
@@ -241,7 +241,7 @@ int usb_init(void) {
 	_libusb_log_source.name = "libusb";
 
 #if defined(_WIN32) || defined(__APPLE__)
-	libusb_set_log_function(usb_forward_message);
+	libusb_set_log_callback(usb_forward_message);
 #endif
 
 	switch (log_get_effective_level()) {
@@ -354,7 +354,7 @@ void usb_exit(void) {
 	usb_exit_platform();
 
 #if defined(_WIN32) || defined(__APPLE__)
-	libusb_set_log_function(NULL);
+	libusb_set_log_callback(NULL);
 #endif
 }
 
