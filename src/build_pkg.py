@@ -159,8 +159,11 @@ def build_windows_pkg():
     print('compiling')
     system('cd brickd && compile.bat')
 
-    if os.path.exists('X:\\sign.bat'):
-        system('X:\\sign.bat dist\\brickd.exe')
+    print('signing brickd.exe')
+    system('signtool.exe sign /v /tr http://rfc3161timestamp.globalsign.com/advanced /td sha256 /n "Tinkerforge GmbH" dist\\brickd.exe')
+
+    print('verifying signature')
+    system('signtool.exe verify /v /pa dist\\brickd.exe')
 
     print('creating NSIS script from template')
     version = check_output(['dist\\brickd.exe', '--version']).replace('\r\n', '')
@@ -182,7 +185,7 @@ def build_windows_pkg():
     shutil.copy(os.path.join(build_data_path, 'logviewer', 'logviewer.pdb'), dist_path)
 
     print('building NSIS installer')
-    system('"C:\\Program Files\\NSIS\\makensis.exe" dist\\installer\\brickd_installer.nsi')
+    system('"C:\\Program Files (x86)\\NSIS\\makensis.exe" dist\\installer\\brickd_installer.nsi')
     installer = 'brickd_windows_{0}.exe'.format(version.replace('.', '_'))
 
     if os.path.exists(installer):
@@ -190,8 +193,11 @@ def build_windows_pkg():
 
     shutil.move(os.path.join(dist_path, 'installer', installer), root_path)
 
-    if os.path.exists('X:\\sign.bat'):
-        system('X:\\sign.bat ' + installer)
+    print('signing NSIS installer')
+    system('signtool.exe sign /v /tr http://rfc3161timestamp.globalsign.com/advanced /td sha256 /n "Tinkerforge GmbH" ' + installer)
+
+    print('verifying signature')
+    system('signtool.exe verify /v /pa ' + installer)
 
 
 def build_linux_pkg():
