@@ -1,8 +1,8 @@
 diff --git a/libusb/core.c b/libusb/core.c
-index 99aab7b..4666a0c 100644
+index 50f92f6..41af7aa 100644
 --- a/libusb/core.c
 +++ b/libusb/core.c
-@@ -2352,21 +2352,32 @@ static void usbi_log_str(struct libusb_context *ctx,
+@@ -2398,20 +2398,32 @@ static void usbi_log_str(enum libusb_log_level level, const char *str)
  	UNUSED(level);
  }
  
@@ -15,10 +15,10 @@ index 99aab7b..4666a0c 100644
  void usbi_log_v(struct libusb_context *ctx, enum libusb_log_level level,
  	const char *function, const char *format, va_list args)
  {
-+	int ctx_level = 0;
- 	const char *prefix = "";
++	enum libusb_log_level ctx_level = LIBUSB_LOG_LEVEL_NONE;
+ 	const char *prefix;
  	char buf[USBI_MAX_LOG_LEN];
- 	struct timeval now;
+ 	struct timespec now;
  	int global_debug, header_len, text_len;
  	static int has_debug_header_been_displayed = 0;
  
@@ -32,13 +32,12 @@ index 99aab7b..4666a0c 100644
  	UNUSED(ctx);
 +	UNUSED(ctx_level);
  #else
--	int ctx_level = 0;
--
+-	enum libusb_log_level ctx_level = LIBUSB_LOG_LEVEL_NONE;
+ 
  	USBI_GET_CONTEXT(ctx);
- 	if (ctx) {
- 		ctx_level = ctx->debug;
+ 	if (ctx)
 diff --git a/libusb/io.c b/libusb/io.c
-index 0026ba7..89fca8b 100644
+index a03bfaa..8100551 100644
 --- a/libusb/io.c
 +++ b/libusb/io.c
 @@ -2722,7 +2722,6 @@ DEFAULT_VISIBILITY
@@ -62,13 +61,23 @@ index 0026ba7..89fca8b 100644
  
  /** \ingroup libusb_poll
 diff --git a/libusb/libusb-1.0.def b/libusb/libusb-1.0.def
-index 2443d9b..617aa01 100644
+index d1f4230..de88eb0 100644
 --- a/libusb/libusb-1.0.def
 +++ b/libusb/libusb-1.0.def
-@@ -172,3 +172,15 @@ EXPORTS
+@@ -151,7 +151,6 @@ EXPORTS
+   libusb_set_interface_alt_setting
+   libusb_set_interface_alt_setting@12 = libusb_set_interface_alt_setting
+   libusb_set_option
+-  libusb_set_option = libusb_set_option
+   libusb_set_pollfd_notifiers
+   libusb_set_pollfd_notifiers@16 = libusb_set_pollfd_notifiers
+   libusb_setlocale
+@@ -174,3 +173,15 @@ EXPORTS
    libusb_unref_device@4 = libusb_unref_device
    libusb_wait_for_event
    libusb_wait_for_event@8 = libusb_wait_for_event
++  libusb_set_log_callback
++  libusb_set_log_callback@4 = libusb_set_log_callback
 +  usbi_pipe
 +  usbi_pipe@4 = usbi_pipe
 +  usbi_poll
@@ -79,10 +88,8 @@ index 2443d9b..617aa01 100644
 +  usbi_read@12 = usbi_read
 +  usbi_close
 +  usbi_close@4 = usbi_close
-+  libusb_set_log_callback
-+  libusb_set_log_callback@4 = libusb_set_log_callback
 diff --git a/libusb/libusb-1.0.rc b/libusb/libusb-1.0.rc
-index 3dce6d5..6eeff3e 100644
+index 3dce6d5..ed6dcda 100644
 --- a/libusb/libusb-1.0.rc
 +++ b/libusb/libusb-1.0.rc
 @@ -49,7 +49,7 @@ BEGIN
@@ -90,12 +97,12 @@ index 3dce6d5..6eeff3e 100644
  			VALUE "OriginalFilename", "libusb-1.0.dll\0"
  			VALUE "PrivateBuild", "\0"
 -			VALUE "ProductName", "libusb-1.0\0"
-+			VALUE "ProductName", "libusb-1.0-b14d0a49e8014c0043673160ace2910e5742a1d2-tf-18\0"
++			VALUE "ProductName", "libusb-1.0-8681342edc8f09c866b95a64f5cda60d032be976-tf-19\0"
  			VALUE "ProductVersion", LIBUSB_VERSIONSTRING
  			VALUE "SpecialBuild", "\0"
  		END
 diff --git a/libusb/libusb.h b/libusb/libusb.h
-index f73e31c..2d79d8d 100644
+index 430136b..4ae209a 100644
 --- a/libusb/libusb.h
 +++ b/libusb/libusb.h
 @@ -60,6 +60,7 @@ typedef unsigned __int32  uint32_t;
@@ -104,19 +111,19 @@ index f73e31c..2d79d8d 100644
  #include <limits.h>
 +#include <stdarg.h>
  
- /* 'interface' might be defined as a macro on Windows, so we need to
-  * undefine it so as not to break the current libusb API, because
-@@ -67,6 +68,7 @@ typedef unsigned __int32  uint32_t;
-  * As this can be problematic if you include windows.h after libusb.h
-  * in your sources, we force windows.h to be included first. */
- #if defined(_WIN32) || defined(__CYGWIN__) || defined(_WIN32_WCE)
-+#include <winsock2.h> // for struct timeval
- #include <windows.h>
- #if defined(interface)
- #undef interface
-@@ -2001,6 +2003,13 @@ int LIBUSB_CALL libusb_hotplug_register_callback(libusb_context *ctx,
- void LIBUSB_CALL libusb_hotplug_deregister_callback(libusb_context *ctx,
- 						libusb_hotplug_callback_handle callback_handle);
+ #if defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 199901L)
+ #define ZERO_SIZED_ARRAY		/* [] - valid C99 code */
+@@ -1296,7 +1297,6 @@ enum libusb_log_level {
+ 
+ int LIBUSB_CALL libusb_init(libusb_context **ctx);
+ void LIBUSB_CALL libusb_exit(libusb_context *ctx);
+-LIBUSB_DEPRECATED_FOR(libusb_set_option)
+ void LIBUSB_CALL libusb_set_debug(libusb_context *ctx, int level);
+ const struct libusb_version * LIBUSB_CALL libusb_get_version(void);
+ int LIBUSB_CALL libusb_has_capability(uint32_t capability);
+@@ -2032,6 +2032,13 @@ enum libusb_option {
+ 
+ int LIBUSB_CALL libusb_set_option(libusb_context *ctx, enum libusb_option option, ...);
  
 +typedef void (LIBUSB_CALL *libusb_log_callback)(libusb_context *ctx,
 +                                                enum libusb_log_level level,
@@ -129,43 +136,34 @@ index f73e31c..2d79d8d 100644
  }
  #endif
 diff --git a/libusb/os/poll_windows.c b/libusb/os/poll_windows.c
-index 9825607..934feb2 100644
+index bb3d178..4a83992 100644
 --- a/libusb/os/poll_windows.c
 +++ b/libusb/os/poll_windows.c
-@@ -258,7 +258,7 @@ void exit_polling(void)
-  * event. To that extent, we create a single wfd and overlapped as a means
-  * to access that event.
-  */
--int usbi_pipe(int filedes[2])
-+int API_EXPORTED usbi_pipe(int filedes[2])
- {
- 	int i;
- 	OVERLAPPED* overlapped;
-@@ -501,19 +501,49 @@ struct winfd overlapped_to_winfd(OVERLAPPED* overlapped)
- 	return INVALID_WINFD;
+@@ -117,6 +117,35 @@ struct winfd usbi_create_fd(void)
+ 	return wfd;
  }
  
 +typedef struct {
 +	CRITICAL_SECTION mutex;
-+	int object_index;
++	int index;
 +	HANDLE event;
 +} usbi_wait_object_ctx;
 +
 +typedef struct {
 +	usbi_wait_object_ctx *ctx;
-+	int object_index;
-+	HANDLE wait_object;
++	int index;
++	HANDLE wait_handle;
 +} usbi_wait_object_wrapper;
 +
-+static void CALLBACK usbi_poll_callback(void *context, BOOLEAN timeout)
++static void CALLBACK usbi_poll_callback(void *opaque, BOOLEAN timeout)
 +{
-+	usbi_wait_object_wrapper *wrapper = (usbi_wait_object_wrapper *)context;
++	usbi_wait_object_wrapper *wrapper = (usbi_wait_object_wrapper *)opaque;
 +
 +	if (!timeout) {
 +		EnterCriticalSection(&wrapper->ctx->mutex);
 +
-+		if (wrapper->ctx->object_index < 0) {
-+			wrapper->ctx->object_index = wrapper->object_index;
++		if (wrapper->ctx->index < 0) {
++			wrapper->ctx->index = wrapper->index;
 +
 +			SetEvent(wrapper->ctx->event);
 +		}
@@ -173,6 +171,14 @@ index 9825607..934feb2 100644
 +		LeaveCriticalSection(&wrapper->ctx->mutex);
 +	}
 +}
++
+ static int check_pollfds(struct pollfd *fds, unsigned int nfds,
+ 	HANDLE *wait_handles, DWORD *nb_wait_handles)
+ {
+@@ -167,29 +196,103 @@ static int check_pollfds(struct pollfd *fds, unsigned int nfds,
+ 
+ 	return nready;
+ }
 +
  /*
   * POSIX poll equivalent, using Windows OVERLAPPED
@@ -182,69 +188,44 @@ index 9825607..934feb2 100644
 -int usbi_poll(struct pollfd *fds, unsigned int nfds, int timeout)
 +int API_EXPORTED usbi_poll(struct pollfd *fds, unsigned int nfds, int timeout)
  {
--	unsigned i;
--	int _index, object_index, triggered;
-+	int i, _index, object_index, triggered;
- 	HANDLE *handles_to_wait_on;
- 	int *handle_to_index;
- 	DWORD nb_handles_to_wait_on = 0;
+-	HANDLE wait_handles[MAXIMUM_WAIT_OBJECTS];
++	HANDLE wait_handles[MAX_FDS];
+ 	DWORD nb_wait_handles = 0;
  	DWORD ret;
-+	usbi_wait_object_ctx wait_object_ctx;
-+	usbi_wait_object_wrapper *wrappers;
+ 	int nready;
++	usbi_wait_object_ctx ctx;
++	usbi_wait_object_wrapper wrappers[MAX_FDS];
++	int i;
  
- 	CHECK_INIT_POLLING;
+ 	nready = check_pollfds(fds, nfds, wait_handles, &nb_wait_handles);
  
-@@ -526,7 +556,7 @@ int usbi_poll(struct pollfd *fds, unsigned int nfds, int timeout)
- 		goto poll_exit;
- 	}
- 
--	for (i = 0; i < nfds; ++i) {
-+	for (i = 0; i < (int)nfds; ++i) {
- 		fds[i].revents = 0;
- 
- 		// Only one of POLLIN or POLLOUT can be selected with this version of poll (not both)
-@@ -594,9 +624,97 @@ int usbi_poll(struct pollfd *fds, unsigned int nfds, int timeout)
- 		} else {
- 			poll_dbg("starting %d ms wait for %u handles...", timeout, (unsigned int)nb_handles_to_wait_on);
- 		}
--		ret = WaitForMultipleObjects(nb_handles_to_wait_on, handles_to_wait_on,
--			FALSE, (timeout<0)?INFINITE:(DWORD)timeout);
--		object_index = ret-WAIT_OBJECT_0;
-+
-+		if (nb_handles_to_wait_on <= MAXIMUM_WAIT_OBJECTS) {
-+			ret = WaitForMultipleObjects(nb_handles_to_wait_on, handles_to_wait_on,
-+			                             FALSE, (timeout<0)?INFINITE:(DWORD)timeout);
-+			object_index = ret-WAIT_OBJECT_0;
+ 	// If nothing was triggered, wait on all fds that require it
+ 	if ((nready == 0) && (nb_wait_handles != 0) && (timeout != 0)) {
+-		ret = WaitForMultipleObjects(nb_wait_handles, wait_handles,
+-			FALSE, (timeout < 0) ? INFINITE : (DWORD)timeout);
+-		if ((ret >= WAIT_OBJECT_0) && (ret < (WAIT_OBJECT_0 + nb_wait_handles))) {
++		if (nb_wait_handles <= MAXIMUM_WAIT_OBJECTS) {
++			ret = WaitForMultipleObjects(nb_wait_handles, wait_handles,
++				FALSE, (timeout < 0) ? INFINITE : (DWORD)timeout);
 +		} else {
-+			poll_dbg("more than %d handles to wait for", MAXIMUM_WAIT_OBJECTS);
++			usbi_dbg("more than %d handles to wait for", MAXIMUM_WAIT_OBJECTS);
 +
-+			wrappers = (usbi_wait_object_wrapper *)calloc(nfds, sizeof(usbi_wait_object_wrapper));
++			InitializeCriticalSection(&ctx.mutex);
 +
-+			if (wrappers == NULL) {
-+				errno = ENOMEM;
-+				triggered = -1; // error
-+				goto poll_exit;
++			ctx.index = -1;
++			ctx.event = CreateEvent(NULL, TRUE, FALSE, NULL);
++
++			if (ctx.event == NULL) {
++				usbi_err(NULL, "CreateEvent failed: %u", (unsigned int)GetLastError());
++
++				DeleteCriticalSection(&ctx.mutex);
++
++				return -1;
 +			}
 +
-+			InitializeCriticalSection(&wait_object_ctx.mutex);
-+
-+			wait_object_ctx.object_index = -1;
-+			wait_object_ctx.event = CreateEvent(NULL, TRUE, FALSE, NULL);
-+
-+			if (wait_object_ctx.event == NULL) {
-+				poll_dbg(" error creating wait object event: %d", GetLastError());
-+
-+				free(wrappers);
-+				DeleteCriticalSection(&wait_object_ctx.mutex);
-+
-+				errno = EIO;
-+				triggered = -1; // error
-+				goto poll_exit;
-+			}
-+
-+			for (i = 0; i < (int)nb_handles_to_wait_on; ++i) {
-+				wrappers[i].ctx = &wait_object_ctx;
-+				wrappers[i].object_index = i;
++			for (i = 0; i < (int)nb_wait_handles; ++i) {
++				wrappers[i].ctx = &ctx;
++				wrappers[i].index = i;
 +
 +				// FIXME: this can behave differently if objects such as semaphores or
 +				//        auto-reset events are used. those objects are altered by a
@@ -255,105 +236,107 @@ index 9825607..934feb2 100644
 +				//        or an auto-reset event. currently this is not a problem
 +				//        because currently no semaphores or auto-reset events are
 +				//        used with usbi_poll.
-+				if (!RegisterWaitForSingleObject(&wrappers[i].wait_object, handles_to_wait_on[i],
++				if (!RegisterWaitForSingleObject(&wrappers[i].wait_handle, wait_handles[i],
 +				                                 usbi_poll_callback, &wrappers[i], INFINITE,
 +				                                 WT_EXECUTEONLYONCE)) {
-+					poll_dbg(" error registering wait object %d: %d", i, GetLastError());
++					usbi_err(NULL, "RegisterWaitForSingleObject failed at %d: %u", i, (unsigned int)GetLastError());
 +
 +					for (--i; i >= 0; --i) {
-+						if (!UnregisterWaitEx(wrappers[i].wait_object, INVALID_HANDLE_VALUE) &&
++						if (!UnregisterWaitEx(wrappers[i].wait_handle, INVALID_HANDLE_VALUE) &&
 +						    GetLastError() != ERROR_IO_PENDING) {
-+							poll_dbg(" error unregistering wait object %d: %d", i, GetLastError());
++							usbi_err(NULL, "UnregisterWaitEx failed at %d: %u", i, (unsigned int)GetLastError());
 +						}
 +					}
 +
-+					free(wrappers);
-+					DeleteCriticalSection(&wait_object_ctx.mutex);
-+					CloseHandle(wait_object_ctx.event);
++					DeleteCriticalSection(&ctx.mutex);
++					CloseHandle(ctx.event);
 +
-+					errno = EIO;
-+					triggered = -1; // error
-+					goto poll_exit;
++					return -1;
 +				}
 +			}
 +
-+			ret = WaitForSingleObject(wait_object_ctx.event, (timeout<0)?INFINITE:(DWORD)timeout);
++			ret = WaitForSingleObject(ctx.event, timeout < 0 ? INFINITE : (DWORD)timeout);
 +
 +			if (ret == WAIT_OBJECT_0) {
-+				EnterCriticalSection(&wait_object_ctx.mutex);
++				EnterCriticalSection(&ctx.mutex);
 +
-+				object_index = wait_object_ctx.object_index;
++				ret = WAIT_OBJECT_0 + ctx.index;
 +
-+				LeaveCriticalSection(&wait_object_ctx.mutex);
-+			} else {
-+				object_index = -1;
++				LeaveCriticalSection(&ctx.mutex);
 +			}
 +
-+			for (i = 0; i < (int)nb_handles_to_wait_on; ++i) {
-+				if (!UnregisterWaitEx(wrappers[i].wait_object, INVALID_HANDLE_VALUE) &&
++			for (i = 0; i < (int)nb_wait_handles; ++i) {
++				if (!UnregisterWaitEx(wrappers[i].wait_handle, INVALID_HANDLE_VALUE) &&
 +				    GetLastError() != ERROR_IO_PENDING) {
-+					poll_dbg(" error unregistering wait object %d: %d", i, GetLastError());
++					usbi_err(NULL, "UnregisterWaitEx failed at %d: %u", i, (unsigned int)GetLastError());
 +				}
 +			}
 +
-+			free(wrappers);
-+			DeleteCriticalSection(&wait_object_ctx.mutex);
-+			CloseHandle(wait_object_ctx.event);
++			DeleteCriticalSection(&ctx.mutex);
++			CloseHandle(ctx.event);
 +		}
 +
- 		if ((object_index >= 0) && ((DWORD)object_index < nb_handles_to_wait_on)) {
- 			poll_dbg("  completed after wait");
- 			i = handle_to_index[object_index];
-@@ -622,13 +740,14 @@ poll_exit:
- 	if (handle_to_index != NULL) {
- 		free(handle_to_index);
++		if (ret < (WAIT_OBJECT_0 + nb_wait_handles)) {
+ 			nready = check_pollfds(fds, nfds, NULL, NULL);
+ 		} else if (ret != WAIT_TIMEOUT) {
+ 			if (ret == WAIT_FAILED)
+-				usbi_err(NULL, "WaitForMultipleObjects failed: %u", (unsigned int)GetLastError());
++				usbi_err(NULL, "WaitFor*Objects failed: %u", (unsigned int)GetLastError());
+ 			nready = -1;
+ 		}
  	}
-+
- 	return triggered;
- }
- 
+@@ -200,7 +303,7 @@ int usbi_poll(struct pollfd *fds, unsigned int nfds, int timeout)
  /*
-  * close a fake pipe fd
+  * close a fake file descriptor
   */
--int usbi_close(int fd)
-+int API_EXPORTED usbi_close(int fd)
+-int usbi_close(int _fd)
++int API_EXPORTED usbi_close(int _fd)
  {
- 	int _index;
- 	int r = -1;
-@@ -650,7 +769,7 @@ int usbi_close(int fd)
+ 	struct file_descriptor *fd;
+ 
+@@ -237,7 +340,7 @@ err_badfd:
+ * event. To that extent, we create a single wfd and overlapped as a means
+ * to access that event.
+ */
+-int usbi_pipe(int filedes[2])
++int API_EXPORTED usbi_pipe(int filedes[2])
+ {
+ 	struct file_descriptor *fd;
+ 	int r_fd = -1, w_fd = -1;
+@@ -290,7 +393,7 @@ int usbi_pipe(int filedes[2])
  /*
   * synchronous write for fake "pipe" signaling
   */
 -ssize_t usbi_write(int fd, const void *buf, size_t count)
 +ssize_t API_EXPORTED usbi_write(int fd, const void *buf, size_t count)
  {
- 	int _index;
- 	UNUSED(buf);
-@@ -686,7 +805,7 @@ ssize_t usbi_write(int fd, const void *buf, size_t count)
+ 	int error = EBADF;
+ 
+@@ -328,7 +431,7 @@ err_out:
  /*
   * synchronous read for fake "pipe" signaling
   */
 -ssize_t usbi_read(int fd, void *buf, size_t count)
 +ssize_t API_EXPORTED usbi_read(int fd, void *buf, size_t count)
  {
- 	int _index;
- 	ssize_t r = -1;
+ 	int error = EBADF;
+ 
 diff --git a/libusb/os/poll_windows.h b/libusb/os/poll_windows.h
-index aa4c985..1feb511 100644
+index bd22c7f..4c3c76d 100644
 --- a/libusb/os/poll_windows.h
 +++ b/libusb/os/poll_windows.h
-@@ -55,7 +55,7 @@ enum windows_version {
- };
- extern int windows_version;
+@@ -41,7 +41,7 @@
+ 
+ #define DUMMY_HANDLE ((HANDLE)(LONG_PTR)-2)
  
 -#define MAX_FDS     256
-+#define MAX_FDS     4096
++#define MAX_FDS     512
  
  #define POLLIN      0x0001    /* There is data to read */
  #define POLLPRI     0x0002    /* There is urgent data to read */
-@@ -90,11 +90,11 @@ struct winfd {
- };
- extern const struct winfd INVALID_WINFD;
+@@ -65,11 +65,11 @@ extern const struct winfd INVALID_WINFD;
+ 
+ struct winfd usbi_create_fd(void);
  
 -int usbi_pipe(int pipefd[2]);
 -int usbi_poll(struct pollfd *fds, unsigned int nfds, int timeout);
@@ -366,27 +349,16 @@ index aa4c985..1feb511 100644
 +ssize_t LIBUSB_CALL usbi_read(int fd, void *buf, size_t count);
 +int LIBUSB_CALL usbi_close(int fd);
  
- void init_polling(void);
- void exit_polling(void);
+ /*
+  * Timeval operations
 diff --git a/libusb/os/windows_nt_common.c b/libusb/os/windows_nt_common.c
-index 68eb4a7..7697213 100644
+index 92dbde5..fe2281e 100644
 --- a/libusb/os/windows_nt_common.c
 +++ b/libusb/os/windows_nt_common.c
-@@ -505,6 +505,10 @@ static void windows_transfer_callback(struct usbi_transfer *itransfer, uint32_t
- 		usbi_dbg("detected operation aborted");
- 		status = LIBUSB_TRANSFER_CANCELLED;
- 		break;
-+	case ERROR_FILE_NOT_FOUND:
-+		usbi_dbg("detected disconnect");
-+		status = LIBUSB_TRANSFER_NO_DEVICE;
-+		break;
- 	default:
- 		usbi_err(ITRANSFER_CTX(itransfer), "detected I/O error %u: %s", io_result, windows_error_str(io_result));
- 		status = LIBUSB_TRANSFER_ERROR;
-@@ -578,8 +582,8 @@ int windows_handle_events(struct libusb_context *ctx, struct pollfd *fds, POLL_N
- 			windows_handle_callback(transfer, io_result, io_size);
+@@ -897,8 +897,8 @@ static int windows_handle_events(struct libusb_context *ctx, struct pollfd *fds,
+ 			windows_handle_callback(priv->backend, itransfer, io_result, io_size);
  		} else {
- 			usbi_err(ctx, "could not find a matching transfer for fd %d", fds[i]);
+ 			usbi_err(ctx, "could not find a matching transfer for fd %d", fds[i].fd);
 -			r = LIBUSB_ERROR_NOT_FOUND;
 -			break;
 +			//r = LIBUSB_ERROR_NOT_FOUND;
@@ -395,58 +367,77 @@ index 68eb4a7..7697213 100644
  	}
  	usbi_mutex_unlock(&ctx->open_devs_lock);
 diff --git a/libusb/os/windows_winusb.c b/libusb/os/windows_winusb.c
-index d1d2749..a7a4dc0 100644
+index 05af1f6..60b9dca 100644
 --- a/libusb/os/windows_winusb.c
 +++ b/libusb/os/windows_winusb.c
-@@ -1000,6 +1000,14 @@ static int init_device(struct libusb_device *dev, struct libusb_device *parent_d
- 	unsigned long tmp_id;
- 	unsigned i;
+@@ -818,6 +818,13 @@ static int init_device(struct libusb_device *dev, struct libusb_device *parent_d
+ 			return LIBUSB_ERROR_NOT_FOUND;
+ 		}
  
-+	if (strncmp(device_id, "\\\\.\\USB#VID_16D0&PID_09E5&MI_01", 31) == 0 && port_number > 1) {
-+		// the second function (MI_01) of the RED Brick seems to be reported on
-+		// the wrong port number, try to fix this
-+		usbi_dbg("trying to fix port number %u for %s", port_number, device_id);
-+
-+		--port_number;
-+	}
-+
- 	if ((dev == NULL) || (parent_dev == NULL))
- 		return LIBUSB_ERROR_NOT_FOUND;
- 
-@@ -1051,6 +1059,11 @@ static int init_device(struct libusb_device *dev, struct libusb_device *parent_d
- 
- 	memset(&conn_info, 0, sizeof(conn_info));
- 	if (priv->depth != 0) { // Not a HCD hub
 +		if (port_number == 0) {
-+			usbi_warn(ctx, "got invalid port number for '%s', if this device is connected to a Renesas/NEC USB controller update the driver", device_id);
++			usbi_warn(ctx, "got invalid port number for '%s', if this device is connected to a Renesas/NEC USB controller update the driver", priv->dev_id);
 +			return LIBUSB_ERROR_NO_DEVICE;
 +		}
 +
- 		handle = CreateFileA(parent_priv->path, GENERIC_WRITE, FILE_SHARE_WRITE, NULL, OPEN_EXISTING,
- 			FILE_FLAG_OVERLAPPED, NULL);
- 		if (handle == INVALID_HANDLE_VALUE) {
-@@ -1130,6 +1143,15 @@ static int init_device(struct libusb_device *dev, struct libusb_device *parent_d
- 	usbi_dbg("(bus: %u, addr: %u, depth: %u, port: %u): '%s'",
- 		dev->bus_number, dev->device_address, priv->depth, priv->port, device_id);
- 
-+	if (strncmp(device_id, "\\\\.\\USB#VID_16D0&PID_09E5&MI_", 29) == 0) {
-+		// don't add interfaces of the composite RED Brick devices to the
-+		// device list. this will just result in the device list containing
-+		// the device multiple times, which will confuse brickd
-+		usbi_dbg("hiding composite device function from devices list: %s", device_id);
++		usbi_dbg("looking up port %d at %s for %s", port_number, parent_priv->path, priv->dev_id);
 +
-+		return LIBUSB_ERROR_NO_DEVICE;
-+	}
-+
- 	return LIBUSB_SUCCESS;
- }
- 
-@@ -1330,7 +1352,7 @@ static int windows_get_device_list(struct libusb_context *ctx, struct discovered
- 		return LIBUSB_ERROR_NO_MEM;
+ 		// Calculate depth and fetch bus number
+ 		bus_number = parent_dev->bus_number;
+ 		if (bus_number == 0) {
+@@ -1116,6 +1123,7 @@ static int winusb_get_device_list(struct libusb_context *ctx, struct discovered_
+ 	char *dev_interface_path = NULL;
+ 	unsigned long session_id;
+ 	DWORD size, port_nr, reg_type, install_state;
++	char location[1024];
+ 	HKEY key;
+ 	WCHAR guid_string_w[MAX_GUID_STRING_LENGTH];
+ 	GUID *if_guid;
+@@ -1184,7 +1192,7 @@ static int winusb_get_device_list(struct libusb_context *ctx, struct discovered_
+ 	}
  
  	for (pass = 0; ((pass < nb_guids) && (r == LIBUSB_SUCCESS)); pass++) {
 -//#define ENUM_DEBUG
 +#define ENUM_DEBUG
  #if defined(ENABLE_LOGGING) && defined(ENUM_DEBUG)
- 		const char *passname[] = { "HCD", "HUB", "GEN", "DEV", "HID", "EXT" };
- 		usbi_dbg("#### PROCESSING %ss %s", passname[(pass <= HID_PASS) ? pass : (HID_PASS + 1)],
+ 		const char * const passname[] = {"HUB", "DEV", "HCD", "GEN", "HID", "EXT"};
+ 		usbi_dbg("#### PROCESSING %ss %s", passname[MIN(pass, EXT_PASS)], guid_to_string(guid_list[pass]));
+@@ -1457,6 +1465,12 @@ static int winusb_get_device_list(struct libusb_context *ctx, struct discovered_
+ 				r = enumerate_hcd_root_hub(ctx, dev_id, (uint8_t)(i + 1), dev_info_data.DevInst);
+ 				break;
+ 			case GEN_PASS:
++				if (!pSetupDiGetDeviceRegistryPropertyA(*dev_info, &dev_info_data, SPDRP_LOCATION_INFORMATION,
++						NULL, (BYTE *)location, sizeof(location) - 1, &size)) {
++					usbi_dbg("could not retrieve location for device '%s': %s", dev_id, windows_error_str(0));
++				} else {
++					usbi_dbg("location for device '%s' is '%s'", dev_id, location);
++				}
+ 				// The SPDRP_ADDRESS for USB devices is the device port number on the hub
+ 				port_nr = 0;
+ 				if (!pSetupDiGetDeviceRegistryPropertyA(*dev_info, &dev_info_data, SPDRP_ADDRESS,
+diff --git a/libusb/os/windows_winusb.h b/libusb/os/windows_winusb.h
+index 299dc6c..95c5c24 100644
+--- a/libusb/os/windows_winusb.h
++++ b/libusb/os/windows_winusb.h
+@@ -42,6 +42,9 @@
+ #ifndef SPDRP_INSTALL_STATE
+ #define SPDRP_INSTALL_STATE	34
+ #endif
++#ifndef SPDRP_LOCATION_INFORMATION
++#define SPDRP_LOCATION_INFORMATION	13
++#endif
+ 
+ #define MAX_CTRL_BUFFER_LENGTH	4096
+ #define MAX_USB_STRING_LENGTH	128
+diff --git a/msvc/libusb_sources b/msvc/libusb_sources
+index d497711..d0a91b0 100644
+--- a/msvc/libusb_sources
++++ b/msvc/libusb_sources
+@@ -24,7 +24,7 @@ C_DEFINES= $(C_DEFINES) $(LIBUSB_DEFINES) /DDDKBUILD
+ #  an older compiler than other objects; rebuild old objects and libraries"
+ USER_C_FLAGS=/GL-
+ 
+-TARGETLIBS=$(SDK_LIB_PATH)\kernel32.lib
++TARGETLIBS=$(SDK_LIB_PATH)\kernel32.lib $(SDK_LIB_PATH)\advapi32.lib
+ 
+ SOURCES=..\core.c \
+ 	..\descriptor.c \
