@@ -72,14 +72,14 @@ static char _config_filename[1024];
 static bool _run_as_service = true;
 static bool _pause_before_exit = false;
 
-typedef BOOL (WINAPI *query_full_process_image_name_t)(HANDLE, DWORD, char *, DWORD *);
+typedef BOOL (WINAPI *QUERYFULLPROCESSIMAGENAMEA)(HANDLE, DWORD, char *, DWORD *);
 
 extern void usb_handle_device_event(DWORD event_type, DEV_BROADCAST_HDR *event_data);
 
 static int get_process_image_name(PROCESSENTRY32 entry, char *buffer, DWORD length) {
 	int rc;
 	HANDLE handle = NULL;
-	query_full_process_image_name_t query_full_process_image_name = NULL;
+	QUERYFULLPROCESSIMAGENAMEA ptr_QueryFullProcessImageNameA = NULL;
 
 	handle = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE,
 	                     entry.th32ProcessID);
@@ -98,12 +98,12 @@ static int get_process_image_name(PROCESSENTRY32 entry, char *buffer, DWORD leng
 		return -1;
 	}
 
-	query_full_process_image_name =
-	  (query_full_process_image_name_t)GetProcAddress(GetModuleHandleA("kernel32"),
-	                                                  "QueryFullProcessImageNameA");
+	ptr_QueryFullProcessImageNameA =
+	  (QUERYFULLPROCESSIMAGENAMEA)GetProcAddress(GetModuleHandleA("kernel32"),
+	                                             "QueryFullProcessImageNameA");
 
-	if (query_full_process_image_name != NULL) {
-		if (query_full_process_image_name(handle, 0, buffer, &length) == 0) {
+	if (ptr_QueryFullProcessImageNameA != NULL) {
+		if (ptr_QueryFullProcessImageNameA(handle, 0, buffer, &length) == 0) {
 			rc = ERRNO_WINAPI_OFFSET + GetLastError();
 
 			log_warn("Could not get image name of process with ID %u: %s (%d)",
