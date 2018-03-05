@@ -1,0 +1,274 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="daemonlib">
+      <UniqueIdentifier>{985c210e-d692-4cb6-85cf-53eb978cca48}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="brickd">
+      <UniqueIdentifier>{b840c84b-6b03-4c64-b80a-8b6ed3cc0874}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\..\..\daemonlib\array.h">
+      <Filter>daemonlib</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\daemonlib\base58.h">
+      <Filter>daemonlib</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\daemonlib\conf_file.h">
+      <Filter>daemonlib</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\daemonlib\config.h">
+      <Filter>daemonlib</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\daemonlib\enum.h">
+      <Filter>daemonlib</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\daemonlib\event.h">
+      <Filter>daemonlib</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\daemonlib\file.h">
+      <Filter>daemonlib</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\daemonlib\io.h">
+      <Filter>daemonlib</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\daemonlib\log.h">
+      <Filter>daemonlib</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\daemonlib\macros.h">
+      <Filter>daemonlib</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\daemonlib\node.h">
+      <Filter>daemonlib</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\daemonlib\packed_begin.h">
+      <Filter>daemonlib</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\daemonlib\packed_end.h">
+      <Filter>daemonlib</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\daemonlib\packet.h">
+      <Filter>daemonlib</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\daemonlib\pipe.h">
+      <Filter>daemonlib</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\daemonlib\queue.h">
+      <Filter>daemonlib</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\daemonlib\threads.h">
+      <Filter>daemonlib</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\daemonlib\threads_winapi.h">
+      <Filter>daemonlib</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\daemonlib\timer.h">
+      <Filter>daemonlib</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\daemonlib\timer_winapi.h">
+      <Filter>daemonlib</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\daemonlib\utils.h">
+      <Filter>daemonlib</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\daemonlib\writer.h">
+      <Filter>daemonlib</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\daemonlib\socket.h">
+      <Filter>daemonlib</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\brickd\base64.h">
+      <Filter>brickd</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\brickd\client.h">
+      <Filter>brickd</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\brickd\fixes_msvc.h">
+      <Filter>brickd</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\brickd\hardware.h">
+      <Filter>brickd</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\brickd\hmac.h">
+      <Filter>brickd</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\brickd\mesh.h">
+      <Filter>brickd</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\brickd\mesh_stack.h">
+      <Filter>brickd</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\brickd\network.h">
+      <Filter>brickd</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\brickd\service.h">
+      <Filter>brickd</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\brickd\sha1.h">
+      <Filter>brickd</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\brickd\stack.h">
+      <Filter>brickd</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\brickd\usb.h">
+      <Filter>brickd</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\brickd\usb_stack.h">
+      <Filter>brickd</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\brickd\usb_transfer.h">
+      <Filter>brickd</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\brickd\usb_windows.h">
+      <Filter>brickd</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\brickd\version.h">
+      <Filter>brickd</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\brickd\websocket.h">
+      <Filter>brickd</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\brickd\zombie.h">
+      <Filter>brickd</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\..\..\daemonlib\array.c">
+      <Filter>daemonlib</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\daemonlib\base58.c">
+      <Filter>daemonlib</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\daemonlib\conf_file.c">
+      <Filter>daemonlib</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\daemonlib\config.c">
+      <Filter>daemonlib</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\daemonlib\enum.c">
+      <Filter>daemonlib</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\daemonlib\event.c">
+      <Filter>daemonlib</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\daemonlib\file.c">
+      <Filter>daemonlib</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\daemonlib\io.c">
+      <Filter>daemonlib</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\daemonlib\log.c">
+      <Filter>daemonlib</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\daemonlib\node.c">
+      <Filter>daemonlib</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\daemonlib\packet.c">
+      <Filter>daemonlib</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\daemonlib\pipe_winapi.c">
+      <Filter>daemonlib</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\daemonlib\queue.c">
+      <Filter>daemonlib</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\daemonlib\socket_winapi.c">
+      <Filter>daemonlib</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\daemonlib\threads_winapi.c">
+      <Filter>daemonlib</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\daemonlib\timer_winapi.c">
+      <Filter>daemonlib</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\daemonlib\utils.c">
+      <Filter>daemonlib</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\daemonlib\writer.c">
+      <Filter>daemonlib</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\daemonlib\socket.c">
+      <Filter>daemonlib</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\brickd\base64.c">
+      <Filter>brickd</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\brickd\client.c">
+      <Filter>brickd</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\brickd\config_options.c">
+      <Filter>brickd</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\brickd\event_winapi.c">
+      <Filter>brickd</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\brickd\fixes_msvc.c">
+      <Filter>brickd</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\brickd\hardware.c">
+      <Filter>brickd</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\brickd\hmac.c">
+      <Filter>brickd</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\brickd\log_winapi.c">
+      <Filter>brickd</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\brickd\main_winapi.c">
+      <Filter>brickd</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\brickd\mesh.c">
+      <Filter>brickd</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\brickd\mesh_stack.c">
+      <Filter>brickd</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\brickd\network.c">
+      <Filter>brickd</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\brickd\service.c">
+      <Filter>brickd</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\brickd\sha1.c">
+      <Filter>brickd</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\brickd\stack.c">
+      <Filter>brickd</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\brickd\usb.c">
+      <Filter>brickd</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\brickd\usb_stack.c">
+      <Filter>brickd</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\brickd\usb_transfer.c">
+      <Filter>brickd</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\brickd\usb_winapi.c">
+      <Filter>brickd</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\brickd\usb_windows.c">
+      <Filter>brickd</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\brickd\websocket.c">
+      <Filter>brickd</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\brickd\zombie.c">
+      <Filter>brickd</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="..\..\..\brickd\log_messages.mc">
+      <Filter>brickd</Filter>
+    </CustomBuild>
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="..\..\..\brickd\brickd.rc">
+      <Filter>brickd</Filter>
+    </ResourceCompile>
+    <ResourceCompile Include="..\..\..\brickd\log_messages.rc">
+      <Filter>brickd</Filter>
+    </ResourceCompile>
+  </ItemGroup>
+</Project>
