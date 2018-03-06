@@ -1,3 +1,15 @@
+diff --git a/libusb/Makefile.am b/libusb/Makefile.am
+index e4da62e..7929168 100644
+--- a/libusb/Makefile.am
++++ b/libusb/Makefile.am
+@@ -44,6 +44,7 @@ endif
+ if OS_DARWIN
+ OS_SRC = $(DARWIN_USB_SRC)
+ AM_CFLAGS_EXT = -no-cpp-precomp
++AM_CFLAGS += -mmacosx-version-min=10.9
+ endif
+ 
+ if OS_OPENBSD
 diff --git a/libusb/core.c b/libusb/core.c
 index 5317d26..3666391 100644
 --- a/libusb/core.c
@@ -64,10 +76,10 @@ index 5b0d522..a8e06ca 100644
  }
  #endif
 diff --git a/libusb/os/darwin_usb.c b/libusb/os/darwin_usb.c
-index 4e4ab04..c27afb5 100644
+index 35ea1c3..a9ea70d 100644
 --- a/libusb/os/darwin_usb.c
 +++ b/libusb/os/darwin_usb.c
-@@ -719,7 +719,13 @@ static int darwin_cache_device_descriptor (struct libusb_context *ctx, struct da
+@@ -759,7 +759,13 @@ static int darwin_cache_device_descriptor (struct libusb_context *ctx, struct da
    /* According to Apple's documentation the device must be open for DeviceRequest but we may not be able to open some
     * devices and Apple's USB Prober doesn't bother to open the device before issuing a descriptor request.  Still,
     * to follow the spec as closely as possible, try opening the device */
