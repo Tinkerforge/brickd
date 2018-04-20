@@ -507,7 +507,7 @@ int event_run_platform(Array *event_sources, bool *running, EventCleanupFunction
 	uint32_t received_events;
 
 	if (event_add_source(_usb_poll_ready_pipe.base.read_handle,
-	                     EVENT_SOURCE_TYPE_GENERIC, "usb-poll-ready" EVENT_READ,
+	                     EVENT_SOURCE_TYPE_GENERIC, "usb-poll-ready", EVENT_READ,
 	                     event_forward_usb_events, event_sources) < 0) {
 		return -1;
 	}
