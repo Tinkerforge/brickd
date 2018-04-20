@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2012-2014, 2016 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2012-2014, 2016, 2018 Matthias Bolte <matthias@tinkerforge.com>
  *
  * usb_transfer.h: libusb transfer specific functions
  *
@@ -46,6 +46,7 @@ struct _USBTransfer {
 	USBTransferFunction function;
 	struct libusb_transfer *handle;
 	Packet packet;
+	uint32_t submission;
 };
 
 int usb_transfer_create(USBTransfer *usb_transfer, USBStack *usb_stack,

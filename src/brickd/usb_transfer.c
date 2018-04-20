@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2012-2014, 2016-2017 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2012-2014, 2016-2018 Matthias Bolte <matthias@tinkerforge.com>
  *
  * usb_transfer.c: libusb transfer specific functions
  *
@@ -31,6 +31,8 @@
 
 static LogSource _log_source = LOG_SOURCE_INITIALIZER;
 
+static uint32_t _next_submission = 1;
+
 static const char *usb_transfer_get_type_name(USBTransferType type, bool upper) {
 	switch (type) {
 	case USB_TRANSFER_TYPE_READ:  return upper ? "Read" : "read";
@@ -60,9 +62,10 @@ static void LIBUSB_CALL usb_transfer_wrapper(struct libusb_transfer *handle) {
 	USBTransfer *usb_transfer = handle->user_data;
 
 	if (!usb_transfer->submitted) {
-		log_error("%s transfer %p (%p) returned from %s, but was not submitted before",
+		log_error("%s transfer %p (handle: %p, submission: %u) returned from %s, but was not submitted before",
 		          usb_transfer_get_type_name(usb_transfer->type, true),
-		          usb_transfer, handle, usb_transfer->usb_stack->base.name);
+		          usb_transfer, handle, usb_transfer->submission,
+		          usb_transfer->usb_stack->base.name);
 
 		return;
 	}
@@ -70,9 +73,10 @@ static void LIBUSB_CALL usb_transfer_wrapper(struct libusb_transfer *handle) {
 	usb_transfer->submitted = false;
 
 	if (handle->status == LIBUSB_TRANSFER_CANCELLED) {
-		log_debug("%s transfer %p (%p) for %s was cancelled%s",
+		log_debug("%s transfer %p (handle: %p, submission: %u) for %s was cancelled%s",
 		          usb_transfer_get_type_name(usb_transfer->type, true),
-		          usb_transfer, handle, usb_transfer->usb_stack->base.name,
+		          usb_transfer, handle, usb_transfer->submission,
+		          usb_transfer->usb_stack->base.name,
 		          !usb_transfer->usb_stack->expecting_disconnect
 		          ? ", marking device as about to be removed"
 		          : "");
@@ -83,9 +87,10 @@ static void LIBUSB_CALL usb_transfer_wrapper(struct libusb_transfer *handle) {
 	} else if (handle->status == LIBUSB_TRANSFER_NO_DEVICE) {
 		usb_transfer->usb_stack->expecting_disconnect = true;
 
-		log_debug("%s transfer %p (%p) for %s was aborted, device got disconnected",
+		log_debug("%s transfer %p (handle: %p, submission: %u) for %s was aborted, device got disconnected",
 		          usb_transfer_get_type_name(usb_transfer->type, true),
-		          usb_transfer, handle, usb_transfer->usb_stack->base.name);
+		          usb_transfer, handle, usb_transfer->submission,
+		          usb_transfer->usb_stack->base.name);
 
 		return;
 	} else if (handle->status == LIBUSB_TRANSFER_STALL) {
@@ -100,27 +105,30 @@ static void LIBUSB_CALL usb_transfer_wrapper(struct libusb_transfer *handle) {
 			usb_transfer->usb_stack->expecting_read_stall_before_removal = false;
 			usb_transfer->usb_stack->expecting_disconnect = true;
 
-			log_debug("%s transfer %p (%p) for %s aborted by stall condition as expected before device removal",
+			log_debug("%s transfer %p (handle: %p, submission: %u) for %s aborted by stall condition as expected before device removal",
 			          usb_transfer_get_type_name(usb_transfer->type, true),
-			          usb_transfer, handle, usb_transfer->usb_stack->base.name);
+			          usb_transfer, handle, usb_transfer->submission,
+			          usb_transfer->usb_stack->base.name);
 		} else {
-			log_debug("%s transfer %p (%p) for %s aborted by stall condition",
+			log_debug("%s transfer %p (handle: %p, submission: %u) for %s aborted by stall condition",
 			          usb_transfer_get_type_name(usb_transfer->type, true),
-			          usb_transfer, handle, usb_transfer->usb_stack->base.name);
+			          usb_transfer, handle, usb_transfer->submission,
+			          usb_transfer->usb_stack->base.name);
 
 			usb_stack_start_stall_timer(usb_transfer->usb_stack);
 		}
 
 		return;
 	} else if (handle->status != LIBUSB_TRANSFER_COMPLETED) {
-		log_warn("%s transfer %p (%p) returned with an error from %s: %s (%d)",
+		log_warn("%s transfer %p (handle: %p, submission: %u) returned with an error from %s: %s (%d)",
 		         usb_transfer_get_type_name(usb_transfer->type, true), usb_transfer,
-		         handle, usb_transfer->usb_stack->base.name,
+		         handle, usb_transfer->submission, usb_transfer->usb_stack->base.name,
 		         usb_transfer_get_status_name(handle->status), handle->status);
 	} else {
-		log_packet_debug("%s transfer %p (%p) returned successfully from %s%s",
+		log_packet_debug("%s transfer %p (handle: %p, submission: %u) returned successfully from %s%s",
 		                 usb_transfer_get_type_name(usb_transfer->type, true),
-		                 usb_transfer, handle, usb_transfer->usb_stack->base.name,
+		                 usb_transfer, handle, usb_transfer->submission,
+		                 usb_transfer->usb_stack->base.name,
 		                 usb_transfer->cancelled
 		                 ? ", but it was cancelled in the meantime"
 		                 : (usb_transfer->usb_stack->expecting_disconnect
@@ -137,6 +145,8 @@ static void LIBUSB_CALL usb_transfer_wrapper(struct libusb_transfer *handle) {
 		}
 	}
 
+	usb_transfer->submission = 0;
+
 	if (usb_transfer->type == USB_TRANSFER_TYPE_READ &&
 	    !usb_transfer->cancelled &&
 	    !usb_transfer->usb_stack->expecting_disconnect) {
@@ -152,6 +162,7 @@ int usb_transfer_create(USBTransfer *usb_transfer, USBStack *usb_stack,
 	usb_transfer->cancelled = false;
 	usb_transfer->function = function;
 	usb_transfer->handle = libusb_alloc_transfer(0);
+	usb_transfer->submission = 0;
 
 	if (usb_transfer->handle == NULL) {
 		log_error("Could not allocate libusb %s transfer for %s",
@@ -170,9 +181,10 @@ void usb_transfer_destroy(USBTransfer *usb_transfer) {
 	time_t now;
 	int rc;
 
-	log_debug("Destroying %s transfer %p (%p) for %s",
+	log_debug("Destroying %s transfer %p (handle: %p, submission: %u) for %s",
 	          usb_transfer_get_type_name(usb_transfer->type, false), usb_transfer,
-	          usb_transfer->handle, usb_transfer->usb_stack->base.name);
+	          usb_transfer->handle, usb_transfer->submission,
+	          usb_transfer->usb_stack->base.name);
 
 	if (usb_transfer->submitted) {
 		usb_transfer->cancelled = true;
@@ -190,10 +202,10 @@ void usb_transfer_destroy(USBTransfer *usb_transfer) {
 		// libusb_device_handle is not closed as long as there are submitted
 		// transfers.
 		if (rc < 0 && rc != LIBUSB_ERROR_NO_DEVICE) {
-			log_warn("Could not cancel pending %s transfer %p (%p) for %s: %s (%d)",
+			log_warn("Could not cancel pending %s transfer %p (handle: %p, submission: %u) for %s: %s (%d)",
 			         usb_transfer_get_type_name(usb_transfer->type, false), usb_transfer,
-			         usb_transfer->handle, usb_transfer->usb_stack->base.name,
-			         usb_get_error_name(rc), rc);
+			         usb_transfer->handle, usb_transfer->submission,
+			         usb_transfer->usb_stack->base.name, usb_get_error_name(rc), rc);
 		} else {
 			tv.tv_sec = 0;
 			tv.tv_usec = 0;
@@ -206,20 +218,19 @@ void usb_transfer_destroy(USBTransfer *usb_transfer) {
 				rc = libusb_handle_events_timeout(usb_transfer->usb_stack->context, &tv);
 
 				if (rc < 0) {
-					log_error("Could not handle USB events during %s transfer %p (%p) cancellation for %s: %s (%d)",
+					log_error("Could not handle USB events during %s transfer %p (handle: %p, submission: %u) cancellation for %s: %s (%d)",
 					          usb_transfer_get_type_name(usb_transfer->type, false),
-					          usb_transfer, usb_transfer->handle,
-					          usb_transfer->usb_stack->base.name,
-					          usb_get_error_name(rc), rc);
+					          usb_transfer, usb_transfer->handle, usb_transfer->submission,
+					          usb_transfer->usb_stack->base.name, usb_get_error_name(rc), rc);
 				}
 
 				now = time(NULL);
 			}
 
 			if (usb_transfer->submitted) {
-				log_warn("Attempt to cancel pending %s transfer %p (%p) for %s timed out",
+				log_warn("Attempt to cancel pending %s transfer %p (handle: %p, submission: %u) for %s timed out",
 				         usb_transfer_get_type_name(usb_transfer->type, false), usb_transfer,
-				         usb_transfer->handle, usb_transfer->usb_stack->base.name);
+				         usb_transfer->handle, usb_transfer->submission, usb_transfer->usb_stack->base.name);
 			}
 		}
 	}
@@ -227,9 +238,9 @@ void usb_transfer_destroy(USBTransfer *usb_transfer) {
 	if (!usb_transfer->submitted) {
 		libusb_free_transfer(usb_transfer->handle);
 	} else {
-		log_warn("Leaking pending %s transfer %p (%p) for %s",
+		log_warn("Leaking pending %s transfer %p (handle: %p, submission: %u) for %s",
 		         usb_transfer_get_type_name(usb_transfer->type, false), usb_transfer,
-		         usb_transfer->handle, usb_transfer->usb_stack->base.name);
+		         usb_transfer->handle, usb_transfer->submission, usb_transfer->usb_stack->base.name);
 	}
 }
 
@@ -239,9 +250,9 @@ int usb_transfer_submit(USBTransfer *usb_transfer) {
 	int rc;
 
 	if (usb_transfer->submitted) {
-		log_error("%s transfer %p (%p) is already submitted for %s",
+		log_error("%s transfer %p (handle: %p, submission: %u) is already submitted for %s",
 		          usb_transfer_get_type_name(usb_transfer->type, true), usb_transfer,
-		          usb_transfer->handle, usb_transfer->usb_stack->base.name);
+		          usb_transfer->handle, usb_transfer->submission, usb_transfer->usb_stack->base.name);
 
 		return -1;
 	}
@@ -265,6 +276,11 @@ int usb_transfer_submit(USBTransfer *usb_transfer) {
 	}
 
 	usb_transfer->submitted = true;
+	usb_transfer->submission = _next_submission++;
+
+	if (_next_submission == 0) {
+		_next_submission = 1;
+	}
 
 	libusb_fill_bulk_transfer(usb_transfer->handle,
 	                          usb_transfer->usb_stack->device_handle,
@@ -278,20 +294,20 @@ int usb_transfer_submit(USBTransfer *usb_transfer) {
 	rc = libusb_submit_transfer(usb_transfer->handle);
 
 	if (rc < 0) {
-		log_error("Could not submit %s transfer %p (%p) to %s: %s (%d)",
+		log_error("Could not submit %s transfer %p (handle: %p, submission: %u) to %s: %s (%d)",
 		          usb_transfer_get_type_name(usb_transfer->type, false), usb_transfer,
-		          usb_transfer->handle, usb_transfer->usb_stack->base.name,
-		          usb_get_error_name(rc), rc);
+		          usb_transfer->handle, usb_transfer->submission,
+		          usb_transfer->usb_stack->base.name, usb_get_error_name(rc), rc);
 
 		usb_transfer->submitted = false;
 
 		return -1;
 	}
 
-	log_packet_debug("Submitted %s transfer %p (%p) for %u bytes to %s",
+	log_packet_debug("Submitted %s transfer %p (handle: %p, submission: %u) for %u bytes to %s",
 	                 usb_transfer_get_type_name(usb_transfer->type, false),
-	                 usb_transfer, usb_transfer->handle, length,
-	                 usb_transfer->usb_stack->base.name);
+	                 usb_transfer, usb_transfer->handle, usb_transfer->submission,
+	                 length, usb_transfer->usb_stack->base.name);
 
 	return 0;
 }
