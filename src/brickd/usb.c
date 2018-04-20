@@ -221,7 +221,8 @@ static void LIBUSB_CALL usb_add_pollfd(int fd, short events, void *opaque) {
 	log_event_debug("Got told to add libusb pollfd (handle: %d, events: %d)", fd, events);
 
 	// FIXME: need to handle libusb timeouts
-	event_add_source(fd, EVENT_SOURCE_TYPE_USB, events, usb_handle_events, context); // FIXME: handle error?
+	event_add_source(fd, EVENT_SOURCE_TYPE_USB, "usb-poll", events,
+	                 usb_handle_events, context); // FIXME: handle error?
 }
 
 static void LIBUSB_CALL usb_remove_pollfd(int fd, void *opaque) {
@@ -312,6 +313,8 @@ int usb_init(void) {
 	} else {
 		log_debug("libusb does not support hotplug");
 	}
+
+	log_debug("Starting initial USB device scan");
 
 	if (usb_rescan() < 0) {
 		goto cleanup;
@@ -404,6 +407,8 @@ int usb_reopen(USBStack *usb_stack) {
 	USBStack *candidate;
 	uint8_t bus_number;
 	uint8_t device_address;
+
+	log_info("Reopening all USB devices");
 
 	if (array_create(&recipients, 1, sizeof(Recipient), true) < 0) {
 		log_error("Could not create temporary recipient array: %s (%d)",
@@ -506,7 +511,7 @@ int usb_create_context(libusb_context **context) {
 	}
 
 	for (pollfd = pollfds; *pollfd != NULL; ++pollfd) {
-		if (event_add_source((*pollfd)->fd, EVENT_SOURCE_TYPE_USB,
+		if (event_add_source((*pollfd)->fd, EVENT_SOURCE_TYPE_USB, "usb-poll",
 		                     (*pollfd)->events, usb_handle_events,
 		                     *context) < 0) {
 			goto cleanup;

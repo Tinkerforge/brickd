@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2012-2014 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2012-2014, 2018 Matthias Bolte <matthias@tinkerforge.com>
  *
  * udev.c: udev specific functions
  *
@@ -325,7 +325,7 @@ int udev_init(void) {
 	_udev_monitor_fd = udev_monitor_get_fd(_udev_monitor);
 
 	if (event_add_source(_udev_monitor_fd, EVENT_SOURCE_TYPE_GENERIC,
-	                     EVENT_READ, udev_handle_event, NULL) < 0) {
+	                     "udev", EVENT_READ, udev_handle_event, NULL) < 0) {
 		goto cleanup;
 	}
 

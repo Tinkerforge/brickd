@@ -407,7 +407,7 @@ int client_create(Client *client, const char *name, IO *io,
 
 	// add I/O object as event source
 	return event_add_source(client->io->read_handle, EVENT_SOURCE_TYPE_GENERIC,
-	                        EVENT_READ, client_handle_read, client);
+	                        "client", EVENT_READ, client_handle_read, client);
 }
 
 void client_destroy(Client *client) {

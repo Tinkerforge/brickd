@@ -404,7 +404,7 @@ void brickd_uwp::MainTask::Run(IBackgroundTaskInstance ^taskInstance) {
 	phase = 8;
 
 	if (event_add_source(_cancellation_pipe.base.read_handle, EVENT_SOURCE_TYPE_GENERIC,
-	                     EVENT_READ, handle_cancellation, nullptr) < 0) {
+	                     "cancellation", EVENT_READ, handle_cancellation, nullptr) < 0) {
 		goto cleanup;
 	}
 
@@ -441,7 +441,8 @@ void brickd_uwp::MainTask::Run(IBackgroundTaskInstance ^taskInstance) {
 
 	phase = 12;
 
-	if (event_add_source(_app_service_accept_pipe.base.read_handle, EVENT_SOURCE_TYPE_GENERIC,
+	if (event_add_source(_app_service_accept_pipe.base.read_handle,
+	                     EVENT_SOURCE_TYPE_GENERIC, "app-service-accept",
 	                     EVENT_READ, handle_app_service_accept, nullptr) < 0) {
 		goto cleanup;
 	}

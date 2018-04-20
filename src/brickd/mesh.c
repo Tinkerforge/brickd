@@ -138,7 +138,7 @@ int mesh_start_listening(void) {
 	}
 
 	if (event_add_source(mesh_listen_socket.handle, EVENT_SOURCE_TYPE_GENERIC,
-	                     EVENT_READ, mesh_handle_accept, NULL) < 0) {
+	                     "mesh-listen", EVENT_READ, mesh_handle_accept, NULL) < 0) {
 		socket_destroy(&mesh_listen_socket);
 
 		return -1;

@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2014-2017 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2014-2018 Matthias Bolte <matthias@tinkerforge.com>
  * Copyright (C) 2017 Ishraq Ibne Ashraf <ishraq@tinkerforge.com>
  *
  * red_usb_gadget.c: RED Brick USB gadget interface
@@ -222,7 +222,7 @@ int red_usb_gadget_init(void) {
 
 	phase = 1;
 
-	if (event_add_source(_state_file.handle, EVENT_SOURCE_TYPE_GENERIC,
+	if (event_add_source(_state_file.handle, EVENT_SOURCE_TYPE_GENERIC, "usb-gadget",
 	                     EVENT_READ, red_usb_gadget_handle_state_change, NULL) < 0) {
 		goto cleanup;
 	}

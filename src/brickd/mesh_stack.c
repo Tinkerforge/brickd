@@ -410,11 +410,8 @@ int mesh_stack_create(char *name, Socket *sock) {
 	 */
 	mesh_stack->state = MESH_STACK_STATE_WAIT_HELLO;
 
-	if (event_add_source(sock->handle,
-	                     EVENT_SOURCE_TYPE_GENERIC,
-	                     EVENT_READ,
-	                     mesh_stack_recv_handler,
-	                     mesh_stack) < 0) {
+	if (event_add_source(sock->handle, EVENT_SOURCE_TYPE_GENERIC, "mesh-stack",
+	                     EVENT_READ, mesh_stack_recv_handler, mesh_stack) < 0) {
 		log_error("Failed to add stack receive event");
 
 		array_remove(&mesh_stacks,

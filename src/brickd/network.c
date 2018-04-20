@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2012-2014, 2016-2017 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2012-2014, 2016-2018 Matthias Bolte <matthias@tinkerforge.com>
  * Copyright (C) 2014 Olaf Lüke <olaf@tinkerforge.com>
  *
  * network.c: Network specific functions
@@ -119,7 +119,7 @@ static int network_open_server_socket(Socket *socket, uint16_t port,
 		return -1;
 	}
 
-	if (event_add_source(socket->handle, EVENT_SOURCE_TYPE_GENERIC,
+	if (event_add_source(socket->handle, EVENT_SOURCE_TYPE_GENERIC, "server",
 	                     EVENT_READ, network_handle_accept, socket) < 0) {
 		socket_destroy(socket);
 

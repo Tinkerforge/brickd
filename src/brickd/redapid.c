@@ -275,7 +275,7 @@ static void redapid_handle_reconnect(void *opaque) {
 
 	// add socket as event source
 	if (event_add_source(_redapid.socket.handle, EVENT_SOURCE_TYPE_GENERIC,
-	                     EVENT_READ, redapid_handle_read, NULL) < 0) {
+	                     "redapid", EVENT_READ, redapid_handle_read, NULL) < 0) {
 		goto cleanup;
 	}
 

@@ -984,7 +984,8 @@ int red_stack_init(void) {
 	// Add notification pipe as event source.
 	// Event is used to dispatch packets.
 	if (event_add_source(_red_stack_notification_event, EVENT_SOURCE_TYPE_GENERIC,
-	                     EVENT_READ, red_stack_dispatch_from_spi, NULL) < 0) {
+	                     "red-stack-notification", EVENT_READ,
+	                     red_stack_dispatch_from_spi, NULL) < 0) {
 		log_error("Could not add red stack notification pipe as event source");
 
 		goto cleanup;
@@ -1030,7 +1031,8 @@ int red_stack_init(void) {
 		if (robust_read(_red_stack_reset_fd, buf, 2) < 0) {} // ignore return value
 
 		if (event_add_source(_red_stack_reset_fd, EVENT_SOURCE_TYPE_GENERIC,
-		                     EVENT_PRIO | EVENT_ERROR, red_stack_reset_handler, NULL) < 0) {
+		                     "red-stack-reset", EVENT_PRIO | EVENT_ERROR,
+		                     red_stack_reset_handler, NULL) < 0) {
 			log_error("Could not add reset fd event");
 
 			goto cleanup;

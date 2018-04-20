@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2016-2017 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2016-2018 Matthias Bolte <matthias@tinkerforge.com>
  *
  * usb_uwp.c: Universal Windows Platform USB hotplug implementation
  *
@@ -269,6 +269,8 @@ static void usb_forward_notifications(void *opaque) {
 		return;
 	}
 
+	log_debug("Starting USB device scan, triggered by notification");
+
 	usb_rescan();
 }
 
@@ -350,7 +352,7 @@ int usb_init_hotplug(libusb_context *context) {
 	phase = 1;
 
 	if (event_add_source(_notification_pipe.base.read_handle, EVENT_SOURCE_TYPE_GENERIC,
-	                     EVENT_READ, usb_forward_notifications, NULL) < 0) {
+	                     "hotplug", EVENT_READ, usb_forward_notifications, NULL) < 0) {
 		goto cleanup;
 	}
 

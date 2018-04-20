@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2012-2014, 2017 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2012-2014, 2017-2018 Matthias Bolte <matthias@tinkerforge.com>
  *
  * event_winapi.c: Select based event loop
  *
@@ -357,7 +357,7 @@ int event_init_platform(void) {
 	phase = 4;
 
 	if (event_add_source(_stop_pipe.base.read_handle, EVENT_SOURCE_TYPE_GENERIC,
-	                     EVENT_READ, NULL, NULL) < 0) {
+	                     "event-stop", EVENT_READ, NULL, NULL) < 0) {
 		goto cleanup;
 	}
 
@@ -507,7 +507,7 @@ int event_run_platform(Array *event_sources, bool *running, EventCleanupFunction
 	uint32_t received_events;
 
 	if (event_add_source(_usb_poll_ready_pipe.base.read_handle,
-	                     EVENT_SOURCE_TYPE_GENERIC, EVENT_READ,
+	                     EVENT_SOURCE_TYPE_GENERIC, "usb-poll-ready" EVENT_READ,
 	                     event_forward_usb_events, event_sources) < 0) {
 		return -1;
 	}

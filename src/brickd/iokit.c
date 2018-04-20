@@ -194,7 +194,7 @@ int iokit_init(void) {
 	phase = 1;
 
 	if (event_add_source(_notification_pipe.base.read_handle, EVENT_SOURCE_TYPE_GENERIC,
-	                     EVENT_READ, iokit_forward_notifications, NULL) < 0) {
+	                     "iokit", EVENT_READ, iokit_forward_notifications, NULL) < 0) {
 		goto cleanup;
 	}
 

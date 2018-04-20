@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2017 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2017-2018 Matthias Bolte <matthias@tinkerforge.com>
  *
  * app_service.h: AppService based I/O device for Universal Windows Platform
  *
@@ -142,7 +142,8 @@ extern "C" int app_service_create(AppService_ *app_service, const char *caller,
 
 	phase = 2;
 
-	if (event_add_source(app_service->write_pipe.base.read_handle, EVENT_SOURCE_TYPE_GENERIC,
+	if (event_add_source(app_service->write_pipe.base.read_handle,
+	                     EVENT_SOURCE_TYPE_GENERIC, "app-service-write",
 	                     EVENT_READ, app_service_forward_write, app_service) < 0) {
 		goto error;
 	}
@@ -155,7 +156,8 @@ extern "C" int app_service_create(AppService_ *app_service, const char *caller,
 
 	phase = 4;
 
-	if (event_add_source(app_service->close_pipe.base.read_handle, EVENT_SOURCE_TYPE_GENERIC,
+	if (event_add_source(app_service->close_pipe.base.read_handle,
+	                     EVENT_SOURCE_TYPE_GENERIC, "app-service-close",
 	                     EVENT_READ, app_service_handle_close, app_service) < 0) {
 		goto error;
 	}

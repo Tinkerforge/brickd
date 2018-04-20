@@ -1009,7 +1009,8 @@ int red_rs485_extension_init(ExtensionRS485Config *rs485_config) {
 
 	// Adding serial data available event
 	if (event_add_source(_red_rs485_serial_fd, EVENT_SOURCE_TYPE_GENERIC,
-	                     EVENT_READ, serial_data_available_handler, NULL) < 0) {
+	                     "rs485-serial", EVENT_READ,
+	                     serial_data_available_handler, NULL) < 0) {
 		log_error("Could not add new serial data event");
 
 		goto cleanup;
@@ -1022,7 +1023,7 @@ int red_rs485_extension_init(ExtensionRS485Config *rs485_config) {
 
 	if (!(_master_timer_event < 0)) {
 		if (event_add_source(_master_timer_event, EVENT_SOURCE_TYPE_GENERIC,
-		                     EVENT_READ, master_timeout_handler, NULL) < 0) {
+		                     "rs485-timer", EVENT_READ, master_timeout_handler, NULL) < 0) {
 			log_error("Could not add RS485 master timer notification pipe as event source");
 
 			goto cleanup;

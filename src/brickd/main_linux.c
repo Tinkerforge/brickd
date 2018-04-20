@@ -183,10 +183,12 @@ static void handle_sighup(void) {
 
 static void handle_sigusr1(void) {
 #ifdef BRICKD_WITH_USB_REOPEN_ON_SIGUSR1
-	log_info("Reopening all USB devices");
+	log_debug("Reopening all USB devices, triggered by SIGUSR1");
 
 	usb_reopen(NULL);
 #else
+	log_debug("Starting USB device scan, triggered by SIGUSR1");
+
 	usb_rescan();
 #endif
 }
