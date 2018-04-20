@@ -61,18 +61,10 @@ index a03bfaa..8100551 100644
  
  /** \ingroup libusb_poll
 diff --git a/libusb/libusb-1.0.def b/libusb/libusb-1.0.def
-index d1f4230..de88eb0 100644
+index 3fd4b6b..76c09c7 100644
 --- a/libusb/libusb-1.0.def
 +++ b/libusb/libusb-1.0.def
-@@ -151,7 +151,6 @@ EXPORTS
-   libusb_set_interface_alt_setting
-   libusb_set_interface_alt_setting@12 = libusb_set_interface_alt_setting
-   libusb_set_option
--  libusb_set_option = libusb_set_option
-   libusb_set_pollfd_notifiers
-   libusb_set_pollfd_notifiers@16 = libusb_set_pollfd_notifiers
-   libusb_setlocale
-@@ -174,3 +173,15 @@ EXPORTS
+@@ -174,3 +174,15 @@ EXPORTS
    libusb_unref_device@4 = libusb_unref_device
    libusb_wait_for_event
    libusb_wait_for_event@8 = libusb_wait_for_event
@@ -89,7 +81,7 @@ index d1f4230..de88eb0 100644
 +  usbi_close
 +  usbi_close@4 = usbi_close
 diff --git a/libusb/libusb-1.0.rc b/libusb/libusb-1.0.rc
-index 3dce6d5..ed6dcda 100644
+index 3dce6d5..864f87b 100644
 --- a/libusb/libusb-1.0.rc
 +++ b/libusb/libusb-1.0.rc
 @@ -49,7 +49,7 @@ BEGIN
@@ -97,7 +89,7 @@ index 3dce6d5..ed6dcda 100644
  			VALUE "OriginalFilename", "libusb-1.0.dll\0"
  			VALUE "PrivateBuild", "\0"
 -			VALUE "ProductName", "libusb-1.0\0"
-+			VALUE "ProductName", "libusb-1.0-8681342edc8f09c866b95a64f5cda60d032be976-tf-19\0"
++			VALUE "ProductName", "libusb-1.0-0034b2afdcdb1614e78edaa2a9e22d5936aeae5d-tf-20\0"
  			VALUE "ProductVersion", LIBUSB_VERSIONSTRING
  			VALUE "SpecialBuild", "\0"
  		END
@@ -136,7 +128,7 @@ index 430136b..4ae209a 100644
  }
  #endif
 diff --git a/libusb/os/poll_windows.c b/libusb/os/poll_windows.c
-index bb3d178..4a83992 100644
+index 4d28333..4a83992 100644
 --- a/libusb/os/poll_windows.c
 +++ b/libusb/os/poll_windows.c
 @@ -117,6 +117,35 @@ struct winfd usbi_create_fd(void)
@@ -203,7 +195,6 @@ index bb3d178..4a83992 100644
  	if ((nready == 0) && (nb_wait_handles != 0) && (timeout != 0)) {
 -		ret = WaitForMultipleObjects(nb_wait_handles, wait_handles,
 -			FALSE, (timeout < 0) ? INFINITE : (DWORD)timeout);
--		if ((ret >= WAIT_OBJECT_0) && (ret < (WAIT_OBJECT_0 + nb_wait_handles))) {
 +		if (nb_wait_handles <= MAXIMUM_WAIT_OBJECTS) {
 +			ret = WaitForMultipleObjects(nb_wait_handles, wait_handles,
 +				FALSE, (timeout < 0) ? INFINITE : (DWORD)timeout);
@@ -276,7 +267,7 @@ index bb3d178..4a83992 100644
 +			CloseHandle(ctx.event);
 +		}
 +
-+		if (ret < (WAIT_OBJECT_0 + nb_wait_handles)) {
+ 		if (ret < (WAIT_OBJECT_0 + nb_wait_handles)) {
  			nready = check_pollfds(fds, nfds, NULL, NULL);
  		} else if (ret != WAIT_TIMEOUT) {
  			if (ret == WAIT_FAILED)
@@ -367,10 +358,10 @@ index 92dbde5..fe2281e 100644
  	}
  	usbi_mutex_unlock(&ctx->open_devs_lock);
 diff --git a/libusb/os/windows_winusb.c b/libusb/os/windows_winusb.c
-index 05af1f6..60b9dca 100644
+index 2c4a81e..d68db2d 100644
 --- a/libusb/os/windows_winusb.c
 +++ b/libusb/os/windows_winusb.c
-@@ -818,6 +818,13 @@ static int init_device(struct libusb_device *dev, struct libusb_device *parent_d
+@@ -808,6 +808,13 @@ static int init_device(struct libusb_device *dev, struct libusb_device *parent_d
  			return LIBUSB_ERROR_NOT_FOUND;
  		}
  
@@ -384,7 +375,7 @@ index 05af1f6..60b9dca 100644
  		// Calculate depth and fetch bus number
  		bus_number = parent_dev->bus_number;
  		if (bus_number == 0) {
-@@ -1116,6 +1123,7 @@ static int winusb_get_device_list(struct libusb_context *ctx, struct discovered_
+@@ -1106,6 +1113,7 @@ static int winusb_get_device_list(struct libusb_context *ctx, struct discovered_
  	char *dev_interface_path = NULL;
  	unsigned long session_id;
  	DWORD size, port_nr, reg_type, install_state;
@@ -392,7 +383,7 @@ index 05af1f6..60b9dca 100644
  	HKEY key;
  	WCHAR guid_string_w[MAX_GUID_STRING_LENGTH];
  	GUID *if_guid;
-@@ -1184,7 +1192,7 @@ static int winusb_get_device_list(struct libusb_context *ctx, struct discovered_
+@@ -1174,7 +1182,7 @@ static int winusb_get_device_list(struct libusb_context *ctx, struct discovered_
  	}
  
  	for (pass = 0; ((pass < nb_guids) && (r == LIBUSB_SUCCESS)); pass++) {
@@ -401,7 +392,7 @@ index 05af1f6..60b9dca 100644
  #if defined(ENABLE_LOGGING) && defined(ENUM_DEBUG)
  		const char * const passname[] = {"HUB", "DEV", "HCD", "GEN", "HID", "EXT"};
  		usbi_dbg("#### PROCESSING %ss %s", passname[MIN(pass, EXT_PASS)], guid_to_string(guid_list[pass]));
-@@ -1457,6 +1465,12 @@ static int winusb_get_device_list(struct libusb_context *ctx, struct discovered_
+@@ -1447,6 +1455,12 @@ static int winusb_get_device_list(struct libusb_context *ctx, struct discovered_
  				r = enumerate_hcd_root_hub(ctx, dev_id, (uint8_t)(i + 1), dev_info_data.DevInst);
  				break;
  			case GEN_PASS:
@@ -415,7 +406,7 @@ index 05af1f6..60b9dca 100644
  				port_nr = 0;
  				if (!pSetupDiGetDeviceRegistryPropertyA(*dev_info, &dev_info_data, SPDRP_ADDRESS,
 diff --git a/libusb/os/windows_winusb.h b/libusb/os/windows_winusb.h
-index 299dc6c..95c5c24 100644
+index 597384a..43a1439 100644
 --- a/libusb/os/windows_winusb.h
 +++ b/libusb/os/windows_winusb.h
 @@ -42,6 +42,9 @@
@@ -428,16 +419,3 @@ index 299dc6c..95c5c24 100644
  
  #define MAX_CTRL_BUFFER_LENGTH	4096
  #define MAX_USB_STRING_LENGTH	128
-diff --git a/msvc/libusb_sources b/msvc/libusb_sources
-index d497711..d0a91b0 100644
---- a/msvc/libusb_sources
-+++ b/msvc/libusb_sources
-@@ -24,7 +24,7 @@ C_DEFINES= $(C_DEFINES) $(LIBUSB_DEFINES) /DDDKBUILD
- #  an older compiler than other objects; rebuild old objects and libraries"
- USER_C_FLAGS=/GL-
- 
--TARGETLIBS=$(SDK_LIB_PATH)\kernel32.lib
-+TARGETLIBS=$(SDK_LIB_PATH)\kernel32.lib $(SDK_LIB_PATH)\advapi32.lib
- 
- SOURCES=..\core.c \
- 	..\descriptor.c \
