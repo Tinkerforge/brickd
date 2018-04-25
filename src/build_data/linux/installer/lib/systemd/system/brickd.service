@@ -1,0 +1,10 @@
+[Unit]
+Description=Start the brickd daemon for Tinkerforge bricks
+
+[Service]
+User=root
+Type=forking
+ExecStart=/usr/bin/brickd --daemon
+
+[Install]
+WantedBy=multi-user.target
