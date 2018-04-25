@@ -88,7 +88,7 @@ Packages can be build for multiple platforms.
 Linux, Windows and Mac OS X
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-The Python script ``src/brickd/build_pkg.py`` can build a Debian package for
+The Python script ``src/build_pkg.py`` can build a Debian package for
 Linux, a NSIS based ``setup.exe`` for Windows and a Disk Image for Mac OS X.
 Run::
 
@@ -98,7 +98,7 @@ On Linux this has to be executed as ``root`` and on Windows this has to be
 executed from a MSVC or WDK command prompt because it invokes the platform
 specific commands to compile the source code.
 
-The installer/package is created in ``src/brickd``.
+The installer/package is created in ``src``.
 
 OpenWrt
 ^^^^^^^
