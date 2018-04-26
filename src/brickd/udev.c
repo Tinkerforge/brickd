@@ -339,9 +339,10 @@ cleanup:
 
 	case 2:
 		udev_unref(_udev_context);
-		// fall through
 
 #ifdef BRICKD_WITH_LIBUDEV_DLOPEN
+		// fall through
+
 	case 1:
 		udev_dlclose();
 		// fall through

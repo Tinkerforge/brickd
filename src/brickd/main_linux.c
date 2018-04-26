@@ -431,9 +431,10 @@ cleanup:
 
 	case 10:
 		network_exit();
-		// fall through
 
 #ifdef BRICKD_WITH_LIBUDEV
+		// fall through
+
 	case 9:
 		if (initialized_udev) {
 			udev_exit();
@@ -455,9 +456,10 @@ cleanup:
 
 	case 5:
 		event_exit();
-		// fall through
 
 #ifdef BRICKD_WITH_LIBUSB_DLOPEN
+		// fall through
+
 	case 4:
 		libusb_exit_dlopen();
 #endif
