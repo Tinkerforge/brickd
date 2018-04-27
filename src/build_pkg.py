@@ -268,6 +268,7 @@ def build_linux_pkg():
     os.chmod('dist/etc/brickd.conf', 0644)
     os.chmod('dist/etc/init.d/brickd', 0755)
     os.chmod('dist/etc/logrotate.d/brickd', 0644)
+    os.chmod('dist/lib/systemd/system/brickd.service', 0644)
     os.chmod('dist/lib/systemd/system/brickd-resume.service', 0644)
     os.chmod('dist/usr/share/doc/brickd/changelog.gz', 0644)
     os.chmod('dist/usr/share/doc/brickd/copyright', 0644)
