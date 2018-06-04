@@ -256,26 +256,8 @@ def build_linux_pkg():
     system('cd dist; find usr -type f -exec md5sum {} \; >> DEBIAN/md5sums; find lib -type f -exec md5sum {} \; >> DEBIAN/md5sums')
 
     system('find dist -type d -exec chmod 0755 {} \;')
-
-    os.chmod('dist/DEBIAN/conffiles', 0644)
-    os.chmod('dist/DEBIAN/md5sums', 0644)
-    os.chmod('dist/DEBIAN/preinst', 0755)
-    os.chmod('dist/DEBIAN/postinst', 0755)
-    os.chmod('dist/DEBIAN/prerm', 0755)
-    os.chmod('dist/DEBIAN/postrm', 0755)
-
-    os.chmod('dist/usr/bin/brickd', 0755)
-    os.chmod('dist/etc/brickd.conf', 0644)
-    os.chmod('dist/etc/init.d/brickd', 0755)
-    os.chmod('dist/etc/logrotate.d/brickd', 0644)
-    os.chmod('dist/lib/systemd/system/brickd.service', 0644)
-    os.chmod('dist/lib/systemd/system/brickd-resume.service', 0644)
-    os.chmod('dist/usr/share/doc/brickd/changelog.gz', 0644)
-    os.chmod('dist/usr/share/doc/brickd/copyright', 0644)
-    os.chmod('dist/usr/share/man/man8/brickd.8.gz', 0644)
-    os.chmod('dist/usr/share/man/man5/brickd.conf.5.gz', 0644)
-    os.chmod('dist/usr/lib/pm-utils/power.d/42brickd', 0755)
-    os.chmod('dist/usr/lib/pm-utils/sleep.d/42brickd', 0755)
+    system('find dist -type f -perm 664 -exec chmod 0644 {} \;')
+    system('find dist -type f -perm 775 -exec chmod 0755 {} \;')
 
     print('changing owner to root')
     system('sudo chown -R root:root dist')
