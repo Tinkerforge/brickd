@@ -28,7 +28,7 @@
 #include <dbt.h>
 #include <conio.h>
 #include <fcntl.h>
-#include <sys\stat.h>
+#include <sys/stat.h>
 
 #ifndef BRICKD_WDK_BUILD
 	#include <tlhelp32.h>
