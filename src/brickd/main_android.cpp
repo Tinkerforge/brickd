@@ -30,7 +30,7 @@ extern "C" {
 
 #include "hardware.h"
 #include "network.h"
-//#include "usb.h"
+#include "usb.h"
 #include "mesh.h"
 #include "version.h"
 }
@@ -69,7 +69,7 @@ Java_com_tinkerforge_brickd_MainActivity_init(JNIEnv *env, jobject /* this */) {
 	log_info("Brick Daemon %s started", VERSION_STRING);
 
 #if 0 // FIXME: config cannot have warnings, because not config file is loaded
-    if (config_has_warning()) {
+	if (config_has_warning()) {
 		log_warn("Warning(s) in config file '%s'", config_filename);
 	}
 #endif
@@ -86,9 +86,9 @@ Java_com_tinkerforge_brickd_MainActivity_init(JNIEnv *env, jobject /* this */) {
 
 	phase = 4;
 
-	//if (usb_init() < 0) {
-	//	goto cleanup;
-	//}
+	if (usb_init() < 0) {
+		goto cleanup;
+	}
 
 	phase = 5;
 
@@ -119,7 +119,7 @@ cleanup:
 		// fall through
 
 	case 5:
-		//usb_exit();
+		usb_exit();
 		// fall through
 
 	case 4:

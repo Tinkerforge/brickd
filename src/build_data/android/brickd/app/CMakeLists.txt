@@ -5,7 +5,7 @@
 
 cmake_minimum_required(VERSION 3.4.1)
 
-include_directories(../../../../)
+include_directories(../../../.. ../../libusb)
 
 add_definitions(-DDAEMONLIB_WITH_LOGGING)
 
@@ -49,6 +49,10 @@ add_library( brickd-android
              ../../../../brickd/network.c
              ../../../../brickd/sha1.c
              ../../../../brickd/stack.c
+             ../../../../brickd/usb.c
+             ../../../../brickd/usb_posix.c
+             ../../../../brickd/usb_stack.c
+             ../../../../brickd/usb_transfer.c
              ../../../../brickd/websocket.c
              ../../../../brickd/zombie.c
 
@@ -76,4 +80,6 @@ target_link_libraries( # Specifies the target library.
 
                        # Links the target library to the log library
                        # included in the NDK.
-                       ${log-lib} )
+                       ${log-lib}
+
+                       ${CMAKE_SOURCE_DIR}/../../libusb/${ANDROID_ABI}/libusb1.0.so )
