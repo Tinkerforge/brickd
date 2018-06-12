@@ -540,11 +540,11 @@ static int usbi_get_config_descriptor(libusb_context *ctx, UsbDevice ^device,
 // getting the descriptors requires to open the device, but an already open
 // device cannot be opened a second time. therefore, the descriptors of open
 // devices are cached while the device is open. this allows to shared
-// descriptors between multiple libusb contexts wihout having to open the
+// descriptors between multiple libusb contexts without having to open the
 // device twice at the same time. we could theoretically run into problems
 // if other applications have devices open, but we're intentionally only
 // handling Bricks here that nobody else should operate on, so there is no
-// actualy problem here.
+// actual problem here.
 static int usbi_get_descriptor(libusb_context *ctx, String ^id, const char *id_ascii,
                                usbi_descriptor **descriptor_ptr) {
 	std::wstring id_wchar(id->Data());
@@ -1343,7 +1343,7 @@ int libusb_submit_transfer(struct libusb_transfer *transfer) {
 
 					libusb_unref_device(dev_handle->dev);
 
-					return LIBUSB_ERROR_NO_DEVICE; // FIXME: assumes that this happend because of device hotunplug
+					return LIBUSB_ERROR_NO_DEVICE; // FIXME: assumes that this happened because of device hot-unplug
 				}
 
 				itransfer->load_operation->Completed = ref new AsyncOperationCompletedHandler<size_t>(
@@ -1407,7 +1407,7 @@ int libusb_submit_transfer(struct libusb_transfer *transfer) {
 
 					libusb_unref_device(dev_handle->dev);
 
-					return LIBUSB_ERROR_NO_DEVICE; // FIXME: assumes that this happend because of device hotunplug
+					return LIBUSB_ERROR_NO_DEVICE; // FIXME: assumes that this happened because of device hot-unplug
 				}
 
 				itransfer->store_operation->Completed = ref new AsyncOperationCompletedHandler<size_t>(
