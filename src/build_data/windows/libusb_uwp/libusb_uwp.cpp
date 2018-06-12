@@ -487,6 +487,7 @@ static int usbi_get_config_descriptor(libusb_context *ctx, UsbDevice ^device,
 
 	for (i = 0; i < config->bNumInterfaces; ++i) {
 		interface = device->Configuration->UsbInterfaces->GetAt(i);
+
 		iface = (struct libusb_interface *)&config->interface[i];
 		iface->num_altsetting = interface->InterfaceSettings->Size;
 		iface->altsetting = (struct libusb_interface_descriptor *)calloc(iface->num_altsetting,
@@ -502,8 +503,8 @@ static int usbi_get_config_descriptor(libusb_context *ctx, UsbDevice ^device,
 
 		for (s = 0; s < iface->num_altsetting; ++s) {
 			setting = interface->InterfaceSettings->GetAt(s);
-			desc = (struct libusb_interface_descriptor *)&iface->altsetting[s];
 
+			desc = (struct libusb_interface_descriptor *)&iface->altsetting[s];
 			desc->bInterfaceNumber = setting->InterfaceDescriptor->InterfaceNumber;
 			desc->bNumEndpoints = setting->BulkInEndpoints->Size + setting->BulkOutEndpoints->Size;
 			desc->endpoint = (struct libusb_endpoint_descriptor *)calloc(desc->bNumEndpoints,
@@ -519,15 +520,15 @@ static int usbi_get_config_descriptor(libusb_context *ctx, UsbDevice ^device,
 
 			for (e = 0; e < setting->BulkInEndpoints->Size; ++e) {
 				endpoint_in = setting->BulkInEndpoints->GetAt(e);
-				endpoint = (struct libusb_endpoint_descriptor *)&desc->endpoint[e];
 
+				endpoint = (struct libusb_endpoint_descriptor *)&desc->endpoint[e];
 				endpoint->bEndpointAddress = LIBUSB_ENDPOINT_IN | endpoint_in->EndpointNumber;
 			}
 
 			for (e = 0; e < setting->BulkOutEndpoints->Size; ++e) {
 				endpoint_out = setting->BulkOutEndpoints->GetAt(e);
-				endpoint = (struct libusb_endpoint_descriptor *)&desc->endpoint[setting->BulkInEndpoints->Size + e];
 
+				endpoint = (struct libusb_endpoint_descriptor *)&desc->endpoint[setting->BulkInEndpoints->Size + e];
 				endpoint->bEndpointAddress = LIBUSB_ENDPOINT_OUT | endpoint_out->EndpointNumber;
 			}
 		}
