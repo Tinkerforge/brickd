@@ -200,6 +200,8 @@ SOURCES_DAEMONLIB := $(call FIX_PATH,../daemonlib/array.c) \
                      $(call FIX_PATH,../daemonlib/packet.c) \
                      $(call FIX_PATH,../daemonlib/queue.c) \
                      $(call FIX_PATH,../daemonlib/socket.c) \
+                     $(call FIX_PATH,../daemonlib/threads.c) \
+                     $(call FIX_PATH,../daemonlib/timer.c) \
                      $(call FIX_PATH,../daemonlib/utils.c) \
                      $(call FIX_PATH,../daemonlib/writer.c)
 
@@ -221,9 +223,7 @@ SOURCES_BRICKD := base64.c \
 
 ifeq ($(PLATFORM),Windows)
 	SOURCES_DAEMONLIB += $(call FIX_PATH,../daemonlib/pipe_winapi.c) \
-	                     $(call FIX_PATH,../daemonlib/socket_winapi.c) \
-	                     $(call FIX_PATH,../daemonlib/threads_winapi.c) \
-	                     $(call FIX_PATH,../daemonlib/timer_winapi.c)
+	                     $(call FIX_PATH,../daemonlib/socket_winapi.c)
 
 	SOURCES_BRICKD += event_winapi.c \
 	                  fixes_mingw.c \
@@ -237,8 +237,7 @@ else
 	                     ../daemonlib/pid_file.c \
 	                     ../daemonlib/pipe_posix.c \
 	                     ../daemonlib/signal.c \
-	                     ../daemonlib/socket_posix.c \
-	                     ../daemonlib/threads_posix.c
+	                     ../daemonlib/socket_posix.c
 
 	SOURCES_BRICKD += usb_posix.c
 endif
@@ -253,15 +252,11 @@ ifeq ($(WITH_EPOLL),yes)
 else
 	SOURCES_DAEMONLIB += ../daemonlib/event_posix.c
 endif
-
-	SOURCES_DAEMONLIB += ../daemonlib/timer_linux.c
-
 	SOURCES_BRICKD += main_linux.c
 endif
 
 ifeq ($(PLATFORM),Darwin)
-	SOURCES_DAEMONLIB += ../daemonlib/event_posix.c \
-	                     ../daemonlib/timer_posix.c
+	SOURCES_DAEMONLIB += ../daemonlib/event_posix.c
 
 	SOURCES_BRICKD += main_macosx.c \
 	                  iokit.c

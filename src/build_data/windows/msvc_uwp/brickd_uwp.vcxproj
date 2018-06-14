@@ -352,9 +352,7 @@
     <ClInclude Include="..\..\..\daemonlib\queue.h" />
     <ClInclude Include="..\..\..\daemonlib\socket.h" />
     <ClInclude Include="..\..\..\daemonlib\threads.h" />
-    <ClInclude Include="..\..\..\daemonlib\threads_winapi.h" />
     <ClInclude Include="..\..\..\daemonlib\timer.h" />
-    <ClInclude Include="..\..\..\daemonlib\timer_uwp.h" />
     <ClInclude Include="..\..\..\daemonlib\utils.h" />
     <ClInclude Include="..\..\..\daemonlib\utils_uwp.h" />
     <ClInclude Include="..\..\..\daemonlib\writer.h" />
@@ -476,7 +474,7 @@
       <CompileAsWinRT Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</CompileAsWinRT>
       <CompileAsWinRT Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</CompileAsWinRT>
     </ClCompile>
-    <ClCompile Include="..\..\..\daemonlib\threads_winapi.c">
+    <ClCompile Include="..\..\..\daemonlib\threads.c">
       <CompileAsWinRT Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">false</CompileAsWinRT>
       <CompileAsWinRT Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">false</CompileAsWinRT>
       <CompileAsWinRT Condition="'$(Configuration)|$(Platform)'=='Debug|ARM'">false</CompileAsWinRT>
@@ -484,7 +482,7 @@
       <CompileAsWinRT Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</CompileAsWinRT>
       <CompileAsWinRT Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</CompileAsWinRT>
     </ClCompile>
-    <ClCompile Include="..\..\..\daemonlib\timer_uwp.c">
+    <ClCompile Include="..\..\..\daemonlib\timer.c">
       <CompileAsWinRT Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">false</CompileAsWinRT>
       <CompileAsWinRT Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">false</CompileAsWinRT>
       <CompileAsWinRT Condition="'$(Configuration)|$(Platform)'=='Debug|ARM'">false</CompileAsWinRT>

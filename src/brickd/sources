@@ -27,8 +27,8 @@ SOURCES=array.c \
 	queue.c \
 	socket.c \
 	socket_winapi.c \
-	threads_winapi.c \
-	timer_winapi.c \
+	threads.c \
+	timer.c \
 	utils.c \
 	writer.c \
 	base64.c \

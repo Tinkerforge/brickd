@@ -56,8 +56,8 @@
     <ClCompile Include="..\..\..\daemonlib\queue.c" />
     <ClCompile Include="..\..\..\daemonlib\socket.c" />
     <ClCompile Include="..\..\..\daemonlib\socket_winapi.c" />
-    <ClCompile Include="..\..\..\daemonlib\threads_winapi.c" />
-    <ClCompile Include="..\..\..\daemonlib\timer_winapi.c" />
+    <ClCompile Include="..\..\..\daemonlib\threads.c" />
+    <ClCompile Include="..\..\..\daemonlib\timer.c" />
     <ClCompile Include="..\..\..\daemonlib\utils.c" />
     <ClCompile Include="..\..\..\daemonlib\writer.c" />
   </ItemGroup>
@@ -98,9 +98,7 @@
     <ClInclude Include="..\..\..\daemonlib\queue.h" />
     <ClInclude Include="..\..\..\daemonlib\socket.h" />
     <ClInclude Include="..\..\..\daemonlib\threads.h" />
-    <ClInclude Include="..\..\..\daemonlib\threads_winapi.h" />
     <ClInclude Include="..\..\..\daemonlib\timer.h" />
-    <ClInclude Include="..\..\..\daemonlib\timer_winapi.h" />
     <ClInclude Include="..\..\..\daemonlib\utils.h" />
     <ClInclude Include="..\..\..\daemonlib\writer.h" />
   </ItemGroup>
