@@ -544,7 +544,7 @@ cleanup:
 		break;
 	}
 
-#if defined(_WIN32) || (defined(LIBUSB_API_VERSION) && LIBUSB_API_VERSION >= 0x01000104) // libusb 1.0.20
+#if defined _WIN32 || (defined LIBUSB_API_VERSION && LIBUSB_API_VERSION >= 0x01000104) // libusb 1.0.20
 	libusb_free_pollfds(pollfds); // avoids possible heap-mismatch on Windows
 #else
 	free(pollfds);
@@ -568,7 +568,7 @@ void usb_destroy_context(libusb_context *context) {
 			event_remove_source((*pollfd)->fd, EVENT_SOURCE_TYPE_USB);
 		}
 
-#if defined(_WIN32) || (defined(LIBUSB_API_VERSION) && LIBUSB_API_VERSION >= 0x01000104) // libusb 1.0.20
+#if defined _WIN32 || (defined LIBUSB_API_VERSION && LIBUSB_API_VERSION >= 0x01000104) // libusb 1.0.20
 		libusb_free_pollfds(pollfds); // avoids possible heap-mismatch on Windows
 #else
 		free(pollfds);

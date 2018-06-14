@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2013-2014, 2017 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2013-2014, 2017-2018 Matthias Bolte <matthias@tinkerforge.com>
  *
  * usb_posix.c: POSIX based USB specific functions
  *
@@ -80,8 +80,8 @@
 static LogSource _log_source = LOG_SOURCE_INITIALIZER;
 
 // if compiled with a hotplug capable libusb then don't use dlopen to probe
-#if (defined(LIBUSB_API_VERSION)  && (LIBUSB_API_VERSION  >= 0x01000102)) || \
-    (defined(LIBUSBX_API_VERSION) && (LIBUSBX_API_VERSION >= 0x01000102))
+#if (defined LIBUSB_API_VERSION  && LIBUSB_API_VERSION  >= 0x01000102) || \
+    (defined LIBUSBX_API_VERSION && LIBUSBX_API_VERSION >= 0x01000102)
 	#define DLOPEN_HOTPLUG_FUNCTIONS 0
 #else
 	#define DLOPEN_HOTPLUG_FUNCTIONS 1
@@ -124,7 +124,7 @@ static const char *_libusb = NULL;
 
 static void *_libusb_handle = NULL;
 
-#if defined(__clang__) || !defined(__GNUC__) || __GNUC_PREREQ(4, 6)
+#if defined __clang__ || !defined __GNUC__ || __GNUC_PREREQ(4, 6)
 
 // according to dlopen manpage casting from "void *" to a function pointer
 // is undefined in C99. the manpage suggests this workaround defined in the

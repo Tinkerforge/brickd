@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2012-2014, 2016 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2012-2014, 2016, 2018 Matthias Bolte <matthias@tinkerforge.com>
  * Copyright (C) 2014 Olaf Lüke <olaf@tinkerforge.com>
  *
  * hmac.c: HMAC functions
@@ -73,7 +73,7 @@ uint32_t get_random_uint32(void) {
 	                    BCRYPT_USE_SYSTEM_PREFERRED_RNG) != /*STATUS_SUCCESS*/0) {
 		goto fallback;
 	}
-#elif defined(_WIN32)
+#elif defined _WIN32
 	HCRYPTPROV hprovider;
 
 	if (!CryptAcquireContextA(&hprovider, NULL, NULL, PROV_RSA_FULL,

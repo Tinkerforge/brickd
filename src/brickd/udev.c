@@ -118,7 +118,7 @@ static void *_libudev_handle = NULL;
 static const char *_loaded_libudev = "<unknown>";
 static bool _dlsym_error = false;
 
-#if defined(__clang__) || !defined(__GNUC__) || __GNUC_PREREQ(4, 6)
+#if defined __clang__ || !defined __GNUC__ || __GNUC_PREREQ(4, 6)
 
 // according to dlopen manpage casting from "void *" to a function pointer
 // is undefined in C99. the manpage suggests this workaround defined in the
