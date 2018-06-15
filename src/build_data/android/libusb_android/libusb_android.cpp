@@ -124,6 +124,7 @@ struct _libusb_device_handle {
 	Node node;
 	libusb_device *dev;
 	struct libusb_pollfd pollfd;
+	bool disconnected;
 };
 
 static libusb_log_callback _log_callback;
@@ -512,17 +513,19 @@ const struct libusb_pollfd **libusb_get_pollfds(libusb_context *ctx) {
 		return nullptr;
 	}
 
-	dev_handle_node = ctx->dev_handle_sentinel.next;
-
-	while (dev_handle_node != &ctx->dev_handle_sentinel) {
+	for (dev_handle_node = ctx->dev_handle_sentinel.next;
+	     dev_handle_node != &ctx->dev_handle_sentinel;
+	     dev_handle_node = dev_handle_node->next) {
 		dev_handle = containerof(dev_handle_node, libusb_device_handle, node);
 
-		pollfds[i++] = &dev_handle->pollfd;
+		if (dev_handle->disconnected) {
+			continue;
+		}
 
-		dev_handle_node = dev_handle_node->next;
+		pollfds[i++] = &dev_handle->pollfd;
 	}
 
-	pollfds[ctx->dev_handle_count] = nullptr;
+	pollfds[i] = nullptr;
 
 	return pollfds;
 }
@@ -568,21 +571,25 @@ int libusb_handle_events_timeout(libusb_context *ctx, struct timeval *tv) {
 
 	usbi_log_debug(ctx, "Handling events");
 
-	dev_handle_node = ctx->dev_handle_sentinel.next;
 	i = 0;
 
-	while (dev_handle_node != &ctx->dev_handle_sentinel) {
+	for (dev_handle_node = ctx->dev_handle_sentinel.next;
+	     dev_handle_node != &ctx->dev_handle_sentinel;
+	     dev_handle_node = dev_handle_node->next) {
 		dev_handle = containerof(dev_handle_node, libusb_device_handle, node);
+
+		if (dev_handle->disconnected) {
+			continue;
+		}
 
 		pollfds[i].fd = dev_handle->pollfd.fd;
 		pollfds[i].events = dev_handle->pollfd.events;
 		pollfds[i].revents = 0;
 
-		dev_handle_node = dev_handle_node->next;
 		++i;
 	}
 
-	ready = poll(pollfds, ctx->dev_handle_count, 0);
+	ready = poll(pollfds, i, 0);
 
 	if (ready < 0) {
 		if (errno_interrupted()) {
@@ -599,16 +606,27 @@ int libusb_handle_events_timeout(libusb_context *ctx, struct timeval *tv) {
 		return rc;
 	}
 
-	dev_handle_node = ctx->dev_handle_sentinel.next;
 	i = 0;
 
-	while (dev_handle_node != &ctx->dev_handle_sentinel) {
+	for (dev_handle_node = ctx->dev_handle_sentinel.next;
+	     dev_handle_node != &ctx->dev_handle_sentinel;
+	     dev_handle_node = dev_handle_node->next) {
 		dev_handle = containerof(dev_handle_node, libusb_device_handle, node);
+
+		if (dev_handle->disconnected) {
+			continue;
+		}
 
 		if (pollfds[i].revents != 0) {
 			if ((pollfds[i].revents & POLLERR) != 0) {
-				usbi_log_error(ctx, "POLLERR reported for device %s", // FIXME
+				dev_handle->disconnected = true;
+
+				usbi_log_debug(ctx, "USB device %s got disconnected",
 				               dev_handle->dev->name);
+
+				if (ctx->pollfd_removed_callback != nullptr) {
+					ctx->pollfd_removed_callback(dev_handle->pollfd.fd, ctx->pollfd_user_data);
+				}
 
 				continue;
 			}
@@ -664,7 +682,6 @@ int libusb_handle_events_timeout(libusb_context *ctx, struct timeval *tv) {
 			++count;
 		}
 
-		dev_handle_node = dev_handle_node->next;
 		++i;
 	}
 
@@ -829,6 +846,7 @@ int libusb_open(libusb_device *dev, libusb_device_handle **dev_handle_ptr) {
 	dev_handle->dev = libusb_ref_device(dev);
 	dev_handle->pollfd.fd = fd;
 	dev_handle->pollfd.events = POLLOUT;
+	dev_handle->disconnected = false;
 
 	node_insert_before(&ctx->dev_handle_sentinel, &dev_handle->node);
 	++ctx->dev_handle_count;
@@ -850,7 +868,7 @@ void libusb_close(libusb_device_handle *dev_handle) {
 	libusb_context *ctx = dev->ctx;
 	jmethodID close_device_mid;
 
-	if (ctx->pollfd_removed_callback != nullptr) {
+	if (!dev_handle->disconnected && ctx->pollfd_removed_callback != nullptr) {
 		ctx->pollfd_removed_callback(dev_handle->pollfd.fd, ctx->pollfd_user_data);
 	}
 
