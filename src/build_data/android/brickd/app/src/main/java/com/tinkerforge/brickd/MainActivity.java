@@ -21,22 +21,29 @@
 
 package com.tinkerforge.brickd;
 
+import android.content.Intent;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
-import android.widget.TextView;
+import android.util.Log;
 
 public class MainActivity extends AppCompatActivity {
-    static {
-        System.loadLibrary("brickd-android");
-    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
+        Log.d("brickd",">>>>> MainActivity onCreate");
+
         setContentView(R.layout.activity_main);
 
-        init();
+        startService(new Intent(this, MainService.class));
     }
 
-    public native void init();
+    protected void onDestroy() {
+        super.onDestroy();
+
+        Log.d("brickd",">>>>> MainActivity onDestroy");
+
+        stopService(new Intent(this, MainService.class));
+    }
 }

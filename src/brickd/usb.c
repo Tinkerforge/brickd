@@ -47,7 +47,7 @@ extern void usb_exit_platform(void);
 extern int usb_init_hotplug(libusb_context *context);
 extern void usb_exit_hotplug(libusb_context *context);
 
-#if defined(_WIN32) || defined(__APPLE__)
+#if defined _WIN32 || defined __APPLE__ || defined __ANDROID__
 
 static void LIBUSB_CALL usb_forward_message(libusb_context *ctx,
                                             enum libusb_log_level level_,
@@ -106,6 +106,8 @@ static int usb_enumerate(void) {
 
 		return -1;
 	}
+
+	log_debug("Found %d USB device(s)", rc);
 
 	// check for stacks
 	for (device = devices[0]; device != NULL; device = devices[++i]) {
@@ -241,7 +243,7 @@ int usb_init(void) {
 	_libusb_log_source.file = "libusb";
 	_libusb_log_source.name = "libusb";
 
-#if defined(_WIN32) || defined(__APPLE__)
+#if defined _WIN32 || defined __APPLE__ || defined __ANDROID__
 	libusb_set_log_callback(usb_forward_message);
 #endif
 
@@ -356,7 +358,7 @@ void usb_exit(void) {
 
 	usb_exit_platform();
 
-#if defined(_WIN32) || defined(__APPLE__)
+#if defined _WIN32 || defined __APPLE__ || defined __ANDROID__
 	libusb_set_log_callback(NULL);
 #endif
 }

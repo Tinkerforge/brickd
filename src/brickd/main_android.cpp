@@ -20,12 +20,16 @@
  */
 
 #include <jni.h>
+#include <unistd.h>
+
+#include <android/log.h>
 
 extern "C" {
 
 #include <daemonlib/config.h>
 #include <daemonlib/event.h>
 #include <daemonlib/pipe.h>
+#include <daemonlib/signal.h>
 #include <daemonlib/utils.h>
 
 #include "hardware.h"
@@ -33,9 +37,13 @@ extern "C" {
 #include "usb.h"
 #include "mesh.h"
 #include "version.h"
+
 }
 
 static LogSource _log_source = LOG_SOURCE_INITIALIZER;
+
+extern JNIEnv *android_env;
+extern jobject android_service;
 
 static void handle_event_cleanup(void) {
 	network_cleanup_clients_and_zombies();
@@ -43,20 +51,21 @@ static void handle_event_cleanup(void) {
 }
 
 extern "C" JNIEXPORT void JNICALL
-Java_com_tinkerforge_brickd_MainActivity_init(JNIEnv *env, jobject /* this */) {
+Java_com_tinkerforge_brickd_MainService_main(JNIEnv *env, jobject /* this */, jobject service) {
 	int phase = 0;
-	int rc;
 
-	(void)env;
+	android_env = env;
+	android_service = service;
 
 	config_init(NULL);
 
+#if 0 // FIXME: config cannot have errors, because not config file is loaded
 	phase = 1;
 
-#if 0 // FIXME: config cannot have errors, because not config file is loaded
 	if (config_has_error()) {
-		debugf("Error(s) occurred while reading config file '%s'\n",
-		       config_filename);
+		__android_log_print(ANDROID_LOG_ERROR, "brickd",
+		                    "Error(s) occurred while reading config file '%s'\n",
+		                    config_filename);
 
 		goto cleanup;
 	}
@@ -80,29 +89,35 @@ Java_com_tinkerforge_brickd_MainActivity_init(JNIEnv *env, jobject /* this */) {
 
 	phase = 3;
 
-	if (hardware_init() < 0) {
+	if (signal_init(nullptr, nullptr) < 0) {
 		goto cleanup;
 	}
 
 	phase = 4;
 
-	if (usb_init() < 0) {
+	if (hardware_init() < 0) {
 		goto cleanup;
 	}
 
 	phase = 5;
 
-	if (network_init() < 0) {
+	if (usb_init() < 0) {
 		goto cleanup;
 	}
 
 	phase = 6;
 
-	if (mesh_init() < 0) {
+	if (network_init() < 0) {
 		goto cleanup;
 	}
 
 	phase = 7;
+
+	if (mesh_init() < 0) {
+		goto cleanup;
+	}
+
+	phase = 8;
 
 	if (event_run(handle_event_cleanup) < 0) {
 		goto cleanup;
@@ -110,20 +125,24 @@ Java_com_tinkerforge_brickd_MainActivity_init(JNIEnv *env, jobject /* this */) {
 
 cleanup:
 	switch (phase) { // no breaks, all cases fall through intentionally
-	case 7:
+	case 8:
 		mesh_exit();
 		// fall through
 
-	case 6:
+	case 7:
 		network_exit();
 		// fall through
 
-	case 5:
+	case 6:
 		usb_exit();
 		// fall through
 
-	case 4:
+	case 5:
 		hardware_exit();
+		// fall through
+
+	case 4:
+		signal_exit();
 		// fall through
 
 	case 3:
@@ -142,4 +161,9 @@ cleanup:
 	default:
 		break;
 	}
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_tinkerforge_brickd_MainService_interrupt(JNIEnv *env, jobject /* this */) {
+	raise(SIGINT);
 }

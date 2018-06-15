@@ -5,9 +5,10 @@
 
 cmake_minimum_required(VERSION 3.4.1)
 
-include_directories(../../../.. ../../libusb)
+include_directories( ../../../..
+                     ../../libusb_android )
 
-add_definitions(-DDAEMONLIB_WITH_LOGGING)
+add_definitions( -DDAEMONLIB_WITH_LOGGING )
 
 # Creates and names a library, sets it as either STATIC
 # or SHARED, and provides the relative paths to its source code.
@@ -31,10 +32,11 @@ add_library( brickd-android
              ../../../../daemonlib/packet.c
              ../../../../daemonlib/pipe_posix.c
              ../../../../daemonlib/queue.c
+             ../../../../daemonlib/signal.c
              ../../../../daemonlib/socket.c
              ../../../../daemonlib/socket_posix.c
-             ../../../../daemonlib/threads_posix.c
-             ../../../../daemonlib/timer_posix.c
+             ../../../../daemonlib/threads.c
+             ../../../../daemonlib/timer.c
              ../../../../daemonlib/utils.c
              ../../../../daemonlib/writer.c
 
@@ -55,6 +57,8 @@ add_library( brickd-android
              ../../../../brickd/usb_transfer.c
              ../../../../brickd/websocket.c
              ../../../../brickd/zombie.c
+
+             ../../libusb_android/libusb_android.cpp
 
              ../../../../brickd/main_android.cpp )
 
@@ -80,6 +84,4 @@ target_link_libraries( # Specifies the target library.
 
                        # Links the target library to the log library
                        # included in the NDK.
-                       ${log-lib}
-
-                       ${CMAKE_SOURCE_DIR}/../../libusb/${ANDROID_ABI}/libusb1.0.so )
+                       ${log-lib} )
