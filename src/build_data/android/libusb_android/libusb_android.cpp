@@ -1051,8 +1051,6 @@ int libusb_submit_transfer(struct libusb_transfer *transfer) {
 		               (LIBUSB_ENDPOINT_IN & transfer->endpoint) != 0 ? "read" : "write",
 		               transfer, transfer->length, get_errno_name(errno), errno);
 
-		free(urb);
-
 		return rc;
 	}
 
