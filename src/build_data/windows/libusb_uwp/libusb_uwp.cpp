@@ -1295,6 +1295,7 @@ struct libusb_transfer *libusb_alloc_transfer(int iso_packets) {
 
 	itransfer->submitted = false;
 	itransfer->completed = false;
+	itransfer->sequence_number = 0;
 	itransfer->reader = nullptr;
 	itransfer->load_operation = nullptr;
 	itransfer->writer = nullptr;
@@ -1313,7 +1314,8 @@ int libusb_submit_transfer(struct libusb_transfer *transfer) {
 	UsbBulkOutPipe ^pipe_out;
 	Array<unsigned char> ^data;
 
-	if (transfer->timeout != 0 || transfer->callback == nullptr) {
+	if (transfer->type != LIBUSB_TRANSFER_TYPE_BULK ||
+	    transfer->timeout != 0 || transfer->callback == nullptr) {
 		return LIBUSB_ERROR_INVALID_PARAM;
 	}
 
@@ -1466,6 +1468,7 @@ void libusb_fill_bulk_transfer(struct libusb_transfer *transfer,
                                void *user_data, unsigned int timeout) {
 	transfer->dev_handle = dev_handle;
 	transfer->endpoint = endpoint;
+	transfer->type = LIBUSB_TRANSFER_TYPE_BULK;
 	transfer->timeout = timeout;
 	transfer->buffer = buffer;
 	transfer->length = length;
