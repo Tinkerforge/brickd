@@ -8,15 +8,11 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.hardware.usb.UsbDevice;
 import android.hardware.usb.UsbDeviceConnection;
-import android.hardware.usb.UsbEndpoint;
-import android.hardware.usb.UsbInterface;
 import android.hardware.usb.UsbManager;
-import android.hardware.usb.UsbRequest;
 import android.os.IBinder;
 import android.support.annotation.Keep;
 import android.util.Log;
 
-import java.nio.ByteBuffer;
 import java.util.HashMap;
 import java.util.Hashtable;
 import java.util.Iterator;
@@ -29,14 +25,13 @@ public class MainService extends Service {
 
     public native void main(MainService service);
     public native void interrupt();
-    public native void transferred(ByteBuffer opaque, int length);
 
     private static final String ACTION_USB_PERMISSION = "com.tinkerforge.brickd.USB_PERMISSION";
 
     private UsbManager manager;
     private PendingIntent permissionIntent;
-    private Thread mainThread;
-    private Map<UsbDeviceConnection, Thread> requestThreads = new Hashtable<UsbDeviceConnection, Thread>();
+    private Thread thread;
+    private Map<Integer, UsbDeviceConnection> openConnections = new Hashtable<Integer, UsbDeviceConnection>();
 
     private final BroadcastReceiver receiver = new BroadcastReceiver() {
         public void onReceive(Context context, Intent intent) {
@@ -62,7 +57,6 @@ public class MainService extends Service {
     };
 
     public MainService() {
-        System.out.println(">>>> MainService");
     }
 
     @Override
@@ -83,7 +77,7 @@ public class MainService extends Service {
         interrupt();
 
         try {
-            mainThread.join(); // FIXME: use timeout?
+            thread.join(); // FIXME: use timeout?
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
@@ -93,15 +87,15 @@ public class MainService extends Service {
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startid) {
-        if (mainThread == null) {
-            mainThread = new Thread(new Runnable() {
+        if (thread == null) {
+            thread = new Thread(new Runnable() {
                 @Override
                 public void run() {
                     main(MainService.this);
                 }
             });
 
-            mainThread.start();
+            thread.start();
         }
 
         return START_NOT_STICKY;
@@ -114,21 +108,17 @@ public class MainService extends Service {
         USBDeviceInfo[] deviceInfos = new USBDeviceInfo[deviceList.size()];
         int i = 0;
 
-        Log.d("brickd","getDeviceList " + deviceList.size());
-
         while (deviceIterator.hasNext()){
             UsbDevice device = deviceIterator.next();
 
             deviceInfos[i++] = new USBDeviceInfo(device);
-
-            Log.d("brickd","getDeviceList: " + device.getDeviceName());
         }
 
         return deviceInfos;
     }
 
     @Keep
-    public UsbDeviceConnection openDevice(UsbDevice device) {
+    public int openDevice(UsbDevice device) {
         Log.d("brickd","openDevice 1 " + device.getDeviceName());
 
         if (!manager.hasPermission(device)) {
@@ -144,122 +134,39 @@ public class MainService extends Service {
                 }
             } catch (InterruptedException e) {
                 Log.d("brickd", "InterruptedException");
-                return null;
+                return -1;
             }
         }
 
         Log.d("brickd","openDevice 2 " + device.getDeviceName());
 
-        final UsbDeviceConnection connection = manager.openDevice(device);
+        UsbDeviceConnection connection = manager.openDevice(device);
 
-        Thread requestThread = new Thread(new Runnable() {
-            @Override
-            public void run() {
-                while (true) {
-                    UsbRequest request = connection.requestWait();
-
-                    if (request == null) {
-                        System.out.println(">>>>>>>>>>> requestWait failed");
-                        continue;
-                    }
-
-                    ByteBuffer[] clientData = (ByteBuffer[])request.getClientData();
-
-                    transferred(clientData[1], clientData[0].position());
-
-                    request.close();
-                }
-            }
-        });
-
-        requestThread.start();
-
-        requestThreads.put(connection, requestThread);
-
-        return connection;
-    }
-
-    @Keep
-    public void closeDevice(UsbDeviceConnection connection) {
-        Thread requestThread = requestThreads.remove(connection);
-
-        requestThread.interrupt();
-
-        connection.close();
-    }
-
-    @Keep
-    public byte[] getStringDescriptor(UsbDeviceConnection connection, int descIndex, int languageID, int length) {
-        int requestType = 0x81; // 0x81 == direction: in, type: standard, recipient: device
-        int request = 0x06; // 0x06 == get-descriptor
-        int value = (0x03 << 8) | descIndex; // 0x03 == string-descriptor
-        int index = languageID;
-        byte[] buffer = new byte[length];
-        int result = connection.controlTransfer(requestType, request, value, index, buffer, length, 0);
-
-        if (result < 0) {
-            return null;
+        if (connection == null) {
+            return -1;
         }
 
-        byte[] data = new byte[result];
+        int fd = connection.getFileDescriptor();
 
-        System.arraycopy(buffer, 0, data, 0, result);
+        // Android API documentation suggests that it could happen that the connection
+        // objects exists but is not open
+        if (fd < 0) {
+            connection.close();
 
-        return data;
+            return -1;
+        }
+
+        openConnections.put(fd, connection);
+
+        return fd;
     }
 
     @Keep
-    public boolean claimInterface(UsbDevice device, UsbDeviceConnection connection, int index) {
-        return connection.claimInterface(device.getInterface(index), true);
-    }
+    public void closeDevice(int fd) {
+        UsbDeviceConnection connection = openConnections.remove(fd);
 
-    @Keep
-    public boolean releaseInterface(UsbDevice device, UsbDeviceConnection connection, int index) {
-        return connection.releaseInterface(device.getInterface(index));
-    }
-
-    @Keep
-    public UsbRequest submitTransfer(UsbDevice device, UsbDeviceConnection connection,
-                                     int endpointAddress, ByteBuffer buffer, ByteBuffer opaque) {
-        UsbInterface iface = device.getInterface(0); // FIXME: don't hardcode interface here
-        UsbEndpoint endpoint = null;
-
-        Log.d("brickd","submitTransfer endpointAddress: " + endpointAddress + ", capacity: " + buffer.capacity() + ", position: " + buffer.position());
-
-        for (int i = 0; i < iface.getEndpointCount(); ++i) {
-            //System.out.println("EP: " + iface.getEndpoint(i));
-
-            if (iface.getEndpoint(i).getAddress() == endpointAddress) {
-                endpoint = iface.getEndpoint(i);
-            }
+        if (connection != null) {
+            connection.close();
         }
-
-        if (endpoint == null) {
-            Log.d("brickd", String.format("Could not find endpoint 0x%02X", endpointAddress));
-            return null;
-        }
-
-        UsbRequest request = new UsbRequest();
-
-        ByteBuffer[] clientData = new ByteBuffer[]{buffer, opaque};
-
-        request.setClientData(clientData);
-
-        if (!request.initialize(connection, endpoint)) {
-            Log.d("brickd", String.format("Could not initialize USB request for endpoint 0x%02X", endpointAddress));
-            return null;
-        }
-
-        if (!request.queue(buffer, buffer.capacity())) {
-            Log.d("brickd", String.format("Could not queue USB request for endpoint 0x%02X", endpointAddress));
-            return null;
-        }
-
-        return request;
-    }
-
-    @Keep
-    public void cancelTransfer(UsbRequest request) {
-        request.cancel();
     }
 }

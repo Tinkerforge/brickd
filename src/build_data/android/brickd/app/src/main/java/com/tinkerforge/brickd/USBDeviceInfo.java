@@ -5,18 +5,18 @@ import android.hardware.usb.UsbDevice;
 public class USBDeviceInfo {
     public UsbDevice device;
 
+    public String name;
     public int vendorID;
     public int productID;
-    public String name;
     public int numInterfaces;
     public USBInterfaceInfo[] interfaceInfos;
 
     public USBDeviceInfo(UsbDevice device) {
         this.device = device;
 
+        name = device.getDeviceName();
         vendorID = device.getVendorId();
         productID = device.getProductId();
-        name = device.getDeviceName();
         numInterfaces = device.getInterfaceCount();
         interfaceInfos = new USBInterfaceInfo[numInterfaces];
 

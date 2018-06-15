@@ -28,6 +28,7 @@
 #include <unistd.h>
 #include <poll.h>
 #include <stdbool.h>
+#include <sys/ioctl.h>
 
 extern "C" {
 
@@ -45,6 +46,50 @@ extern "C" {
 
 #define USBI_DESCRIPTOR_TYPE_STRING 0x03
 
+#define USBI_USBFS_URB_TYPE_BULK 3
+
+typedef struct  {
+	unsigned int length;
+	unsigned int actual_length;
+	unsigned int status;
+} usbfs_iso_packet_desc;
+
+typedef struct {
+	unsigned char type;
+	unsigned char endpoint;
+	int status;
+	unsigned int flags;
+	void *buffer;
+	int buffer_length;
+	int actual_length;
+	int start_frame;
+	union {
+		int number_of_packets;
+		unsigned int stream_id;
+	};
+	int error_count;
+	unsigned int signr;
+	void *user_context;
+	usbfs_iso_packet_desc iso_frame_desc[0];
+} usbfs_urb;
+
+typedef struct {
+	uint8_t bmRequestType;
+	uint8_t bRequest;
+	uint16_t wValue;
+	uint16_t wIndex;
+	uint16_t wLength;
+	uint32_t timeout; // in milliseconds
+	void *data;
+} usbfs_control_transfer;
+
+#define IOCTL_USBFS_CONTROL _IOWR('U', 0, usbfs_control_transfer)
+#define IOCTL_USBFS_CLAIMINTF _IOR('U', 15, unsigned int)
+#define IOCTL_USBFS_RELEASEINTF _IOR('U', 16, unsigned int)
+#define IOCTL_USBFS_SUBMITURB _IOR('U', 10, usbfs_urb)
+#define IOCTL_USBFS_DISCARDURB _IO('U', 11)
+#define IOCTL_USBFS_REAPURBNDELAY _IOW('U', 13, void *)
+
 typedef struct {
 	struct libusb_device_descriptor device;
 	struct libusb_config_descriptor config;
@@ -52,12 +97,8 @@ typedef struct {
 
 typedef struct {
 	struct libusb_transfer transfer;
-	Node node;
+	usbfs_urb urb;
 	bool submitted;
-	bool triggered;
-	bool completed;
-	uint32_t sequence_number;
-    jobject request;
 } usbi_transfer;
 
 struct _libusb_device {
@@ -65,31 +106,29 @@ struct _libusb_device {
 	libusb_context *ctx;
 	int ref_count;
 	char *name;
-    jobject device; // UsbDevice
+	jobject device; // UsbDevice
 	uint8_t bus_number;
 	uint8_t device_address;
 	usbi_descriptor descriptor;
 };
 
 struct _libusb_context {
-	int event_pipe[2];
-	struct libusb_pollfd event_pollfd;
 	Node dev_handle_sentinel;
+	int dev_handle_count;
+	libusb_pollfd_added_callback pollfd_added_callback;
+	libusb_pollfd_removed_callback pollfd_removed_callback;
+	void *pollfd_user_data;
 };
 
 struct _libusb_device_handle {
 	Node node;
 	libusb_device *dev;
-	jobject connection; // UsbDeviceConnection
-	Node read_itransfer_sentinel;
-	Node write_itransfer_sentinel;
+	struct libusb_pollfd pollfd;
 };
 
 static libusb_log_callback _log_callback;
 
 static std::map<std::string, uint16_t> _fake_device_addresses;
-static uint32_t _next_read_itransfer_sequence_number;
-static uint32_t _next_write_itransfer_sequence_number;
 
 JNIEnv *android_env = NULL;
 jobject android_service = NULL;
@@ -119,76 +158,76 @@ static void usbi_log_message(libusb_context *ctx, enum libusb_log_level level,
 #define usbi_log_debug(ctx, ...)   usbi_log_message_checked(ctx, LIBUSB_LOG_LEVEL_DEBUG, __VA_ARGS__)
 
 static char *usbi_string_convert_ascii(jstring string) {
-    int length = android_env->GetStringLength(string);
-    const jchar *data;
-    int i;
-    char *ascii = (char *)calloc(length + 1, 1);
+	int length = android_env->GetStringLength(string);
+	const jchar *data;
+	int i;
+	char *ascii = (char *)calloc(length + 1, 1);
 
-    if (ascii == nullptr) {
-        errno = ENOMEM;
+	if (ascii == nullptr) {
+		errno = ENOMEM;
 
-        return nullptr;
-    }
+		return nullptr;
+	}
 
-    data = android_env->GetStringChars(string, NULL); // FIXME: could this fail?
+	data = android_env->GetStringChars(string, NULL); // FIXME: could this fail?
 
-    for (i = 0; i < length; ++i) {
-        if (data[i] < 32 || data[i] > 126) {
-            ascii[i] = '?';
-        } else {
-            ascii[i] = (char) data[i];
-        }
-    }
+	for (i = 0; i < length; ++i) {
+		if (data[i] < 32 || data[i] > 126) {
+			ascii[i] = '?';
+		} else {
+			ascii[i] = (char) data[i];
+		}
+	}
 
-    android_env->ReleaseStringChars(string, data);
+	android_env->ReleaseStringChars(string, data);
 
-    return ascii;
+	return ascii;
 }
 
 static jobject usbi_get_object_field(jobject obj, const char *name, const char *type, bool add_ref) {
-    jclass cls = android_env->GetObjectClass(obj); // FIXME: check result
-    jfieldID fid = android_env->GetFieldID(cls, name, type); // FIXME: check result
-    jobject result = android_env->GetObjectField(obj, fid); // FIXME: check result
+	jclass cls = android_env->GetObjectClass(obj); // FIXME: check result
+	jfieldID fid = android_env->GetFieldID(cls, name, type); // FIXME: check result
+	jobject result = android_env->GetObjectField(obj, fid); // FIXME: check result
 
-    if (add_ref) {
-        result = android_env->NewGlobalRef(result); // FIXME: check result
-    }
+	if (add_ref) {
+		result = android_env->NewGlobalRef(result); // FIXME: check result
+	}
 
-    return result;
+	return result;
 }
 
 static void usbi_get_int_field(jobject obj, const char *name, int *result) {
-    jclass cls = android_env->GetObjectClass(obj); // FIXME: check result
-    jfieldID fid = android_env->GetFieldID(cls, name, "I"); // FIXME: check result
+	jclass cls = android_env->GetObjectClass(obj); // FIXME: check result
+	jfieldID fid = android_env->GetFieldID(cls, name, "I"); // FIXME: check result
 
-    *result = android_env->GetIntField(obj, fid);
+	*result = android_env->GetIntField(obj, fid);
 }
 
 static char *usbi_get_string_field(jobject obj, const char *name) {
-    jclass cls = android_env->GetObjectClass(obj); // FIXME: check result
-    jfieldID fid = android_env->GetFieldID(cls, name, "Ljava/lang/String;"); // FIXME: check result
-    jstring string = reinterpret_cast<jstring>(android_env->GetObjectField(obj, fid)); // FIXME: check result
+	jclass cls = android_env->GetObjectClass(obj); // FIXME: check result
+	jfieldID fid = android_env->GetFieldID(cls, name, "Ljava/lang/String;"); // FIXME: check result
+	jstring string = (jstring)android_env->GetObjectField(obj, fid); // FIXME: check result
 
-    return usbi_string_convert_ascii(string);
+	return usbi_string_convert_ascii(string);
 }
 
 static void usbi_get_fake_device_address(const char *name, uint8_t *bus_number,
                                          uint8_t *device_address) {
-    auto iter = _fake_device_addresses.find(name);
-    uint16_t value;
+	auto iter = _fake_device_addresses.find(name);
+	uint16_t value;
 
-    if (iter != _fake_device_addresses.end()) {
-        value = iter->second;
-    } else {
-        // FIXME: after 65536 different IDs this will start to reuse bus numbers
-        //        and device addresses. this will probably never be a problem
-        value = (uint16_t)(_fake_device_addresses.size() % 0xFFFF);
+	if (iter != _fake_device_addresses.end()) {
+		value = iter->second;
+	} else {
+		// FIXME: after 65536 different IDs this will start to reuse bus numbers
+		//        and device addresses. this will probably never be a problem
+		value = (uint16_t)(_fake_device_addresses.size() % 0xFFFF);
 
-        _fake_device_addresses[name] = value;
-    }
+		_fake_device_addresses[name] = value;
+	}
 
-    *bus_number = (uint8_t)((value >> 8) & 0xFF);
-    *device_address = (uint8_t)(value & 0xFF);
+	*bus_number = (uint8_t)((value >> 8) & 0xFF);
+	*device_address = (uint8_t)(value & 0xFF);
 }
 
 static void usbi_free_interface_descriptor(struct libusb_config_descriptor *config) {
@@ -215,18 +254,18 @@ static void usbi_free_interface_descriptor(struct libusb_config_descriptor *conf
 static int usbi_get_config_descriptor(libusb_context *ctx, jobject device_info,
                                       struct libusb_config_descriptor *config) {
 	int num_interfaces;
-    unsigned int i;
+	unsigned int i;
 	jobjectArray interface_infos;
-    jobject interface_info;
+	jobject interface_info;
 	struct libusb_interface *iface;
 	int numEndpoints;
 	struct libusb_interface_descriptor *desc;
 	unsigned int e;
-    jintArray endpoint_addresses;
-    jint *endpoint_addresses_elements;
+	jintArray endpoint_addresses;
+	jint *endpoint_addresses_elements;
 	struct libusb_endpoint_descriptor *endpoint;
 
-    usbi_get_int_field(device_info, "numInterfaces", &num_interfaces); // FIXME: check result
+	usbi_get_int_field(device_info, "numInterfaces", &num_interfaces); // FIXME: check result
 
 	config->bNumInterfaces = (uint8_t)num_interfaces;
 	config->interface = (struct libusb_interface *)calloc(config->bNumInterfaces,
@@ -238,14 +277,14 @@ static int usbi_get_config_descriptor(libusb_context *ctx, jobject device_info,
 		return LIBUSB_ERROR_NO_MEM;
 	}
 
-    // FIXME: check result
-    interface_infos = reinterpret_cast<jobjectArray>(usbi_get_object_field(device_info, "interfaceInfos",
-                                                                           "[Lcom/tinkerforge/brickd/USBInterfaceInfo;", false));
+	// FIXME: check result
+	interface_infos = (jobjectArray)usbi_get_object_field(device_info, "interfaceInfos",
+	                                                      "[Lcom/tinkerforge/brickd/USBInterfaceInfo;", false);
 
-    for (i = 0; i < config->bNumInterfaces; ++i) {
-        interface_info = android_env->GetObjectArrayElement(interface_infos, i);// FIXME: check result
+	for (i = 0; i < config->bNumInterfaces; ++i) {
+		interface_info = android_env->GetObjectArrayElement(interface_infos, i);// FIXME: check result
 
-        iface = (struct libusb_interface *)&config->interface[i];
+		iface = (struct libusb_interface *)&config->interface[i];
 		iface->num_altsetting = 1;
 		iface->altsetting = (struct libusb_interface_descriptor *)calloc(iface->num_altsetting,
 		                                                                 sizeof(struct libusb_interface_descriptor));
@@ -258,33 +297,33 @@ static int usbi_get_config_descriptor(libusb_context *ctx, jobject device_info,
 			return LIBUSB_ERROR_NO_MEM;
 		}
 
-        usbi_get_int_field(interface_info, "numEndpoints", &numEndpoints); // FIXME: check result
+		usbi_get_int_field(interface_info, "numEndpoints", &numEndpoints); // FIXME: check result
 
-        desc = (struct libusb_interface_descriptor *)iface->altsetting;
-        desc->bInterfaceNumber = 0;
-        desc->bNumEndpoints = (uint8_t)numEndpoints;
-        desc->endpoint = (struct libusb_endpoint_descriptor *)calloc(desc->bNumEndpoints,
-                                                                     sizeof(struct libusb_interface_descriptor));
+		desc = (struct libusb_interface_descriptor *)iface->altsetting;
+		desc->bInterfaceNumber = 0;
+		desc->bNumEndpoints = (uint8_t)numEndpoints;
+		desc->endpoint = (struct libusb_endpoint_descriptor *)calloc(desc->bNumEndpoints,
+		                                                             sizeof(struct libusb_interface_descriptor));
 
-        if (desc->endpoint == nullptr) {
-            usbi_log_error(ctx, "Could not allocate endpoint descriptor");
+		if (desc->endpoint == nullptr) {
+			usbi_log_error(ctx, "Could not allocate endpoint descriptor");
 
-            usbi_free_interface_descriptor(config);
+			usbi_free_interface_descriptor(config);
 
-            return LIBUSB_ERROR_NO_MEM;
-        }
+			return LIBUSB_ERROR_NO_MEM;
+		}
 
-        // FIXME: check result
-        endpoint_addresses = reinterpret_cast<jintArray>(usbi_get_object_field(interface_info, "endpointAddresses", "[I", false));
-        endpoint_addresses_elements = android_env->GetIntArrayElements(endpoint_addresses, nullptr);// FIXME: check result
+		// FIXME: check result
+		endpoint_addresses = (jintArray)usbi_get_object_field(interface_info, "endpointAddresses", "[I", false);
+		endpoint_addresses_elements = android_env->GetIntArrayElements(endpoint_addresses, nullptr); // FIXME: check result
 
-        for (e = 0; e < desc->bNumEndpoints; ++e) {
-            endpoint = (struct libusb_endpoint_descriptor *)&desc->endpoint[e];
-            endpoint->bEndpointAddress = (uint8_t)endpoint_addresses_elements[e];
-        }
+		for (e = 0; e < desc->bNumEndpoints; ++e) {
+			endpoint = (struct libusb_endpoint_descriptor *)&desc->endpoint[e];
+			endpoint->bEndpointAddress = (uint8_t)endpoint_addresses_elements[e];
+		}
 
-        android_env->ReleaseIntArrayElements(endpoint_addresses, endpoint_addresses_elements, 0);
-    }
+		android_env->ReleaseIntArrayElements(endpoint_addresses, endpoint_addresses_elements, 0);
+	}
 
 	return LIBUSB_SUCCESS;
 }
@@ -292,24 +331,24 @@ static int usbi_get_config_descriptor(libusb_context *ctx, jobject device_info,
 static int usbi_get_descriptor(libusb_context *ctx, jobject device_info,
                                usbi_descriptor *descriptor) {
 	int rc;
-    int vendor_id;
-    int product_id;
+	int vendor_id;
+	int product_id;
 
-    usbi_get_int_field(device_info, "vendorID", &vendor_id); // FIXME: check result
-    usbi_get_int_field(device_info, "productID", &product_id); // FIXME: check result
+	usbi_get_int_field(device_info, "vendorID", &vendor_id); // FIXME: check result
+	usbi_get_int_field(device_info, "productID", &product_id); // FIXME: check result
 
-    descriptor->device.idVendor = (uint16_t)vendor_id;
-    descriptor->device.idProduct = (uint16_t)product_id;
-    descriptor->device.bcdDevice = 0x0110; // FIXME: Android doesn't provide this information
-    descriptor->device.iManufacturer = USBI_STRING_MANUFACTURER;
-    descriptor->device.iProduct = USBI_STRING_PRODUCT;
-    descriptor->device.iSerialNumber = USBI_STRING_SERIAL_NUMBER;
+	descriptor->device.idVendor = (uint16_t)vendor_id;
+	descriptor->device.idProduct = (uint16_t)product_id;
+	descriptor->device.bcdDevice = 0x0110; // FIXME: Android doesn't provide this information
+	descriptor->device.iManufacturer = USBI_STRING_MANUFACTURER;
+	descriptor->device.iProduct = USBI_STRING_PRODUCT;
+	descriptor->device.iSerialNumber = USBI_STRING_SERIAL_NUMBER;
 
-    rc = usbi_get_config_descriptor(ctx, device_info, &descriptor->config);
+	rc = usbi_get_config_descriptor(ctx, device_info, &descriptor->config);
 
-    if (rc < 0) {
-        return rc;
-    }
+	if (rc < 0) {
+		return rc;
+	}
 
 	return LIBUSB_SUCCESS;
 }
@@ -328,17 +367,17 @@ static int usbi_create_device(libusb_context *ctx, jobject device_info, libusb_d
 
 	dev->ctx = ctx;
 	dev->ref_count = 1;
-    dev->device = usbi_get_object_field(device_info, "device", "Landroid/hardware/usb/UsbDevice;", true); // FIXME: check result
-    dev->name = usbi_get_string_field(device_info, "name");
+	dev->device = usbi_get_object_field(device_info, "device", "Landroid/hardware/usb/UsbDevice;", true); // FIXME: check result
+	dev->name = usbi_get_string_field(device_info, "name");
 
-    if (dev->name == nullptr) {
-        usbi_log_error(ctx, "Could not get device name");
+	if (dev->name == nullptr) {
+		usbi_log_error(ctx, "Could not get device name");
 
-        android_env->DeleteGlobalRef(dev->device);
-        free(dev);
+		android_env->DeleteGlobalRef(dev->device);
+		free(dev);
 
-        return LIBUSB_ERROR_NO_MEM;
-    }
+		return LIBUSB_ERROR_NO_MEM;
+	}
 
 	usbi_get_fake_device_address(dev->name, &dev->bus_number, &dev->device_address); // FIXME
 
@@ -365,119 +404,53 @@ static void usbi_free_device(libusb_device *dev) {
 	usbi_log_debug(ctx, "Destroying device %p (context: %p, name: %s)",
 	               dev, ctx, dev->name);
 
-    usbi_free_interface_descriptor(&dev->descriptor.config);
+	usbi_free_interface_descriptor(&dev->descriptor.config);
 
-    android_env->DeleteGlobalRef(dev->device);
+	android_env->DeleteGlobalRef(dev->device);
 
 	free(dev->name);
 	free(dev);
 }
 
 static int usbi_get_device_list(libusb_context *ctx, Node *sentinel) {
-    int rc;
-    jint res;
-    jmethodID get_device_list_mid;
-    jobjectArray device_infos;
-    int device_infos_length;
-    int i;
-    jobject device_info;
-    int vendor_id;
-    int product_id;
-    libusb_device *dev;
-    int length = 0;
+	int rc;
+	jmethodID get_device_list_mid;
+	jobjectArray device_infos;
+	int device_infos_length;
+	int i;
+	jobject device_info;
+	int vendor_id;
+	int product_id;
+	libusb_device *dev;
+	int length = 0;
 
-    get_device_list_mid = android_env->GetMethodID(android_env->GetObjectClass(android_service), "getDeviceList",
-                                                   "()[Lcom/tinkerforge/brickd/USBDeviceInfo;"); // FIXME: check result
-    device_infos = reinterpret_cast<jobjectArray>(android_env->CallObjectMethod(android_service, get_device_list_mid));
-    device_infos_length = android_env->GetArrayLength(device_infos);
+	get_device_list_mid = android_env->GetMethodID(android_env->GetObjectClass(android_service), "getDeviceList",
+	                                               "()[Lcom/tinkerforge/brickd/USBDeviceInfo;"); // FIXME: check result
+	device_infos = (jobjectArray)android_env->CallObjectMethod(android_service, get_device_list_mid);
+	device_infos_length = android_env->GetArrayLength(device_infos);
 
-    for (i = 0; i < device_infos_length; ++i) {
-        device_info = android_env->GetObjectArrayElement(device_infos, i);
+	for (i = 0; i < device_infos_length; ++i) {
+		device_info = android_env->GetObjectArrayElement(device_infos, i);
 
-        usbi_get_int_field(device_info, "vendorID", &vendor_id); // FIXME: check result
-        usbi_get_int_field(device_info, "productID", &product_id); // FIXME: check result
+		usbi_get_int_field(device_info, "vendorID", &vendor_id); // FIXME: check result
+		usbi_get_int_field(device_info, "productID", &product_id); // FIXME: check result
 
-        if (vendor_id == 0x16D0 && (product_id == 0x063D || product_id == 0x09E5)) {
-            rc = usbi_create_device(ctx, device_info, &dev);
+		if (vendor_id == 0x16D0 && (product_id == 0x063D || product_id == 0x09E5)) {
+			rc = usbi_create_device(ctx, device_info, &dev);
 
-            if (rc < 0) {
-                return rc;
-            }
+			if (rc < 0) {
+				return rc;
+			}
 
-            node_insert_before(sentinel, &dev->node);
-            ++length;
-        }
-    }
+			node_insert_before(sentinel, &dev->node);
+			++length;
+		}
+	}
 
 	return length;
 }
 
-static int usbi_get_string_descriptor(libusb_device_handle *dev_handle,
-                                      uint8_t desc_index, uint16_t language_id,
-                                      unsigned char *data, int length) {
-    libusb_context *ctx = dev_handle->dev->ctx;
-	jmethodID get_string_descriptor_mid;
-    jbyteArray result;
-    jbyte *result_elements;
-    int result_length;
-    int i;
-
-    get_string_descriptor_mid = android_env->GetMethodID(android_env->GetObjectClass(android_service), "getStringDescriptor",
-                                                         "(Landroid/hardware/usb/UsbDeviceConnection;III)[B"); // FIXME: check result
-    result = reinterpret_cast<jbyteArray>(android_env->CallObjectMethod(android_service, get_string_descriptor_mid, dev_handle->connection, desc_index, language_id, length)); // FIXME: check result
-
-    if (result == nullptr) {
-        usbi_log_error(ctx, "Could not get string descriptor");
-
-        return LIBUSB_ERROR_OTHER; // FIXME: use better error code
-    }
-
-    result_elements = android_env->GetByteArrayElements(result, nullptr);// FIXME: check result
-    result_length = android_env->GetArrayLength(result);
-
-    // NOTE: assumes result_length <= length
-    for (i = 0; i < result_length; ++i) {
-        data[i] = (uint8_t)result_elements[i];
-    }
-
-    android_env->ReleaseByteArrayElements(result, result_elements, 0);
-
-	return result_length;
-}
-/*
-static void usbi_set_transfer_status(struct libusb_transfer *transfer,
-                                     IAsyncOperation<size_t> ^operation,
-                                     AsyncStatus status) {
-	int hresult;
-
-	if (status == AsyncStatus::Error) {
-		hresult = operation->ErrorCode.Value;
-
-		if (HRESULT_CODE(hresult) == ERROR_DEVICE_NOT_CONNECTED ||
-			HRESULT_CODE(hresult) == ERROR_DEV_NOT_EXIST) {
-			transfer->status = LIBUSB_TRANSFER_NO_DEVICE;
-		} else {
-			transfer->status = LIBUSB_TRANSFER_ERROR; // FIXME
-		}
-	} else if (status == AsyncStatus::Canceled) {
-		transfer->status = LIBUSB_TRANSFER_CANCELLED;
-	} else if (status == AsyncStatus::Completed) {
-		try {
-			transfer->actual_length = operation->GetResults();
-			transfer->status = LIBUSB_TRANSFER_COMPLETED;
-		} catch (...) { // FIXME: too generic
-			transfer->actual_length = 0;
-			transfer->status = LIBUSB_TRANSFER_ERROR; // FIXME
-		}
-	} else {
-		transfer->status = LIBUSB_TRANSFER_ERROR; // FIXME
-	}
-}*/
-
 int libusb_init(libusb_context **ctx_ptr) {
-    jclass usb_cls;
-    jmethodID usb_ctor;
-    jobject usb;
 	libusb_context *ctx;
 
 	if (ctx_ptr == nullptr) {
@@ -492,19 +465,9 @@ int libusb_init(libusb_context **ctx_ptr) {
 
 	usbi_log_debug(ctx, "Creating context %p", ctx);
 
-	if (pipe(ctx->event_pipe) < 0) {
-		usbi_log_error(ctx, "Could not create transfer pipe for context %p: %s (%d)",
-		               ctx, get_errno_name(errno), errno);
-
-		free(ctx);
-
-		return LIBUSB_ERROR_OTHER;
-	}
-
-	ctx->event_pollfd.fd = ctx->event_pipe[0];
-	ctx->event_pollfd.events = POLLIN;
-
 	node_reset(&ctx->dev_handle_sentinel);
+
+    ctx->dev_handle_count = 0;
 
 	*ctx_ptr = ctx;
 
@@ -518,9 +481,6 @@ void libusb_exit(libusb_context *ctx) {
 	}
 
 	usbi_log_debug(ctx, "Destroying context %p", ctx);
-
-	close(ctx->event_pipe[0]);
-	close(ctx->event_pipe[1]);
 
 	free(ctx);
 }
@@ -538,19 +498,31 @@ int libusb_pollfds_handle_timeouts(libusb_context *ctx) {
 
 const struct libusb_pollfd **libusb_get_pollfds(libusb_context *ctx) {
 	const struct libusb_pollfd **pollfds;
+	Node *dev_handle_node;
+	libusb_device_handle *dev_handle;
+	int i = 0;
 
 	if (ctx == nullptr) {
 		return nullptr; // FIXME: no default context support
 	}
 
-	pollfds = (const struct libusb_pollfd **)calloc(2, sizeof(struct libusb_pollfd *));
+	pollfds = (const struct libusb_pollfd **)calloc(ctx->dev_handle_count + 1, sizeof(struct libusb_pollfd *));
 
 	if (pollfds == nullptr) {
 		return nullptr;
 	}
 
-	pollfds[0] = &ctx->event_pollfd;
-	pollfds[1] = nullptr;
+	dev_handle_node = ctx->dev_handle_sentinel.next;
+
+	while (dev_handle_node != &ctx->dev_handle_sentinel) {
+		dev_handle = containerof(dev_handle_node, libusb_device_handle, node);
+
+		pollfds[i++] = &dev_handle->pollfd;
+
+		dev_handle_node = dev_handle_node->next;
+	}
+
+	pollfds[ctx->dev_handle_count] = nullptr;
 
 	return pollfds;
 }
@@ -563,22 +535,22 @@ void libusb_set_pollfd_notifiers(libusb_context *ctx,
                                  libusb_pollfd_added_callback added_callback,
                                  libusb_pollfd_removed_callback removed_callback,
                                  void *user_data) {
-	(void)ctx;
-	(void)added_callback;
-	(void)removed_callback;
-	(void)user_data;
+	ctx->pollfd_added_callback = added_callback;
+	ctx->pollfd_removed_callback = removed_callback;
+	ctx->pollfd_user_data = user_data;
 }
 
 int libusb_handle_events_timeout(libusb_context *ctx, struct timeval *tv) {
+	struct pollfd *pollfds;
 	int count = 0;
 	Node *dev_handle_node;
 	libusb_device_handle *dev_handle;
-	bool sparse;
-	Node *itransfer_node;
-	Node *itransfer_node_next;
+	int i;
+	int ready;
+	int rc;
+	usbfs_urb *urb;
 	usbi_transfer *itransfer;
 	struct libusb_transfer *transfer;
-    uint8_t byte;
 
 	if (ctx == nullptr) {
 		return LIBUSB_ERROR_INVALID_PARAM; // FIXME: no default context support
@@ -588,111 +560,117 @@ int libusb_handle_events_timeout(libusb_context *ctx, struct timeval *tv) {
 		return LIBUSB_ERROR_INVALID_PARAM; // FIXME: no timeout support
 	}
 
+	pollfds = (struct pollfd *)calloc(ctx->dev_handle_count, sizeof(struct pollfd));
+
+	if (pollfds == nullptr) {
+		return LIBUSB_ERROR_NO_MEM;
+	}
+
 	usbi_log_debug(ctx, "Handling events");
 
 	dev_handle_node = ctx->dev_handle_sentinel.next;
+	i = 0;
 
 	while (dev_handle_node != &ctx->dev_handle_sentinel) {
 		dev_handle = containerof(dev_handle_node, libusb_device_handle, node);
-		sparse = false;
-		itransfer_node = dev_handle->read_itransfer_sentinel.next;
 
-		while (itransfer_node != &dev_handle->read_itransfer_sentinel) {
-			itransfer_node_next = itransfer_node->next;
-			itransfer = containerof(itransfer_node, usbi_transfer, node);
-			transfer = &itransfer->transfer;
+		pollfds[i].fd = dev_handle->pollfd.fd;
+		pollfds[i].events = dev_handle->pollfd.events;
+		pollfds[i].revents = 0;
 
-			if (!itransfer->completed) {
-				sparse = true;
-			} else {
-				if (itransfer->triggered) {
-					usbi_log_debug(ctx, "Reading from event pipe for read transfer %p [%u]",
-					               transfer, itransfer->sequence_number);
+		dev_handle_node = dev_handle_node->next;
+		++i;
+	}
 
-					if (read(ctx->event_pipe[0], &byte, 1) != 1) {
-						usbi_log_error(ctx, "read failed: %d", errno); // FIXME
-					} else {
-						itransfer->triggered = false;
-					}
-				}
+	ready = poll(pollfds, ctx->dev_handle_count, 0);
 
-				if (!sparse || transfer->status != LIBUSB_TRANSFER_COMPLETED) {
-					usbi_log_debug(ctx, "Read transfer %p [%u] completed (length: %d, status: %d)",
-					               transfer, itransfer->sequence_number,
-					               transfer->actual_length, transfer->status);
-
-					node_remove(&itransfer->node);
-
-					//itransfer->load_operation->Close();
-
-					itransfer->submitted = false;
-					itransfer->completed = false;
-					//itransfer->reader = nullptr;
-					//itransfer->load_operation = nullptr;
-
-					usbi_log_debug(ctx, "Triggering callback for read transfer %p [%u]",
-					               transfer, itransfer->sequence_number);
-
-					transfer->callback(transfer); // might free or submit transfer
-
-					libusb_unref_device(dev_handle->dev);
-
-					++count;
-				}
-			}
-
-			itransfer_node = itransfer_node_next;
+	if (ready < 0) {
+		if (errno_interrupted()) {
+			rc = LIBUSB_ERROR_INTERRUPTED;
+		} else {
+			rc = LIBUSB_ERROR_IO;
 		}
 
-		itransfer_node = dev_handle->write_itransfer_sentinel.next;
+		usbi_log_error(ctx, "Count not poll on event source(s): %s (%d)",
+		               get_errno_name(errno), errno);
 
-		while (itransfer_node != &dev_handle->write_itransfer_sentinel) {
-			itransfer_node_next = itransfer_node->next;
-			itransfer = containerof(itransfer_node, usbi_transfer, node);
-			transfer = &itransfer->transfer;
+		free(pollfds);
 
-			if (itransfer->completed) {
-				if (itransfer->triggered) {
-					usbi_log_debug(ctx, "Reading from event pipe for write transfer %p [%u]",
-					               transfer, itransfer->sequence_number);
+		return rc;
+	}
 
-					if (read(ctx->event_pipe[0], &byte, 1) != 1) {
-						usbi_log_error(ctx, "read failed: %d", errno); // FIXME
-					} else {
-						itransfer->triggered = false;
-					}
-				}
+	dev_handle_node = ctx->dev_handle_sentinel.next;
+	i = 0;
 
-				node_remove(&itransfer->node);
+	while (dev_handle_node != &ctx->dev_handle_sentinel) {
+		dev_handle = containerof(dev_handle_node, libusb_device_handle, node);
 
-				//itransfer->store_operation->Close();
+		if (pollfds[i].revents != 0) {
+			if ((pollfds[i].revents & POLLERR) != 0) {
+				usbi_log_error(ctx, "POLLERR reported for device %s", // FIXME
+				               dev_handle->dev->name);
 
-				itransfer->submitted = false;
-				itransfer->completed = false;
-				//itransfer->writer = nullptr;
-				//itransfer->store_operation = nullptr;
-
-				usbi_log_debug(ctx, "Triggering callback for write transfer %p [%u]",
-				               transfer, itransfer->sequence_number);
-
-				transfer->callback(transfer); // might free or submit transfer
-
-				libusb_unref_device(dev_handle->dev);
-
-				++count;
+				continue;
 			}
 
-			itransfer_node = itransfer_node_next;
+			rc = ioctl(pollfds[i].fd, IOCTL_USBFS_REAPURBNDELAY, &urb);
+
+			if (rc < 0) {
+				if (errno_interrupted()) {
+					rc = LIBUSB_ERROR_INTERRUPTED;
+				} else if (errno == ENODEV) {
+					rc = LIBUSB_ERROR_NO_DEVICE;
+				} else {
+					rc = LIBUSB_ERROR_IO;
+				}
+
+				usbi_log_error(ctx, "Count not reap URB for device %s: %s (%d)",
+				               dev_handle->dev->name, get_errno_name(errno), errno);
+
+				free(pollfds);
+
+				return rc; // FIXME: make this non-fatal
+			}
+
+			itransfer = (usbi_transfer *)urb->user_context;
+			transfer = &itransfer->transfer;
+
+			itransfer->submitted = false;
+
+			if (urb->status == -ENOENT) {
+				transfer->status = LIBUSB_TRANSFER_CANCELLED;
+			} else if (urb->status == -ENODEV || urb->status == -ESHUTDOWN) {
+				transfer->status = LIBUSB_TRANSFER_NO_DEVICE;
+			} else if (urb->status == -EPIPE) {
+				transfer->status = LIBUSB_TRANSFER_STALL;
+			} else if (urb->status == -EOVERFLOW) {
+				transfer->status = LIBUSB_TRANSFER_OVERFLOW;
+			} else if (urb->status != 0) {
+				transfer->status = LIBUSB_TRANSFER_ERROR;
+			} else {
+				transfer->status = LIBUSB_TRANSFER_COMPLETED;
+			}
+
+			transfer->actual_length = urb->actual_length;
+
+			usbi_log_debug(ctx, "Triggering callback for %s transfer %p (urb-status: %d)",
+			               (LIBUSB_ENDPOINT_IN & transfer->endpoint) != 0 ? "read" : "write",
+			               transfer, urb->status);
+
+			transfer->callback(transfer); // might free or submit transfer
+
+			libusb_unref_device(dev_handle->dev);
+
+			++count;
 		}
 
 		dev_handle_node = dev_handle_node->next;
+		++i;
 	}
 
-	usbi_log_debug(ctx, "Handled %d event(s)", count);
+	free(pollfds);
 
-    if (count == 0) {
-        return LIBUSB_SUCCESS;
-    }
+	usbi_log_debug(ctx, "Handled %d event(s)", count);
 
 	return LIBUSB_SUCCESS;
 }
@@ -827,8 +805,8 @@ void libusb_free_config_descriptor(struct libusb_config_descriptor *config) {
 int libusb_open(libusb_device *dev, libusb_device_handle **dev_handle_ptr) {
 	libusb_context *ctx = dev->ctx;
 	libusb_device_handle *dev_handle;
-    jmethodID open_device_mid;
-    jobject connection;
+	jmethodID open_device_mid;
+	int fd;
 
 	dev_handle = (libusb_device_handle *)calloc(1, sizeof(libusb_device_handle));
 
@@ -838,28 +816,31 @@ int libusb_open(libusb_device *dev, libusb_device_handle **dev_handle_ptr) {
 		return LIBUSB_ERROR_NO_MEM;
 	}
 
-    open_device_mid = android_env->GetMethodID(android_env->GetObjectClass(android_service), "openDevice",
-                                               "(Landroid/hardware/usb/UsbDevice;)Landroid/hardware/usb/UsbDeviceConnection;"); // FIXME: check result
-    connection = android_env->CallObjectMethod(android_service, open_device_mid, dev->device); // FIXME: check result
+	open_device_mid = android_env->GetMethodID(android_env->GetObjectClass(android_service), "openDevice",
+	                                           "(Landroid/hardware/usb/UsbDevice;)I"); // FIXME: check result
+	fd = android_env->CallIntMethod(android_service, open_device_mid, dev->device); // FIXME: check result
 
-	/*if (connection == nullptr) { // FIXME
+	if (fd < 0) {
 		free(dev_handle);
 
 		return LIBUSB_ERROR_NO_DEVICE;
-	}*/
+	}
 
-    dev_handle->connection = android_env->NewGlobalRef(connection); // FIXME: check result
 	dev_handle->dev = libusb_ref_device(dev);
-
-	node_reset(&dev_handle->read_itransfer_sentinel);
-	node_reset(&dev_handle->write_itransfer_sentinel);
+	dev_handle->pollfd.fd = fd;
+	dev_handle->pollfd.events = POLLOUT;
 
 	node_insert_before(&ctx->dev_handle_sentinel, &dev_handle->node);
+	++ctx->dev_handle_count;
 
 	*dev_handle_ptr = dev_handle;
 
-	usbi_log_debug(ctx, "Opened device %p (context: %p, name: %s)",
-	               dev, ctx, dev->name);
+	usbi_log_debug(ctx, "Opened device %p (context: %p, name: %s, fd: %d)",
+	               dev, ctx, dev->name, dev_handle->pollfd.fd);
+
+	if (ctx->pollfd_added_callback != nullptr) {
+		ctx->pollfd_added_callback(dev_handle->pollfd.fd, dev_handle->pollfd.events, ctx->pollfd_user_data);
+	}
 
 	return LIBUSB_SUCCESS;
 }
@@ -867,18 +848,21 @@ int libusb_open(libusb_device *dev, libusb_device_handle **dev_handle_ptr) {
 void libusb_close(libusb_device_handle *dev_handle) {
 	libusb_device *dev = dev_handle->dev;
 	libusb_context *ctx = dev->ctx;
-    jmethodID close_device_mid;
+	jmethodID close_device_mid;
 
-	usbi_log_debug(ctx, "Closing device %p (context: %p, name: %s)",
-	               dev, ctx, dev->name);
+	if (ctx->pollfd_removed_callback != nullptr) {
+		ctx->pollfd_removed_callback(dev_handle->pollfd.fd, ctx->pollfd_user_data);
+	}
 
+	usbi_log_debug(ctx, "Closing device %p (context: %p, name: %s, fd: %d)",
+	               dev, ctx, dev->name, dev_handle->pollfd.fd);
 
-    close_device_mid = android_env->GetMethodID(android_env->GetObjectClass(android_service), "closeDevice",
-                                                "(Landroid/hardware/usb/UsbDeviceConnection;)V"); // FIXME: check result
-
-    android_env->CallVoidMethod(android_service, close_device_mid, dev_handle->connection); // FIXME: check result
+	close_device_mid = android_env->GetMethodID(android_env->GetObjectClass(android_service),
+	                                            "closeDevice", "(I)V"); // FIXME: check result
+	android_env->CallVoidMethod(android_service, close_device_mid, dev_handle->pollfd.fd); // FIXME: check result
 
 	node_remove(&dev_handle->node);
+	--ctx->dev_handle_count;
 
 	libusb_unref_device(dev_handle->dev);
 
@@ -892,7 +876,8 @@ libusb_device *libusb_get_device(libusb_device_handle *dev_handle) {
 int libusb_get_string_descriptor_ascii(libusb_device_handle *dev_handle,
                                        uint8_t desc_index, unsigned char *data,
                                        int length) {
-    libusb_context *ctx = dev_handle->dev->ctx;
+	libusb_context *ctx = dev_handle->dev->ctx;
+	usbfs_control_transfer control;
 	int rc;
 	unsigned char buffer[255];
 	uint16_t language_id;
@@ -903,26 +888,22 @@ int libusb_get_string_descriptor_ascii(libusb_device_handle *dev_handle,
 		return LIBUSB_ERROR_INVALID_PARAM;
 	}
 
-    // get language ID
-	rc = usbi_get_string_descriptor(dev_handle, 0, 0, buffer, sizeof(buffer));
+    control.bmRequestType = 0x81; // 0x81 == direction: in, type: standard, recipient: device
+    control.bRequest = 0x06; // 0x06 == get-descriptor
+    control.wValue = (uint16_t)(0x03 << 8) | desc_index; // 0x03 == string-descriptor
+    control.wIndex = 0; // language ID
+    control.wLength = (uint16_t)length;
+    control.timeout = 0; // FIXME
+    control.data = buffer;
+
+	rc = ioctl(dev_handle->pollfd.fd, IOCTL_USBFS_CONTROL, &control);
 
 	if (rc < 0) {
-		return rc;
-	}
-
-	if (rc < 4) {
-		return LIBUSB_ERROR_IO;
-	}
-
-	language_id = 0;//(buffer[3] << 8) | buffer[2];
-
-    usbi_log_info(ctx, "language_id %04X", language_id);
-
-    // get string descriptor
-	rc = usbi_get_string_descriptor(dev_handle, desc_index, language_id, buffer, sizeof(buffer));
-
-	if (rc < 0) {
-		return rc;
+		if (errno == ENODEV) {
+			return LIBUSB_ERROR_NO_DEVICE;
+		} else {
+			return LIBUSB_ERROR_OTHER;
+		}
 	}
 
 	if (buffer[1] != USBI_DESCRIPTOR_TYPE_STRING) {
@@ -951,25 +932,43 @@ int libusb_get_string_descriptor_ascii(libusb_device_handle *dev_handle,
 }
 
 int libusb_claim_interface(libusb_device_handle *dev_handle, int interface_number) {
-    jmethodID claim_interface_mid;
-    jboolean result;
+	libusb_context *ctx = dev_handle->dev->ctx;
+	int rc = ioctl(dev_handle->pollfd.fd, IOCTL_USBFS_CLAIMINTF, &interface_number);
 
-    claim_interface_mid = android_env->GetMethodID(android_env->GetObjectClass(android_service), "claimInterface",
-                                       "(Landroid/hardware/usb/UsbDevice;Landroid/hardware/usb/UsbDeviceConnection;I)Z"); // FIXME: check result
-    result = android_env->CallBooleanMethod(android_service, claim_interface_mid, dev_handle->dev->device, dev_handle->connection, interface_number); // FIXME: check result
+	if (rc < 0) {
+		if (errno == ENOENT) {
+			return LIBUSB_ERROR_NOT_FOUND;
+		} else if (errno == EBUSY) {
+			return LIBUSB_ERROR_BUSY;
+		} else if (errno == ENODEV) {
+			return LIBUSB_ERROR_NO_DEVICE;
+		} else {
+			usbi_log_error(ctx, "Could not claim interface %d: %s (%d)",
+			               interface_number, get_errno_name(errno), errno);
 
-    return result ? LIBUSB_SUCCESS : LIBUSB_ERROR_OTHER;
+			return LIBUSB_ERROR_OTHER;
+		}
+	}
+
+	return LIBUSB_SUCCESS;
 }
 
 int libusb_release_interface(libusb_device_handle *dev_handle, int interface_number) {
-    jmethodID release_interface_mid;
-    jboolean result;
+	libusb_context *ctx = dev_handle->dev->ctx;
+	int rc = ioctl(dev_handle->pollfd.fd, IOCTL_USBFS_RELEASEINTF, &interface_number);
 
-    release_interface_mid = android_env->GetMethodID(android_env->GetObjectClass(android_service), "releaseInterface",
-                                                     "(Landroid/hardware/usb/UsbDevice;Landroid/hardware/usb/UsbDeviceConnection;I)Z"); // FIXME: check result
-    result = android_env->CallBooleanMethod(android_service, release_interface_mid, dev_handle->dev->device, dev_handle->connection, interface_number); // FIXME: check result
+	if (rc < 0) {
+		if (errno == ENODEV) {
+			return LIBUSB_ERROR_NO_DEVICE;
+		} else {
+			usbi_log_error(ctx, "Could not release interface %d: %s (%d)",
+			               interface_number, get_errno_name(errno), errno);
 
-    return result ? LIBUSB_SUCCESS : LIBUSB_ERROR_OTHER;
+			return LIBUSB_ERROR_OTHER;
+		}
+	}
+
+	return LIBUSB_SUCCESS;
 }
 
 struct libusb_transfer *libusb_alloc_transfer(int iso_packets) {
@@ -986,9 +985,8 @@ struct libusb_transfer *libusb_alloc_transfer(int iso_packets) {
 	}
 
 	itransfer->submitted = false;
-	itransfer->completed = false;
-    itransfer->sequence_number = 0;
-    itransfer->request = nullptr;
+	itransfer->urb.type = USBI_USBFS_URB_TYPE_BULK;
+	itransfer->urb.user_context = itransfer;
 
 	return &itransfer->transfer;
 }
@@ -997,12 +995,11 @@ int libusb_submit_transfer(struct libusb_transfer *transfer) {
 	usbi_transfer *itransfer = (usbi_transfer *)transfer;
 	libusb_device_handle *dev_handle = transfer->dev_handle;
 	libusb_context *ctx = dev_handle->dev->ctx;
-    jobject opaque;
-    jobject buffer;
-    jmethodID submit_transter_mid;
-    jobject request;
+	usbfs_urb *urb = &itransfer->urb;
+	int rc;
 
-	if (transfer->timeout != 0 || transfer->callback == nullptr) {
+	if (transfer->type != LIBUSB_TRANSFER_TYPE_BULK ||
+		transfer->timeout != 0 || transfer->callback == nullptr) {
 		return LIBUSB_ERROR_INVALID_PARAM;
 	}
 
@@ -1010,66 +1007,65 @@ int libusb_submit_transfer(struct libusb_transfer *transfer) {
 		return LIBUSB_ERROR_BUSY;
 	}
 
-    opaque = android_env->NewDirectByteBuffer(itransfer, sizeof(usbi_transfer)); // FIXME: check result
-    buffer = android_env->NewDirectByteBuffer(transfer->buffer, transfer->length); // FIXME: check result
+	libusb_ref_device(dev_handle->dev);
 
-    libusb_ref_device(dev_handle->dev);
+	itransfer->submitted = true;
 
-    itransfer->submitted = true;
+	urb->status = INT32_MIN;
+	urb->endpoint = transfer->endpoint;
+	urb->buffer = transfer->buffer;
+	urb->buffer_length = transfer->length;
 
-    if ((LIBUSB_ENDPOINT_IN & transfer->endpoint) != 0) {
-        itransfer->sequence_number = _next_read_itransfer_sequence_number++;
-    } else {
-        itransfer->sequence_number = _next_write_itransfer_sequence_number++;
-    }
+	rc = ioctl(dev_handle->pollfd.fd, IOCTL_USBFS_SUBMITURB, urb);
 
-    submit_transter_mid = android_env->GetMethodID(android_env->GetObjectClass(android_service), "submitTransfer",
-                                                   "(Landroid/hardware/usb/UsbDevice;Landroid/hardware/usb/UsbDeviceConnection;ILjava/nio/ByteBuffer;Ljava/nio/ByteBuffer;)Landroid/hardware/usb/UsbRequest;"); // FIXME: check result
-    request = android_env->CallObjectMethod(android_service, submit_transter_mid, dev_handle->dev->device, dev_handle->connection, transfer->endpoint, buffer, opaque); // FIXME: check result
+	if (rc < 0) {
+		if (errno == ENODEV) {
+			rc = LIBUSB_ERROR_NO_DEVICE;
+		} else {
+			rc = LIBUSB_ERROR_IO;
+		}
 
-    if (request == nullptr) {
-        if ((LIBUSB_ENDPOINT_IN & transfer->endpoint) != 0) {
-            usbi_log_error(ctx, "Could not submit read transfer %p [%u] (length: %d): <error>", // FIXME
-                           transfer, itransfer->sequence_number, transfer->length);
-        } else {
-            usbi_log_error(ctx, "Could not submit write transfer %p [%u] (length: %d): <error>", // FIXME
-                           transfer, itransfer->sequence_number, transfer->length);
-        }
+		itransfer->submitted = false;
 
-        itransfer->submitted = false;
+		libusb_unref_device(dev_handle->dev);
 
-        libusb_unref_device(dev_handle->dev);
+		usbi_log_error(ctx, "Could not submit %s transfer %p (length: %d): %s (%d)",
+		               (LIBUSB_ENDPOINT_IN & transfer->endpoint) != 0 ? "read" : "write",
+		               transfer, transfer->length, get_errno_name(errno), errno);
 
-        return LIBUSB_ERROR_NO_DEVICE; // FIXME: assumes that this happend because of device hotunplug, could also be LIBUSB_ERROR_NOT_FOUND
-    } else {
-        itransfer->request = android_env->NewGlobalRef(request); // FIXME: check result
+		free(urb);
 
-        if ((LIBUSB_ENDPOINT_IN & transfer->endpoint) != 0) {
-            node_insert_before(&dev_handle->read_itransfer_sentinel,
-                               &itransfer->node);
-        } else {
-            node_insert_before(&dev_handle->write_itransfer_sentinel,
-                               &itransfer->node);
-        }
-    }
+		return rc;
+	}
 
 	return LIBUSB_SUCCESS;
 }
 
 int libusb_cancel_transfer(struct libusb_transfer *transfer) {
-	usbi_transfer *itransfer = (usbi_transfer *)transfer;
+	usbi_transfer *itransfer = (usbi_transfer *) transfer;
+	libusb_device_handle *dev_handle = transfer->dev_handle;
+	libusb_context *ctx = dev_handle->dev->ctx;
+	usbfs_urb *urb = &itransfer->urb;
+	int rc = ioctl(dev_handle->pollfd.fd, IOCTL_USBFS_DISCARDURB, urb);
 
-	/*if (itransfer->load_operation != nullptr) {
-		itransfer->load_operation->Cancel();
+	if (rc < 0) {
+		if (errno == EINVAL) {
+			return LIBUSB_ERROR_NOT_FOUND;
+		} else if (errno == ENODEV) {
+			return LIBUSB_ERROR_NO_DEVICE;
+		} else {
+			usbi_log_error(ctx, "Could not cancel %s transfer %p (length: %d): %s (%d)",
+			               (LIBUSB_ENDPOINT_IN & transfer->endpoint) != 0 ? "read" : "write",
+			               transfer, transfer->length, get_errno_name(errno), errno);
+
+			return LIBUSB_ERROR_OTHER;
+		}
 	}
-
-	if (itransfer->store_operation != nullptr) {
-		itransfer->store_operation->Cancel();
-	}*/
 
 	return LIBUSB_SUCCESS;
 }
 
+// NOTE: assumes that transfer is not submitted
 void libusb_free_transfer(struct libusb_transfer *transfer) {
 	usbi_transfer *itransfer = (usbi_transfer *)transfer;
 
@@ -1083,6 +1079,7 @@ void libusb_fill_bulk_transfer(struct libusb_transfer *transfer,
                                void *user_data, unsigned int timeout) {
 	transfer->dev_handle = dev_handle;
 	transfer->endpoint = endpoint;
+	transfer->type = LIBUSB_TRANSFER_TYPE_BULK;
 	transfer->timeout = timeout;
 	transfer->buffer = buffer;
 	transfer->length = length;
@@ -1092,39 +1089,4 @@ void libusb_fill_bulk_transfer(struct libusb_transfer *transfer,
 
 void libusb_set_log_callback(libusb_log_callback callback) {
 	_log_callback = callback;
-}
-
-extern "C" JNIEXPORT void JNICALL
-Java_com_tinkerforge_brickd_MainService_transferred(JNIEnv *env, jobject /* this */, jobject opaque, jint length) {
-    usbi_transfer *itransfer = (usbi_transfer *)env->GetDirectBufferAddress(opaque); // FIXME: check result
-    struct libusb_transfer *transfer = &itransfer->transfer;
-    libusb_context *ctx = transfer->dev_handle->dev->ctx;
-    uint8_t byte = 0;
-
-    if (length < 0) {
-        transfer->status = LIBUSB_TRANSFER_ERROR; // FIXME
-    } else {
-        transfer->status = LIBUSB_TRANSFER_COMPLETED;
-        transfer->actual_length = length;
-    }
-
-    env->DeleteGlobalRef(itransfer->request); // FIXME: check result
-
-    itransfer->triggered = true;
-    itransfer->completed = true;
-    itransfer->request = nullptr;
-
-    if ((transfer->endpoint & LIBUSB_ENDPOINT_IN) != 0) {
-        usbi_log_debug(ctx, "Read transfer %p [%u] completed (length: %d, status: %d)",
-                       transfer, itransfer->sequence_number,
-                       transfer->actual_length, transfer->status);
-    } else {
-        usbi_log_debug(ctx, "Write transfer %p [%u] completed (length: %d, status: %d)",
-                       transfer, itransfer->sequence_number,
-                       transfer->actual_length, transfer->status);
-    }
-
-    if (write(ctx->event_pipe[1], &byte, 1) != 1) {
-        usbi_log_error(ctx, "write failed: %d", errno); // FIXME
-    }
 }

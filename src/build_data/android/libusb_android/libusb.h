@@ -98,6 +98,14 @@ enum libusb_transfer_status {
 	LIBUSB_TRANSFER_OVERFLOW,
 };
 
+enum libusb_transfer_type {
+	LIBUSB_TRANSFER_TYPE_CONTROL = 0,
+	LIBUSB_TRANSFER_TYPE_ISOCHRONOUS = 1,
+	LIBUSB_TRANSFER_TYPE_BULK = 2,
+	LIBUSB_TRANSFER_TYPE_INTERRUPT = 3,
+	LIBUSB_TRANSFER_TYPE_BULK_STREAM = 4
+};
+
 struct libusb_transfer;
 
 typedef void (*libusb_transfer_callback)(struct libusb_transfer *transfer);
@@ -105,6 +113,7 @@ typedef void (*libusb_transfer_callback)(struct libusb_transfer *transfer);
 struct libusb_transfer {
 	libusb_device_handle *dev_handle;
 	unsigned char endpoint;
+	unsigned char type;
 	unsigned int timeout;
 	enum libusb_transfer_status status;
 	int length;

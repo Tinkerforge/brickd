@@ -2,8 +2,6 @@ package com.tinkerforge.brickd;
 
 import android.hardware.usb.UsbInterface;
 
-import java.util.Arrays;
-
 public class USBInterfaceInfo {
     public int numEndpoints;
     public int[] endpointAddresses;
@@ -15,7 +13,5 @@ public class USBInterfaceInfo {
         for (int i = 0; i < numEndpoints; ++i) {
             endpointAddresses[i] = iface.getEndpoint(i).getAddress();
         }
-
-        System.out.println("USBInterfaceInfo: " + Arrays.toString(endpointAddresses));
     }
 }
