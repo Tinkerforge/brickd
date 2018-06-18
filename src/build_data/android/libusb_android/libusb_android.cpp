@@ -458,7 +458,7 @@ int libusb_init(libusb_context **ctx_ptr) {
 		return LIBUSB_ERROR_INVALID_PARAM; // FIXME: no default context support
 	}
 
-    ctx = (libusb_context *)calloc(1, sizeof(libusb_context));
+	ctx = (libusb_context *)calloc(1, sizeof(libusb_context));
 
 	if (ctx == nullptr) {
 		return LIBUSB_ERROR_NO_MEM;
@@ -468,7 +468,7 @@ int libusb_init(libusb_context **ctx_ptr) {
 
 	node_reset(&ctx->dev_handle_sentinel);
 
-    ctx->dev_handle_count = 0;
+	ctx->dev_handle_count = 0;
 
 	*ctx_ptr = ctx;
 
@@ -906,13 +906,13 @@ int libusb_get_string_descriptor_ascii(libusb_device_handle *dev_handle,
 		return LIBUSB_ERROR_INVALID_PARAM;
 	}
 
-    control.bmRequestType = 0x81; // 0x81 == direction: in, type: standard, recipient: device
-    control.bRequest = 0x06; // 0x06 == get-descriptor
-    control.wValue = (uint16_t)(0x03 << 8) | desc_index; // 0x03 == string-descriptor
-    control.wIndex = 0; // language ID
-    control.wLength = (uint16_t)length;
-    control.timeout = 0; // FIXME
-    control.data = buffer;
+	control.bmRequestType = 0x81; // 0x81 == direction: in, type: standard, recipient: device
+	control.bRequest = 0x06; // 0x06 == get-descriptor
+	control.wValue = (uint16_t)(0x03 << 8) | desc_index; // 0x03 == string-descriptor
+	control.wIndex = 0; // language ID
+	control.wLength = (uint16_t)length;
+	control.timeout = 0; // FIXME
+	control.data = buffer;
 
 	rc = ioctl(dev_handle->pollfd.fd, IOCTL_USBFS_CONTROL, &control);
 
