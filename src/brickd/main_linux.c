@@ -54,6 +54,9 @@
 #ifdef BRICKD_WITH_LIBUDEV
 	#include "udev.h"
 #endif
+#ifdef BRICKD_WITH_BRICKLET
+	#include "bricklet.h"
+#endif
 #include "usb.h"
 #include "mesh.h"
 #include "version.h"
@@ -389,6 +392,14 @@ int main(int argc, char **argv) {
 	red_led_set_trigger(RED_LED_RED, config_get_option_value("led_trigger.red")->symbol);
 #endif
 
+#ifdef BRICKD_WITH_BRICKLET
+	phase = 17;
+
+	if (bricklet_init() < 0) {
+		goto cleanup;
+	}
+#endif
+
 	if (event_run(handle_event_cleanup) < 0) {
 		goto cleanup;
 	}
@@ -403,6 +414,12 @@ int main(int argc, char **argv) {
 
 cleanup:
 	switch (phase) { // no breaks, all cases fall through intentionally
+#ifdef BRICKD_WITH_BRICKLET
+	case 17:
+		bricklet_exit();
+		// fall through
+#endif
+
 #ifdef BRICKD_WITH_RED_BRICK
 	case 16:
 		red_usb_gadget_exit();

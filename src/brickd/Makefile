@@ -29,6 +29,7 @@ WITH_USB_REOPEN_ON_SIGUSR1 ?= yes
 WITH_PM_UTILS ?= check
 WITH_SYSTEMD ?= check
 WITH_RED_BRICK ?= check
+WITH_BRICKLET ?= check
 WITH_MESH_SINGLE_ROOT_NODE ?= no
 
 ## RULES ######################################################################
@@ -206,7 +207,6 @@ SOURCES_DAEMONLIB := $(call FIX_PATH,../daemonlib/array.c) \
                      $(call FIX_PATH,../daemonlib/writer.c)
 
 SOURCES_BRICKD := base64.c \
-                  bricklet.c \
                   client.c \
                   config_options.c \
                   hardware.c \
@@ -253,7 +253,11 @@ ifeq ($(WITH_EPOLL),yes)
 else
 	SOURCES_DAEMONLIB += ../daemonlib/event_posix.c
 endif
-	SOURCES_BRICKD += main_linux.c
+	SOURCES_BRICKD += main_linux.c 
+
+ifeq ($(WITH_BRICKLET),yes)
+	SOURCES_BRICKD += bricklet.c
+endif
 endif
 
 ifeq ($(PLATFORM),Darwin)
@@ -461,6 +465,10 @@ ifneq ($(WITH_RED_BRICK),no)
 	CFLAGS += -DBRICKD_WITH_RED_BRICK=${WITH_RED_BRICK}
 endif
 
+ifeq ($(WITH_BRICKLET),yes)
+	CFLAGS += -DBRICKD_WITH_BRICKLET
+endif
+
 ifeq ($(WITH_MESH_SINGLE_ROOT_NODE),yes)
 	CFLAGS += -DBRICKD_WITH_MESH_SINGLE_ROOT_NODE
 endif
@@ -482,6 +490,7 @@ $(info - packet-trace:          $(WITH_PACKET_TRACE))
 $(info - debug:                 $(WITH_DEBUG))
 $(info - gprof:                 $(WITH_GPROF))
 $(info - red-brick:             $(WITH_RED_BRICK))
+$(info - bricklet:              $(WITH_BRICKLET))
 $(info - hotplug:               $(HOTPLUG))
 $(info - mesh-single-root-node: $(WITH_MESH_SINGLE_ROOT_NODE))
 $(info options:)
