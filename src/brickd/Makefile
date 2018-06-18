@@ -206,6 +206,7 @@ SOURCES_DAEMONLIB := $(call FIX_PATH,../daemonlib/array.c) \
                      $(call FIX_PATH,../daemonlib/writer.c)
 
 SOURCES_BRICKD := base64.c \
+                  bricklet.c \
                   client.c \
                   config_options.c \
                   hardware.c \
