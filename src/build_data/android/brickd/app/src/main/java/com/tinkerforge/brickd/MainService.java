@@ -25,33 +25,43 @@ public class MainService extends Service {
 
     public native void main(MainService service);
     public native void interrupt();
+    public native void hotplug();
 
     private static final String ACTION_USB_PERMISSION = "com.tinkerforge.brickd.USB_PERMISSION";
 
-    private UsbManager manager;
-    private PendingIntent permissionIntent;
-    private Thread thread;
-    private Map<Integer, UsbDeviceConnection> openConnections = new Hashtable<Integer, UsbDeviceConnection>();
+    private UsbManager mManager;
+    private PendingIntent mPermissionIntent;
+    private Thread mThread;
+    private Map<Integer, UsbDeviceConnection> mOpenConnections = new Hashtable<Integer, UsbDeviceConnection>();
 
-    private final BroadcastReceiver receiver = new BroadcastReceiver() {
+    private final BroadcastReceiver mPermissionReceiver = new BroadcastReceiver() {
         public void onReceive(Context context, Intent intent) {
             String action = intent.getAction();
 
             if (ACTION_USB_PERMISSION.equals(action)) {
-                synchronized (this) {
-                    UsbDevice device = intent.getParcelableExtra(UsbManager.EXTRA_DEVICE);
+                UsbDevice device = intent.getParcelableExtra(UsbManager.EXTRA_DEVICE);
 
-                    if (intent.getBooleanExtra(UsbManager.EXTRA_PERMISSION_GRANTED, false)) {
-                        if(device != null) {
-                            synchronized (context) {
-                                context.notifyAll();
-                            }
+                if (intent.getBooleanExtra(UsbManager.EXTRA_PERMISSION_GRANTED, false)) {
+                    if(device != null) {
+                        synchronized (context) {
+                            context.notifyAll();
                         }
                     }
-                    else {
-                        Log.d("brickd", "permission denied for device " + device.getDeviceName());
-                    }
                 }
+                else {
+                    Log.d("brickd", "permission denied for device " + device.getDeviceName());
+                }
+            }
+        }
+    };
+
+    BroadcastReceiver mHotplugReceiver = new BroadcastReceiver() {
+        public void onReceive(Context context, Intent intent) {
+            String action = intent.getAction();
+
+            if (UsbManager.ACTION_USB_DEVICE_ATTACHED.equals(action) ||
+                    UsbManager.ACTION_USB_DEVICE_DETACHED.equals(action)) {
+                hotplug();
             }
         }
     };
@@ -66,10 +76,12 @@ public class MainService extends Service {
 
     @Override
     public void onCreate() {
-        manager = (UsbManager)getSystemService(Context.USB_SERVICE);
-        permissionIntent = PendingIntent.getBroadcast(this, 0, new Intent(ACTION_USB_PERMISSION), 0);
+        mManager = (UsbManager)getSystemService(Context.USB_SERVICE);
+        mPermissionIntent = PendingIntent.getBroadcast(this, 0, new Intent(ACTION_USB_PERMISSION), 0);
 
-        registerReceiver(receiver, new IntentFilter(ACTION_USB_PERMISSION));
+        registerReceiver(mPermissionReceiver, new IntentFilter(ACTION_USB_PERMISSION));
+        registerReceiver(mHotplugReceiver, new IntentFilter(UsbManager.ACTION_USB_DEVICE_ATTACHED));
+        registerReceiver(mHotplugReceiver, new IntentFilter(UsbManager.ACTION_USB_DEVICE_DETACHED));
     }
 
     @Override
@@ -77,25 +89,26 @@ public class MainService extends Service {
         interrupt();
 
         try {
-            thread.join(); // FIXME: use timeout?
+            mThread.join(); // FIXME: use timeout?
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
 
-        unregisterReceiver(receiver);
+        unregisterReceiver(mPermissionReceiver);
+        unregisterReceiver(mHotplugReceiver);
     }
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startid) {
-        if (thread == null) {
-            thread = new Thread(new Runnable() {
+        if (mThread == null) {
+            mThread = new Thread(new Runnable() {
                 @Override
                 public void run() {
                     main(MainService.this);
                 }
             });
 
-            thread.start();
+            mThread.start();
         }
 
         return START_NOT_STICKY;
@@ -103,7 +116,7 @@ public class MainService extends Service {
 
     @Keep
     public USBDeviceInfo[] getDeviceList() {
-        HashMap<String, UsbDevice> deviceList = manager.getDeviceList();
+        HashMap<String, UsbDevice> deviceList = mManager.getDeviceList();
         Iterator<UsbDevice> deviceIterator = deviceList.values().iterator();
         USBDeviceInfo[] deviceInfos = new USBDeviceInfo[deviceList.size()];
         int i = 0;
@@ -121,9 +134,9 @@ public class MainService extends Service {
     public int openDevice(UsbDevice device) {
         Log.d("brickd","openDevice 1 " + device.getDeviceName());
 
-        if (!manager.hasPermission(device)) {
+        if (!mManager.hasPermission(device)) {
             Log.d("brickd", "requestPermission 1 " + device.getDeviceName());
-            manager.requestPermission(device, permissionIntent);
+            mManager.requestPermission(device, mPermissionIntent);
             Log.d("brickd", "requestPermission 2 " + device.getDeviceName());
 
             try {
@@ -140,7 +153,7 @@ public class MainService extends Service {
 
         Log.d("brickd","openDevice 2 " + device.getDeviceName());
 
-        UsbDeviceConnection connection = manager.openDevice(device);
+        UsbDeviceConnection connection = mManager.openDevice(device);
 
         if (connection == null) {
             return -1;
@@ -156,14 +169,14 @@ public class MainService extends Service {
             return -1;
         }
 
-        openConnections.put(fd, connection);
+        mOpenConnections.put(fd, connection);
 
         return fd;
     }
 
     @Keep
     public void closeDevice(int fd) {
-        UsbDeviceConnection connection = openConnections.remove(fd);
+        UsbDeviceConnection connection = mOpenConnections.remove(fd);
 
         if (connection != null) {
             connection.close();

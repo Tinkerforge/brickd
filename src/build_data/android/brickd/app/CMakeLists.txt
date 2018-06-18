@@ -46,21 +46,20 @@ add_library( brickd-android
              ../../../../brickd/hardware.c
              ../../../../brickd/hmac.c
              ../../../../brickd/log_android.c
+             ../../../../brickd/main_android.cpp
              ../../../../brickd/mesh.c
              ../../../../brickd/mesh_stack.c
              ../../../../brickd/network.c
              ../../../../brickd/sha1.c
              ../../../../brickd/stack.c
              ../../../../brickd/usb.c
-             ../../../../brickd/usb_posix.c
+             ../../../../brickd/usb_android.cpp
              ../../../../brickd/usb_stack.c
              ../../../../brickd/usb_transfer.c
              ../../../../brickd/websocket.c
              ../../../../brickd/zombie.c
 
-             ../../libusb_android/libusb_android.cpp
-
-             ../../../../brickd/main_android.cpp )
+             ../../libusb_android/libusb_android.cpp )
 
 # Searches for a specified prebuilt library and stores the path as a
 # variable. Because CMake includes system libraries in the search path by

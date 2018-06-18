@@ -97,6 +97,7 @@ typedef struct {
 
 typedef struct {
 	struct libusb_transfer transfer;
+	Node node;
 	usbfs_urb urb;
 	bool submitted;
 } usbi_transfer;
@@ -125,6 +126,7 @@ struct _libusb_device_handle {
 	libusb_device *dev;
 	struct libusb_pollfd pollfd;
 	bool disconnected;
+	Node itransfer_sentinel;
 };
 
 static libusb_log_callback _log_callback;
@@ -552,6 +554,8 @@ int libusb_handle_events_timeout(libusb_context *ctx, struct timeval *tv) {
 	int ready;
 	int rc;
 	usbfs_urb *urb;
+	Node *itransfer_node;
+	Node *itransfer_node_next;
 	usbi_transfer *itransfer;
 	struct libusb_transfer *transfer;
 
@@ -606,6 +610,8 @@ int libusb_handle_events_timeout(libusb_context *ctx, struct timeval *tv) {
 		return rc;
 	}
 
+	usbi_log_debug(ctx, "Poll returned %d of %d USB devices(s) as ready", ready, i);
+
 	i = 0;
 
 	for (dev_handle_node = ctx->dev_handle_sentinel.next;
@@ -619,14 +625,38 @@ int libusb_handle_events_timeout(libusb_context *ctx, struct timeval *tv) {
 
 		if (pollfds[i].revents != 0) {
 			if ((pollfds[i].revents & POLLERR) != 0) {
-				dev_handle->disconnected = true;
 
-				usbi_log_debug(ctx, "USB device %s got disconnected",
+				usbi_log_debug(ctx, "Poll for USB device %s returned POLLERR, probably got disconnected",
 				               dev_handle->dev->name);
+
+				dev_handle->disconnected = true;
 
 				if (ctx->pollfd_removed_callback != nullptr) {
 					ctx->pollfd_removed_callback(dev_handle->pollfd.fd, ctx->pollfd_user_data);
 				}
+
+				for (itransfer_node = dev_handle->itransfer_sentinel.next;
+					 itransfer_node != &dev_handle->itransfer_sentinel;
+					 itransfer_node = itransfer_node_next) {
+					itransfer_node_next = itransfer_node->next;
+					itransfer = containerof(itransfer_node, usbi_transfer, node);
+					transfer = &itransfer->transfer;
+
+					node_remove(&itransfer->node);
+
+					itransfer->submitted = false;
+					transfer->status = LIBUSB_TRANSFER_NO_DEVICE;
+					transfer->actual_length = 0;
+
+					usbi_log_debug(ctx, "USB device for %s transfer %p probably got disconnected",
+					               (LIBUSB_ENDPOINT_IN & transfer->endpoint) != 0 ? "read" : "write");
+
+					transfer->callback(transfer); // might free or submit transfer
+
+					libusb_unref_device(dev_handle->dev);
+				}
+
+				++count;
 
 				continue;
 			}
@@ -652,6 +682,8 @@ int libusb_handle_events_timeout(libusb_context *ctx, struct timeval *tv) {
 
 			itransfer = (usbi_transfer *)urb->user_context;
 			transfer = &itransfer->transfer;
+
+			node_remove(&itransfer->node);
 
 			itransfer->submitted = false;
 
@@ -847,6 +879,8 @@ int libusb_open(libusb_device *dev, libusb_device_handle **dev_handle_ptr) {
 	dev_handle->pollfd.fd = fd;
 	dev_handle->pollfd.events = POLLOUT;
 	dev_handle->disconnected = false;
+
+	node_reset(&dev_handle->itransfer_sentinel);
 
 	node_insert_before(&ctx->dev_handle_sentinel, &dev_handle->node);
 	++ctx->dev_handle_count;
@@ -1053,6 +1087,8 @@ int libusb_submit_transfer(struct libusb_transfer *transfer) {
 
 		return rc;
 	}
+
+	node_insert_before(&dev_handle->itransfer_sentinel, &itransfer->node);
 
 	return LIBUSB_SUCCESS;
 }
