@@ -23,4 +23,15 @@
 #ifndef BRICKD_BRICKLET_H
 #define BRICKD_BRICKLET_H
 
+#include "stack.h"
+
+typedef struct {
+    Stack base;
+
+    char spi_device[64]; // e.g. "/dev/spidev0.0";
+} Bricklet;
+
+int bricklet_init(void);
+void bricklet_exit(void);
+
 #endif // BRICKD_BRICKLET_H
