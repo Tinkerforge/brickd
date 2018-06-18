@@ -21,9 +21,9 @@
 
 // https://developer.android.com/guide/topics/connectivity/usb/host
 
-#include <string>
-#include <map>
 #include <jni.h>
+#include <stdlib.h>
+#include <string.h>
 #include <errno.h>
 #include <unistd.h>
 #include <poll.h>
@@ -108,8 +108,8 @@ struct _libusb_device {
 	int ref_count;
 	char *name;
 	jobject device; // UsbDevice
-	uint8_t bus_number;
-	uint8_t device_address;
+	int bus_number;
+	int device_address;
 	usbi_descriptor descriptor;
 };
 
@@ -130,8 +130,6 @@ struct _libusb_device_handle {
 };
 
 static libusb_log_callback _log_callback;
-
-static std::map<std::string, uint16_t> _fake_device_addresses;
 
 JNIEnv *android_env = NULL;
 jobject android_service = NULL;
@@ -212,25 +210,6 @@ static char *usbi_get_string_field(jobject obj, const char *name) {
 	jstring string = (jstring)android_env->GetObjectField(obj, fid); // FIXME: check result
 
 	return usbi_string_convert_ascii(string);
-}
-
-static void usbi_get_fake_device_address(const char *name, uint8_t *bus_number,
-                                         uint8_t *device_address) {
-	auto iter = _fake_device_addresses.find(name);
-	uint16_t value;
-
-	if (iter != _fake_device_addresses.end()) {
-		value = iter->second;
-	} else {
-		// FIXME: after 65536 different IDs this will start to reuse bus numbers
-		//        and device addresses. this will probably never be a problem
-		value = (uint16_t)(_fake_device_addresses.size() % 0xFFFF);
-
-		_fake_device_addresses[name] = value;
-	}
-
-	*bus_number = (uint8_t)((value >> 8) & 0xFF);
-	*device_address = (uint8_t)(value & 0xFF);
 }
 
 static void usbi_free_interface_descriptor(struct libusb_config_descriptor *config) {
@@ -382,7 +361,8 @@ static int usbi_create_device(libusb_context *ctx, jobject device_info, libusb_d
 		return LIBUSB_ERROR_NO_MEM;
 	}
 
-	usbi_get_fake_device_address(dev->name, &dev->bus_number, &dev->device_address); // FIXME
+	usbi_get_int_field(device_info, "busNumber", &dev->bus_number);
+	usbi_get_int_field(device_info, "deviceAddress", &dev->device_address);
 
 	rc = usbi_get_descriptor(ctx, device_info, &dev->descriptor);
 
