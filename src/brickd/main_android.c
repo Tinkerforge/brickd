@@ -2,7 +2,7 @@
  * brickd
  * Copyright (C) 2018 Matthias Bolte <matthias@tinkerforge.com>
  *
- * main_android.cpp: Brick Daemon starting point for Android
+ * main_android.c: Brick Daemon starting point for Android
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -24,8 +24,6 @@
 
 #include <android/log.h>
 
-extern "C" {
-
 #include <daemonlib/config.h>
 #include <daemonlib/event.h>
 #include <daemonlib/pipe.h>
@@ -38,8 +36,6 @@ extern "C" {
 #include "mesh.h"
 #include "version.h"
 
-}
-
 static LogSource _log_source = LOG_SOURCE_INITIALIZER;
 
 extern JNIEnv *android_env;
@@ -50,9 +46,11 @@ static void handle_event_cleanup(void) {
 	mesh_cleanup_stacks();
 }
 
-extern "C" JNIEXPORT void JNICALL
-Java_com_tinkerforge_brickd_MainService_main(JNIEnv *env, jobject /* this */, jobject service) {
+JNIEXPORT void JNICALL
+Java_com_tinkerforge_brickd_MainService_main(JNIEnv *env, jobject this, jobject service) {
 	int phase = 0;
+
+	(void)this;
 
 	android_env = env;
 	android_service = service;
@@ -89,7 +87,7 @@ Java_com_tinkerforge_brickd_MainService_main(JNIEnv *env, jobject /* this */, jo
 
 	phase = 3;
 
-	if (signal_init(nullptr, nullptr) < 0) {
+	if (signal_init(NULL, NULL) < 0) {
 		goto cleanup;
 	}
 
@@ -163,7 +161,9 @@ cleanup:
 	}
 }
 
-extern "C" JNIEXPORT void JNICALL
-Java_com_tinkerforge_brickd_MainService_interrupt(JNIEnv *env, jobject /* this */) {
+JNIEXPORT void JNICALL
+Java_com_tinkerforge_brickd_MainService_interrupt(JNIEnv *env, jobject this) {
+	(void)this;
+
 	raise(SIGINT);
 }

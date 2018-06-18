@@ -22,16 +22,12 @@
 #include <jni.h>
 #include <errno.h>
 
-extern "C" {
-
 #include <daemonlib/event.h>
 #include <daemonlib/log.h>
 #include <daemonlib/pipe.h>
 #include <daemonlib/utils.h>
 
 #include "usb.h"
-
-}
 
 static LogSource _log_source = LOG_SOURCE_INITIALIZER;
 
@@ -54,14 +50,14 @@ static void usb_forward_notifications(void *opaque) {
 	usb_rescan();
 }
 
-extern "C" int usb_init_platform(void) {
+int usb_init_platform(void) {
 	return 0;
 }
 
-extern "C" void usb_exit_platform(void) {
+void usb_exit_platform(void) {
 }
 
-extern "C" int usb_init_hotplug(libusb_context *context) {
+int usb_init_hotplug(libusb_context *context) {
 	(void)context;
 
 	// create notification pipe
@@ -82,20 +78,22 @@ extern "C" int usb_init_hotplug(libusb_context *context) {
 	return 0;
 }
 
-extern "C" void usb_exit_hotplug(libusb_context *context) {
+void usb_exit_hotplug(libusb_context *context) {
 	(void)context;
 
 	event_remove_source(_notification_pipe.base.read_handle, EVENT_SOURCE_TYPE_GENERIC);
 	pipe_destroy(&_notification_pipe);
 }
 
-extern "C" bool usb_has_hotplug(void) {
+bool usb_has_hotplug(void) {
 	return true;
 }
 
-extern "C" JNIEXPORT void JNICALL
-Java_com_tinkerforge_brickd_MainService_hotplug(JNIEnv *env, jobject /* this */) {
+JNIEXPORT void JNICALL
+Java_com_tinkerforge_brickd_MainService_hotplug(JNIEnv *env, jobject this) {
 	uint8_t byte = 0;
+
+	(void)this;
 
 	if (pipe_write(&_notification_pipe, &byte, sizeof(byte)) < 0) {
 		log_error("Could not write to notification pipe: %s (%d)",

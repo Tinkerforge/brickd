@@ -46,14 +46,14 @@ add_library( brickd-android
              ../../../../brickd/hardware.c
              ../../../../brickd/hmac.c
              ../../../../brickd/log_android.c
-             ../../../../brickd/main_android.cpp
+             ../../../../brickd/main_android.c
              ../../../../brickd/mesh.c
              ../../../../brickd/mesh_stack.c
              ../../../../brickd/network.c
              ../../../../brickd/sha1.c
              ../../../../brickd/stack.c
              ../../../../brickd/usb.c
-             ../../../../brickd/usb_android.cpp
+             ../../../../brickd/usb_android.c
              ../../../../brickd/usb_stack.c
              ../../../../brickd/usb_transfer.c
              ../../../../brickd/websocket.c
