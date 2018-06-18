@@ -59,7 +59,7 @@ add_library( brickd-android
              ../../../../brickd/websocket.c
              ../../../../brickd/zombie.c
 
-             ../../libusb_android/libusb_android.cpp )
+             ../../libusb_android/libusb_android.c )
 
 # Searches for a specified prebuilt library and stores the path as a
 # variable. Because CMake includes system libraries in the search path by

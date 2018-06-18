@@ -2,7 +2,7 @@
  * brickd
  * Copyright (C) 2018 Matthias Bolte <matthias@tinkerforge.com>
  *
- * libusb_android.cpp: Emulating libusb API for Android
+ * libusb_android.c: Emulating libusb API for Android
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -30,13 +30,9 @@
 #include <stdbool.h>
 #include <sys/ioctl.h>
 
-extern "C" {
-
 #include <daemonlib/macros.h>
 #include <daemonlib/node.h>
 #include <daemonlib/utils.h>
-
-}
 
 #include "libusb.h"
 
@@ -148,7 +144,7 @@ static void usbi_log_message(libusb_context *ctx, enum libusb_log_level level,
 
 #define usbi_log_message_checked(ctx, level, ...) \
 	do { \
-		if (_log_callback != nullptr) { \
+		if (_log_callback != NULL) { \
 			usbi_log_message(ctx, level, __FUNCTION__, __VA_ARGS__); \
 		} \
 	} while (0)
@@ -159,18 +155,18 @@ static void usbi_log_message(libusb_context *ctx, enum libusb_log_level level,
 #define usbi_log_debug(ctx, ...)   usbi_log_message_checked(ctx, LIBUSB_LOG_LEVEL_DEBUG, __VA_ARGS__)
 
 static char *usbi_string_convert_ascii(jstring string) {
-	int length = android_env->GetStringLength(string);
+	int length = (*android_env)->GetStringLength(android_env, string);
 	const jchar *data;
 	int i;
-	char *ascii = (char *)calloc(length + 1, 1);
+	char *ascii = calloc(length + 1, 1);
 
-	if (ascii == nullptr) {
+	if (ascii == NULL) {
 		errno = ENOMEM;
 
-		return nullptr;
+		return NULL;
 	}
 
-	data = android_env->GetStringChars(string, NULL); // FIXME: could this fail?
+	data = (*android_env)->GetStringChars(android_env, string, NULL); // FIXME: could this fail?
 
 	for (i = 0; i < length; ++i) {
 		if (data[i] < 32 || data[i] > 126) {
@@ -180,34 +176,34 @@ static char *usbi_string_convert_ascii(jstring string) {
 		}
 	}
 
-	android_env->ReleaseStringChars(string, data);
+	(*android_env)->ReleaseStringChars(android_env, string, data);
 
 	return ascii;
 }
 
 static jobject usbi_get_object_field(jobject obj, const char *name, const char *type, bool add_ref) {
-	jclass cls = android_env->GetObjectClass(obj); // FIXME: check result
-	jfieldID fid = android_env->GetFieldID(cls, name, type); // FIXME: check result
-	jobject result = android_env->GetObjectField(obj, fid); // FIXME: check result
+	jclass cls = (*android_env)->GetObjectClass(android_env, obj); // FIXME: check result
+	jfieldID fid = (*android_env)->GetFieldID(android_env, cls, name, type); // FIXME: check result
+	jobject result = (*android_env)->GetObjectField(android_env, obj, fid); // FIXME: check result
 
 	if (add_ref) {
-		result = android_env->NewGlobalRef(result); // FIXME: check result
+		result = (*android_env)->NewGlobalRef(android_env, result); // FIXME: check result
 	}
 
 	return result;
 }
 
 static void usbi_get_int_field(jobject obj, const char *name, int *result) {
-	jclass cls = android_env->GetObjectClass(obj); // FIXME: check result
-	jfieldID fid = android_env->GetFieldID(cls, name, "I"); // FIXME: check result
+	jclass cls = (*android_env)->GetObjectClass(android_env, obj); // FIXME: check result
+	jfieldID fid = (*android_env)->GetFieldID(android_env, cls, name, "I"); // FIXME: check result
 
-	*result = android_env->GetIntField(obj, fid);
+	*result = (*android_env)->GetIntField(android_env, obj, fid);
 }
 
 static char *usbi_get_string_field(jobject obj, const char *name) {
-	jclass cls = android_env->GetObjectClass(obj); // FIXME: check result
-	jfieldID fid = android_env->GetFieldID(cls, name, "Ljava/lang/String;"); // FIXME: check result
-	jstring string = (jstring)android_env->GetObjectField(obj, fid); // FIXME: check result
+	jclass cls = (*android_env)->GetObjectClass(android_env, obj); // FIXME: check result
+	jfieldID fid = (*android_env)->GetFieldID(android_env, cls, name, "Ljava/lang/String;"); // FIXME: check result
+	jstring string = (jstring)(*android_env)->GetObjectField(android_env, obj, fid); // FIXME: check result
 
 	return usbi_string_convert_ascii(string);
 }
@@ -250,10 +246,9 @@ static int usbi_get_config_descriptor(libusb_context *ctx, jobject device_info,
 	usbi_get_int_field(device_info, "numInterfaces", &num_interfaces); // FIXME: check result
 
 	config->bNumInterfaces = (uint8_t)num_interfaces;
-	config->interface = (struct libusb_interface *)calloc(config->bNumInterfaces,
-	                                                      sizeof(struct libusb_interface));
+	config->interface = calloc(config->bNumInterfaces, sizeof(struct libusb_interface));
 
-	if (config->interface == nullptr) {
+	if (config->interface == NULL) {
 		usbi_log_error(ctx, "Could not allocate interface");
 
 		return LIBUSB_ERROR_NO_MEM;
@@ -264,14 +259,13 @@ static int usbi_get_config_descriptor(libusb_context *ctx, jobject device_info,
 	                                                      "[Lcom/tinkerforge/brickd/USBInterfaceInfo;", false);
 
 	for (i = 0; i < config->bNumInterfaces; ++i) {
-		interface_info = android_env->GetObjectArrayElement(interface_infos, i);// FIXME: check result
+		interface_info = (*android_env)->GetObjectArrayElement(android_env, interface_infos, i);// FIXME: check result
 
 		iface = (struct libusb_interface *)&config->interface[i];
 		iface->num_altsetting = 1;
-		iface->altsetting = (struct libusb_interface_descriptor *)calloc(iface->num_altsetting,
-		                                                                 sizeof(struct libusb_interface_descriptor));
+		iface->altsetting = calloc(iface->num_altsetting, sizeof(struct libusb_interface_descriptor));
 
-		if (iface->altsetting == nullptr) {
+		if (iface->altsetting == NULL) {
 			usbi_log_error(ctx, "Could not allocate interface descriptor");
 
 			usbi_free_interface_descriptor(config);
@@ -284,10 +278,9 @@ static int usbi_get_config_descriptor(libusb_context *ctx, jobject device_info,
 		desc = (struct libusb_interface_descriptor *)iface->altsetting;
 		desc->bInterfaceNumber = 0;
 		desc->bNumEndpoints = (uint8_t)numEndpoints;
-		desc->endpoint = (struct libusb_endpoint_descriptor *)calloc(desc->bNumEndpoints,
-		                                                             sizeof(struct libusb_interface_descriptor));
+		desc->endpoint = calloc(desc->bNumEndpoints, sizeof(struct libusb_interface_descriptor));
 
-		if (desc->endpoint == nullptr) {
+		if (desc->endpoint == NULL) {
 			usbi_log_error(ctx, "Could not allocate endpoint descriptor");
 
 			usbi_free_interface_descriptor(config);
@@ -297,14 +290,14 @@ static int usbi_get_config_descriptor(libusb_context *ctx, jobject device_info,
 
 		// FIXME: check result
 		endpoint_addresses = (jintArray)usbi_get_object_field(interface_info, "endpointAddresses", "[I", false);
-		endpoint_addresses_elements = android_env->GetIntArrayElements(endpoint_addresses, nullptr); // FIXME: check result
+		endpoint_addresses_elements = (*android_env)->GetIntArrayElements(android_env, endpoint_addresses, NULL); // FIXME: check result
 
 		for (e = 0; e < desc->bNumEndpoints; ++e) {
 			endpoint = (struct libusb_endpoint_descriptor *)&desc->endpoint[e];
 			endpoint->bEndpointAddress = (uint8_t)endpoint_addresses_elements[e];
 		}
 
-		android_env->ReleaseIntArrayElements(endpoint_addresses, endpoint_addresses_elements, 0);
+		(*android_env)->ReleaseIntArrayElements(android_env, endpoint_addresses, endpoint_addresses_elements, 0);
 	}
 
 	return LIBUSB_SUCCESS;
@@ -336,10 +329,10 @@ static int usbi_get_descriptor(libusb_context *ctx, jobject device_info,
 }
 
 static int usbi_create_device(libusb_context *ctx, jobject device_info, libusb_device **dev_ptr) {
-	libusb_device *dev = (libusb_device *)calloc(1, sizeof(libusb_device));
+	libusb_device *dev = calloc(1, sizeof(libusb_device));
 	int rc;
 
-	if (dev == nullptr) {
+	if (dev == NULL) {
 		usbi_log_error(ctx, "Could not allocate device");
 
 		return LIBUSB_ERROR_NO_MEM;
@@ -352,10 +345,10 @@ static int usbi_create_device(libusb_context *ctx, jobject device_info, libusb_d
 	dev->device = usbi_get_object_field(device_info, "device", "Landroid/hardware/usb/UsbDevice;", true); // FIXME: check result
 	dev->name = usbi_get_string_field(device_info, "name");
 
-	if (dev->name == nullptr) {
+	if (dev->name == NULL) {
 		usbi_log_error(ctx, "Could not get device name");
 
-		android_env->DeleteGlobalRef(dev->device);
+		(*android_env)->DeleteGlobalRef(android_env, dev->device);
 		free(dev);
 
 		return LIBUSB_ERROR_NO_MEM;
@@ -389,7 +382,7 @@ static void usbi_free_device(libusb_device *dev) {
 
 	usbi_free_interface_descriptor(&dev->descriptor.config);
 
-	android_env->DeleteGlobalRef(dev->device);
+	(*android_env)->DeleteGlobalRef(android_env, dev->device);
 
 	free(dev->name);
 	free(dev);
@@ -407,13 +400,13 @@ static int usbi_get_device_list(libusb_context *ctx, Node *sentinel) {
 	libusb_device *dev;
 	int length = 0;
 
-	get_device_list_mid = android_env->GetMethodID(android_env->GetObjectClass(android_service), "getDeviceList",
-	                                               "()[Lcom/tinkerforge/brickd/USBDeviceInfo;"); // FIXME: check result
-	device_infos = (jobjectArray)android_env->CallObjectMethod(android_service, get_device_list_mid);
-	device_infos_length = android_env->GetArrayLength(device_infos);
+	get_device_list_mid = (*android_env)->GetMethodID(android_env, (*android_env)->GetObjectClass(android_env, android_service), "getDeviceList",
+	                                                  "()[Lcom/tinkerforge/brickd/USBDeviceInfo;"); // FIXME: check result
+	device_infos = (jobjectArray)(*android_env)->CallObjectMethod(android_env, android_service, get_device_list_mid);
+	device_infos_length = (*android_env)->GetArrayLength(android_env, device_infos);
 
 	for (i = 0; i < device_infos_length; ++i) {
-		device_info = android_env->GetObjectArrayElement(device_infos, i);
+		device_info = (*android_env)->GetObjectArrayElement(android_env, device_infos, i);
 
 		usbi_get_int_field(device_info, "vendorID", &vendor_id); // FIXME: check result
 		usbi_get_int_field(device_info, "productID", &product_id); // FIXME: check result
@@ -436,13 +429,13 @@ static int usbi_get_device_list(libusb_context *ctx, Node *sentinel) {
 int libusb_init(libusb_context **ctx_ptr) {
 	libusb_context *ctx;
 
-	if (ctx_ptr == nullptr) {
+	if (ctx_ptr == NULL) {
 		return LIBUSB_ERROR_INVALID_PARAM; // FIXME: no default context support
 	}
 
-	ctx = (libusb_context *)calloc(1, sizeof(libusb_context));
+	ctx = calloc(1, sizeof(libusb_context));
 
-	if (ctx == nullptr) {
+	if (ctx == NULL) {
 		return LIBUSB_ERROR_NO_MEM;
 	}
 
@@ -459,7 +452,7 @@ int libusb_init(libusb_context **ctx_ptr) {
 
 // NOTE: assumes that no transfers are pending
 void libusb_exit(libusb_context *ctx) {
-	if (ctx == nullptr) {
+	if (ctx == NULL) {
 		return; // FIXME: no default context support
 	}
 
@@ -485,14 +478,14 @@ const struct libusb_pollfd **libusb_get_pollfds(libusb_context *ctx) {
 	libusb_device_handle *dev_handle;
 	int i = 0;
 
-	if (ctx == nullptr) {
-		return nullptr; // FIXME: no default context support
+	if (ctx == NULL) {
+		return NULL; // FIXME: no default context support
 	}
 
-	pollfds = (const struct libusb_pollfd **)calloc(ctx->dev_handle_count + 1, sizeof(struct libusb_pollfd *));
+	pollfds = calloc(ctx->dev_handle_count + 1, sizeof(struct libusb_pollfd *));
 
-	if (pollfds == nullptr) {
-		return nullptr;
+	if (pollfds == NULL) {
+		return NULL;
 	}
 
 	for (dev_handle_node = ctx->dev_handle_sentinel.next;
@@ -507,7 +500,7 @@ const struct libusb_pollfd **libusb_get_pollfds(libusb_context *ctx) {
 		pollfds[i++] = &dev_handle->pollfd;
 	}
 
-	pollfds[i] = nullptr;
+	pollfds[i] = NULL;
 
 	return pollfds;
 }
@@ -539,7 +532,7 @@ int libusb_handle_events_timeout(libusb_context *ctx, struct timeval *tv) {
 	usbi_transfer *itransfer;
 	struct libusb_transfer *transfer;
 
-	if (ctx == nullptr) {
+	if (ctx == NULL) {
 		return LIBUSB_ERROR_INVALID_PARAM; // FIXME: no default context support
 	}
 
@@ -547,9 +540,9 @@ int libusb_handle_events_timeout(libusb_context *ctx, struct timeval *tv) {
 		return LIBUSB_ERROR_INVALID_PARAM; // FIXME: no timeout support
 	}
 
-	pollfds = (struct pollfd *)calloc(ctx->dev_handle_count, sizeof(struct pollfd));
+	pollfds = calloc(ctx->dev_handle_count, sizeof(struct pollfd));
 
-	if (pollfds == nullptr) {
+	if (pollfds == NULL) {
 		return LIBUSB_ERROR_NO_MEM;
 	}
 
@@ -605,13 +598,12 @@ int libusb_handle_events_timeout(libusb_context *ctx, struct timeval *tv) {
 
 		if (pollfds[i].revents != 0) {
 			if ((pollfds[i].revents & POLLERR) != 0) {
-
 				usbi_log_debug(ctx, "Poll for USB device %s returned POLLERR, probably got disconnected",
 				               dev_handle->dev->name);
 
 				dev_handle->disconnected = true;
 
-				if (ctx->pollfd_removed_callback != nullptr) {
+				if (ctx->pollfd_removed_callback != NULL) {
 					ctx->pollfd_removed_callback(dev_handle->pollfd.fd, ctx->pollfd_user_data);
 				}
 
@@ -714,7 +706,7 @@ ssize_t libusb_get_device_list(libusb_context *ctx, libusb_device ***list) {
 	libusb_device *dev;
 	Node *dev_node_next;
 
-	if (ctx == nullptr) {
+	if (ctx == NULL) {
 		return LIBUSB_ERROR_INVALID_PARAM; // FIXME: no default context support
 	}
 
@@ -729,9 +721,9 @@ ssize_t libusb_get_device_list(libusb_context *ctx, libusb_device ***list) {
 	length += rc;
 
 	// create output list
-	devs = (libusb_device **)calloc(length + 1, sizeof(libusb_device *));
+	devs = calloc(length + 1, sizeof(libusb_device *));
 
-	if (devs == nullptr) {
+	if (devs == NULL) {
 		usbi_log_error(ctx, "Could not allocate device list");
 
 		rc = LIBUSB_ERROR_NO_MEM;
@@ -750,7 +742,7 @@ ssize_t libusb_get_device_list(libusb_context *ctx, libusb_device ***list) {
 		node_reset(&devs[i]->node);
 	}
 
-	devs[length] = nullptr;
+	devs[length] = NULL;
 	*list = devs;
 
 	return length;
@@ -775,7 +767,7 @@ void libusb_free_device_list(libusb_device **list, int unref_devices) {
 	int i = 0;
 
 	if (unref_devices) {
-		for (dev = list[0]; dev != nullptr; dev = list[++i]) {
+		for (dev = list[0]; dev != NULL; dev = list[++i]) {
 			libusb_unref_device(dev);
 		}
 	}
@@ -797,7 +789,7 @@ void libusb_unref_device(libusb_device *dev) {
 
 int libusb_get_device_descriptor(libusb_device *dev,
                                  struct libusb_device_descriptor *device) {
-	if (dev == nullptr || device == nullptr) {
+	if (dev == NULL || device == NULL) {
 		return LIBUSB_ERROR_INVALID_PARAM;
 	}
 
@@ -837,17 +829,17 @@ int libusb_open(libusb_device *dev, libusb_device_handle **dev_handle_ptr) {
 	jmethodID open_device_mid;
 	int fd;
 
-	dev_handle = (libusb_device_handle *)calloc(1, sizeof(libusb_device_handle));
+	dev_handle = calloc(1, sizeof(libusb_device_handle));
 
-	if (dev_handle == nullptr) {
+	if (dev_handle == NULL) {
 		usbi_log_error(ctx, "Could not allocate device handle");
 
 		return LIBUSB_ERROR_NO_MEM;
 	}
 
-	open_device_mid = android_env->GetMethodID(android_env->GetObjectClass(android_service), "openDevice",
-	                                           "(Landroid/hardware/usb/UsbDevice;)I"); // FIXME: check result
-	fd = android_env->CallIntMethod(android_service, open_device_mid, dev->device); // FIXME: check result
+	open_device_mid = (*android_env)->GetMethodID(android_env, (*android_env)->GetObjectClass(android_env, android_service), "openDevice",
+	                                              "(Landroid/hardware/usb/UsbDevice;)I"); // FIXME: check result
+	fd = (*android_env)->CallIntMethod(android_env, android_service, open_device_mid, dev->device); // FIXME: check result
 
 	if (fd < 0) {
 		free(dev_handle);
@@ -870,7 +862,7 @@ int libusb_open(libusb_device *dev, libusb_device_handle **dev_handle_ptr) {
 	usbi_log_debug(ctx, "Opened device %p (context: %p, name: %s, fd: %d)",
 	               dev, ctx, dev->name, dev_handle->pollfd.fd);
 
-	if (ctx->pollfd_added_callback != nullptr) {
+	if (ctx->pollfd_added_callback != NULL) {
 		ctx->pollfd_added_callback(dev_handle->pollfd.fd, dev_handle->pollfd.events, ctx->pollfd_user_data);
 	}
 
@@ -882,16 +874,16 @@ void libusb_close(libusb_device_handle *dev_handle) {
 	libusb_context *ctx = dev->ctx;
 	jmethodID close_device_mid;
 
-	if (!dev_handle->disconnected && ctx->pollfd_removed_callback != nullptr) {
+	if (!dev_handle->disconnected && ctx->pollfd_removed_callback != NULL) {
 		ctx->pollfd_removed_callback(dev_handle->pollfd.fd, ctx->pollfd_user_data);
 	}
 
 	usbi_log_debug(ctx, "Closing device %p (context: %p, name: %s, fd: %d)",
 	               dev, ctx, dev->name, dev_handle->pollfd.fd);
 
-	close_device_mid = android_env->GetMethodID(android_env->GetObjectClass(android_service),
-	                                            "closeDevice", "(I)V"); // FIXME: check result
-	android_env->CallVoidMethod(android_service, close_device_mid, dev_handle->pollfd.fd); // FIXME: check result
+	close_device_mid = (*android_env)->GetMethodID(android_env, (*android_env)->GetObjectClass(android_env, android_service),
+	                                               "closeDevice", "(I)V"); // FIXME: check result
+	(*android_env)->CallVoidMethod(android_env, android_service, close_device_mid, dev_handle->pollfd.fd); // FIXME: check result
 
 	node_remove(&dev_handle->node);
 	--ctx->dev_handle_count;
@@ -1007,13 +999,13 @@ struct libusb_transfer *libusb_alloc_transfer(int iso_packets) {
 	usbi_transfer *itransfer;
 
 	if (iso_packets != 0) {
-		return nullptr; // FIXME: no iso transfer support
+		return NULL; // FIXME: no iso transfer support
 	}
 
-	itransfer = (usbi_transfer *)calloc(1, sizeof(usbi_transfer));
+	itransfer = calloc(1, sizeof(usbi_transfer));
 
-	if (itransfer == nullptr) {
-		return nullptr;
+	if (itransfer == NULL) {
+		return NULL;
 	}
 
 	itransfer->submitted = false;
@@ -1031,7 +1023,7 @@ int libusb_submit_transfer(struct libusb_transfer *transfer) {
 	int rc;
 
 	if (transfer->type != LIBUSB_TRANSFER_TYPE_BULK ||
-		transfer->timeout != 0 || transfer->callback == nullptr) {
+		transfer->timeout != 0 || transfer->callback == NULL) {
 		return LIBUSB_ERROR_INVALID_PARAM;
 	}
 
