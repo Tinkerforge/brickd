@@ -395,7 +395,13 @@ int main(int argc, char **argv) {
 #ifdef BRICKD_WITH_BRICKLET
 	phase = 17;
 
-	if (bricklet_init() < 0) {
+	// TODO: This will be the return of the yet to be implemented
+	//       linux board discovery mechanism in the future
+	BrickletConfig bricklet_config = {
+		.spi_device = "/dev/spidev0.0"
+	};
+
+	if (bricklet_init(&bricklet_config) < 0) {
 		goto cleanup;
 	}
 #endif
