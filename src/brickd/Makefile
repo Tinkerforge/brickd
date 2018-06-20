@@ -199,6 +199,7 @@ SOURCES_DAEMONLIB := $(call FIX_PATH,../daemonlib/array.c) \
                      $(call FIX_PATH,../daemonlib/log.c) \
                      $(call FIX_PATH,../daemonlib/node.c) \
                      $(call FIX_PATH,../daemonlib/packet.c) \
+                     $(call FIX_PATH,../daemonlib/pearson_hash.c) \
                      $(call FIX_PATH,../daemonlib/queue.c) \
                      $(call FIX_PATH,../daemonlib/socket.c) \
                      $(call FIX_PATH,../daemonlib/threads.c) \
