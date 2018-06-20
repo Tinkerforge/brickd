@@ -23,11 +23,36 @@
 #ifndef BRICKD_BRICKLET_H
 #define BRICKD_BRICKLET_H
 
+#include <stdbool.h>
+#include <stdint.h>
+
+#include <daemonlib/threads.h>
+#include <daemonlib/queue.h>
+
+#include "stack.h"
+
 typedef struct {
     char spi_device[64]; // e.g. "/dev/spidev0.0";
 } BrickletConfig;
 
-int bricklet_init(BrickletConfig *config);
-void bricklet_exit(void);
+typedef struct {
+    Stack base;
+
+	Queue request_queue;
+	Mutex request_queue_mutex;
+
+	Queue response_queue;
+	Mutex response_queue_mutex;
+
+	int notification_event;
+	int spi_fd;
+	bool spi_thread_running;
+	Thread spi_thread;
+
+	BrickletConfig config;
+} Bricklet;
+
+Bricklet* bricklet_init(BrickletConfig *config);
+void bricklet_exit(Bricklet *bricklet);
 
 #endif // BRICKD_BRICKLET_H

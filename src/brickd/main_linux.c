@@ -393,17 +393,19 @@ int main(int argc, char **argv) {
 #endif
 
 #ifdef BRICKD_WITH_BRICKLET
-	phase = 17;
-
 	// TODO: This will be the return of the yet to be implemented
-	//       linux board discovery mechanism in the future
+	//       linux board discovery mechanism in the future.
+	//       We may also get more than one spidev here.
 	BrickletConfig bricklet_config = {
 		.spi_device = "/dev/spidev0.0"
 	};
 
-	if (bricklet_init(&bricklet_config) < 0) {
+	Bricklet *bricklet = bricklet_init(&bricklet_config);
+	if(bricklet == NULL) {
 		goto cleanup;
 	}
+
+	phase = 17;
 #endif
 
 	if (event_run(handle_event_cleanup) < 0) {
@@ -422,7 +424,7 @@ cleanup:
 	switch (phase) { // no breaks, all cases fall through intentionally
 #ifdef BRICKD_WITH_BRICKLET
 	case 17:
-		bricklet_exit();
+		bricklet_exit(bricklet);
 		// fall through
 #endif
 
