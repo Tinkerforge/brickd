@@ -175,11 +175,11 @@ Bricklet* bricklet_init(BrickletConfig *config) {
 
 	// Add notification pipe as event source.
 	// Event is used to dispatch packets.
-	if (snprintf(notification_name, 128, notification_name, bricklet->config.spi_device) < 0) {
+	if (snprintf(notification_name, 128, "bricklet-notification-%s", bricklet->config.spi_device) < 0) {
 		goto cleanup;
 	}
 	if (event_add_source(bricklet->notification_event, EVENT_SOURCE_TYPE_GENERIC,
-	                     "bricklet-notification", EVENT_READ,
+	                     notification_name, EVENT_READ,
 	                     bricklet_dispatch_from_spi, bricklet) < 0) {
 		log_error("Could not add bricklet notification pipe as event source");
 
