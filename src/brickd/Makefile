@@ -201,6 +201,7 @@ SOURCES_DAEMONLIB := $(call FIX_PATH,../daemonlib/array.c) \
                      $(call FIX_PATH,../daemonlib/packet.c) \
                      $(call FIX_PATH,../daemonlib/pearson_hash.c) \
                      $(call FIX_PATH,../daemonlib/queue.c) \
+                     $(call FIX_PATH,../daemonlib/ringbuffer.c) \
                      $(call FIX_PATH,../daemonlib/socket.c) \
                      $(call FIX_PATH,../daemonlib/threads.c) \
                      $(call FIX_PATH,../daemonlib/timer.c) \
@@ -258,6 +259,7 @@ endif
 
 ifeq ($(WITH_BRICKLET),yes)
 	SOURCES_BRICKD += bricklet.c
+	SOURCES_BRICKD += bricklet_stack.c
 endif
 endif
 

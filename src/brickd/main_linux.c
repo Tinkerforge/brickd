@@ -393,15 +393,8 @@ int main(int argc, char **argv) {
 #endif
 
 #ifdef BRICKD_WITH_BRICKLET
-	// TODO: This will be the return of the yet to be implemented
-	//       linux board discovery mechanism in the future.
-	//       We may also get more than one spidev here.
-	BrickletConfig bricklet_config = {
-		.spi_device = "/dev/spidev0.0"
-	};
 
-	Bricklet *bricklet = bricklet_init(&bricklet_config);
-	if(bricklet == NULL) {
+	if (bricklet_init() < 0) {
 		goto cleanup;
 	}
 
@@ -424,7 +417,7 @@ cleanup:
 	switch (phase) { // no breaks, all cases fall through intentionally
 #ifdef BRICKD_WITH_BRICKLET
 	case 17:
-		bricklet_exit(bricklet);
+		bricklet_exit();
 		// fall through
 #endif
 
