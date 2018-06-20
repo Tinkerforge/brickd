@@ -129,6 +129,8 @@ static int bricklet_init_spi(Bricklet *bricklet) {
 
 Bricklet* bricklet_init(BrickletConfig *config) {
     int phase = 0;
+	char bricklet_name[129] = {'\0'};
+	char notification_name[129] = {'\0'};
 
     log_debug("Initializing Bricklet subsystem");
 
@@ -143,7 +145,10 @@ Bricklet* bricklet_init(BrickletConfig *config) {
 	memcpy(&bricklet->config, config, sizeof(BrickletConfig));
 
 	// create base stack
-	if (stack_create(&bricklet->base, "bricklet", bricklet_dispatch_to_spi) < 0) {
+	if (snprintf(bricklet_name, 128, "bricklet-%s", bricklet->config.spi_device) < 0) {
+		goto cleanup;
+	}
+	if (stack_create(&bricklet->base, bricklet_name, bricklet_dispatch_to_spi) < 0) {
 		log_error("Could not create base stack for Bricklet: %s (%d)",
 		          get_errno_name(errno), errno);
 
@@ -170,6 +175,9 @@ Bricklet* bricklet_init(BrickletConfig *config) {
 
 	// Add notification pipe as event source.
 	// Event is used to dispatch packets.
+	if (snprintf(notification_name, 128, notification_name, bricklet->config.spi_device) < 0) {
+		goto cleanup;
+	}
 	if (event_add_source(bricklet->notification_event, EVENT_SOURCE_TYPE_GENERIC,
 	                     "bricklet-notification", EVENT_READ,
 	                     bricklet_dispatch_from_spi, bricklet) < 0) {
