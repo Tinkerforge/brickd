@@ -79,7 +79,7 @@ def specialize_template(template_filename, destination_filename, replacements):
     destination_file.close()
 
 
-def build_macosx_pkg():
+def build_macos_pkg():
     print('building brickd disk image')
     root_path = os.getcwd()
 
@@ -94,7 +94,7 @@ def build_macosx_pkg():
     system('cd brickd; env CC=gcc make')
 
     print('copying installer root')
-    installer_root_path = os.path.join(root_path, 'build_data', 'macosx', 'installer', 'root')
+    installer_root_path = os.path.join(root_path, 'build_data', 'macos', 'installer', 'root')
     dist_root_path = os.path.join(dist_path, 'root')
     shutil.copytree(installer_root_path, dist_root_path)
 
@@ -111,10 +111,10 @@ def build_macosx_pkg():
     specialize_template(plist_path, plist_path, {'<<VERSION>>': version})
 
     print('copying and patching libusb')
-    libusb_path = os.path.join(root_path, 'build_data', 'macosx', 'libusb', 'libusb-1.0.dylib')
+    libusb_path = os.path.join(root_path, 'build_data', 'macos', 'libusb', 'libusb-1.0.dylib')
     shutil.copy(libusb_path, macos_path)
     system('install_name_tool -id @executable_path/libusb-1.0.dylib {0}'.format(os.path.join(macos_path, 'libusb-1.0.dylib')))
-    system('install_name_tool -change @executable_path/../build_data/macosx/libusb/libusb-1.0.dylib @executable_path/libusb-1.0.dylib {0}'.format(os.path.join(macos_path, 'brickd')))
+    system('install_name_tool -change @executable_path/../build_data/macos/libusb/libusb-1.0.dylib @executable_path/libusb-1.0.dylib {0}'.format(os.path.join(macos_path, 'brickd')))
 
     print('signing libusb and brickd binaries')
     system('security unlock-keychain /Users/$USER/Library/Keychains/login.keychain')
@@ -124,11 +124,11 @@ def build_macosx_pkg():
     system(codesign_command.format(brickd_app_path))
 
     print('building pkg')
-    scripts_path = os.path.join(root_path, 'build_data', 'macosx', 'installer', 'scripts')
-    component_path = os.path.join(root_path, 'build_data', 'macosx', 'installer', 'component.plist')
+    scripts_path = os.path.join(root_path, 'build_data', 'macos', 'installer', 'scripts')
+    component_path = os.path.join(root_path, 'build_data', 'macos', 'installer', 'component.plist')
     # NOTE: codesign_installer_identity contains "Developer ID Installer: ..."
     system('pkgbuild --sign "`cat codesign_installer_identity`" --root dist/root --identifier com.tinkerforge.brickd --version {0} --scripts {1} --install-location / --component-plist {2} dist/brickd.pkg'.format(version, scripts_path, component_path))
-    distribution_path = os.path.join(root_path, 'build_data', 'macosx', 'installer', 'distribution.xml')
+    distribution_path = os.path.join(root_path, 'build_data', 'macos', 'installer', 'distribution.xml')
     shutil.copy(distribution_path, dist_path)
     distribution_path = os.path.join(dist_path, 'distribution.xml')
     specialize_template(distribution_path, distribution_path, {'<<VERSION>>': version})
@@ -275,7 +275,7 @@ def build_linux_pkg():
     system('cd brickd; make clean')
 
 
-# run 'python build_pkg.py' to build the windows/linux/macosx package
+# run 'python build_pkg.py' to build the windows/linux/macos package
 if __name__ == '__main__':
     if sys.platform != 'win32' and os.geteuid() == 0:
         print('error: must not be started as root, exiting')
@@ -286,7 +286,7 @@ if __name__ == '__main__':
     elif sys.platform == 'win32':
         build_windows_pkg()
     elif sys.platform == 'darwin':
-        build_macosx_pkg()
+        build_macos_pkg()
     else:
         print('error: unsupported platform: ' + sys.platform)
         sys.exit(1)
