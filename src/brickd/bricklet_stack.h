@@ -32,7 +32,20 @@
 
 #include "stack.h"
 
-#define BRICKLET_STACK_SPI_RECEIVE_BUFFER_SIZE 1024
+#define BRICKLET_STACK_SPI_RECEIVE_BUFFER_LENGTH 1024 // keep as power of 2
+#define BRICKLET_STACK_SPI_RECEIVE_BUFFER_MASK   (BRICKLET_STACK_SPI_RECEIVE_BUFFER_LENGTH-1)
+
+#define TFP_MESSAGE_MIN_LENGTH 8
+#define TFP_MESSAGE_MAX_LENGTH 80
+
+#define SPITFP_PROTOCOL_OVERHEAD 3 // 3 byte overhead for Brick <-> Bricklet SPI protocol
+
+#define SPITFP_MIN_TFP_MESSAGE_LENGTH (TFP_MESSAGE_MIN_LENGTH + SPITFP_PROTOCOL_OVERHEAD)
+#define SPITFP_MAX_TFP_MESSAGE_LENGTH (TFP_MESSAGE_MAX_LENGTH + SPITFP_PROTOCOL_OVERHEAD)
+
+#define SPITFP_TIMEOUT 50 // in ms // TODO: Change to 5 again after debug
+//#define SPITFP_TIMEOUT 5 // in ms
+#define SPITFP_HOTPLUG_TIMEOUT 1000 // Send enumerate after 1000ms if there was no request for it
 
 typedef struct {
     char spi_device[64]; // e.g. "/dev/spidev0.0";
@@ -47,15 +60,37 @@ typedef struct {
 	Queue response_queue;
 	Mutex response_queue_mutex;
 
-    Ringbuffer spi_receive_ringbuffer;
-    uint8_t spi_receive_buffer[BRICKLET_STACK_SPI_RECEIVE_BUFFER_SIZE];
-
 	int notification_event;
 	int spi_fd;
 	bool spi_thread_running;
 	Thread spi_thread;
 
 	BrickletStackConfig config;
+
+
+	// SPITFP protocol related variables.
+	uint8_t buffer_recv[BRICKLET_STACK_SPI_RECEIVE_BUFFER_LENGTH];
+	uint8_t buffer_send[TFP_MESSAGE_MAX_LENGTH + SPITFP_PROTOCOL_OVERHEAD*2]; // *2 for send message overhead and additional ACK
+
+	uint8_t buffer_send_length;
+
+	uint8_t buffer_recv_tmp[TFP_MESSAGE_MAX_LENGTH + SPITFP_PROTOCOL_OVERHEAD*2];
+	uint8_t buffer_recv_tmp_length;
+
+	uint8_t current_sequence_number;
+	uint8_t last_sequence_number_seen;
+	uint64_t last_send_started;
+
+	Ringbuffer ringbuffer_recv;
+
+	bool ack_to_send;
+	bool wait_for_ack;
+	bool data_seen;
+
+	uint32_t error_count_ack_checksum;
+	uint32_t error_count_message_checksum;
+	uint32_t error_count_frame;
+	uint32_t error_count_overflow;
 } BrickletStack;
 
 BrickletStack* bricklet_stack_init(BrickletStackConfig *config);
