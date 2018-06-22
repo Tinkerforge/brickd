@@ -1,5 +1,5 @@
 #
-# For GCC/Clang builds on Linux and Mac OS X, and MinGW builds on Windows
+# For GCC/Clang builds on Linux and macOS, and MinGW builds on Windows
 #
 # Minimum libusb version: 1.0.6
 # Tested with libusb: 1.0.6, 1.0.8, 1.0.9, 1.0.16, 1.0.17, 1.0.19, 1.0.21

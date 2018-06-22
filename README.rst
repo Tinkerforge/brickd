@@ -32,7 +32,7 @@ On Fedora Linux try::
  sudo yum groupinstall "Development Tools"
  sudo yum install libusb1-devel libudev-devel pm-utils-devel
 
-For Windows and Mac OS X a suitable pre-compiled libusb binary is part of this
+For Windows and macOS a suitable pre-compiled libusb binary is part of this
 repository.
 
 Linux
@@ -70,8 +70,8 @@ There is also a Makefile to compile the source code using MinGW::
 
 The ``brickd.exe`` binary is created in ``src\brickd\dist``.
 
-Mac OS X
-^^^^^^^^
+macOS
+^^^^^
 
 A Makefile is provided to compile the source code using GCC::
 
@@ -85,11 +85,11 @@ Building Packages
 
 Packages can be build for multiple platforms.
 
-Linux, Windows and Mac OS X
-^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Linux, Windows and macOS
+^^^^^^^^^^^^^^^^^^^^^^^^
 
 The Python script ``src/build_pkg.py`` can build a Debian package for
-Linux, a NSIS based ``setup.exe`` for Windows and a Disk Image for Mac OS X.
+Linux, a NSIS based ``setup.exe`` for Windows and a Disk Image for macOS.
 Run::
 
  python build_pkg.py
@@ -133,7 +133,7 @@ Brick Daemon can autodetect USB hotplug. Different systems are used for this:
 * libusb's own hotplug callbacks (if available)
 * device notifications on Windows
 * libudev on Linux
-* IOKit notifications on Mac OS X
+* IOKit notifications on macOS
 
 On Linux brickd will also check for added or removed Bricks if the SIGUSR1
 signal is received. This is used on OpenWrt where the hotplug2 daemon is told

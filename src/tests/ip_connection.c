@@ -462,7 +462,7 @@ static void semaphore_release(Semaphore *semaphore) {
 
 static int semaphore_create(Semaphore *semaphore) {
 #ifdef __APPLE__
-	// Mac OS X does not support unnamed semaphores, so we fake them. Unlink
+	// macOS does not support unnamed semaphores, so we fake them. Unlink
 	// first to ensure that there is no existing semaphore with that name.
 	// Then open the semaphore to create a new one. Finally unlink it again to
 	// avoid leaking the name. The semaphore will work fine without a name.

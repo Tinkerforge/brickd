@@ -405,15 +405,15 @@ int usb_stack_create(USBStack *usb_stack, uint8_t bus_number, uint8_t device_add
 		// a USB device arrival was received before the USB subsystem had time
 		// to create the USBFS entry for the new device
 		//
-		// on Mac OS X claiming the interface might fail because something is
+		// on macOS claiming the interface might fail because something is
 		// opening the USB device on hotplug to probe it. libusb will still open
 		// an already open USB device but in a limited mode that doesn't allow
 		// to claim the interface
 		//
 		// retry to claim the interface but sleep in between tries so the USB
 		// subsystem has time to create the USBFS entry for the new device on
-		// Linux. also reopen the USB device on Mac OS X to getter a proper
-		// device handle that allows to claim the interface
+		// Linux. also reopen the USB device on macOS to getter a proper device
+		// handle that allows to claim the interface
 		while (rc < 0 && retries < 10) {
 #ifdef __APPLE__
 			device = libusb_get_device(usb_stack->device_handle);

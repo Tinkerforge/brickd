@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Mac OS X 10.11 added "System Integrity Protection" that basically makes
+# macOS 10.11 added "System Integrity Protection" that basically makes
 # /System, /bin, /sbin and /usr unwritable even for root. Recommended places
 # to put files are now [~]/Library, /usr/local and /Applications. The older
 # brickd installer installed to /usr/libexec and /System/Library. The new .pkg

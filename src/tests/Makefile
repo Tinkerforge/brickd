@@ -1,5 +1,5 @@
 #
-# Makefile for GCC builds on Linux and Mac OS X, and MinGW builds on Windows
+# Makefile for GCC builds on Linux and macOS, and MinGW builds on Windows
 #
 # Debian/Ubuntu:
 # sudo apt-get install build-essential

@@ -20,29 +20,29 @@
  */
 
 /*
- * libusb provides hotplug support on Linux and Mac OS X since 1.0.16. with
+ * libusb provides hotplug support on Linux and macOS since 1.0.16. with
  * earlier versions the application (brickd) had to do its own hotplug handling.
  * brickd uses libudev to listen for uevents on Linux and used IOKit to listen
- * for notifications on Mac OS X. since brickd is shipped with a custom libusb
- * version (hotplug capable) on Mac OS X, IOKit is not used directly anymore.
+ * for notifications on macOS. since brickd is shipped with a custom libusb
+ * version (hotplug capable) on macOS, IOKit is not used directly anymore.
  * on each add/remove uevent brickd calls libusb_get_device_list and compares
  * the result to the result of the previous call. the difference between the
  * two results allows to detect added and removed USB devices.
  *
  * the following text explains the problem with this approach in terms of
  * uevents on Linux, but the problem was exactly the same with notifications
- * on Mac OS X.
+ * on macOS.
  *
  * the hotplug handling in brickd only works well until libusb 1.0.16, because
  * this release changed the way libusb_get_device_list works internally on Linux
- * and Mac OS X. before 1.0.16 each call to libusb_get_device_list triggered a
+ * and macOS. before 1.0.16 each call to libusb_get_device_list triggered a
  * full enumeration of all connected USB devices, nothing was cached inside of
  * libusb. but since 1.0.16 libusb keeps a cache of connected USB devices that
  * libusb_get_device_list returns. this cache is updated by the new hotplug
  * mechanism of libusb 1.0.16.
  *
  * libusb can use libudev or netlink to listen for uevents on Linux and uses
- * IOKit to listen for notifications on Mac OS X. here is the problem. because
+ * IOKit to listen for notifications on macOS. here is the problem. because
  * brickd and libusb listen for the same uevents there is a race between the
  * two. if libusb receives a uevent first then it will update its cache first.
  * by the time brickd receives the same uevent the list of USB devices returned

@@ -6,13 +6,13 @@
 
 2012-03-28: 1.0.2 (dc58be8)
 - Don't wait 100ms if no callback available
-- Add Mac OS support
+- Add macOS support
 
 2012-04-11: 1.0.3 (e7e4121)
-- Remove global reactor import for Mac OS X
+- Remove global reactor import for macOS
 
 2012-04-13: 1.0.4 (e35d70c)
-- Remove double fork completely for Mac OS X
+- Remove double fork completely for macOS
 
 2012-04-15: 1.0.5 (3313060)
 - Update to newest python-libusb1 version (thanks to vpelletier)
@@ -31,7 +31,7 @@
 - Add --version commandline argument
 
 2012-07-30: 1.0.9 (7002e21)
-- Reduce Windows and Mac OS X installer size
+- Reduce Windows and macOS installer size
 - Avoid race condition when enumerating USB devices on Linux
 - Use more expressive log file name and correct line endings on Windows
 - Don't cancel pending USB transfers to avoid segfault in libusb on USB
@@ -102,15 +102,15 @@
 
 2013-11-04: 2.0.9 (333f72b)
 - Use libusb hotplug support if available on Linux
-- Update bundled libusb to 1.0.17 on Mac OS X, libusb hotplug replaces custom
+- Update bundled libusb to 1.0.17 on macOS, libusb hotplug replaces custom
   IOKit code
 - Update bundled libusb to 1.0.17 on Windows, adds support for VIA VL805
   USB 3.0 host controllers
 - Add --libusb-debug option to enable libusb debug output
 - Report too long lines in config file as errors instead of silently ignoring them
 - Add IPv6 support with configurable dual-stack handling
-- Don't interfere with Apple's USB Ethernet Adapter on Mac OS X
-- Sign brickd.app and installer on Mac OS X to silence the Gatekeeper
+- Don't interfere with Apple's USB Ethernet Adapter on macOS
+- Sign brickd.app and installer on macOS to silence the Gatekeeper
 - Linux packages build on older Debian/Ubuntu release to lower required glibc version
 
 2013-12-03: 2.0.10 (5bacb2c)
@@ -124,13 +124,13 @@
 - Add authentication support (disabled by default)
 - Add WebSocket support (port 4280, disabled by default)
 - Make USB device lookup more robust in case of some USB driver bugs on Windows
-- Update bundled libusb to 1.0.18 on Mac OS X, fixes a SIGFPE bug
+- Update bundled libusb to 1.0.18 on macOS, fixes a SIGFPE bug
 - Update bundled libusb to 1.0.18 on Windows, adds support for Intel and AMD
   USB 3.0 root hubs
 - Improve handling of request packets with invalid length in the header
 - Handle rare case of socket_receive failing with EWOULDBLOCK
 - Don't lose connection to USB devices on host-resume-from-suspend on Linux and
-  Mac OS X (requires pm-utils on Linux)
+  macOS (requires pm-utils on Linux)
 - Increase upper limits for pending requests and USB write queues
 - Add socket_send queue for clients, enqueue packet instead of disconnecting
   client if socket_send would block
@@ -150,7 +150,7 @@
 - Colorized log messages
 - Detect and drop pending requests that will never get a response
 - Windows installer and drivers are signed now
-- Mac OS X installer signed on Mac OS X 10.10 to pass the Gatekeeper again
+- macOS installer signed on macOS 10.10 to pass the Gatekeeper again
 - Enable logrotate for brickd.log on Linux
 - Remove all categories from logging system
 - Handle partial writes if outgoing socket buffer is almost full
@@ -168,17 +168,17 @@
 - Improve RED Brick SPI stack protocol error recovery (hotfix-2: already
   released as part of RED Brick Image 1.7)
 - Add start menu link for logviewer.exe on Windows
-- Adapt to file system protection changes in Mac OS X 10.11
+- Adapt to file system protection changes in macOS 10.11
 - Update libusb WDF co-installer for Windows Vista and 7
 
 2016-11-29: 2.2.3 (e754f54)
 - Update bundled libusb to 1.0.20 on Windows, add support for Intel Alpine
   Ridge USB 3.1 controller
-- Update bundled libusb to 1.0.20 on Mac OS X
+- Update bundled libusb to 1.0.20 on macOS
 - Merge --debug and --libusb-debug options
 - Add initial Windows 10 IoT Core support
 - Properly quote path to brickd.exe for service registration on Windows
-- Switch to .pkg based installer for Mac OS X
+- Switch to .pkg based installer for macOS
 - Fix crash in RS485 Extension code for RED Brick
 - Add initial Windows 10 IoT Core (Universal Windows Platform) support
 
@@ -187,8 +187,8 @@
 - Improve RED Brick SPI stack protocol ACK handling
 - Add Co-MCU Bricklet handling to RED Brick SPI stack protocol
 - Avoid crash due to improperly cancelled USB transfers at device disconnect on
-  Mac OS X
-- Update bundled libusb to 1.0.21 on Windows and Mac OS X
+  macOS
+- Update bundled libusb to 1.0.21 on Windows and macOS
 - Also read config from unsupported Extensions on RED Brick to allow Brick
   Viewer showing them as unsupported
 - Avoid using Debian specific init script helper functions on Linux
@@ -200,4 +200,4 @@
   allow C# Bindings (since 2.1.3) to connect from the same device
 - Adapt to Windows 10 IoT Core version 15063
 - Add logic to reopen USB devices to recover from stalled USB transfers
-- Avoid race condition with USB prober on Mac OS X while opening USB devices
+- Avoid race condition with USB prober on macOS while opening USB devices
