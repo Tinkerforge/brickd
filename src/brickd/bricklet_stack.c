@@ -144,8 +144,7 @@ static void bricklet_stack_dispatch_from_spi(void *opaque) {
 static uint64_t bricklet_stack_get_ms(void) {
     struct timespec spec;
     clock_gettime(CLOCK_MONOTONIC, &spec);
-	uint64_t ms = (((uint64_t)spec.tv_sec)*1000) + ((spec.tv_nsec + 1000*1000/2) / (1000*1000));
-	return ms;
+	return (((uint64_t)spec.tv_sec)*1000) + ((spec.tv_nsec + 1000*1000/2) / (1000*1000));
 }
 
 static bool bricklet_stack_is_time_elapsed_ms(const uint64_t start_measurement, const uint64_t time_to_be_elapsed) {
@@ -371,8 +370,8 @@ static void bricklet_stack_check_message(BrickletStack *bricklet_stack) {
 					// If the length is not PROTOCOL_OVERHEAD or within [MIN_TFP_MESSAGE_LENGTH, MAX_TFP_MESSAGE_LENGTH]
 					// or 0, something has gone wrong!
 					bricklet_stack->error_count_frame++;
-					printf("error count frame: %d\n\r", bricklet_stack->error_count_frame);
 					bricklet_stack_handle_protocol_error(bricklet_stack);
+					log_debug("Frame error (count=%u)", bricklet_stack->error_count_frame);
 					return;
 				}
 
@@ -402,8 +401,8 @@ static void bricklet_stack_check_message(BrickletStack *bricklet_stack) {
 
 				if(checksum != data) {
 					bricklet_stack->error_count_ack_checksum++;
-					printf("error count ack checksum: %d\n\r", bricklet_stack->error_count_ack_checksum);
 					bricklet_stack_handle_protocol_error(bricklet_stack);
+					log_debug("ACK checksum error (count=%u)", bricklet_stack->error_count_ack_checksum);
 					return;
 				}
 
@@ -447,9 +446,8 @@ static void bricklet_stack_check_message(BrickletStack *bricklet_stack) {
 
 				if(checksum != data) {
 					bricklet_stack->error_count_message_checksum++;
-					printf("checksum: %x, data: %x\n\r", checksum, data);
-					printf("error count message checksum: %d\n\r", bricklet_stack->error_count_message_checksum);
 					bricklet_stack_handle_protocol_error(bricklet_stack);
+					log_debug("Message checksum error (count=%u)", bricklet_stack->error_count_message_checksum);
 					return;
 				}
 

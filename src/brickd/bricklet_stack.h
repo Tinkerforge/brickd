@@ -43,9 +43,7 @@
 #define SPITFP_MIN_TFP_MESSAGE_LENGTH (TFP_MESSAGE_MIN_LENGTH + SPITFP_PROTOCOL_OVERHEAD)
 #define SPITFP_MAX_TFP_MESSAGE_LENGTH (TFP_MESSAGE_MAX_LENGTH + SPITFP_PROTOCOL_OVERHEAD)
 
-#define SPITFP_TIMEOUT 50 // in ms // TODO: Change to 5 again after debug
-//#define SPITFP_TIMEOUT 5 // in ms
-#define SPITFP_HOTPLUG_TIMEOUT 1000 // Send enumerate after 1000ms if there was no request for it
+#define SPITFP_TIMEOUT 5 // in ms
 
 typedef struct {
     char spi_device[64]; // e.g. "/dev/spidev0.0";
