@@ -266,7 +266,7 @@ endif
 ifeq ($(PLATFORM),Darwin)
 	SOURCES_DAEMONLIB += ../daemonlib/event_posix.c
 
-	SOURCES_BRICKD += main_macosx.c \
+	SOURCES_BRICKD += main_macos.c \
 	                  iokit.c
 endif
 
@@ -369,8 +369,8 @@ endif
 
 ifeq ($(PLATFORM),Darwin)
 	LIBUSB_STATUS := 1.0.21 (fork)
-	LIBUSB_CFLAGS := -I../build_data/macosx/libusb
-	LIBUSB_LDFLAGS := -L../build_data/macosx/libusb
+	LIBUSB_CFLAGS := -I../build_data/macos/libusb
+	LIBUSB_LDFLAGS := -L../build_data/macos/libusb
 	LIBUSB_LIBS := -lusb-1.0
 endif
 

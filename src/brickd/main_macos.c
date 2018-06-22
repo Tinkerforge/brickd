@@ -2,7 +2,7 @@
  * brickd
  * Copyright (C) 2012-2014, 2016-2017 Matthias Bolte <matthias@tinkerforge.com>
  *
- * main_macosx.c: Brick Daemon starting point for Mac OS X
+ * main_macos.c: Brick Daemon starting point for macOS
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
