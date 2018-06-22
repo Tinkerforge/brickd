@@ -11,31 +11,31 @@ index e4da62e..7929168 100644
  
  if OS_OPENBSD
 diff --git a/libusb/core.c b/libusb/core.c
-index 5317d26..3666391 100644
+index 50f92f6..c054432 100644
 --- a/libusb/core.c
 +++ b/libusb/core.c
-@@ -2282,21 +2282,32 @@ static void usbi_log_str(struct libusb_context *ctx,
+@@ -2398,21 +2398,32 @@ static void usbi_log_str(enum libusb_log_level level, const char *str)
  	UNUSED(level);
  }
  
-+static libusb_log_function usbi_log_function = NULL;
++static libusb_log_callback usbi_log_callback = NULL;
 +
-+void API_EXPORTED libusb_set_log_function(libusb_log_function function) {
-+	usbi_log_function = function;
++void API_EXPORTED libusb_set_log_callback(libusb_log_callback callback) {
++	usbi_log_callback = callback;
 +}
 +
  void usbi_log_v(struct libusb_context *ctx, enum libusb_log_level level,
  	const char *function, const char *format, va_list args)
  {
-+	int ctx_level = 0;
- 	const char *prefix = "";
++	enum libusb_log_level ctx_level = LIBUSB_LOG_LEVEL_NONE;
+ 	const char *prefix;
  	char buf[USBI_MAX_LOG_LEN];
- 	struct timeval now;
+ 	struct timespec now;
  	int global_debug, header_len, text_len;
  	static int has_debug_header_been_displayed = 0;
  
-+	if (usbi_log_function != NULL) {
-+		usbi_log_function(ctx, level, function, format, args);
++	if (usbi_log_callback != NULL) {
++		usbi_log_callback(ctx, level, function, format, args);
 +		return;
 +	}
 +
@@ -44,13 +44,13 @@ index 5317d26..3666391 100644
  	UNUSED(ctx);
 +	UNUSED(ctx_level);
  #else
--	int ctx_level = 0;
+-	enum libusb_log_level ctx_level = LIBUSB_LOG_LEVEL_NONE;
 -
  	USBI_GET_CONTEXT(ctx);
- 	if (ctx) {
+ 	if (ctx)
  		ctx_level = ctx->debug;
 diff --git a/libusb/libusb.h b/libusb/libusb.h
-index 5b0d522..a8e06ca 100644
+index 430136b..9b726ac 100644
 --- a/libusb/libusb.h
 +++ b/libusb/libusb.h
 @@ -60,6 +60,7 @@ typedef unsigned __int32  uint32_t;
@@ -59,18 +59,26 @@ index 5b0d522..a8e06ca 100644
  #include <limits.h>
 +#include <stdarg.h>
  
- /* 'interface' might be defined as a macro on Windows, so we need to
-  * undefine it so as not to break the current libusb API, because
-@@ -1993,6 +1994,13 @@ int LIBUSB_CALL libusb_hotplug_register_callback(libusb_context *ctx,
- void LIBUSB_CALL libusb_hotplug_deregister_callback(libusb_context *ctx,
- 						libusb_hotplug_callback_handle callback_handle);
+ #if defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 199901L)
+ #define ZERO_SIZED_ARRAY		/* [] - valid C99 code */
+@@ -1296,7 +1297,6 @@ enum libusb_log_level {
  
-+typedef void (LIBUSB_CALL *libusb_log_function)(libusb_context *ctx,
+ int LIBUSB_CALL libusb_init(libusb_context **ctx);
+ void LIBUSB_CALL libusb_exit(libusb_context *ctx);
+-LIBUSB_DEPRECATED_FOR(libusb_set_option)
+ void LIBUSB_CALL libusb_set_debug(libusb_context *ctx, int level);
+ const struct libusb_version * LIBUSB_CALL libusb_get_version(void);
+ int LIBUSB_CALL libusb_has_capability(uint32_t capability);
+@@ -2032,6 +2032,13 @@ enum libusb_option {
+ 
+ int LIBUSB_CALL libusb_set_option(libusb_context *ctx, enum libusb_option option, ...);
+ 
++typedef void (LIBUSB_CALL *libusb_log_callback)(libusb_context *ctx,
 +                                                enum libusb_log_level level,
 +                                                const char *function,
 +                                                const char *format,
 +                                                va_list args);
-+void LIBUSB_CALL libusb_set_log_function(libusb_log_function function);
++void LIBUSB_CALL libusb_set_log_callback(libusb_log_callback callback);
 +
  #ifdef __cplusplus
  }
