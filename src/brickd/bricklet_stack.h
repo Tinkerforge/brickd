@@ -35,6 +35,8 @@
 #define BRICKLET_STACK_SPI_RECEIVE_BUFFER_LENGTH 1024 // keep as power of 2
 #define BRICKLET_STACK_SPI_RECEIVE_BUFFER_MASK   (BRICKLET_STACK_SPI_RECEIVE_BUFFER_LENGTH-1)
 
+#define BRICKLET_STACK_FIRST_MESSAGE_TRIES 1000
+
 #define TFP_MESSAGE_MIN_LENGTH 8
 #define TFP_MESSAGE_MAX_LENGTH 80
 
@@ -89,6 +91,8 @@ typedef struct {
 	uint32_t error_count_message_checksum;
 	uint32_t error_count_frame;
 	uint32_t error_count_overflow;
+
+	uint32_t first_message_tries;
 } BrickletStack;
 
 BrickletStack* bricklet_stack_init(BrickletStackConfig *config);

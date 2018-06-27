@@ -500,6 +500,18 @@ static void bricklet_stack_check_message(BrickletStack *bricklet_stack) {
 }
 
 static void bricklet_stack_transceive(BrickletStack *bricklet_stack) {
+	// If we have not seen any data from the Bricklet we increase a counter.
+	// If the counter reaches BRICKLET_STACK_FIRST_MESSAGE_TRIES we assume that
+	// there is no Bricklet and we stop trying to send to initial message (if a
+	// Bricklet is hotplugged it will send a enumerate itself).
+	if(!bricklet_stack->data_seen) {
+		if(bricklet_stack->first_message_tries < BRICKLET_STACK_FIRST_MESSAGE_TRIES) {
+			bricklet_stack->first_message_tries++;
+		} else {
+			bricklet_stack->buffer_send_length = 0;
+		}
+	}
+
 	const uint16_t length_read = bricklet_stack_check_missing_length(bricklet_stack);
 	if(bricklet_stack->buffer_send_length == 0) {
 		// If buffer is empty we try to send request from the queue.
@@ -516,14 +528,27 @@ static void bricklet_stack_transceive(BrickletStack *bricklet_stack) {
 	uint8_t rx[SPITFP_MAX_TFP_MESSAGE_LENGTH] = {0};
 	uint8_t tx[SPITFP_MAX_TFP_MESSAGE_LENGTH] = {0};
 
-	if(length == 1) {
+	if((length == 1) || (!bricklet_stack->data_seen)) {
 		// If there is nothing to read or to write, we give the Bricklet some breathing
 		// room before we start polling again.
 
-		// TODO: Sleep 100us OK? 1ms for testing
+		// If we have nothing to send and we are currently not awaiting data from the Bricklet, we will
+		// poll every 200 us.
+		uint32_t sleep_us = 200;
+		if(!bricklet_stack->data_seen) {
+			// If we have never seen any data, we will first poll every 1ms with the StackEnumerate message
+			// and switch to polling every 500ms after we tried BRICKLET_STACK_FIRST_MESSAGE_TRIES times.
+			// In this case there is likely no Bricklet connected. If a Bricklet is hotpluged "data_seen"
+			// will be true and we will switch to polling every 200us immediately.
+			if(bricklet_stack->first_message_tries < BRICKLET_STACK_FIRST_MESSAGE_TRIES) {
+				sleep_us = 1*1000;
+			} else {
+				sleep_us = 500*1000;
+			}
+		}
 		struct timespec t;
 		t.tv_sec = 0;
-		t.tv_nsec = 100*1000;
+		t.tv_nsec = 1000*sleep_us;
 		clock_nanosleep(CLOCK_MONOTONIC, 0, &t, NULL);
 
 	}
@@ -564,6 +589,21 @@ static void bricklet_stack_transceive(BrickletStack *bricklet_stack) {
 static void bricklet_stack_spi_thread(void *opaque) {
 	BrickletStack *bricklet_stack = (BrickletStack*)opaque;
 	bricklet_stack->spi_thread_running = true;
+
+	// Pre-fill the send buffer with the "StackEnumerate"-Packet.
+	// This packet will trigger an initial enumeration in the Bricklet.
+	// If the Brick Daemon is restarted, we need to
+	// trigger the initial enumeration, since the Bricklet does not now
+	// that it has to enumerate itself again.
+	PacketHeader header = {
+		.uid                         = 0,
+		.length                      = sizeof(PacketHeader),
+		.function_id                 = FUNCTION_STACK_ENUMERATE,
+		.sequence_number_and_options = 0x08, // return expected
+		.error_code_and_future_use   = 0
+	};
+	bricklet_stack_send_ack_and_message(bricklet_stack, (uint8_t*)&header, sizeof(PacketHeader));
+
 	while (bricklet_stack->spi_thread_running) {
 		bricklet_stack_transceive(bricklet_stack);
 		bricklet_stack_check_message(bricklet_stack);
