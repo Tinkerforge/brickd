@@ -418,8 +418,8 @@ cleanup:
 #ifdef BRICKD_WITH_BRICKLET
 	case 17:
 		bricklet_exit();
-		// fall through
 #endif
+		// fall through
 
 #ifdef BRICKD_WITH_RED_BRICK
 	case 16:
@@ -440,8 +440,8 @@ cleanup:
 
 	case 12:
 		//gpio_red_exit();
-		// fall through
 #endif
+		// fall through
 
 	case 11:
 		mesh_exit();
