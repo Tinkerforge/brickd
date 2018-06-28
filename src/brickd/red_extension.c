@@ -27,7 +27,7 @@
 #include <daemonlib/conf_file.h>
 #include <daemonlib/log.h>
 #include <daemonlib/red_i2c_eeprom.h>
-#include <daemonlib/red_gpio.h>
+#include <daemonlib/gpio_red.h>
 
 #include "red_extension.h"
 
@@ -62,27 +62,27 @@ typedef enum  {
 	EXTENSION_TYPE_WIFI2 = 5
 } ExtensionType;
 
-#define EXTENSION_POS0_GPIO0  {GPIO_PORT_B, GPIO_PIN_13}
-#define EXTENSION_POS0_GPIO1  {GPIO_PORT_B, GPIO_PIN_14}
-#define EXTENSION_POS0_GPIO2  {GPIO_PORT_B, GPIO_PIN_19}
-#define EXTENSION_POS0_SELECT {GPIO_PORT_G, GPIO_PIN_9}
+#define EXTENSION_POS0_GPIO_RED0  {GPIO_RED_PORT_B, GPIO_RED_PIN_13}
+#define EXTENSION_POS0_GPIO_RED1  {GPIO_RED_PORT_B, GPIO_RED_PIN_14}
+#define EXTENSION_POS0_GPIO_RED2  {GPIO_RED_PORT_B, GPIO_RED_PIN_19}
+#define EXTENSION_POS0_SELECT     {GPIO_RED_PORT_G, GPIO_RED_PIN_9}
 
-#define EXTENSION_POS1_GPIO0  {GPIO_PORT_G, GPIO_PIN_2}
-#define EXTENSION_POS1_GPIO1  {GPIO_PORT_G, GPIO_PIN_3}
-#define EXTENSION_POS1_GPIO2  {GPIO_PORT_G, GPIO_PIN_4}
-#define EXTENSION_POS1_SELECT {GPIO_PORT_G, GPIO_PIN_13}
+#define EXTENSION_POS1_GPIO_RED0  {GPIO_RED_PORT_G, GPIO_RED_PIN_2}
+#define EXTENSION_POS1_GPIO_RED1  {GPIO_RED_PORT_G, GPIO_RED_PIN_3}
+#define EXTENSION_POS1_GPIO_RED2  {GPIO_RED_PORT_G, GPIO_RED_PIN_4}
+#define EXTENSION_POS1_SELECT     {GPIO_RED_PORT_G, GPIO_RED_PIN_13}
 
-#define EXTENSION_SPI_CLK     {GPIO_PORT_G, GPIO_PIN_10}
-#define EXTENSION_SPI_MOSI    {GPIO_PORT_G, GPIO_PIN_11}
-#define EXTENSION_SPI_MISO    {GPIO_PORT_G, GPIO_PIN_12}
+#define EXTENSION_SPI_CLK         {GPIO_RED_PORT_G, GPIO_RED_PIN_10}
+#define EXTENSION_SPI_MOSI        {GPIO_RED_PORT_G, GPIO_RED_PIN_11}
+#define EXTENSION_SPI_MISO        {GPIO_RED_PORT_G, GPIO_RED_PIN_12}
 
-#define EXTENSION_SER_TXD     {GPIO_PORT_C, GPIO_PIN_16}
-#define EXTENSION_SER_RXD     {GPIO_PORT_C, GPIO_PIN_17}
-#define EXTENSION_SER_RTS     {GPIO_PORT_C, GPIO_PIN_19}
+#define EXTENSION_SER_TXD         {GPIO_RED_PORT_C, GPIO_RED_PIN_16}
+#define EXTENSION_SER_RXD         {GPIO_RED_PORT_C, GPIO_RED_PIN_17}
+#define EXTENSION_SER_RTS         {GPIO_RED_PORT_C, GPIO_RED_PIN_19}
 
 typedef struct {
-	GPIOPin pin[2];
-	GPIOMux mux;
+	GPIOREDPin pin[2];
+	GPIOREDMux mux;
 	int value;   // If input: 0 = default, 1 = Pullup. If Output: 0 = low, 1 = high. Else ignored.
 } ExtensionPinConfig;
 
@@ -92,39 +92,39 @@ typedef struct {
 } ExtensionPinConfigArray;
 
 static ExtensionPinConfigArray extension_startup = {1, {
-	{{EXTENSION_POS0_SELECT, EXTENSION_POS1_SELECT}, GPIO_MUX_OUTPUT, 0}, // Deselect eeprom
+	{{EXTENSION_POS0_SELECT, EXTENSION_POS1_SELECT}, GPIO_RED_MUX_OUTPUT, 0}, // Deselect eeprom
 }};
 
 static ExtensionPinConfigArray extension_rs485_pin_config = {7, {
-	{{EXTENSION_POS0_GPIO0,  EXTENSION_POS1_GPIO0},  GPIO_MUX_OUTPUT, 0}, // RXE low = RX enable
-	{{EXTENSION_POS0_GPIO1,  EXTENSION_POS1_GPIO1},  GPIO_MUX_INPUT,  1}, // Unused
-	{{EXTENSION_POS0_GPIO2,  EXTENSION_POS1_GPIO2},  GPIO_MUX_INPUT,  1}, // Unused
-	{{EXTENSION_POS0_SELECT, EXTENSION_POS1_SELECT}, GPIO_MUX_OUTPUT, 0}, // Default = deselect eeprom
-	{{EXTENSION_SER_TXD,     EXTENSION_SER_TXD},     GPIO_MUX_4,      0}, // Mux to UART3_TX
-	{{EXTENSION_SER_RXD,     EXTENSION_SER_RXD},     GPIO_MUX_4,      0}, // Mux to UART3_RX
-	{{EXTENSION_SER_RTS,     EXTENSION_SER_RTS},     GPIO_MUX_4,      0}, // Mux to UART3_RTS
+	{{EXTENSION_POS0_GPIO_RED0, EXTENSION_POS1_GPIO_RED0}, GPIO_RED_MUX_OUTPUT, 0}, // RXE low = RX enable
+	{{EXTENSION_POS0_GPIO_RED1, EXTENSION_POS1_GPIO_RED1}, GPIO_RED_MUX_INPUT,  1}, // Unused
+	{{EXTENSION_POS0_GPIO_RED2, EXTENSION_POS1_GPIO_RED2}, GPIO_RED_MUX_INPUT,  1}, // Unused
+	{{EXTENSION_POS0_SELECT,    EXTENSION_POS1_SELECT},    GPIO_RED_MUX_OUTPUT, 0}, // Default = deselect eeprom
+	{{EXTENSION_SER_TXD,        EXTENSION_SER_TXD},        GPIO_RED_MUX_4,      0}, // Mux to UART3_TX
+	{{EXTENSION_SER_RXD,        EXTENSION_SER_RXD},        GPIO_RED_MUX_4,      0}, // Mux to UART3_RX
+	{{EXTENSION_SER_RTS,        EXTENSION_SER_RTS},        GPIO_RED_MUX_4,      0}, // Mux to UART3_RTS
 }};
 
 static ExtensionPinConfigArray extension_ethernet_pin_config = {7, {
-	{{EXTENSION_POS0_GPIO0,  EXTENSION_POS1_GPIO0},  GPIO_MUX_OUTPUT, 1}, // nRESET = high
-	{{EXTENSION_POS0_GPIO1,  EXTENSION_POS1_GPIO1},  GPIO_MUX_6,      0}, // Mux to EINT3/EINT28
-	{{EXTENSION_POS0_GPIO2,  EXTENSION_POS1_GPIO2},  GPIO_MUX_OUTPUT, 0}, // PWDN = low
-	{{EXTENSION_POS0_SELECT, EXTENSION_POS1_SELECT}, GPIO_MUX_2,      0}, // Mux to SPI1_CS0
-	{{EXTENSION_SPI_CLK,     EXTENSION_SPI_CLK},     GPIO_MUX_2,      0}, // Mux to SPI1_CLK
-	{{EXTENSION_SPI_MOSI,    EXTENSION_SPI_MOSI},    GPIO_MUX_2,      0}, // Mux to SPI1_MOSI
-	{{EXTENSION_SPI_MISO,    EXTENSION_SPI_MISO},    GPIO_MUX_2,      0}, // Mux to SPI1_MISO
+	{{EXTENSION_POS0_GPIO_RED0, EXTENSION_POS1_GPIO_RED0},  GPIO_RED_MUX_OUTPUT, 1}, // nRESET = high
+	{{EXTENSION_POS0_GPIO_RED1, EXTENSION_POS1_GPIO_RED1},  GPIO_RED_MUX_6,      0}, // Mux to EINT3/EINT28
+	{{EXTENSION_POS0_GPIO_RED2, EXTENSION_POS1_GPIO_RED2},  GPIO_RED_MUX_OUTPUT, 0}, // PWDN = low
+	{{EXTENSION_POS0_SELECT,    EXTENSION_POS1_SELECT},     GPIO_RED_MUX_2,      0}, // Mux to SPI1_CS0
+	{{EXTENSION_SPI_CLK,        EXTENSION_SPI_CLK},         GPIO_RED_MUX_2,      0}, // Mux to SPI1_CLK
+	{{EXTENSION_SPI_MOSI,       EXTENSION_SPI_MOSI},        GPIO_RED_MUX_2,      0}, // Mux to SPI1_MOSI
+	{{EXTENSION_SPI_MISO,       EXTENSION_SPI_MISO},        GPIO_RED_MUX_2,      0}, // Mux to SPI1_MISO
 }};
 
 // Discovered extension types (for both extensions)
 static ExtensionType _red_extension_type[EXTENSION_NUM_MAX] = {EXTENSION_TYPE_NONE, EXTENSION_TYPE_NONE};
 
 static void red_extension_configure_pin(ExtensionPinConfig *config, int extension) {
-	gpio_mux_configure(config->pin[extension], config->mux);
+	gpio_red_mux_configure(config->pin[extension], config->mux);
 
 	if (config->value == 0) {
-		gpio_output_clear(config->pin[extension]);
+		gpio_red_output_clear(config->pin[extension]);
 	} else {
-		gpio_output_set(config->pin[extension]); // This should enable pull-up in case of input
+		gpio_red_output_set(config->pin[extension]); // This should enable pull-up in case of input
 	}
 }
 

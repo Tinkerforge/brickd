@@ -43,7 +43,7 @@
 #include <daemonlib/log.h>
 #include <daemonlib/packet.h>
 #include <daemonlib/pipe.h>
-#include <daemonlib/red_gpio.h>
+#include <daemonlib/gpio_red.h>
 #include <daemonlib/red_i2c_eeprom.h>
 #include <daemonlib/threads.h>
 #include <daemonlib/timer.h>
@@ -215,7 +215,7 @@ static uint8_t send_verify_flag = 0;
 static bool master_poll_interval = false;
 
 // RX GPIO pin definitions
-static GPIOPin _rx_pin; // Active low
+static GPIOREDPin _rx_pin; // Active low
 
 // Function prototypes
 uint16_t crc16(uint8_t*, uint16_t);
@@ -670,22 +670,22 @@ void send_packet(void) {
 void init_rxe_pin_state(int extension) {
 	switch (extension) {
 	case 0:
-		_rx_pin.port_index = GPIO_PORT_B;
-		_rx_pin.pin_index = GPIO_PIN_13;
+		_rx_pin.port_index = GPIO_RED_PORT_B;
+		_rx_pin.pin_index = GPIO_RED_PIN_13;
 		break;
 
 	case 1:
-		_rx_pin.port_index = GPIO_PORT_G;
+		_rx_pin.port_index = GPIO_RED_PORT_G;
 #if BRICKD_WITH_RED_BRICK == 9
-		_rx_pin.pin_index = GPIO_PIN_2;
+		_rx_pin.pin_index = GPIO_RED_PIN_2;
 #else
-		_rx_pin.pin_index = GPIO_PIN_5;
+		_rx_pin.pin_index = GPIO_RED_PIN_5;
 #endif
 		break;
 	}
 
-	gpio_mux_configure(_rx_pin, GPIO_MUX_OUTPUT);
-	gpio_output_clear(_rx_pin);
+	gpio_red_mux_configure(_rx_pin, GPIO_RED_MUX_OUTPUT);
+	gpio_red_output_clear(_rx_pin);
 	log_info("Initialized RS485 RXE state");
 }
 

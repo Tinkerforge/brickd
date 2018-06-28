@@ -27,7 +27,7 @@
 
 #include <daemonlib/log.h>
 #include <daemonlib/red_i2c_eeprom.h>
-#include <daemonlib/red_gpio.h>
+#include <daemonlib/gpio_red.h>
 #include <daemonlib/utils.h>
 
 #include "red_ethernet_extension.h"
@@ -40,8 +40,8 @@ static LogSource _log_source = LOG_SOURCE_INITIALIZER;
 #define W5X00_PARAM_MAX_SIZE 150
 #define W5X00_MODULE_MAX_SIZE (1000*200)
 
-#define EXTENSION_POS0_SELECT {GPIO_PORT_G, GPIO_PIN_9}
-#define EXTENSION_POS1_SELECT {GPIO_PORT_G, GPIO_PIN_13}
+#define EXTENSION_POS0_SELECT {GPIO_RED_PORT_G, GPIO_RED_PIN_9}
+#define EXTENSION_POS1_SELECT {GPIO_RED_PORT_G, GPIO_RED_PIN_13}
 
 extern int init_module(void *module_image, unsigned long len,
                        const char *param_values);
@@ -70,12 +70,12 @@ int red_ethernet_extension_init(ExtensionEthernetConfig *config) {
 	int param_pin_interrupt;
 	int param_select;
 	int length;
-	GPIOPin pin;
+	GPIOREDPin pin;
 
 	log_debug("Initializing RED Brick Ethernet Extension subsystem");
 
 	// Mux SPI CS pins again. They have been overwritten by I2C select!
-	pin.port_index = GPIO_PORT_G;
+	pin.port_index = GPIO_RED_PORT_G;
 
 	switch (config->extension) {
 	case 1:
@@ -89,7 +89,7 @@ int red_ethernet_extension_init(ExtensionEthernetConfig *config) {
 		param_pin_interrupt = 195; // PG03
 #endif
 		param_select        = 1;
-		pin.pin_index       = GPIO_PIN_13; // CS1
+		pin.pin_index       = GPIO_RED_PIN_13; // CS1
 
 		break;
 
@@ -110,12 +110,12 @@ int red_ethernet_extension_init(ExtensionEthernetConfig *config) {
 		param_pin_interrupt = 46; // PB14
 #endif
 		param_select        = 0;
-		pin.pin_index       = GPIO_PIN_9; // CS0
+		pin.pin_index       = GPIO_RED_PIN_9; // CS0
 
 		break;
 	}
 
-	gpio_mux_configure(pin, GPIO_MUX_2);
+	gpio_red_mux_configure(pin, GPIO_RED_MUX_2);
 
 	if (uname(&uts) < 0) {
 		log_error("Could not get kernel information: %s (%d)",

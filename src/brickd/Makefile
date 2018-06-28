@@ -284,7 +284,7 @@ ifneq ($(WITH_RED_BRICK),no)
 	                  red_rs485_extension.c \
 	                  red_ethernet_extension.c
 
-	SOURCES_DAEMONLIB += ../daemonlib/red_gpio.c \
+	SOURCES_DAEMONLIB += ../daemonlib/gpio_red.c \
 	                     ../daemonlib/red_i2c_eeprom.c \
 	                     ../daemonlib/red_led.c
 endif

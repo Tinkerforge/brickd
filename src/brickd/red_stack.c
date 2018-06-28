@@ -43,7 +43,7 @@
 #include <daemonlib/packet.h>
 #include <daemonlib/pearson_hash.h>
 #include <daemonlib/pipe.h>
-#include <daemonlib/red_gpio.h>
+#include <daemonlib/gpio_red.h>
 #include <daemonlib/threads.h>
 
 #include "red_stack.h"
@@ -141,7 +141,7 @@ typedef struct {
 	uint8_t sequence_number_master;
 	uint8_t sequence_number_slave;
 	REDStackSlaveStatus status;
-	GPIOPin slave_select_pin;
+	GPIOREDPin slave_select_pin;
 	Queue request_queue;
 	Mutex request_queue_mutex;
 	bool next_packet_empty;
@@ -169,17 +169,17 @@ typedef struct {
 
 static REDStack _red_stack;
 
-static const GPIOPin _red_stack_reset_stack_pin = {GPIO_PORT_B, GPIO_PIN_5};
-static const GPIOPin _red_stack_master_high_pin = {GPIO_PORT_B, GPIO_PIN_11};
-static const GPIOPin _red_stack_slave_select_pins[RED_STACK_SPI_MAX_SLAVES] = {
-	{GPIO_PORT_C, GPIO_PIN_8},
-	{GPIO_PORT_C, GPIO_PIN_9},
-	{GPIO_PORT_C, GPIO_PIN_10},
-	{GPIO_PORT_C, GPIO_PIN_11},
-	{GPIO_PORT_C, GPIO_PIN_12},
-	{GPIO_PORT_C, GPIO_PIN_13},
-	{GPIO_PORT_C, GPIO_PIN_14},
-	{GPIO_PORT_C, GPIO_PIN_15}
+static const GPIOREDPin _red_stack_reset_stack_pin = {GPIO_RED_PORT_B, GPIO_RED_PIN_5};
+static const GPIOREDPin _red_stack_master_high_pin = {GPIO_RED_PORT_B, GPIO_RED_PIN_11};
+static const GPIOREDPin _red_stack_slave_select_pins[RED_STACK_SPI_MAX_SLAVES] = {
+	{GPIO_RED_PORT_C, GPIO_RED_PIN_8},
+	{GPIO_RED_PORT_C, GPIO_RED_PIN_9},
+	{GPIO_RED_PORT_C, GPIO_RED_PIN_10},
+	{GPIO_RED_PORT_C, GPIO_RED_PIN_11},
+	{GPIO_RED_PORT_C, GPIO_RED_PIN_12},
+	{GPIO_RED_PORT_C, GPIO_RED_PIN_13},
+	{GPIO_RED_PORT_C, GPIO_RED_PIN_14},
+	{GPIO_RED_PORT_C, GPIO_RED_PIN_15}
 };
 
 static const char *_red_stack_spi_device = "/dev/spidev0.0";
@@ -254,11 +254,11 @@ static uint8_t red_stack_spi_calculate_pearson_hash(const uint8_t *data, const u
 }
 
 static void red_stack_spi_select(REDStackSlave *slave) {
-	gpio_output_clear(slave->slave_select_pin);
+	gpio_red_output_clear(slave->slave_select_pin);
 }
 
 static void red_stack_spi_deselect(REDStackSlave *slave) {
-	gpio_output_set(slave->slave_select_pin);
+	gpio_red_output_set(slave->slave_select_pin);
 }
 
 // If data should just be polled, set packet_send to NULL.
@@ -589,7 +589,7 @@ static void red_stack_spi_handle_reset(void) {
 	log_info("Starting reinitialization of SPI slaves");
 
 	// Someone pressed reset we have to wait until he stops pressing
-	while (gpio_input(_red_stack_reset_stack_pin) == 0) {
+	while (gpio_red_input(_red_stack_reset_stack_pin) == 0) {
 		// Wait 100us and check again. We wait as long as the user presses the button
 		SLEEP_NS(0, 1000*100);
 	}
@@ -727,15 +727,15 @@ static void red_stack_spi_thread(void *opaque) {
 // Resets stack
 static void red_stack_reset(void) {
 	// Change mux of reset pin to output
-	gpio_mux_configure(_red_stack_reset_stack_pin, GPIO_MUX_OUTPUT);
+	gpio_red_mux_configure(_red_stack_reset_stack_pin, GPIO_RED_MUX_OUTPUT);
 
-	gpio_output_clear(_red_stack_reset_stack_pin);
+	gpio_red_output_clear(_red_stack_reset_stack_pin);
 	SLEEP_NS(0, 1000*1000*100); // Clear reset pin for 100ms to force reset
-	gpio_output_set(_red_stack_reset_stack_pin);
+	gpio_red_output_set(_red_stack_reset_stack_pin);
 	SLEEP_NS(1, 1000*1000*500); // Wait 1.5s so slaves can start properly
 
 	// Change mux back to interrupt, so we can see if a human presses reset
-	gpio_mux_configure(_red_stack_reset_stack_pin, GPIO_MUX_6);
+	gpio_red_mux_configure(_red_stack_reset_stack_pin, GPIO_RED_MUX_6);
 }
 
 static int red_stack_init_spi(void) {
@@ -747,8 +747,8 @@ static int red_stack_init_spi(void) {
 
 	// Set Master High pin to low (so Master Bricks above RED Brick can
 	// configure themselves as slave)
-	gpio_mux_configure(_red_stack_master_high_pin, GPIO_MUX_OUTPUT);
-	gpio_output_clear(_red_stack_master_high_pin);
+	gpio_red_mux_configure(_red_stack_master_high_pin, GPIO_RED_MUX_OUTPUT);
+	gpio_red_output_clear(_red_stack_master_high_pin);
 
 	// Initialize slaves
 	for (slave = 0; slave < RED_STACK_SPI_MAX_SLAVES; slave++) {
@@ -759,7 +759,7 @@ static int red_stack_init_spi(void) {
 		_red_stack.slaves[slave].sequence_number_slave = 0;
 
 		// Bring slave in initial state (deselected)
-		gpio_mux_configure(_red_stack.slaves[slave].slave_select_pin, GPIO_MUX_OUTPUT);
+		gpio_red_mux_configure(_red_stack.slaves[slave].slave_select_pin, GPIO_RED_MUX_OUTPUT);
 		red_stack_spi_deselect(&_red_stack.slaves[slave]);
 	}
 
@@ -920,12 +920,12 @@ int red_stack_init(void) {
 
 	if (gpio_sysfs_export(&red_stack_reset_pin) < 0) {
 		// Just issue a warning, RED Brick will work without reset interrupt
-		log_warn("Could not export GPIO %d in sysfs, disabling reset interrupt",
+		log_warn("Could not export GPIO_RED %d in sysfs, disabling reset interrupt",
 		         red_stack_reset_pin.num);
 	} else {
 		if ((_red_stack_reset_fd = gpio_sysfs_get_input_fd(&red_stack_reset_pin)) < 0) {
 			// Just issue a warning, RED Brick will work without reset interrupt
-			log_warn("Could not retrieve fd for GPIO %s in sysfs, disabling reset interrupt",
+			log_warn("Could not retrieve fd for GPIO_RED %s in sysfs, disabling reset interrupt",
 			         red_stack_reset_pin.name);
 		} else {
 			// If everything worked we can set the interrupt to falling.

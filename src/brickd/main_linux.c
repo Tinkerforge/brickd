@@ -37,7 +37,7 @@
 #include <daemonlib/log.h>
 #include <daemonlib/pid_file.h>
 #ifdef BRICKD_WITH_RED_BRICK
-	#include <daemonlib/red_gpio.h>
+	#include <daemonlib/gpio_red.h>
 	#include <daemonlib/red_led.h>
 #endif
 #include <daemonlib/signal.h>
@@ -358,7 +358,7 @@ int main(int argc, char **argv) {
 	phase = 11;
 
 #ifdef BRICKD_WITH_RED_BRICK
-	if (gpio_init() < 0) {
+	if (gpio_red_init() < 0) {
 		goto cleanup;
 	}
 
@@ -439,7 +439,7 @@ cleanup:
 		// fall through
 
 	case 12:
-		//gpio_exit();
+		//gpio_red_exit();
 		// fall through
 #endif
 
