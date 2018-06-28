@@ -559,6 +559,9 @@ static void bricklet_stack_transceive(BrickletStack *bricklet_stack) {
 		.len = length,
 	};
 
+	// Make sure that we only access SPI once at a time
+	mutex_lock(bricklet_stack->config.mutex);
+
 	// Do chip select by hand if necessary
 	if(bricklet_stack->config.chip_select_type == CHIP_SELECT_GPIO) {
 		if(gpio_sysfs_set_output(&bricklet_stack->config.chip_select_gpio_sysfs, GPIO_SYSFS_VALUE_LOW) < 0) {
@@ -576,6 +579,8 @@ static void bricklet_stack_transceive(BrickletStack *bricklet_stack) {
 			return;
 		}
 	}
+
+	mutex_unlock(bricklet_stack->config.mutex);
 
 	if (rc < 0) {
 		log_error("ioctl failed: %s (%d)", get_errno_name(errno), errno);
