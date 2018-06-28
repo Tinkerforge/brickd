@@ -46,7 +46,6 @@
 #include <daemonlib/packet.h>
 #include <daemonlib/pearson_hash.h>
 #include <daemonlib/pipe.h>
-#include <daemonlib/red_gpio.h>
 
 #include "hardware.h"
 #include "network.h"
