@@ -270,8 +270,8 @@ endif
 	SOURCES_BRICKD += main_linux.c 
 
 ifeq ($(WITH_BRICKLET),yes)
-	SOURCES_BRICKD += bricklet.c
-	SOURCES_BRICKD += bricklet_stack.c
+	SOURCES_BRICKD += bricklet.c \
+	                  bricklet_stack.c
 endif
 endif
 
@@ -506,8 +506,8 @@ $(info - debug:                 $(WITH_DEBUG))
 $(info - gprof:                 $(WITH_GPROF))
 $(info - red-brick:             $(WITH_RED_BRICK))
 $(info - bricklet:              $(WITH_BRICKLET))
-$(info - hotplug:               $(HOTPLUG))
 $(info - mesh-single-root-node: $(WITH_MESH_SINGLE_ROOT_NODE))
+$(info - hotplug:               $(HOTPLUG))
 $(info options:)
 $(info - CFLAGS:                $(CFLAGS))
 $(info - LDFLAGS:               $(LDFLAGS))
