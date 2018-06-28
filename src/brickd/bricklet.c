@@ -27,7 +27,12 @@
 //       linux board discovery mechanism in the future.
 //       We may also get more than one spidev here.
 BrickletStackConfig _bricklet_stack_config = {
-    .spi_device = "/dev/spidev0.0"
+    .spi_device = "/dev/spidev0.0",
+    .chip_select_type = CHIP_SELECT_GPIO,
+    .chip_select_gpio_sysfs = {
+        .name = "gpio8",
+        .num = 8,
+    }
 };
 
 BrickletStack *_bricklet_stack = NULL;
