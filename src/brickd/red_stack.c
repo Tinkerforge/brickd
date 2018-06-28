@@ -40,6 +40,7 @@
 #include <daemonlib/io.h>
 #include <daemonlib/log.h>
 #include <daemonlib/packet.h>
+#include <daemonlib/pearson_hash.h>
 #include <daemonlib/pipe.h>
 #include <daemonlib/red_gpio.h>
 #include <daemonlib/threads.h>
@@ -50,7 +51,6 @@
 #include "network.h"
 #include "red_usb_gadget.h"
 #include "stack.h"
-#include "pearson_hash.h"
 
 static LogSource _log_source = LOG_SOURCE_INITIALIZER;
 
@@ -242,7 +242,7 @@ static uint8_t red_stack_spi_calculate_pearson_hash(const uint8_t *data, const u
 	uint8_t checksum = 0;
 
 	for (i = 0; i < length; i++) {
-		checksum = _red_stack_spi_pearson_permutation[checksum ^ data[i]];
+		PEARSON(checksum, data[i]);
 	}
 
 	return checksum;
