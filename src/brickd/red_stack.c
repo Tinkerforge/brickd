@@ -37,6 +37,7 @@
 #include <daemonlib/base58.h>
 #include <daemonlib/config.h>
 #include <daemonlib/event.h>
+#include <daemonlib/gpio_sysfs.h>
 #include <daemonlib/io.h>
 #include <daemonlib/log.h>
 #include <daemonlib/packet.h>
@@ -88,15 +89,19 @@ static LogSource _log_source = LOG_SOURCE_INITIALIZER;
 
 #if BRICKD_WITH_RED_BRICK == 9
 
-#define RED_STACK_RESET_PIN_GPIO_NUM            16           // defined in fex file
-#define RED_STACK_RESET_PIN_GPIO_NAME           "gpio16_pb5" // defined in fex file
+static GPIOSYSFS red_stack_reset_pin = {
+	.name = "gpio16_pb5",
+	.num  = 16
+};
 
 #else
 
 // ((PORT_ALPHABET_INDEX - 1) * 32) + PIN_NR
 // Example: For PB5, ((2 - 1) * 32) + 5 = 37
-#define RED_STACK_RESET_PIN_GPIO_NUM            37
-#define RED_STACK_RESET_PIN_GPIO_NAME           "gpio37"
+static GPIOSYSFS red_stack_reset_pin = {
+	.name = "gpio37",
+	.num  = 37
+};
 
 #endif
 
@@ -913,19 +918,19 @@ int red_stack_init(void) {
 
 	_red_stack_spi_poll_delay = config_get_option_value("poll_delay.spi")->integer;
 
-	if (gpio_sysfs_export(RED_STACK_RESET_PIN_GPIO_NUM) < 0) {
+	if (gpio_sysfs_export(&red_stack_reset_pin) < 0) {
 		// Just issue a warning, RED Brick will work without reset interrupt
 		log_warn("Could not export GPIO %d in sysfs, disabling reset interrupt",
-		         RED_STACK_RESET_PIN_GPIO_NUM);
+		         red_stack_reset_pin.num);
 	} else {
-		if ((_red_stack_reset_fd = gpio_sysfs_get_value_fd(RED_STACK_RESET_PIN_GPIO_NAME)) < 0) {
+		if ((_red_stack_reset_fd = gpio_sysfs_get_input_fd(&red_stack_reset_pin)) < 0) {
 			// Just issue a warning, RED Brick will work without reset interrupt
 			log_warn("Could not retrieve fd for GPIO %s in sysfs, disabling reset interrupt",
-			         RED_STACK_RESET_PIN_GPIO_NAME);
+			         red_stack_reset_pin.name);
 		} else {
 			// If everything worked we can set the interrupt to falling.
 			// We ignore the return value here, it may work despite error.
-			gpio_sysfs_set_edge(RED_STACK_RESET_PIN_GPIO_NAME, "falling");
+			gpio_sysfs_set_interrupt(&red_stack_reset_pin, GPIO_SYSFS_INTERRUPT_FALLING);
 		}
 	}
 
