@@ -261,8 +261,6 @@ static void bricklet_stack_handle_protocol_error(BrickletStack *bricklet_stack) 
 static bool bricklet_stack_handle_message_from_bricklet(BrickletStack *bricklet_stack, uint8_t *data, const uint8_t length) {
 	Packet *queued_response;
 	eventfd_t ev = 1;
-	char packet_content_dump[PACKET_MAX_CONTENT_DUMP_LENGTH];
-	char packet_signature[PACKET_MAX_SIGNATURE_LENGTH];
 
 	mutex_lock(&bricklet_stack->response_queue_mutex);
 	queued_response = queue_push(&bricklet_stack->response_queue);
