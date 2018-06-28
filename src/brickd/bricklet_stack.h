@@ -29,6 +29,7 @@
 #include <daemonlib/threads.h>
 #include <daemonlib/queue.h>
 #include <daemonlib/ringbuffer.h>
+#include <daemonlib/gpio_sysfs.h>
 
 #include "stack.h"
 
@@ -47,8 +48,24 @@
 
 #define SPITFP_TIMEOUT 5 // in ms
 
+typedef enum {
+	CHIP_SELECT_HARDWARE,
+	CHIP_SELECT_GPIO,
+	CHIP_SELECT_WIRINGPI // TODO
+} BrickletStackChipSelectType;
+
 typedef struct {
     char spi_device[64]; // e.g. "/dev/spidev0.0";
+	BrickletStackChipSelectType chip_select_type;
+
+	// Unused in case of hardware or WiringPi CS
+	GPIOSYSFS chip_select_gpio_sysfs;
+
+	// TODO: Add WiringPi structure
+
+	// One mutex per spidev, so that we can use several SPI hardware units in parallel.
+	// Has to be properly managed during initialization.
+	Mutex *mutex;
 } BrickletStackConfig;
 
 typedef struct {

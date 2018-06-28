@@ -41,6 +41,7 @@
 #include <daemonlib/base58.h>
 #include <daemonlib/config.h>
 #include <daemonlib/event.h>
+#include <daemonlib/gpio_sysfs.h>
 #include <daemonlib/io.h>
 #include <daemonlib/log.h>
 #include <daemonlib/packet.h>
@@ -558,7 +559,24 @@ static void bricklet_stack_transceive(BrickletStack *bricklet_stack) {
 		.len = length,
 	};
 
+	// Do chip select by hand if necessary
+	if(bricklet_stack->config.chip_select_type == CHIP_SELECT_GPIO) {
+		if(gpio_sysfs_set_output(&bricklet_stack->config.chip_select_gpio_sysfs, GPIO_SYSFS_VALUE_LOW) < 0) {
+			log_error("Could not enable chip select");
+			return;
+		}
+	}
+
 	int rc = ioctl(bricklet_stack->spi_fd, SPI_IOC_MESSAGE(1), &spi_transfer);
+
+	// Do chip deselect by hand if necessary
+	if(bricklet_stack->config.chip_select_type == CHIP_SELECT_GPIO) {
+		if(gpio_sysfs_set_output(&bricklet_stack->config.chip_select_gpio_sysfs, GPIO_SYSFS_VALUE_HIGH) < 0) {
+			log_error("Could not disable chip select");
+			return;
+		}
+	}
+
 	if (rc < 0) {
 		log_error("ioctl failed: %s (%d)", get_errno_name(errno), errno);
 		return;
@@ -608,7 +626,8 @@ static void bricklet_stack_spi_thread(void *opaque) {
 }
 
 static int bricklet_stack_init_spi(BrickletStack *bricklet_stack) {
-	const uint8_t  mode          = BRICKLET_STACK_SPI_CONFIG_MODE;
+	// Use hw chip select if it is done by SPI hardware unit, otherwise set SPI_NO_CS flag.
+	const uint8_t  mode          = BRICKLET_STACK_SPI_CONFIG_MODE | (bricklet_stack->config.chip_select_type == CHIP_SELECT_HARDWARE ? 0 : SPI_NO_CS);
 	const uint8_t  lsb_first     = BRICKLET_STACK_SPI_CONFIG_LSB_FIRST;
 	const uint8_t  bits_per_word = BRICKLET_STACK_SPI_CONFIG_BITS_PER_WORD;
 	const uint32_t max_speed_hz  = BRICKLET_STACK_SPI_CONFIG_MAX_SPEED_HZ;
@@ -651,6 +670,20 @@ BrickletStack* bricklet_stack_init(BrickletStackConfig *config) {
 	char notification_name[129] = {'\0'};
 
     log_debug("Initializing BrickletStack subsystem for '%s'", config->spi_device);
+
+	if(config->chip_select_type == CHIP_SELECT_GPIO) {
+		if(gpio_sysfs_export(&config->chip_select_gpio_sysfs) < 0) {
+			goto cleanup;
+		}
+
+		if(gpio_sysfs_set_output(&config->chip_select_gpio_sysfs, GPIO_SYSFS_VALUE_HIGH) < 0) {
+			goto cleanup;
+		}
+
+		if(gpio_sysfs_set_direction(&config->chip_select_gpio_sysfs, GPIO_SYSFS_DIRECTION_OUTPUT) < 0) {
+			goto cleanup;
+		}
+	}
 
 	// create bricklet_stack struct
 	BrickletStack *bricklet_stack = (BrickletStack*)malloc(sizeof(BrickletStack));	
