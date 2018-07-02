@@ -25,6 +25,11 @@
 	#include <daemonlib/red_led.h>
 #endif
 
+#ifdef BRICKD_WITH_BRICKLET
+	#include "bricklet.h"
+#endif
+
+
 #ifdef BRICKD_WITH_RED_BRICK
 
 static EnumValueName _red_led_trigger_enum_value_names[] = {
@@ -47,6 +52,26 @@ static const char *config_format_red_led_trigger(int value) {
 
 #endif
 
+#ifdef BRICKD_WITH_BRICKLET
+
+static EnumValueName _bricklet_chip_select_driver_enum_value_names[] = {
+	{ BRICKLET_CHIP_SELECT_DRIVER_HARDWARE, "hardware" },
+	{ BRICKLET_CHIP_SELECT_DRIVER_GPIO,     "gpio" },
+	{ BRICKLET_CHIP_SELECT_DRIVER_WIRINGPI, "wiringpi" },
+	{ -1,                                   NULL }
+};
+
+static int config_parse_bricklet_chip_select_driver(const char *string, int *value) {
+	return enum_get_value(_bricklet_chip_select_driver_enum_value_names, string, value, true);
+}
+
+static const char *config_format_bricklet_chip_select_driver(int value) {
+	return enum_get_name(_bricklet_chip_select_driver_enum_value_names, value, "<unknown>");
+}
+
+#endif
+
+
 ConfigOption config_options[] = {
 	CONFIG_OPTION_STRING_INITIALIZER("listen.address", 1, -1, "0.0.0.0"),
 	CONFIG_OPTION_INTEGER_INITIALIZER("listen.plain_port", 1, UINT16_MAX, 4223),
@@ -61,6 +86,73 @@ ConfigOption config_options[] = {
 	CONFIG_OPTION_SYMBOL_INITIALIZER("led_trigger.red", config_parse_red_led_trigger, config_format_red_led_trigger, RED_LED_TRIGGER_OFF),
 	CONFIG_OPTION_INTEGER_INITIALIZER("poll_delay.spi", 50, INT32_MAX, 50), // microseconds
 	CONFIG_OPTION_INTEGER_INITIALIZER("poll_delay.rs485", 50, INT32_MAX, 4000), // microseconds
+#endif
+#ifdef BRICKD_WITH_BRICKLET
+	CONFIG_OPTION_STRING_INITIALIZER("bricklet.group0.spidev", 0, 64, ""),
+	CONFIG_OPTION_STRING_INITIALIZER("bricklet.group1.spidev", 0, 64, ""),
+
+	CONFIG_OPTION_SYMBOL_INITIALIZER("bricklet.group0.cs0.driver", config_parse_bricklet_chip_select_driver, config_format_bricklet_chip_select_driver, -1),
+	CONFIG_OPTION_SYMBOL_INITIALIZER("bricklet.group0.cs1.driver", config_parse_bricklet_chip_select_driver, config_format_bricklet_chip_select_driver, -1),
+	CONFIG_OPTION_SYMBOL_INITIALIZER("bricklet.group0.cs2.driver", config_parse_bricklet_chip_select_driver, config_format_bricklet_chip_select_driver, -1),
+	CONFIG_OPTION_SYMBOL_INITIALIZER("bricklet.group0.cs3.driver", config_parse_bricklet_chip_select_driver, config_format_bricklet_chip_select_driver, -1),
+	CONFIG_OPTION_SYMBOL_INITIALIZER("bricklet.group0.cs4.driver", config_parse_bricklet_chip_select_driver, config_format_bricklet_chip_select_driver, -1),
+	CONFIG_OPTION_SYMBOL_INITIALIZER("bricklet.group0.cs5.driver", config_parse_bricklet_chip_select_driver, config_format_bricklet_chip_select_driver, -1),
+	CONFIG_OPTION_SYMBOL_INITIALIZER("bricklet.group0.cs6.driver", config_parse_bricklet_chip_select_driver, config_format_bricklet_chip_select_driver, -1),
+	CONFIG_OPTION_SYMBOL_INITIALIZER("bricklet.group0.cs7.driver", config_parse_bricklet_chip_select_driver, config_format_bricklet_chip_select_driver, -1),
+	CONFIG_OPTION_SYMBOL_INITIALIZER("bricklet.group0.cs8.driver", config_parse_bricklet_chip_select_driver, config_format_bricklet_chip_select_driver, -1),
+	CONFIG_OPTION_SYMBOL_INITIALIZER("bricklet.group0.cs9.driver", config_parse_bricklet_chip_select_driver, config_format_bricklet_chip_select_driver, -1),
+	CONFIG_OPTION_SYMBOL_INITIALIZER("bricklet.group1.cs0.driver", config_parse_bricklet_chip_select_driver, config_format_bricklet_chip_select_driver, -1),
+	CONFIG_OPTION_SYMBOL_INITIALIZER("bricklet.group1.cs1.driver", config_parse_bricklet_chip_select_driver, config_format_bricklet_chip_select_driver, -1),
+	CONFIG_OPTION_SYMBOL_INITIALIZER("bricklet.group1.cs2.driver", config_parse_bricklet_chip_select_driver, config_format_bricklet_chip_select_driver, -1),
+	CONFIG_OPTION_SYMBOL_INITIALIZER("bricklet.group1.cs3.driver", config_parse_bricklet_chip_select_driver, config_format_bricklet_chip_select_driver, -1),
+	CONFIG_OPTION_SYMBOL_INITIALIZER("bricklet.group1.cs4.driver", config_parse_bricklet_chip_select_driver, config_format_bricklet_chip_select_driver, -1),
+	CONFIG_OPTION_SYMBOL_INITIALIZER("bricklet.group1.cs5.driver", config_parse_bricklet_chip_select_driver, config_format_bricklet_chip_select_driver, -1),
+	CONFIG_OPTION_SYMBOL_INITIALIZER("bricklet.group1.cs6.driver", config_parse_bricklet_chip_select_driver, config_format_bricklet_chip_select_driver, -1),
+	CONFIG_OPTION_SYMBOL_INITIALIZER("bricklet.group1.cs7.driver", config_parse_bricklet_chip_select_driver, config_format_bricklet_chip_select_driver, -1),
+	CONFIG_OPTION_SYMBOL_INITIALIZER("bricklet.group1.cs8.driver", config_parse_bricklet_chip_select_driver, config_format_bricklet_chip_select_driver, -1),
+	CONFIG_OPTION_SYMBOL_INITIALIZER("bricklet.group1.cs9.driver", config_parse_bricklet_chip_select_driver, config_format_bricklet_chip_select_driver, -1),
+
+	CONFIG_OPTION_INTEGER_INITIALIZER("bricklet.group0.cs0.num", 0, UINT16_MAX, -1),
+	CONFIG_OPTION_INTEGER_INITIALIZER("bricklet.group0.cs1.num", 0, UINT16_MAX, -1),
+	CONFIG_OPTION_INTEGER_INITIALIZER("bricklet.group0.cs2.num", 0, UINT16_MAX, -1),
+	CONFIG_OPTION_INTEGER_INITIALIZER("bricklet.group0.cs3.num", 0, UINT16_MAX, -1),
+	CONFIG_OPTION_INTEGER_INITIALIZER("bricklet.group0.cs4.num", 0, UINT16_MAX, -1),
+	CONFIG_OPTION_INTEGER_INITIALIZER("bricklet.group0.cs5.num", 0, UINT16_MAX, -1),
+	CONFIG_OPTION_INTEGER_INITIALIZER("bricklet.group0.cs6.num", 0, UINT16_MAX, -1),
+	CONFIG_OPTION_INTEGER_INITIALIZER("bricklet.group0.cs7.num", 0, UINT16_MAX, -1),
+	CONFIG_OPTION_INTEGER_INITIALIZER("bricklet.group0.cs8.num", 0, UINT16_MAX, -1),
+	CONFIG_OPTION_INTEGER_INITIALIZER("bricklet.group0.cs9.num", 0, UINT16_MAX, -1),
+	CONFIG_OPTION_INTEGER_INITIALIZER("bricklet.group1.cs0.num", 0, UINT16_MAX, -1),
+	CONFIG_OPTION_INTEGER_INITIALIZER("bricklet.group1.cs1.num", 0, UINT16_MAX, -1),
+	CONFIG_OPTION_INTEGER_INITIALIZER("bricklet.group1.cs2.num", 0, UINT16_MAX, -1),
+	CONFIG_OPTION_INTEGER_INITIALIZER("bricklet.group1.cs3.num", 0, UINT16_MAX, -1),
+	CONFIG_OPTION_INTEGER_INITIALIZER("bricklet.group1.cs4.num", 0, UINT16_MAX, -1),
+	CONFIG_OPTION_INTEGER_INITIALIZER("bricklet.group1.cs5.num", 0, UINT16_MAX, -1),
+	CONFIG_OPTION_INTEGER_INITIALIZER("bricklet.group1.cs6.num", 0, UINT16_MAX, -1),
+	CONFIG_OPTION_INTEGER_INITIALIZER("bricklet.group1.cs7.num", 0, UINT16_MAX, -1),
+	CONFIG_OPTION_INTEGER_INITIALIZER("bricklet.group1.cs8.num", 0, UINT16_MAX, -1),
+	CONFIG_OPTION_INTEGER_INITIALIZER("bricklet.group1.cs9.num", 0, UINT16_MAX, -1),
+
+	CONFIG_OPTION_STRING_INITIALIZER("bricklet.group0.cs0.name", 0, 32, ""),
+	CONFIG_OPTION_STRING_INITIALIZER("bricklet.group0.cs1.name", 0, 32, ""),
+	CONFIG_OPTION_STRING_INITIALIZER("bricklet.group0.cs2.name", 0, 32, ""),
+	CONFIG_OPTION_STRING_INITIALIZER("bricklet.group0.cs3.name", 0, 32, ""),
+	CONFIG_OPTION_STRING_INITIALIZER("bricklet.group0.cs4.name", 0, 32, ""),
+	CONFIG_OPTION_STRING_INITIALIZER("bricklet.group0.cs5.name", 0, 32, ""),
+	CONFIG_OPTION_STRING_INITIALIZER("bricklet.group0.cs6.name", 0, 32, ""),
+	CONFIG_OPTION_STRING_INITIALIZER("bricklet.group0.cs7.name", 0, 32, ""),
+	CONFIG_OPTION_STRING_INITIALIZER("bricklet.group0.cs8.name", 0, 32, ""),
+	CONFIG_OPTION_STRING_INITIALIZER("bricklet.group0.cs9.name", 0, 32, ""),
+	CONFIG_OPTION_STRING_INITIALIZER("bricklet.group1.cs0.name", 0, 32, ""),
+	CONFIG_OPTION_STRING_INITIALIZER("bricklet.group1.cs1.name", 0, 32, ""),
+	CONFIG_OPTION_STRING_INITIALIZER("bricklet.group1.cs2.name", 0, 32, ""),
+	CONFIG_OPTION_STRING_INITIALIZER("bricklet.group1.cs3.name", 0, 32, ""),
+	CONFIG_OPTION_STRING_INITIALIZER("bricklet.group1.cs4.name", 0, 32, ""),
+	CONFIG_OPTION_STRING_INITIALIZER("bricklet.group1.cs5.name", 0, 32, ""),
+	CONFIG_OPTION_STRING_INITIALIZER("bricklet.group1.cs6.name", 0, 32, ""),
+	CONFIG_OPTION_STRING_INITIALIZER("bricklet.group1.cs7.name", 0, 32, ""),
+	CONFIG_OPTION_STRING_INITIALIZER("bricklet.group1.cs8.name", 0, 32, ""),
+	CONFIG_OPTION_STRING_INITIALIZER("bricklet.group1.cs9.name", 0, 32, ""),
 #endif
 	CONFIG_OPTION_NULL_INITIALIZER // end of list
 };
