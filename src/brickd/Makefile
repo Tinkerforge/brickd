@@ -597,7 +597,7 @@ endif
 
 ifeq ($(WITH_SYSTEMD),yes)
 	@echo "CP brickd-resume.service (systemd service)"
-	$(E)$(INSTALL) -m 644 ../build_data/linux/installer/etc/systemd/system/brickd-resume.service $(sysconfdir)/systemd/system
+	$(E)$(INSTALL) -m 644 ../build_data/linux/installer/lib/systemd/system/brickd-resume.service /lib/systemd/system
 	$(E)systemctl enable brickd-resume.service
 endif
 
