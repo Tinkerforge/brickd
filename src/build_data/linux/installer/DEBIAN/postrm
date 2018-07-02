@@ -14,7 +14,7 @@ if [ "$1" = "remove" ]; then
 fi
 
 if [ "$1" = "purge" ]; then
-	rm /etc/init.d/brickd || true
+	rm /etc/init.d/brickd 2>/dev/null || true
 	rm -f /var/log/brickd.log*
 fi
 

@@ -4,6 +4,9 @@
 
 set -e
 
+# clean up properly before installing the new brickd. in a perfect world this
+# should not be necessary and the prerm script from the old brickd should clean
+# up properly behind itself. but not all old brickd versions did this properly
 if [ "$1" = "upgrade" ]; then
 	PID=$(pgrep -F /var/run/brickd.pid -L brickd 2>/dev/null || pgrep brickd 2>/dev/null || true)
 
@@ -18,6 +21,12 @@ if [ "$1" = "upgrade" ]; then
 			fi
 		fi
 	fi
+
+	if [ -x /usr/sbin/update-rc.d ]; then
+		update-rc.d brickd remove >/dev/null
+	fi
+
+	rm /etc/init.d/brickd 2>/dev/null || true
 fi
 
 exit 0
