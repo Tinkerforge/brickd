@@ -7,6 +7,6 @@
 	compress
 	delaycompress
 	postrotate
-		killall -q -HUP brickd || true
+		pkill -F /var/run/brickd.pid -L -HUP brickd >/dev/null 2>&1 || pkill -HUP brickd >/dev/null 2>&1 || true
 	endscript
 }

@@ -7,7 +7,7 @@ if [ "$1" = "configure" ]; then
 		systemctl enable brickd.service
 		systemctl start brickd.service
 	elif [ -x /etc/init.d/brickd ]; then
-		update-rc.d brickd defaults > /dev/null
+		update-rc.d brickd defaults >/dev/null
 
 		if [ -x /usr/sbin/invoke-rc.d ]; then
 			invoke-rc.d brickd start

@@ -6,7 +6,7 @@ case $1 in
   hibernate|suspend)
     ;;
   thaw|resume)
-    pkill -F /var/run/brickd.pid -L -USR1 || true
+    pkill -F /var/run/brickd.pid -L -USR1 brickd || pkill -USR1 brickd || true
     ;;
   *)
     ;;

@@ -12,7 +12,7 @@ if [ "$1" = "remove" ]; then
 			systemctl disable brickd-resume.service
 		fi
 	elif [ -x /etc/init.d/brickd ]; then
-		update-rc.d brickd remove > /dev/nulli
+		update-rc.d brickd remove >/dev/nulli
 	fi
 fi
 

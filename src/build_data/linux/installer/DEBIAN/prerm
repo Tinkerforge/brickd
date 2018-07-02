@@ -3,7 +3,7 @@
 set -e
 
 if [ "$1" = "remove" ]; then
-	PID=$(pgrep -F /var/run/brickd.pid -L brickd 2> /dev/null || true)
+	PID=$(pgrep -F /var/run/brickd.pid -L brickd 2>/dev/null || pgrep brickd 2>/dev/null || true)
 
 	if [ -n "${PID:-}" ]; then
 		if [ -d /run/systemd/system ] && [ -e /lib/systemd/system/brickd.service ]; then
