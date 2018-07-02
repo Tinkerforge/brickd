@@ -1,6 +1,6 @@
 [Unit]
 Description=Brick Daemon (Resume)
-After=suspend.target,brickd.service
+After=suspend.target
 Requisite=brickd.service
 
 [Service]
