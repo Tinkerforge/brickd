@@ -1,8 +1,10 @@
 #!/bin/sh
 
+# https://wiki.debian.org/MaintainerScripts
+
 set -e
 
-if [ "$1" = "remove" ]; then
+if [ "$1" = "remove" ] || [ "$1" = "upgrade" ]; then
 	PID=$(pgrep -F /var/run/brickd.pid -L brickd 2>/dev/null || pgrep brickd 2>/dev/null || true)
 
 	if [ -n "${PID:-}" ]; then

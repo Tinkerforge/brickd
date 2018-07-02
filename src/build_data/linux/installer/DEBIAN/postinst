@@ -1,5 +1,7 @@
 #!/bin/sh
 
+# https://wiki.debian.org/MaintainerScripts
+
 set -e
 
 if [ "$1" = "configure" ]; then
