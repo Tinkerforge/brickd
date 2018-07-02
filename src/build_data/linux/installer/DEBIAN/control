@@ -5,7 +5,7 @@ Maintainer: Olaf Lüke <olaf@tinkerforge.com>
 Architecture: <<ARCHITECTURE>>
 Priority: optional
 Installed-Size: <<INSTALLED_SIZE>>
-Depends: libc6, lsb-base, libusb-1.0-0, libudev1 | libudev0, pm-utils
+Depends: libc6, lsb-base, procps, libusb-1.0-0, libudev1 | libudev0, pm-utils
 Recommends: logrotate
 Description: Tinkerforge Brick Daemon
  The Brick Daemon program is part of the Tinkerforge software infrastructure.

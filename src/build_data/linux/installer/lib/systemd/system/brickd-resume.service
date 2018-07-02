@@ -1,11 +1,12 @@
 [Unit]
 Description=Brick Daemon (Resume)
-After=suspend.target
+After=suspend.target,brickd.service
+Requisite=brickd.service
 
 [Service]
 User=root
 Type=oneshot
-ExecStart=/usr/lib/pm-utils/sleep.d/42brickd resume
+ExecStart=/usr/bin/pkill -F /var/run/brickd.pid -L -USR1
 TimeoutSec=0
 StandardOutput=syslog
 

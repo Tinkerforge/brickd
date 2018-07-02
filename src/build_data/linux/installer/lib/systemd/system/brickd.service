@@ -1,5 +1,5 @@
 [Unit]
-Description=Start the brickd daemon for Tinkerforge bricks
+Description=Brick Daemon
 
 [Service]
 User=root

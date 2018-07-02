@@ -2,18 +2,23 @@
 
 set -e
 
-if [ "$1" = "configure" ] && [ -x /etc/init.d/brickd ]; then
-	update-rc.d brickd defaults > /dev/null
+if [ "$1" = "configure" ]; then
+	if [ -d /run/systemd/system ] && [ -e /lib/systemd/system/brickd.service ]; then
+		systemctl enable brickd.service
+		systemctl start brickd.service
+	elif [ -x /etc/init.d/brickd ]; then
+		update-rc.d brickd defaults > /dev/null
 
-	if [ -x /usr/sbin/invoke-rc.d ]; then
-		invoke-rc.d brickd start
-	else
-		/etc/init.d/brickd start
+		if [ -x /usr/sbin/invoke-rc.d ]; then
+			invoke-rc.d brickd start
+		else
+			/etc/init.d/brickd start
+		fi
 	fi
-fi
 
-if [ "$1" = "configure" ] && [ -d /run/systemd/system ] && [ -e /lib/systemd/system/brickd-resume.service ]; then
-	systemctl enable brickd-resume.service
+	if [ -d /run/systemd/system ] && [ -e /lib/systemd/system/brickd-resume.service ]; then
+		systemctl enable brickd-resume.service
+	fi
 fi
 
 exit 0

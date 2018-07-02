@@ -39,7 +39,7 @@ Linux
 ^^^^^
 
 A Makefile is provided to compile the source code using GCC and install the
-result::
+result. The Makefile will autodetect the availability of libudev and pm-utils::
 
  cd src/brickd
  make
@@ -48,8 +48,14 @@ result::
 Run the following commands to register brickd for autostart on Debian based
 Linux distribution and start it::
 
+ sudo systemctl enable brickd
+ sudo systemctl start brickd
+
+On Debian based Linux distribution without systemd run the following commands
+instead::
+
  sudo update-rc.d brickd defaults
- sudo /etc/init.d/brickd start
+ sudo invoke-rc.d brickd start
 
 Windows
 ^^^^^^^

@@ -579,6 +579,11 @@ endif
 	@echo "CP brickd (init.d script)"
 	$(E)$(INSTALL) -m 755 ../build_data/linux/installer/etc/init.d/brickd $(sysconfdir)/init.d
 
+ifeq ($(WITH_SYSTEMD),yes)
+	@echo "CP brickd.service (systemd service)"
+	$(E)$(INSTALL) -m 644 ../build_data/linux/installer/lib/systemd/system/brickd.service /lib/systemd/system
+endif
+
 	@echo "CP brickd (logrotate.d script)"
 	$(E)$(INSTALL) -m 644 ../build_data/linux/installer/etc/logrotate.d/brickd $(sysconfdir)/logrotate.d
 

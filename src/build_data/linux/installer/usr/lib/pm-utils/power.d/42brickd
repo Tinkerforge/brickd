@@ -2,16 +2,11 @@
 
 set -e
 
-PIDFILE=/var/run/brickd.pid
-
 case $1 in
   true)
     ;;
   false)
-    PID=`cat "$PIDFILE"`
-    if [ -n "${PID:-}" ]; then
-      kill -USR1 "${PID:-}"
-    fi
+    pkill -F /var/run/brickd.pid -L -USR1 || true
     ;;
   *)
     ;;

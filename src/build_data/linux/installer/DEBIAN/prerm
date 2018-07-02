@@ -2,19 +2,13 @@
 
 set -e
 
-PIDFILE=/var/run/brickd.pid
-
-if [ "$1" = "remove" ] && [ -x /etc/init.d/brickd ] && [ -n "${PIDFILE:-}" -a -r "$PIDFILE" ]; then
-	PID=`cat "$PIDFILE"`
+if [ "$1" = "remove" ]; then
+	PID=$(pgrep -F /var/run/brickd.pid -L brickd 2> /dev/null || true)
 
 	if [ -n "${PID:-}" ]; then
-		if $(kill -0 "${PID:-}" 2> /dev/null); then
-			if [ -x /usr/sbin/invoke-rc.d ]; then
-				invoke-rc.d brickd stop
-			else
-				/etc/init.d/brickd stop
-			fi
-		elif ps "${PID:-}" > /dev/null 2>&1; then
+		if [ -d /run/systemd/system ] && [ -e /lib/systemd/system/brickd.service ]; then
+			systemctl stop brickd.service
+		elif [ -x /etc/init.d/brickd ]; then
 			if [ -x /usr/sbin/invoke-rc.d ]; then
 				invoke-rc.d brickd stop
 			else
@@ -22,11 +16,6 @@ if [ "$1" = "remove" ] && [ -x /etc/init.d/brickd ] && [ -n "${PIDFILE:-}" -a -r
 			fi
 		fi
 	fi
-fi
-
-if [ "$1" = "remove" ] && [ -d /run/systemd/system ] && [ -e /lib/systemd/system/brickd-resume.service ]; then
-	systemctl stop brickd-resume.service
-	systemctl disable brickd-resume.service
 fi
 
 exit 0
