@@ -131,8 +131,7 @@ endif
 
 LIBUSB_STATUS := no
 LIBUDEV_STATUS := no
-PM_UTILS_STATUS := no
-SYSTEMD_STATUS := no
+HOTPLUG := no
 
 ifeq ($(PLATFORM),Windows)
 	HOTPLUG := WinAPI
@@ -171,6 +170,9 @@ endif
 ifeq ($(PLATFORM),Darwin)
 	HOTPLUG := libusb
 endif
+
+PM_UTILS_STATUS := no
+SYSTEMD_STATUS := no
 
 ifeq ($(PLATFORM),Linux)
 	PM_UTILS_EXISTS := $(shell pkg-config --exists pm-utils && echo yes || echo no)
