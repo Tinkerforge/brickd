@@ -12,14 +12,14 @@ Brick Daemon uses the common Tinkerforge daemonlib::
 
 It has to be cloned or symlinked to the ``src/daemonlib`` directory before
 the source code can be compiled. Make sure that you're using matching versions
-of the brickd and daemonlib source code. If you're using the the current git
+of the brickd and daemonlib source code. If you're using the current git
 version of brickd then you also need the current git version of daemonlib. If
 you're using a specific release of brickd (e.g. tagged v2.3.0) then you also
 need the matching release of daemonlib (e.g. tagged brickd-2.3.0).
 
-Also the following libraries are required:
+Brick Daemon also depends on the following libraries:
 
-* libusb-1.0
+* libusb-1.0 (mandatory)
 * libudev (optional for USB hotplug, Linux only)
 * pm-utils (optional for suspend/resume handling, Linux only)
 
@@ -32,7 +32,7 @@ On Fedora Linux try::
  sudo yum groupinstall "Development Tools"
  sudo yum install libusb1-devel libudev-devel pm-utils-devel
 
-For Windows and macOS a suitable pre-compiled libusb binary is part of this
+For Windows and macOS a suitable pre-compiled libusb-1.0 binary is part of this
 repository.
 
 Linux
