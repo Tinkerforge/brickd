@@ -632,10 +632,10 @@ static void bricklet_stack_spi_thread(void *opaque) {
 
 static int bricklet_stack_init_spi(BrickletStack *bricklet_stack) {
 	// Use hw chip select if it is done by SPI hardware unit, otherwise set SPI_NO_CS flag.
-	const uint8_t  mode          = BRICKLET_STACK_SPI_CONFIG_MODE | (bricklet_stack->config.chip_select_type == CHIP_SELECT_HARDWARE ? 0 : SPI_NO_CS);
-	const uint8_t  lsb_first     = BRICKLET_STACK_SPI_CONFIG_LSB_FIRST;
-	const uint8_t  bits_per_word = BRICKLET_STACK_SPI_CONFIG_BITS_PER_WORD;
-	const uint32_t max_speed_hz  = BRICKLET_STACK_SPI_CONFIG_MAX_SPEED_HZ;
+	const int mode          = BRICKLET_STACK_SPI_CONFIG_MODE | (bricklet_stack->config.chip_select_driver == CHIP_SELECT_HARDWARE ? 0 : SPI_NO_CS);
+	const int lsb_first     = BRICKLET_STACK_SPI_CONFIG_LSB_FIRST;
+	const int bits_per_word = BRICKLET_STACK_SPI_CONFIG_BITS_PER_WORD;
+	const int max_speed_hz  = BRICKLET_STACK_SPI_CONFIG_MAX_SPEED_HZ;
 
 	// Open spidev
 	bricklet_stack->spi_fd = open(bricklet_stack->config.spi_device, O_RDWR);
