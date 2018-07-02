@@ -268,8 +268,11 @@ def build_linux_pkg():
     print('changing owner back to original user')
     system('sudo chown -R ${USER}:${USER} dist')
 
-    print('checking Debian package')
-    system('lintian --pedantic brickd-{0}_{1}.deb || true'.format(version, architecture))
+    if os.path.exists('/usr/bin/lintian'):
+        print('checking Debian package')
+        system('lintian --pedantic brickd-{0}_{1}.deb || true'.format(version, architecture))
+    else:
+        print('skipping lintian check')
 
     print('cleaning up')
     system('cd brickd; make clean')
