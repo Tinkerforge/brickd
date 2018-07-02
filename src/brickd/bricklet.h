@@ -22,6 +22,12 @@
 #ifndef BRICKD_BRICKLET_H
 #define BRICKD_BRICKLET_H
 
+typedef enum {
+	BRICKLET_CHIP_SELECT_DRIVER_HARDWARE =  0,
+	BRICKLET_CHIP_SELECT_DRIVER_GPIO,
+	BRICKLET_CHIP_SELECT_DRIVER_WIRINGPI,
+} BrickletChipSelectDriver;
+
 int bricklet_init(void);
 void bricklet_exit(void);
 

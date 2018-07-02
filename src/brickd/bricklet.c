@@ -23,29 +23,117 @@
 
 #include "bricklet_stack.h"
 
-// TODO: This will be the return of the yet to be implemented
-//       linux board discovery mechanism in the future.
-//       We may also get more than one spidev here.
-BrickletStackConfig _bricklet_stack_config = {
-    .spi_device = "/dev/spidev0.0",
-    .chip_select_type = CHIP_SELECT_GPIO,
-    .chip_select_gpio_sysfs = {
-        .name = "gpio8",
-        .num = 8,
-    }
-};
+#include <daemonlib/config.h>
+#include <daemonlib/log.h>
+#include <daemonlib/threads.h>
 
-BrickletStack *_bricklet_stack = NULL;
+#include <string.h>
+
+#define BRICKLET_SPI_MAX_NUM 2
+#define BRICKLET_CS_MAX_NUM 10
+
+#define BRICKLET_CONFIG_STR_GROUP_POS 14
+#define BRICKLET_CONFIG_STR_CS_POS    (BRICKLET_CONFIG_STR_GROUP_POS + 4)
+
+static LogSource _log_source = LOG_SOURCE_INITIALIZER;
+
+// We support up to two parallel SPI hardware units, each one of those needs a mutex.
+static Mutex _bricklet_spi_mutex[BRICKLET_SPI_MAX_NUM];
+static int _bricklet_stack_num = 0;
+static BrickletStack *_bricklet_stack[BRICKLET_SPI_MAX_NUM*BRICKLET_CS_MAX_NUM] = {NULL};
+
+
+// spidev1.x on RPi does not support CPHA:
+// https://www.raspberrypi.org/forums/viewtopic.php?t=186019
+// https://www.raspberrypi.org/forums/viewtopic.php?f=44&t=96069
+// https://www.raspberrypi.org/forums/viewtopic.php?t=149981
+// So we have to keep it at one SPI device for the RPi HAT...
+
+// Additionally, on spidev0.x the SPI_NO_CS option does not work,
+// so we can't intermix hardware CS with gpio CS pins. Because
+// of this the HAT can only use pins for CS that are not HW CS pins...
+int bricklet_init_rpi_hat(void) {
+    // TODO: Read /proc/device-tree to find out if HAT is present.
+
+    return -1;
+}
 
 int bricklet_init(void) {
-	_bricklet_stack = bricklet_stack_init(&_bricklet_stack_config);
-	if(_bricklet_stack == NULL) {
-        return -1;
-	}
+    int length = 0;
+    char str_spidev[]    = "bricklet.groupX.spidev";
+    char str_cs_driver[] = "bricklet.groupX.csY.driver";
+    char str_cs_name[]   = "bricklet.groupX.csY.name";
+    char str_cs_num[]    = "bricklet.groupX.csY.num";
+
+    mutex_create(&_bricklet_spi_mutex[0]);
+    mutex_create(&_bricklet_spi_mutex[1]);
+
+    // First we try to find out if this brickd is installed on a RPi with raspbian
+    // and a Tinkerforge Bricklet HAT ist on top.
+    if(bricklet_init_rpi_hat() == 0) {
+        return 0;
+    }
+
+    // If there is no HAT we try to read the SPI configuration from the config
+    for(uint8_t i = 0; i < BRICKLET_SPI_MAX_NUM; i++) {
+        BrickletStackConfig config = {
+            .mutex = &_bricklet_spi_mutex[i],
+        };
+
+        str_spidev[BRICKLET_CONFIG_STR_GROUP_POS] = '0' + i;
+        length = strlen(config_get_option_value(str_spidev)->string);
+        if(length == 0) {
+            continue;
+        }
+
+        memcpy(config.spi_device, config_get_option_value(str_spidev)->string, length);
+
+        for(uint8_t cs = 0; cs < BRICKLET_CS_MAX_NUM; cs++) {
+            str_cs_driver[BRICKLET_CONFIG_STR_GROUP_POS] = '0' + i;
+            str_cs_driver[BRICKLET_CONFIG_STR_CS_POS]    = '0' + cs;
+            config.chip_select_driver = config_get_option_value(str_cs_driver)->symbol;
+
+            if(config.chip_select_driver == CHIP_SELECT_GPIO) {
+                str_cs_num[BRICKLET_CONFIG_STR_GROUP_POS] = '0' + i;
+                str_cs_num[BRICKLET_CONFIG_STR_CS_POS]    = '0' + cs;
+                config.chip_select_gpio_sysfs.num = config_get_option_value(str_cs_num)->integer;
+
+                str_cs_name[BRICKLET_CONFIG_STR_GROUP_POS] = '0' + i;
+                str_cs_name[BRICKLET_CONFIG_STR_CS_POS]    = '0' + cs;
+                length = strlen(config_get_option_value(str_cs_name)->string);
+
+                if(length == 0) {
+                    continue;
+                }
+
+                memcpy(config.chip_select_gpio_sysfs.name, config_get_option_value(str_cs_name)->string, length);
+            } else if(config.chip_select_driver != CHIP_SELECT_HARDWARE) {
+                continue;
+            }
+
+			log_debug("Bricklet found: spidev %s, driver %d, name %s (num %d)", 
+                      config.spi_device, 
+                      config.chip_select_driver, 
+                      config.chip_select_gpio_sysfs.name, 
+                      config.chip_select_gpio_sysfs.num);
+
+            _bricklet_stack[_bricklet_stack_num] = bricklet_stack_init(&config);
+            if(_bricklet_stack[_bricklet_stack_num] == NULL) {
+                return -1;
+            }
+
+            _bricklet_stack_num++;
+        }
+    }
 
     return 0;
 }
 
 void bricklet_exit(void) {
-   bricklet_stack_exit(_bricklet_stack); 
+    for(int i = 0; i < _bricklet_stack_num; i++) {
+        bricklet_stack_exit(_bricklet_stack[i]); 
+    }
+
+    mutex_destroy(&_bricklet_spi_mutex[0]);
+    mutex_destroy(&_bricklet_spi_mutex[1]);
 }
