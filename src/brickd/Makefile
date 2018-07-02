@@ -29,7 +29,7 @@ WITH_USB_REOPEN_ON_SIGUSR1 ?= yes
 WITH_PM_UTILS ?= check
 WITH_SYSTEMD ?= check
 WITH_RED_BRICK ?= check
-WITH_BRICKLET ?= check
+WITH_BRICKLET ?= no
 WITH_MESH_SINGLE_ROOT_NODE ?= no
 
 ## RULES ######################################################################
@@ -88,6 +88,16 @@ else
 endif
 else
 	WITH_EPOLL := no
+endif
+
+ifeq ($(WITH_BRICKLET),check)
+ifeq ($(PLATFORM),Linux)
+	WITH_BRICKLET := yes
+else
+	WITH_BRICKLET := no
+endif
+else
+	WITH_BRICKLET := no
 endif
 
 ifeq ($(PLATFORM),Linux)
