@@ -52,11 +52,12 @@ typedef enum {
 	CHIP_SELECT_HARDWARE,
 	CHIP_SELECT_GPIO,
 	CHIP_SELECT_WIRINGPI // TODO
-} BrickletStackChipSelectType;
+} BrickletStackChipSelectDriver;
 
 typedef struct {
     char spi_device[64]; // e.g. "/dev/spidev0.0";
-	BrickletStackChipSelectType chip_select_type;
+	int mode;
+	BrickletStackChipSelectDriver chip_select_driver;
 
 	// Unused in case of hardware or WiringPi CS
 	GPIOSYSFS chip_select_gpio_sysfs;

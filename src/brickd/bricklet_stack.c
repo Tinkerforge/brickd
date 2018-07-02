@@ -563,7 +563,7 @@ static void bricklet_stack_transceive(BrickletStack *bricklet_stack) {
 	mutex_lock(bricklet_stack->config.mutex);
 
 	// Do chip select by hand if necessary
-	if(bricklet_stack->config.chip_select_type == CHIP_SELECT_GPIO) {
+	if(bricklet_stack->config.chip_select_driver == CHIP_SELECT_GPIO) {
 		if(gpio_sysfs_set_output(&bricklet_stack->config.chip_select_gpio_sysfs, GPIO_SYSFS_VALUE_LOW) < 0) {
 			log_error("Could not enable chip select");
 			return;
@@ -573,7 +573,7 @@ static void bricklet_stack_transceive(BrickletStack *bricklet_stack) {
 	int rc = ioctl(bricklet_stack->spi_fd, SPI_IOC_MESSAGE(1), &spi_transfer);
 
 	// Do chip deselect by hand if necessary
-	if(bricklet_stack->config.chip_select_type == CHIP_SELECT_GPIO) {
+	if(bricklet_stack->config.chip_select_driver == CHIP_SELECT_GPIO) {
 		if(gpio_sysfs_set_output(&bricklet_stack->config.chip_select_gpio_sysfs, GPIO_SYSFS_VALUE_HIGH) < 0) {
 			log_error("Could not disable chip select");
 			return;
@@ -676,7 +676,7 @@ BrickletStack* bricklet_stack_init(BrickletStackConfig *config) {
 
     log_debug("Initializing BrickletStack subsystem for '%s'", config->spi_device);
 
-	if(config->chip_select_type == CHIP_SELECT_GPIO) {
+	if(config->chip_select_driver == CHIP_SELECT_GPIO) {
 		if(gpio_sysfs_export(&config->chip_select_gpio_sysfs) < 0) {
 			goto cleanup;
 		}
