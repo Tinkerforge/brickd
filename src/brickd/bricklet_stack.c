@@ -640,27 +640,32 @@ static int bricklet_stack_init_spi(BrickletStack *bricklet_stack) {
 	// Open spidev
 	bricklet_stack->spi_fd = open(bricklet_stack->config.spi_device, O_RDWR);
 	if (bricklet_stack->spi_fd < 0) {
-		log_error("Could not open %s", bricklet_stack->config.spi_device);
+		log_error("Could not open %s: : %s (%d)",
+		          bricklet_stack->config.spi_device, get_errno_name(errno), errno);
 		return -1;
 	}
 
 	if (ioctl(bricklet_stack->spi_fd, SPI_IOC_WR_MODE, &mode) < 0) {
-		log_error("Could not configure SPI mode");
+		log_error("Could not configure SPI mode: %s (%d)",
+		          get_errno_name(errno), errno);
 		return -1;
 	}
 
 	if (ioctl(bricklet_stack->spi_fd, SPI_IOC_WR_MAX_SPEED_HZ, &max_speed_hz) < 0) {
-		log_error("Could not configure SPI max speed");
+		log_error("Could not configure SPI max speed: %s (%d)",
+		          get_errno_name(errno), errno);
 		return -1;
 	}
 
 	if (ioctl(bricklet_stack->spi_fd, SPI_IOC_WR_BITS_PER_WORD, &bits_per_word) < 0) {
-		log_error("Could not configure SPI bits per word");
+		log_error("Could not configure SPI bits per word: %s (%d)",
+		          get_errno_name(errno), errno);
 		return -1;
 	}
 
 	if (ioctl(bricklet_stack->spi_fd, SPI_IOC_WR_LSB_FIRST, &lsb_first) < 0) {
-		log_error("Could not configure SPI lsb first");
+		log_error("Could not configure SPI lsb first: %s (%d)",
+		          get_errno_name(errno), errno);
 		return -1;
 	}
 
