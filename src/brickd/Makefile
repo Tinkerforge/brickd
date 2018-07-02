@@ -121,7 +121,7 @@ else
 endif
 
 ifneq ($(PLATFORM),Windows)
-	PKG_CONFIG := $(shell which pkg-config 2> /dev/null)
+	PKG_CONFIG := $(shell which pkg-config 2>/dev/null)
 ifeq ($(PKG_CONFIG),)
 ifneq ($(MAKECMDGOALS),clean)
 $(error Could not find pkg-config)
@@ -188,7 +188,7 @@ else
 endif
 
 ifeq ($(PLATFORM),Linux)
-	SYSTEMD_EXISTS := $(shell systemctl --version &> /dev/null && echo yes || echo no)
+	SYSTEMD_EXISTS := $(shell systemctl --version >/dev/null 2>&1 && echo yes || echo no)
 ifeq ($(WITH_SYSTEMD),check)
 ifeq ($(SYSTEMD_EXISTS),yes)
 	WITH_SYSTEMD := yes
@@ -434,7 +434,7 @@ endif
 endif
 
 ifeq ($(WITH_SYSTEMD),yes)
-	SYSTEMD_EXISTS := $(shell systemctl --version &> /dev/null && echo yes || echo no)
+	SYSTEMD_EXISTS := $(shell systemctl --version >/dev/null 2>&1 && echo yes || echo no)
 ifeq ($(SYSTEMD_EXISTS),yes)
 	SYSTEMD_STATUS := $(shell systemctl --version | head -n1 | awk '{{ print $$2 }}')
 else

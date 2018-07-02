@@ -39,7 +39,7 @@ test -x $DAEMON || exit 0
 
 . /lib/lsb/init-functions
 
-if type log_daemon_msg &> /dev/null || false; then
+if type log_daemon_msg >/dev/null 2>&1 || false; then
     true
 else
     log_daemon_msg () {
@@ -56,7 +56,7 @@ else
     }
 fi
 
-if type log_end_msg &> /dev/null || false; then
+if type log_end_msg >/dev/null 2>&1 || false; then
     true
 else
     log_end_msg () {
@@ -79,7 +79,7 @@ else
     }
 fi
 
-if type status_of_proc &> /dev/null || false; then
+if type status_of_proc >/dev/null 2>&1 || false; then
     true
 else
     status_of_proc () {
