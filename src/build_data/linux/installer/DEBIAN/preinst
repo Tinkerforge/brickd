@@ -11,7 +11,7 @@ if [ "$1" = "upgrade" ]; then
 	PID=$(pgrep -F /var/run/brickd.pid -L brickd 2>/dev/null || pgrep brickd 2>/dev/null || true)
 
 	if [ -n "${PID:-}" ]; then
-		if [ -d /run/systemd/system ] && [ -e /lib/systemd/system/brickd.service ]; then
+		if [ -d /run/systemd/system ]; then
 			systemctl stop brickd.service
 		elif [ -x /etc/init.d/brickd ]; then
 			if [ -x /usr/sbin/invoke-rc.d ]; then

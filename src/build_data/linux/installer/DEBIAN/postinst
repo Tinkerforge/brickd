@@ -5,7 +5,7 @@
 set -e
 
 if [ "$1" = "configure" ]; then
-	if [ -d /run/systemd/system ] && [ -e /lib/systemd/system/brickd.service ]; then
+	if [ -d /run/systemd/system ]; then
 		systemctl enable brickd.service
 		systemctl start brickd.service
 	else
@@ -19,7 +19,7 @@ if [ "$1" = "configure" ]; then
 		fi
 	fi
 
-	if [ -d /run/systemd/system ] && [ -e /lib/systemd/system/brickd-resume.service ]; then
+	if [ -d /run/systemd/system ]; then
 		systemctl enable brickd-resume.service
 	fi
 fi

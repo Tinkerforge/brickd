@@ -5,10 +5,7 @@
 set -e
 
 if [ "$1" = "remove" ]; then
-	if [ -d /run/systemd/system ]; then
-		systemctl disable brickd.service
-		systemctl disable brickd-resume.service
-	else
+	if [ ! -d /run/systemd/system ]; then
 		update-rc.d brickd remove >/dev/null
 	fi
 fi
