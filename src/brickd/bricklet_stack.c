@@ -681,11 +681,11 @@ BrickletStack* bricklet_stack_init(BrickletStackConfig *config) {
 			goto cleanup;
 		}
 
-		if(gpio_sysfs_set_output(&config->chip_select_gpio_sysfs, GPIO_SYSFS_VALUE_HIGH) < 0) {
+		if(gpio_sysfs_set_direction(&config->chip_select_gpio_sysfs, GPIO_SYSFS_DIRECTION_OUTPUT) < 0) {
 			goto cleanup;
 		}
 
-		if(gpio_sysfs_set_direction(&config->chip_select_gpio_sysfs, GPIO_SYSFS_DIRECTION_OUTPUT) < 0) {
+		if(gpio_sysfs_set_output(&config->chip_select_gpio_sysfs, GPIO_SYSFS_VALUE_HIGH) < 0) {
 			goto cleanup;
 		}
 	}
