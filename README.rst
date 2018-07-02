@@ -49,6 +49,7 @@ Run the following commands to register brickd for autostart on Debian based
 Linux distribution and start it::
 
  sudo systemctl enable brickd
+ sudo systemctl enable brickd-resume
  sudo systemctl start brickd
 
 On Debian based Linux distribution without systemd run the following commands

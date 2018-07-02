@@ -542,8 +542,10 @@ ifeq ($(PLATFORM),Linux)
 	@echo "MD $(sysconfdir)"
 	$(E)$(INSTALL) -d -m 755 $(sysconfdir)
 
+ifeq ($(WITH_SYSTEMD),no)
 	@echo "MD $(sysconfdir)/init.d"
 	$(E)$(INSTALL) -d -m 755 $(sysconfdir)/init.d
+endif
 
 	@echo "MD $(sysconfdir)/logrotate.d"
 	$(E)$(INSTALL) -d -m 755 $(sysconfdir)/logrotate.d
@@ -576,10 +578,10 @@ else
 	$(E)$(INSTALL) -m 644 ../build_data/linux/installer/etc/brickd-default.conf $(sysconfdir)/brickd.conf
 endif
 
+ifeq ($(WITH_SYSTEMD),no)
 	@echo "CP brickd (init.d script)"
-	$(E)$(INSTALL) -m 755 ../build_data/linux/installer/etc/init.d/brickd $(sysconfdir)/init.d
-
-ifeq ($(WITH_SYSTEMD),yes)
+	$(E)$(INSTALL) -m 755 ../build_data/linux/installer/usr/share/brickd/brickd-sysv-init $(sysconfdir)/init.d/brickd
+else
 	@echo "CP brickd.service (systemd service)"
 	$(E)$(INSTALL) -m 644 ../build_data/linux/installer/lib/systemd/system/brickd.service /lib/systemd/system
 endif
@@ -605,7 +607,6 @@ endif
 ifeq ($(WITH_SYSTEMD),yes)
 	@echo "CP brickd-resume.service (systemd service)"
 	$(E)$(INSTALL) -m 644 ../build_data/linux/installer/lib/systemd/system/brickd-resume.service /lib/systemd/system
-	$(E)systemctl enable brickd-resume.service
 endif
 
 log_messages.h log_messages.rc log_messages_MSG0409.bin: log_messages.mc Makefile

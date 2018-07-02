@@ -6,19 +6,15 @@ set -e
 
 if [ "$1" = "remove" ]; then
 	if [ -d /run/systemd/system ]; then
-		if [ -e /lib/systemd/system/brickd.service ]; then
-			systemctl disable brickd.service
-		fi
-
-		if [ -e /lib/systemd/system/brickd-resume.service ]; then
-			systemctl disable brickd-resume.service
-		fi
-	elif [ -x /etc/init.d/brickd ]; then
-		update-rc.d brickd remove >/dev/nulli
+		systemctl disable brickd.service
+		systemctl disable brickd-resume.service
+	else
+		update-rc.d brickd remove >/dev/null
 	fi
 fi
 
 if [ "$1" = "purge" ]; then
+	rm /etc/init.d/brickd || true
 	rm -f /var/log/brickd.log*
 fi
 

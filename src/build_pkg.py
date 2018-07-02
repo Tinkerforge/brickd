@@ -270,7 +270,7 @@ def build_linux_pkg():
 
     if os.path.exists('/usr/bin/lintian'):
         print('checking Debian package')
-        system('lintian --pedantic brickd-{0}_{1}.deb || true'.format(version, architecture))
+        system('lintian --pedantic --no-tag-display-limit brickd-{0}_{1}.deb || true'.format(version, architecture))
     else:
         print('skipping lintian check')
 

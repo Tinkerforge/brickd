@@ -8,7 +8,8 @@ if [ "$1" = "configure" ]; then
 	if [ -d /run/systemd/system ] && [ -e /lib/systemd/system/brickd.service ]; then
 		systemctl enable brickd.service
 		systemctl start brickd.service
-	elif [ -x /etc/init.d/brickd ]; then
+	else
+		cp /usr/share/brickd/brickd-sysv-init /etc/init.d/brickd
 		update-rc.d brickd defaults >/dev/null
 
 		if [ -x /usr/sbin/invoke-rc.d ]; then
