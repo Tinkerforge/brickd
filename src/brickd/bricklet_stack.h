@@ -67,6 +67,10 @@ typedef struct {
 	// One mutex per spidev, so that we can use several SPI hardware units in parallel.
 	// Has to be properly managed during initialization.
 	Mutex *mutex;
+
+	uint32_t *connected_uid;
+	uint8_t num;
+	uint8_t startup_wait_time; // in seconds
 } BrickletStackConfig;
 
 typedef struct {

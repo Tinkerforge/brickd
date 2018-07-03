@@ -135,6 +135,30 @@ static void bricklet_stack_dispatch_from_spi(void *opaque) {
 			stack_add_recipient(&bricklet_stack->base, packet->header.uid, 0);
 		}
 
+		if ((packet->header.function_id == CALLBACK_ENUMERATE) ||
+		    (packet->header.function_id == FUNCTION_GET_IDENTITY)) {
+			EnumerateCallback *ec = (EnumerateCallback*)packet;
+
+			// If the Bricklet is a HAT Bricklet (ID 2126) we update the connected_uid.
+			if(ec->device_identifier == 291) { // TODO: Change to 2126
+				*bricklet_stack->config.connected_uid = ec->header.uid;
+			}
+
+			// If the Bricklet is connected to an isolator we don't have to
+			// update the position and the connected UID. this is already
+			// done by the isolator itself.
+			if(ec->position != 'Z') {
+				memcpy(ec->connected_uid, PACKET_NO_CONNETED_UID_STR, PACKET_NO_CONNETED_UID_STR_LENGTH);
+				if((*bricklet_stack->config.connected_uid != 0) && (ec->device_identifier != 291)) { // TODO: Change to 2126
+					char base58[BASE58_MAX_LENGTH];
+					base58_encode(base58, uint32_from_le(*bricklet_stack->config.connected_uid));
+					strncpy(ec->connected_uid, base58, BASE58_MAX_LENGTH);
+				}
+
+				ec->position = 'a' + bricklet_stack->config.num;
+			}
+		}
+
 		// Send message into brickd dispatcher
 		network_dispatch_response(packet);
 		bricklet_stack->data_seen = true;
@@ -614,6 +638,13 @@ static void bricklet_stack_spi_thread(void *opaque) {
 	BrickletStack *bricklet_stack = (BrickletStack*)opaque;
 	bricklet_stack->spi_thread_running = true;
 
+	// Depending on the configuration we wait on startup for
+	// other Bricklets to identify themself first.
+	struct timespec t = {
+		.tv_sec = bricklet_stack->config.startup_wait_time,
+	};
+	clock_nanosleep(CLOCK_MONOTONIC, 0, &t, NULL);	
+
 	// Pre-fill the send buffer with the "StackEnumerate"-Packet.
 	// This packet will trigger an initial enumeration in the Bricklet.
 	// If the Brick Daemon is restarted, we need to
@@ -683,7 +714,7 @@ BrickletStack* bricklet_stack_init(BrickletStackConfig *config) {
 	char bricklet_stack_name[129] = {'\0'};
 	char notification_name[129] = {'\0'};
 
-    log_debug("Initializing BrickletStack subsystem for '%s'", config->spi_device);
+    log_debug("Initializing BrickletStack subsystem for '%s' (num %d)", config->spi_device, config->chip_select_gpio_sysfs.num);
 
 	if(config->chip_select_driver == CHIP_SELECT_GPIO) {
 		if(gpio_sysfs_export(&config->chip_select_gpio_sysfs) < 0) {
