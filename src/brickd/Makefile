@@ -269,7 +269,7 @@ else
 endif
 	SOURCES_DAEMONLIB += ../daemonlib/gpio_sysfs.c
 
-	SOURCES_BRICKD += main_linux.c 
+	SOURCES_BRICKD += main_linux.c
 
 ifeq ($(WITH_BRICKLET),yes)
 	SOURCES_BRICKD += bricklet.c \
