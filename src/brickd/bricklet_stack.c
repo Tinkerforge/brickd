@@ -148,7 +148,7 @@ static void bricklet_stack_dispatch_from_spi(void *opaque) {
 			// update the position and the connected UID. this is already
 			// done by the isolator itself.
 			if(ec->position != 'Z') {
-				memcpy(ec->connected_uid, PACKET_NO_CONNETED_UID_STR, PACKET_NO_CONNETED_UID_STR_LENGTH);
+				memcpy(ec->connected_uid, PACKET_NO_CONNECTED_UID_STR, PACKET_NO_CONNECTED_UID_STR_LENGTH);
 				if((*bricklet_stack->config.connected_uid != 0) && (ec->device_identifier != 291)) { // TODO: Change to 2126
 					char base58[BASE58_MAX_LENGTH];
 					base58_encode(base58, uint32_from_le(*bricklet_stack->config.connected_uid));
