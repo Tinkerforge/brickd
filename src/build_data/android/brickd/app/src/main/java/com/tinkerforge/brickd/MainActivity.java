@@ -39,6 +39,7 @@ public class MainActivity extends AppCompatActivity {
         startService(new Intent(this, MainService.class));
     }
 
+    @Override
     protected void onDestroy() {
         super.onDestroy();
 
