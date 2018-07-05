@@ -343,6 +343,13 @@ else
 	LDFLAGS += -pthread
 endif
 
+ifeq ($(PLATFORM),Linux)
+	# always link to librt for clock_gettime for compatibility with older glibc.
+	# since glibc 2.17 this is not strictly necessary anymore, but detecting glibc
+	# version is difficult and fragile, instead always link to librt.
+	LIBS += -lrt
+endif
+
 ifeq ($(PLATFORM),Windows)
 	LIBUSB_STATUS := 1.0.21 (fork)
 	LIBUSB_CFLAGS := -I../build_data/windows/libusb
