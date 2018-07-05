@@ -37,6 +37,8 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
 
         startService(new Intent(this, MainService.class));
+
+        Log.d("brickd","<<<<< MainActivity onCreate");
     }
 
     @Override
@@ -46,5 +48,7 @@ public class MainActivity extends AppCompatActivity {
         Log.d("brickd",">>>>> MainActivity onDestroy");
 
         stopService(new Intent(this, MainService.class));
+
+        Log.d("brickd","<<<<< MainActivity onDestroy");
     }
 }

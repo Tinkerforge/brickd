@@ -76,16 +76,22 @@ public class MainService extends Service {
 
     @Override
     public void onCreate() {
+        Log.d("brickd",">>>>> MainService onCreate");
+
         mManager = (UsbManager)getSystemService(Context.USB_SERVICE);
         mPermissionIntent = PendingIntent.getBroadcast(this, 0, new Intent(ACTION_USB_PERMISSION), 0);
 
         registerReceiver(mPermissionReceiver, new IntentFilter(ACTION_USB_PERMISSION));
         registerReceiver(mHotplugReceiver, new IntentFilter(UsbManager.ACTION_USB_DEVICE_ATTACHED));
         registerReceiver(mHotplugReceiver, new IntentFilter(UsbManager.ACTION_USB_DEVICE_DETACHED));
+
+        Log.d("brickd","<<<<< MainService onCreate");
     }
 
     @Override
     public void onDestroy() {
+        Log.d("brickd",">>>>> MainService onDestroy");
+
         interrupt();
 
         try {
@@ -96,10 +102,14 @@ public class MainService extends Service {
 
         unregisterReceiver(mPermissionReceiver);
         unregisterReceiver(mHotplugReceiver);
+
+        Log.d("brickd","<<<<< MainService onDestroy");
     }
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startid) {
+        Log.d("brickd",">>>>> MainService onStartCommand");
+
         if (mThread == null) {
             mThread = new Thread(new Runnable() {
                 @Override
@@ -110,6 +120,8 @@ public class MainService extends Service {
 
             mThread.start();
         }
+
+        Log.d("brickd","<<<<< MainService onStartCommand");
 
         return START_NOT_STICKY;
     }
