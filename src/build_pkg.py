@@ -253,11 +253,11 @@ def build_linux_pkg():
     system('gzip -n -9 dist/usr/share/man/man8/brickd.8')
     system('gzip -n -9 dist/usr/share/man/man5/brickd.conf.5')
 
-    system('cd dist; find usr -type f -exec md5sum {} \; >> DEBIAN/md5sums; find lib -type f -exec md5sum {} \; >> DEBIAN/md5sums')
+    system('cd dist; find usr -type f -exec md5sum {} \\; >> DEBIAN/md5sums; find lib -type f -exec md5sum {} \\; >> DEBIAN/md5sums')
 
-    system('find dist -type d -exec chmod 0755 {} \;')
-    system('find dist -type f -perm 664 -exec chmod 0644 {} \;')
-    system('find dist -type f -perm 775 -exec chmod 0755 {} \;')
+    system('find dist -type d -exec chmod 0755 {} \\;')
+    system('find dist -type f -perm 664 -exec chmod 0644 {} \\;')
+    system('find dist -type f -perm 775 -exec chmod 0755 {} \\;')
 
     print('changing owner to root')
     system('sudo chown -R root:root dist')
