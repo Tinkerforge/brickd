@@ -1,5 +1,6 @@
 package com.tinkerforge.brickd;
 
+import android.app.Notification;
 import android.app.PendingIntent;
 import android.app.Service;
 import android.content.BroadcastReceiver;
@@ -28,6 +29,7 @@ public class MainService extends Service {
     public native void hotplug();
 
     private static final String ACTION_USB_PERMISSION = "com.tinkerforge.brickd.USB_PERMISSION";
+    private static final int NOTIFICATION_ID = 1;
 
     private UsbManager mManager;
     private PendingIntent mPermissionIntent;
@@ -49,13 +51,13 @@ public class MainService extends Service {
                     }
                 }
                 else {
-                    Log.d("brickd", "permission denied for device " + device.getDeviceName());
+                    Log.d("brickd", "Permission was denied: " + device.getDeviceName());
                 }
             }
         }
     };
 
-    BroadcastReceiver mHotplugReceiver = new BroadcastReceiver() {
+    private final BroadcastReceiver mHotplugReceiver = new BroadcastReceiver() {
         public void onReceive(Context context, Intent intent) {
             String action = intent.getAction();
 
@@ -84,6 +86,16 @@ public class MainService extends Service {
         registerReceiver(mPermissionReceiver, new IntentFilter(ACTION_USB_PERMISSION));
         registerReceiver(mHotplugReceiver, new IntentFilter(UsbManager.ACTION_USB_DEVICE_ATTACHED));
         registerReceiver(mHotplugReceiver, new IntentFilter(UsbManager.ACTION_USB_DEVICE_DETACHED));
+
+        Intent notificationIntent = new Intent(this, MainActivity.class);
+        PendingIntent pendingIntent = PendingIntent.getActivity(this, 0, notificationIntent, 0);
+        Notification notification = new Notification.Builder(this)
+                                    .setSmallIcon(R.mipmap.ic_launcher)
+                                    .setContentTitle("Brick Daemon")
+                                    .setContentText("Background Service is running")
+                                    .setContentIntent(pendingIntent).build();
+
+        startForeground(NOTIFICATION_ID, notification);
 
         Log.d("brickd","<<<<< MainService onCreate");
     }
