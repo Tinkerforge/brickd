@@ -92,13 +92,7 @@ public class MainService extends Service {
     public void onDestroy() {
         Log.d("brickd",">>>>> MainService onDestroy");
 
-        interrupt();
-
-        try {
-            mThread.join(); // FIXME: use timeout?
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
+        stopMainThread();
 
         unregisterReceiver(mPermissionReceiver);
         unregisterReceiver(mHotplugReceiver);
@@ -110,20 +104,43 @@ public class MainService extends Service {
     public int onStartCommand(Intent intent, int flags, int startid) {
         Log.d("brickd",">>>>> MainService onStartCommand");
 
-        if (mThread == null) {
-            mThread = new Thread(new Runnable() {
-                @Override
-                public void run() {
-                    main(MainService.this);
-                }
-            });
-
-            mThread.start();
-        }
+        startMainThread();
 
         Log.d("brickd","<<<<< MainService onStartCommand");
 
-        return START_NOT_STICKY;
+        return START_STICKY;
+    }
+
+    private void startMainThread() {
+        if (mThread != null) {
+            return;
+        }
+
+        mThread = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                main(MainService.this);
+            }
+        });
+
+        mThread.setDaemon(true);
+        mThread.start();
+    }
+
+    private void stopMainThread() {
+        if (mThread == null) {
+            return;
+        }
+
+        interrupt();
+
+        try {
+            mThread.join(); // FIXME: use timeout?
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+
+        mThread = null;
     }
 
     @Keep
