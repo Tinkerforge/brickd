@@ -41,8 +41,6 @@
 
 #define ESP_MESH_ADDRESS_LEN 6
 
-extern Array mesh_stacks;
-
 enum {
 	ESP_MESH_PACKET_DOWNWARDS = 0,
 	ESP_MESH_PACKET_UPWARDS,

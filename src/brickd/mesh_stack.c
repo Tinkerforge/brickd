@@ -37,8 +37,9 @@
 
 #define CHECK_BIT(val, pos) ((val) & (1 << (pos)))
 
-Array mesh_stacks;
 static LogSource _log_source = LOG_SOURCE_INITIALIZER;
+
+extern Array mesh_stacks;
 
 static void mesh_stack_recv_handler(void *opaque) {
 	int read_len = 0;
