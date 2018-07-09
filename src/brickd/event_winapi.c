@@ -68,7 +68,6 @@ typedef struct {
 static SocketSet *_socket_read_set = NULL;
 static SocketSet *_socket_write_set = NULL;
 static SocketSet *_socket_error_set = NULL;
-static Pipe _stop_pipe;
 static bool _usb_poll_running;
 static bool _usb_poll_stuck;
 static int _usb_poll_suspend_pipe[2]; // libusb pipe
@@ -346,23 +345,6 @@ int event_init_platform(void) {
 
 	phase = 3;
 
-	// create stop pipe
-	if (pipe_create(&_stop_pipe, 0) < 0) {
-		log_error("Could not create stop pipe: %s (%d)",
-		          get_errno_name(errno), errno);
-
-		goto cleanup;
-	}
-
-	phase = 4;
-
-	if (event_add_source(_stop_pipe.base.read_handle, EVENT_SOURCE_TYPE_GENERIC,
-	                     "event-stop", EVENT_READ, NULL, NULL) < 0) {
-		goto cleanup;
-	}
-
-	phase = 5;
-
 	// create USB poll thread
 	_usb_poll_running = false;
 	_usb_poll_stuck = false;
@@ -373,7 +355,7 @@ int event_init_platform(void) {
 		goto cleanup;
 	}
 
-	phase = 6;
+	phase = 4;
 
 	if (pipe_create(&_usb_poll_ready_pipe, 0) < 0) {
 		log_error("Could not create USB ready pipe: %s (%d)",
@@ -382,7 +364,7 @@ int event_init_platform(void) {
 		goto cleanup;
 	}
 
-	phase = 7;
+	phase = 5;
 
 	if (array_create(&_usb_poll_pollfds, 32, sizeof(struct usbi_pollfd), true) < 0) {
 		log_error("Could not create USB pollfd array: %s (%d)",
@@ -391,7 +373,7 @@ int event_init_platform(void) {
 		goto cleanup;
 	}
 
-	phase = 8;
+	phase = 6;
 
 	if (semaphore_create(&_usb_poll_resume) < 0) {
 		log_error("Could not create USB resume semaphore: %s (%d)",
@@ -400,7 +382,7 @@ int event_init_platform(void) {
 		goto cleanup;
 	}
 
-	phase = 9;
+	phase = 7;
 
 	if (semaphore_create(&_usb_poll_suspend) < 0) {
 		log_error("Could not create USB suspend semaphore: %s (%d)",
@@ -409,33 +391,25 @@ int event_init_platform(void) {
 		goto cleanup;
 	}
 
-	phase = 10;
+	phase = 8;
 
 cleanup:
 	switch (phase) { // no breaks, all cases fall through intentionally
-	case 9:
+	case 7:
 		semaphore_destroy(&_usb_poll_suspend);
 		// fall through
 
-	case 8:
+	case 6:
 		semaphore_destroy(&_usb_poll_resume);
 		// fall through
 
-	case 7:
+	case 5:
 		pipe_destroy(&_usb_poll_ready_pipe);
 		// fall through
 
-	case 6:
+	case 4:
 		usbi_close(_usb_poll_suspend_pipe[0]);
 		usbi_close(_usb_poll_suspend_pipe[1]);
-		// fall through
-
-	case 5:
-		event_remove_source(_stop_pipe.base.read_handle, EVENT_SOURCE_TYPE_GENERIC);
-		// fall through
-
-	case 4:
-		pipe_destroy(&_stop_pipe);
 		// fall through
 
 	case 3:
@@ -454,7 +428,7 @@ cleanup:
 		break;
 	}
 
-	return phase == 10 ? 0 : -1;
+	return phase == 8 ? 0 : -1;
 }
 
 void event_exit_platform(void) {
@@ -467,9 +441,6 @@ void event_exit_platform(void) {
 
 	usbi_close(_usb_poll_suspend_pipe[0]);
 	usbi_close(_usb_poll_suspend_pipe[1]);
-
-	event_remove_source(_stop_pipe.base.read_handle, EVENT_SOURCE_TYPE_GENERIC);
-	pipe_destroy(&_stop_pipe);
 
 	free(_socket_error_set);
 	free(_socket_write_set);
@@ -706,17 +677,4 @@ cleanup:
 	event_remove_source(_usb_poll_ready_pipe.base.read_handle, EVENT_SOURCE_TYPE_GENERIC);
 
 	return result;
-}
-
-int event_stop_platform(void) {
-	uint8_t byte = 0;
-
-	if (pipe_write(&_stop_pipe, &byte, sizeof(byte)) < 0) {
-		log_error("Could not write to stop pipe: %s (%d)",
-		          get_errno_name(errno), errno);
-
-		return -1;
-	}
-
-	return 0;
 }

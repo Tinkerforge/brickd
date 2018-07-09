@@ -165,5 +165,5 @@ JNIEXPORT void JNICALL
 Java_com_tinkerforge_brickd_MainService_interrupt(JNIEnv *env, jobject this) {
 	(void)this;
 
-	raise(SIGINT);
+	event_stop();
 }
