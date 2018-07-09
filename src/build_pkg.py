@@ -50,11 +50,11 @@ def check_output(*args, **kwargs):
 
         raise subprocess.CalledProcessError(exit_code, command, output=output)
 
-    return output
+    return output.decode('utf-8')
 
 
 def specialize_template(template_filename, destination_filename, replacements):
-    template_file = open(template_filename, 'rb')
+    template_file = open(template_filename, 'r')
     lines = []
     replaced = set()
 
@@ -74,7 +74,7 @@ def specialize_template(template_filename, destination_filename, replacements):
     if replaced != set(replacements.keys()):
         raise Exception('Not all replacements for {0} have been applied'.format(template_filename))
 
-    destination_file = open(destination_filename, 'wb')
+    destination_file = open(destination_filename, 'w')
     destination_file.writelines(lines)
     destination_file.close()
 
