@@ -36,16 +36,24 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        Log.d("brickd",">>>>> MainActivity onCreate " + getIntent().getAction());
+        Log.d("brickd-java",">>>>> MainActivity onCreate " + getIntent().getAction());
 
         setContentView(R.layout.activity_main);
 
-        mSwitchService = (Switch)findViewById(R.id.switch_service);
+        mSettings = getSharedPreferences("default", Context.MODE_PRIVATE);
 
-        SharedPreferences settings = getPreferences(0);
+        mSettingsListener = new SharedPreferences.OnSharedPreferenceChangeListener() {
+            public void onSharedPreferenceChanged(SharedPreferences settings, String name) {
+                Log.d("brickd-java",">>>>> MainActivity onSharedPreferenceChanged " + name);
+
+                mSwitchService.setChecked(mSettings.getBoolean("service", true));
+            }
+        };
+
+        mSwitchService = findViewById(R.id.switch_service);
+
         final Intent serviceIntent = new Intent(this, MainService.class);
 
-        mSwitchService.setChecked(settings.getBoolean("service", true));
         mSwitchService.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
             @Override
             public void onCheckedChanged(CompoundButton button, boolean checked) {
@@ -57,37 +65,29 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-        if (mSwitchService.isChecked()) {
-            startService(serviceIntent);
-        } else {
-            stopService(serviceIntent);
-        }
-
-        Log.d("brickd","<<<<< MainActivity onCreate");
+        Log.d("brickd-java","<<<<< MainActivity onCreate");
     }
 
     @Override
-    protected void onDestroy() {
-        super.onDestroy();
+    protected void onResume() {
+        super.onResume();
 
-        Log.d("brickd",">>>>> MainActivity onDestroy");
+        Log.d("brickd-java",">>>>> MainActivity onResume");
 
-        //stopService(new Intent(this, MainService.class));
+        mSwitchService.setChecked(mSettings.getBoolean("service", true));
+        mSettings.registerOnSharedPreferenceChangeListener(mSettingsListener);
 
-        Log.d("brickd","<<<<< MainActivity onDestroy");
+        Log.d("brickd-java","<<<<< MainActivity onResume");
     }
 
     @Override
-    protected void onStop() {
-        super.onStop();
+    protected void onPause() {
+        super.onPause();
 
-        Log.d("brickd",">>>>> MainActivity onStop");
+        Log.d("brickd-java",">>>>> MainActivity onPause");
 
-        SharedPreferences.Editor editor = getPreferences(0).edit();
+        mSettings.unregisterOnSharedPreferenceChangeListener(mSettingsListener);
 
-        editor.putBoolean("service", mSwitchService.isChecked());
-        editor.apply();
-
-        Log.d("brickd","<<<<< MainActivity onStop");
+        Log.d("brickd-java","<<<<< MainActivity onPause");
     }
 }

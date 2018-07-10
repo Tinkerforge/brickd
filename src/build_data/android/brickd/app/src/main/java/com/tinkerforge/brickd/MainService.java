@@ -1,3 +1,24 @@
+/*
+ * brickd
+ * Copyright (C) 2018 Matthias Bolte <matthias@tinkerforge.com>
+ *
+ * MainService.java: Brick Daemon GUI for Android
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along
+ * with this program; if not, write to the Free Software Foundation, Inc.,
+ * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+ */
+
 package com.tinkerforge.brickd;
 
 import android.app.Notification;
@@ -7,6 +28,7 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.SharedPreferences;
 import android.hardware.usb.UsbDevice;
 import android.hardware.usb.UsbDeviceConnection;
 import android.hardware.usb.UsbManager;
@@ -51,7 +73,7 @@ public class MainService extends Service {
                     }
                 }
                 else {
-                    Log.d("brickd", "Permission was denied: " + device.getDeviceName());
+                    Log.d("brickd-java", "Permission was denied: " + device.getDeviceName());
                 }
             }
         }
@@ -78,7 +100,7 @@ public class MainService extends Service {
 
     @Override
     public void onCreate() {
-        Log.d("brickd",">>>>> MainService onCreate");
+        Log.d("brickd-java",">>>>> MainService onCreate");
 
         mManager = (UsbManager)getSystemService(Context.USB_SERVICE);
         mPermissionIntent = PendingIntent.getBroadcast(this, 0, new Intent(ACTION_USB_PERMISSION), 0);
@@ -97,33 +119,33 @@ public class MainService extends Service {
 
         startForeground(NOTIFICATION_ID, notification);
 
-        Log.d("brickd","<<<<< MainService onCreate");
+        Log.d("brickd-java","<<<<< MainService onCreate");
     }
 
     @Override
     public void onDestroy() {
-        Log.d("brickd",">>>>> MainService onDestroy");
+        Log.d("brickd-java",">>>>> MainService onDestroy");
 
-        stopMainThread();
+        stopThread();
 
         unregisterReceiver(mPermissionReceiver);
         unregisterReceiver(mHotplugReceiver);
 
-        Log.d("brickd","<<<<< MainService onDestroy");
+        Log.d("brickd-java","<<<<< MainService onDestroy");
     }
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startid) {
-        Log.d("brickd",">>>>> MainService onStartCommand");
+        Log.d("brickd-java",">>>>> MainService onStartCommand");
 
-        startMainThread();
+        startThread();
 
-        Log.d("brickd","<<<<< MainService onStartCommand");
+        Log.d("brickd-java","<<<<< MainService onStartCommand");
 
         return START_STICKY;
     }
 
-    private void startMainThread() {
+    private void startThread() {
         if (mThread != null) {
             return;
         }
@@ -137,9 +159,14 @@ public class MainService extends Service {
 
         mThread.setDaemon(true);
         mThread.start();
+
+        SharedPreferences.Editor editor = getSharedPreferences("default", Context.MODE_PRIVATE).edit();
+
+        editor.putBoolean("service", true);
+        editor.apply();
     }
 
-    private void stopMainThread() {
+    private void stopThread() {
         if (mThread == null) {
             return;
         }
@@ -153,6 +180,11 @@ public class MainService extends Service {
         }
 
         mThread = null;
+
+        SharedPreferences.Editor editor = getSharedPreferences("default", Context.MODE_PRIVATE).edit();
+
+        editor.putBoolean("service", false);
+        editor.apply();
     }
 
     @Keep
@@ -173,26 +205,26 @@ public class MainService extends Service {
 
     @Keep
     public int openDevice(UsbDevice device) {
-        Log.d("brickd","openDevice 1 " + device.getDeviceName());
+        Log.d("brickd-java","openDevice 1 " + device.getDeviceName());
 
         if (!mManager.hasPermission(device)) {
-            Log.d("brickd", "requestPermission 1 " + device.getDeviceName());
+            Log.d("brickd-java", "requestPermission 1 " + device.getDeviceName());
             mManager.requestPermission(device, mPermissionIntent);
-            Log.d("brickd", "requestPermission 2 " + device.getDeviceName());
+            Log.d("brickd-java", "requestPermission 2 " + device.getDeviceName());
 
             try {
                 synchronized (this) {
-                    Log.d("brickd", "wait 1 " + device.getDeviceName());
+                    Log.d("brickd-java", "wait 1 " + device.getDeviceName());
                     wait();
-                    Log.d("brickd", "wait 2 " + device.getDeviceName());
+                    Log.d("brickd-java", "wait 2 " + device.getDeviceName());
                 }
             } catch (InterruptedException e) {
-                Log.d("brickd", "InterruptedException");
+                Log.d("brickd-java", "InterruptedException");
                 return -1;
             }
         }
 
-        Log.d("brickd","openDevice 2 " + device.getDeviceName());
+        Log.d("brickd-java","openDevice 2 " + device.getDeviceName());
 
         UsbDeviceConnection connection = mManager.openDevice(device);
 
