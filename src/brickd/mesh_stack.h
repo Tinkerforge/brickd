@@ -163,11 +163,12 @@ void set_esp_mesh_header_flag_direction(uint8_t *flags, uint8_t val);
 int mesh_stack_dispatch_request(Stack *stack, Packet *request, Recipient *recipient);
 
 // Generate a mesh packet header.
-void *esp_mesh_get_packet_header(uint8_t flag_direction,
-                                 bool flag_p2p,
-                                 uint8_t flag_protocol,
-                                 uint16_t len,
-                                 uint8_t *mesh_dst_addr,
-                                 uint8_t *mesh_src_addr);
+void esp_mesh_get_packet_header(esp_mesh_header_t *mesh_header,
+                                uint8_t flag_direction,
+                                bool flag_p2p,
+                                uint8_t flag_protocol,
+                                uint16_t len,
+                                uint8_t *mesh_dst_addr,
+                                uint8_t *mesh_src_addr);
 
 #endif // BRICKD_MESH_STACK_H

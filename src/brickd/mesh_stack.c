@@ -227,8 +227,10 @@ void set_esp_mesh_header_flag_direction(uint8_t *flags, uint8_t val) {
 void timer_hb_do_ping_handler(void *opaque) {
 	MeshStack *mesh_stack = (MeshStack *)opaque;
 	pkt_mesh_hb_t pkt_mesh_hb;
-	esp_mesh_header_t *mesh_header = (esp_mesh_header_t *)
-	  esp_mesh_get_packet_header(// Direction.
+
+	memset(&pkt_mesh_hb, 0, sizeof(pkt_mesh_hb_t));
+	esp_mesh_get_packet_header(&pkt_mesh_hb.header,
+	                             // Direction.
 	                             ESP_MESH_PACKET_DOWNWARDS,
 	                             // P2P.
 	                             false,
@@ -240,10 +242,6 @@ void timer_hb_do_ping_handler(void *opaque) {
 	                             mesh_stack->root_node_addr,
 	                             // Source address.
 	                             mesh_stack->gw_addr);
-
-	memset(&pkt_mesh_hb, 0, sizeof(pkt_mesh_hb_t));
-	memcpy(&pkt_mesh_hb.header, mesh_header, sizeof(esp_mesh_header_t));
-	free(mesh_header);
 
 	pkt_mesh_hb.type = MESH_PACKET_HB_PING;
 
@@ -578,12 +576,11 @@ void arm_timer_hb_do_ping(MeshStack *mesh_stack) {
 void broadcast_reset_packet(MeshStack *mesh_stack) {
 	pkt_mesh_reset_t pkt_mesh_reset;
 	uint8_t addr[ESP_MESH_ADDRESS_LEN];
-	esp_mesh_header_t *mesh_header = NULL;
 
 	memset(&addr, 0, sizeof(addr));
-
-	mesh_header = (esp_mesh_header_t *)
-	  esp_mesh_get_packet_header(// Direction.
+	memset(&pkt_mesh_reset, 0, sizeof(pkt_mesh_reset_t));
+	esp_mesh_get_packet_header(&pkt_mesh_reset.header,
+	                             // Direction.
 	                             ESP_MESH_PACKET_DOWNWARDS,
 	                             // P2P.
 	                             false,
@@ -595,11 +592,6 @@ void broadcast_reset_packet(MeshStack *mesh_stack) {
 	                             addr,
 	                             // Source address.
 	                             addr);
-
-	memset(&pkt_mesh_reset, 0, sizeof(pkt_mesh_reset_t));
-	memcpy(&pkt_mesh_reset.header, mesh_header, sizeof(esp_mesh_header_t));
-
-	free(mesh_header);
 
 	pkt_mesh_reset.type = MESH_PACKET_RESET;
 
@@ -614,10 +606,8 @@ void broadcast_reset_packet(MeshStack *mesh_stack) {
 bool hello_root_recv_handler(MeshStack *mesh_stack) {
 	char prefix_str[17];
 	pkt_mesh_olleh_t olleh_mesh_pkt;
-	esp_mesh_header_t *mesh_header = NULL;
 	MeshStack *mesh_stack_from_list = NULL;
-	pkt_mesh_hello_t *hello_mesh_pkt = \
-	        (pkt_mesh_hello_t *)&mesh_stack->incoming_buffer;
+	pkt_mesh_hello_t *hello_mesh_pkt = (pkt_mesh_hello_t *)&mesh_stack->incoming_buffer;
 	int i;
 
 #ifdef BRICKD_WITH_MESH_SINGLE_ROOT_NODE
@@ -655,8 +645,9 @@ bool hello_root_recv_handler(MeshStack *mesh_stack) {
 			         hello_mesh_pkt->group_id[5]);
 
 			// Reset the mesh stack that was found on the list.
-			mesh_header = (esp_mesh_header_t *)
-			  esp_mesh_get_packet_header(// Direction.
+			memset(&pkt_mesh_reset, 0, sizeof(pkt_mesh_reset_t));
+			esp_mesh_get_packet_header(&pkt_mesh_reset.header,
+			                             // Direction.
 			                             ESP_MESH_PACKET_DOWNWARDS,
 			                             // P2P.
 			                             false,
@@ -668,11 +659,6 @@ bool hello_root_recv_handler(MeshStack *mesh_stack) {
 			                             mesh_stack_from_list->root_node_addr,
 			                             // Source address.
 			                             hello_mesh_pkt->header.dst_addr);
-
-			memset(&pkt_mesh_reset, 0, sizeof(pkt_mesh_reset_t));
-			memcpy(&pkt_mesh_reset.header, mesh_header, sizeof(pkt_mesh_reset_t));
-
-			free(mesh_header);
 
 			pkt_mesh_reset.type = MESH_PACKET_RESET;
 
@@ -696,8 +682,9 @@ bool hello_root_recv_handler(MeshStack *mesh_stack) {
 			}
 
 			// Reset the mesh stack from which we just received.
-			mesh_header = (esp_mesh_header_t *)
-			  esp_mesh_get_packet_header(// Direction.
+			memset(&pkt_mesh_reset, 0, sizeof(pkt_mesh_reset_t));
+			esp_mesh_get_packet_header(&pkt_mesh_reset.header,
+			                             // Direction.
 			                             ESP_MESH_PACKET_DOWNWARDS,
 			                             // P2P.
 			                             false,
@@ -709,11 +696,6 @@ bool hello_root_recv_handler(MeshStack *mesh_stack) {
 			                             hello_mesh_pkt->header.src_addr,
 			                             // Source address.
 			                             hello_mesh_pkt->header.dst_addr);
-
-			memset(&pkt_mesh_reset, 0, sizeof(pkt_mesh_reset_t));
-			memcpy(&pkt_mesh_reset.header, mesh_header, sizeof(pkt_mesh_reset_t));
-
-			free(mesh_header);
 
 			pkt_mesh_reset.type = MESH_PACKET_RESET;
 
@@ -798,8 +780,10 @@ bool hello_root_recv_handler(MeshStack *mesh_stack) {
 		return false;
 	}
 
-	mesh_header = (esp_mesh_header_t *)
-	  esp_mesh_get_packet_header(// Direction.
+	// Prepare the olleh packet.
+	memset(&olleh_mesh_pkt, 0, sizeof(pkt_mesh_olleh_t));
+	esp_mesh_get_packet_header(&olleh_mesh_pkt.header,
+	                             // Direction.
 	                             ESP_MESH_PACKET_DOWNWARDS,
 	                             // P2P.
 	                             false,
@@ -811,12 +795,6 @@ bool hello_root_recv_handler(MeshStack *mesh_stack) {
 	                             hello_mesh_pkt->header.src_addr,
 	                             // Source address.
 	                             hello_mesh_pkt->header.dst_addr);
-
-	// Prepare the olleh packet.
-	memset(&olleh_mesh_pkt, 0, sizeof(pkt_mesh_olleh_t));
-	memcpy(&olleh_mesh_pkt.header, mesh_header, sizeof(esp_mesh_header_t));
-
-	free(mesh_header);
 
 	olleh_mesh_pkt.type = MESH_PACKET_OLLEH;
 
@@ -906,7 +884,6 @@ int mesh_stack_dispatch_request(Stack *stack, Packet *request, Recipient *recipi
 	bool is_broadcast = true;
 	pkt_mesh_tfp_t tfp_mesh_pkt;
 	char base58[BASE58_MAX_LENGTH];
-	esp_mesh_header_t *mesh_header = NULL;
 	uint8_t dst_addr[ESP_MESH_ADDRESS_LEN];
 	MeshStack *mesh_stack = (MeshStack *)stack;
 
@@ -919,8 +896,9 @@ int mesh_stack_dispatch_request(Stack *stack, Packet *request, Recipient *recipi
 		memcpy(&dst_addr, &recipient->opaque, sizeof(dst_addr));
 	}
 
-	mesh_header = (esp_mesh_header_t *)
-	  esp_mesh_get_packet_header(// Direction.
+	memset(&tfp_mesh_pkt, 0, sizeof(pkt_mesh_tfp_t));
+	esp_mesh_get_packet_header(&tfp_mesh_pkt.header,
+	                             // Direction.
 	                             ESP_MESH_PACKET_DOWNWARDS,
 	                             // P2P.
 	                             false,
@@ -932,11 +910,6 @@ int mesh_stack_dispatch_request(Stack *stack, Packet *request, Recipient *recipi
 	                             dst_addr,
 	                             // Source address.
 	                             mesh_stack->gw_addr);
-
-	memset(&tfp_mesh_pkt, 0, sizeof(pkt_mesh_tfp_t));
-	memcpy(&tfp_mesh_pkt.header, mesh_header, mesh_header->len);
-
-	free(mesh_header);
 
 	tfp_mesh_pkt.type = MESH_PACKET_TFP;
 
@@ -1012,12 +985,12 @@ void arm_timer_cleanup_after_reset_sent(MeshStack *mesh_stack) {
 
 bool hello_non_root_recv_handler(MeshStack *mesh_stack) {
 	pkt_mesh_olleh_t olleh_mesh_pkt;
-	esp_mesh_header_t *mesh_header = NULL;
-	pkt_mesh_hello_t *hello_mesh_pkt = \
-	        (pkt_mesh_hello_t *)&mesh_stack->incoming_buffer;
+	pkt_mesh_hello_t *hello_mesh_pkt = (pkt_mesh_hello_t *)&mesh_stack->incoming_buffer;
 
-	mesh_header = (esp_mesh_header_t *)
-	  esp_mesh_get_packet_header(// Direction.
+	// Prepare the olleh packet.
+	memset(&olleh_mesh_pkt, 0, sizeof(pkt_mesh_olleh_t));
+	esp_mesh_get_packet_header(&olleh_mesh_pkt.header,
+	                             // Direction.
 	                             ESP_MESH_PACKET_DOWNWARDS,
 	                             // P2P.
 	                             false,
@@ -1029,12 +1002,6 @@ bool hello_non_root_recv_handler(MeshStack *mesh_stack) {
 	                             hello_mesh_pkt->header.src_addr,
 	                             // Source address.
 	                             mesh_stack->gw_addr);
-
-	// Prepare the olleh packet.
-	memset(&olleh_mesh_pkt, 0, sizeof(pkt_mesh_olleh_t));
-	memcpy(&olleh_mesh_pkt.header, mesh_header, sizeof(esp_mesh_header_t));
-
-	free(mesh_header);
 
 	olleh_mesh_pkt.type = MESH_PACKET_OLLEH;
 
@@ -1062,14 +1029,14 @@ bool hello_non_root_recv_handler(MeshStack *mesh_stack) {
 	return true;
 }
 
-void *esp_mesh_get_packet_header(uint8_t flag_direction,
-                                 bool flag_p2p,
-                                 uint8_t flag_protocol,
-                                 uint16_t len,
-                                 uint8_t *mesh_dst_addr,
-                                 uint8_t *mesh_src_addr) {
-	esp_mesh_header_t *mesh_header = calloc(1, sizeof(esp_mesh_header_t)); // FIXME: calloc can return NULL
-
+void esp_mesh_get_packet_header(esp_mesh_header_t *mesh_header,
+                                uint8_t flag_direction,
+                                bool flag_p2p,
+                                uint8_t flag_protocol,
+                                uint16_t len,
+                                uint8_t *mesh_dst_addr,
+                                uint8_t *mesh_src_addr) {
+	memset(mesh_header, 0, sizeof(esp_mesh_header_t));
 	set_esp_mesh_header_flag_direction((uint8_t *)&mesh_header->flags, flag_direction);
 	set_esp_mesh_header_flag_p2p((uint8_t *)&mesh_header->flags, flag_p2p);
 	set_esp_mesh_header_flag_protocol((uint8_t *)&mesh_header->flags, flag_protocol);
@@ -1077,6 +1044,4 @@ void *esp_mesh_get_packet_header(uint8_t flag_direction,
 
 	memcpy(&mesh_header->dst_addr, mesh_dst_addr, sizeof(mesh_header->dst_addr));
 	memcpy(&mesh_header->src_addr, mesh_src_addr, sizeof(mesh_header->src_addr));
-
-	return (void *)mesh_header;
 }
