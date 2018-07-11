@@ -14,7 +14,7 @@ if command -v docker >/dev/null 2>&1 ; then
 		docker run \
 		-v $ROOT_DIR/../:/$ROOT_DIR/../ -u $(id -u):$(id -g) \
 		-v $DAEMONLIB_DIR/:$DAEMONLIB_DIR/: -u $(id -u):$(id -g) \
-		-ti build_environment_c /bin/bash \
+		build_environment_c /bin/bash \
 		-c "cd $ROOT_DIR ; make "$@""; \
 	else
 		echo "No docker image found.";
