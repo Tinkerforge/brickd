@@ -21,6 +21,7 @@
 
 package com.tinkerforge.brickd;
 
+import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.support.v7.app.AppCompatActivity;
@@ -30,6 +31,8 @@ import android.widget.CompoundButton;
 import android.widget.Switch;
 
 public class MainActivity extends AppCompatActivity {
+    private SharedPreferences mSettings;
+    private SharedPreferences.OnSharedPreferenceChangeListener mSettingsListener;
     private Switch mSwitchService;
 
     @Override
