@@ -71,7 +71,6 @@ static const char *config_format_bricklet_chip_select_driver(int value) {
 
 #endif
 
-
 ConfigOption config_options[] = {
 	CONFIG_OPTION_STRING_INITIALIZER("listen.address", 1, -1, "0.0.0.0"),
 	CONFIG_OPTION_INTEGER_INITIALIZER("listen.plain_port", 1, UINT16_MAX, 4223),
