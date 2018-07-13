@@ -3,11 +3,6 @@
 ROOT_DIR=`/bin/pwd`
 DAEMONLIB_DIR=$(realpath $ROOT_DIR/../daemonlib)
 
-if [ ! -d "$ROOT_DIR/../daemonlib" ]; then \
-	echo "Could not find daemonlib. Please symlink daemonlib into src/ folder."; \
-	exit 1; \
-fi
-
 if command -v docker >/dev/null 2>&1 ; then
 	if [ $(/usr/bin/docker images -q tinkerforge/build_environment_c) ]; then
 		echo "Using docker image to build.";
