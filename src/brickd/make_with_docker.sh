@@ -4,7 +4,7 @@ ROOT_DIR=`/bin/pwd`
 DAEMONLIB_DIR=$(realpath $ROOT_DIR/../daemonlib)
 
 if [ ! -d "$ROOT_DIR/../daemonlib" ]; then \
-	echo "Could not find daemonlib. Please symlink daemonlib into src/brickd/ folder."; \
+	echo "Could not find daemonlib. Please symlink daemonlib into src/ folder."; \
 	exit 1; \
 fi
 
