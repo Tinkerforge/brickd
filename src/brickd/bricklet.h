@@ -31,4 +31,4 @@ typedef enum {
 int bricklet_init(void);
 void bricklet_exit(void);
 
-#endif
+#endif // BRICKD_BRICKLET_H
