@@ -6,13 +6,14 @@ set -e
 
 if [ "$1" = "remove" ]; then
 	if [ ! -d /run/systemd/system ]; then
-		update-rc.d brickd remove >/dev/null
+		rm /etc/init.d/brickd
+		update-rc.d brickd remove
 	fi
 fi
 
 if [ "$1" = "purge" ]; then
-	rm /etc/init.d/brickd 2>/dev/null || true
 	rm -f /var/log/brickd.log*
+	rm -f /var/run/brickd.pid
 fi
 
 exit 0
