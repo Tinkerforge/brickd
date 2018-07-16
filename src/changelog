@@ -201,3 +201,15 @@
 - Adapt to Windows 10 IoT Core version 15063
 - Add logic to reopen USB devices to recover from stalled USB transfers
 - Avoid race condition with USB prober on macOS while opening USB devices
+
+2018-07-16: 2.3.2 (<unknown>)
+- Fix nofification event name handling on Windows 10 IoT Core
+- Read USB string descriptors instead of faking them on Windows 10 IoT Core
+- Add backward compatibility to RED Brick Image 1.9
+- Update bundled libusb to 1.0.22 on Windows and macOS, this fixes enumeration
+  problems with ASMedia USB hubs, composite devies and bogus USB device address
+  reports on Windows
+- Add MSVC project on Windows
+- Use systemd instead of init.d on Linux, if available
+- Add initial Android support, no precompiled app available yet, brickd for
+  Android has to be compiled from source
