@@ -74,6 +74,14 @@ endif
 
 endif
 
+ifndef libdir
+ifeq ($(prefix),/usr)
+	libdir := /lib
+else
+	libdir := $(prefix)/lib
+endif
+endif
+
 ifneq ($(findstring $(MAKEFLAGS),s),s)
 ifndef V
 	E := @
@@ -594,7 +602,7 @@ ifeq ($(WITH_SYSTEMD),no)
 	$(E)$(INSTALL) -m 755 ../build_data/linux/installer/usr/share/brickd/brickd-sysv-init $(sysconfdir)/init.d/brickd
 else
 	@echo "CP brickd.service (systemd service)"
-	$(E)$(INSTALL) -m 644 ../build_data/linux/installer/lib/systemd/system/brickd.service /lib/systemd/system
+	$(E)$(INSTALL) -m 644 ../build_data/linux/installer/lib/systemd/system/brickd.service $(libdir)/systemd/system
 endif
 
 	@echo "CP brickd (logrotate.d script)"
@@ -617,7 +625,7 @@ endif
 
 ifeq ($(WITH_SYSTEMD),yes)
 	@echo "CP brickd-resume.service (systemd service)"
-	$(E)$(INSTALL) -m 644 ../build_data/linux/installer/lib/systemd/system/brickd-resume.service /lib/systemd/system
+	$(E)$(INSTALL) -m 644 ../build_data/linux/installer/lib/systemd/system/brickd-resume.service $(libdir)/systemd/system
 endif
 
 log_messages.h log_messages.rc log_messages_MSG0409.bin: log_messages.mc Makefile
