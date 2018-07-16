@@ -54,29 +54,31 @@ def check_output(*args, **kwargs):
 
 
 def specialize_template(template_filename, destination_filename, replacements):
-    template_file = open(template_filename, 'r')
     lines = []
     replaced = set()
 
-    for line in template_file.readlines():
-        for key in replacements:
-            replaced_line = line.replace(key, replacements[key])
+    # intentionally use mode=rb and decode/encode to be able to enforce UTF-8
+    # in an ASCII environment even with Python2 where the open function doesn't
+    # have an encoding parameter
+    with open(template_filename, 'rb') as f:
+        for line in f.readlines():
+            line = line.decode('utf-8')
 
-            if replaced_line != line:
-                replaced.add(key)
+            for key in replacements:
+                replaced_line = line.replace(key, replacements[key])
 
-            line = replaced_line
+                if replaced_line != line:
+                    replaced.add(key)
 
-        lines.append(line)
+                line = replaced_line
 
-    template_file.close()
+            lines.append(line.encode('utf-8'))
 
     if replaced != set(replacements.keys()):
         raise Exception('Not all replacements for {0} have been applied'.format(template_filename))
 
-    destination_file = open(destination_filename, 'w')
-    destination_file.writelines(lines)
-    destination_file.close()
+    with open(destination_filename, 'wb') as f:
+        f.writelines(lines)
 
 
 def build_macos_pkg():
