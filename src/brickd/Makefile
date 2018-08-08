@@ -71,7 +71,6 @@ endif
 ifndef datadir
 	datadir := $(prefix)/share
 endif
-
 endif
 
 ifndef libdir
