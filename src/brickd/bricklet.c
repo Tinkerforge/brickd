@@ -27,17 +27,24 @@
 #include <daemonlib/log.h>
 #include <daemonlib/threads.h>
 
+#include <stdio.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 #include <string.h>
 
-#define BRICKLET_SPI_MAX_NUM 2
-#define BRICKLET_CS_MAX_NUM  10
+#define BRICKLET_SPI_MAX_NUM           2
+#define BRICKLET_CS_MAX_NUM            10
 
-#define BRICKLET_CONFIG_STR_GROUP_POS 14
-#define BRICKLET_CONFIG_STR_CS_POS    (BRICKLET_CONFIG_STR_GROUP_POS + 4)
+#define BRICKLET_CONFIG_STR_GROUP_POS  14
+#define BRICKLET_CONFIG_STR_CS_POS     (BRICKLET_CONFIG_STR_GROUP_POS + 4)
 
-#define BRICKLET_RPI_HAT_SPIDEV     "/dev/spidev0.0"
-#define BRICKLET_RPI_HAT_SPIDEV_NUM 0
-#define BRICKLET_RPI_HAT_MASTER_CS  8
+#define BRICKLET_RPI_HAT_SPIDEV        "/dev/spidev0.0"
+#define BRICKLET_RPI_HAT_SPIDEV_NUM    0
+#define BRICKLET_RPI_HAT_MASTER_CS     8
+
+#define BRICKLET_RPI_PRODUCT_ID        "0x084e"
+#define BRICKLET_RPI_RPODUCT_ID_LENGTH 6
 
 static LogSource _log_source = LOG_SOURCE_INITIALIZER;
 
@@ -50,7 +57,49 @@ static BrickletStack *_bricklet_stack[BRICKLET_SPI_MAX_NUM*BRICKLET_CS_MAX_NUM] 
 // In this case the Bricklets will be shown as connected to the HAT in Brick Viewer.
 static uint32_t bricklet_connected_uid = 0;
 
-static uint8_t bricklet_stack_rpi_hat_gpios[] = {23, 27, 24, 22, 25, 7, 26, 6, 5};
+// GPIOs configuration for HAT Bricklet.
+static const uint8_t bricklet_stack_rpi_hat_gpios[] = {23, 27, 24, 22, 25, 7, 26, 6, 5};
+
+// The equivalent configuration in brickd.conf looks as follows:
+/**************************************
+bricklet.group0.spidev = /dev/spidev0.0
+
+bricklet.group0.cs0.driver = gpio
+bricklet.group0.cs0.name = gpio23
+bricklet.group0.cs0.num = 23
+
+bricklet.group0.cs1.driver = gpio
+bricklet.group0.cs1.name = gpio27
+bricklet.group0.cs1.num = 27
+
+bricklet.group0.cs2.driver = gpio
+bricklet.group0.cs2.name = gpio24
+bricklet.group0.cs2.num = 24
+
+bricklet.group0.cs3.driver = gpio
+bricklet.group0.cs3.name = gpio22
+bricklet.group0.cs3.num = 22
+
+bricklet.group0.cs4.driver = gpio
+bricklet.group0.cs4.name = gpio25
+bricklet.group0.cs4.num = 25
+
+bricklet.group0.cs5.driver = gpio
+bricklet.group0.cs5.name = gpio7
+bricklet.group0.cs5.num = 7
+
+bricklet.group0.cs6.driver = gpio
+bricklet.group0.cs6.name = gpio26
+bricklet.group0.cs6.num = 26
+
+bricklet.group0.cs7.driver = gpio
+bricklet.group0.cs7.name = gpio6
+bricklet.group0.cs7.num = 6
+
+bricklet.group0.cs8.driver = gpio
+bricklet.group0.cs8.name = gpio5
+bricklet.group0.cs8.num = 5
+*************************************/
 
 // spidev1.x on RPi does not support CPHA:
 // https://www.raspberrypi.org/forums/viewtopic.php?t=186019
@@ -62,11 +111,29 @@ static uint8_t bricklet_stack_rpi_hat_gpios[] = {23, 27, 24, 22, 25, 7, 26, 6, 5
 // so we can't intermix hardware CS with gpio CS pins. Because
 // of this the HAT can only use pins for CS that are not HW CS pins...
 int bricklet_init_rpi_hat(void) {
-    // TODO: Read /proc/device-tree to find out if HAT is present.
-    if(false) {
-        return 1;
+	int fd;
+	int rc;
+	char product_id[7] = "\0";
+
+    fd = open("/proc/device-tree/hat/product_id", O_RDONLY);
+	if(fd < 0) {
+		log_debug("Could not open HAT product_id in device tree, brickd will not use a pre-configured HAT configuration.");
+		return 1;
+	}
+
+    rc = robust_read(fd, &product_id, BRICKLET_RPI_RPODUCT_ID_LENGTH);
+	robust_close(fd);
+	if(rc != 6) {
+		log_debug("Could not read HAT product_id in device tree, brickd will not use a pre-configured HAT configuration.");
+		return 1;
+	}
+
+    if(strncmp(BRICKLET_RPI_PRODUCT_ID, product_id, BRICKLET_RPI_RPODUCT_ID_LENGTH) != 0) {
+        log_debug("The product_id of the connected HAT (%s) is not supported, brickd will not use a pre-configured HAT configuration.", product_id);
+		return 1;
     }
 
+    log_debug("Found product_id \"%s\" in device tree, brickd will use pre-configured HAT configuration.", product_id);
     BrickletStackConfig config = {
         .mutex = &_bricklet_spi_mutex[BRICKLET_RPI_HAT_SPIDEV_NUM],
     };
