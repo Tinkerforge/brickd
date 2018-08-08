@@ -133,6 +133,7 @@ endif
 
 ifneq ($(PLATFORM),Windows)
 	PKG_CONFIG := $(shell which pkg-config 2>/dev/null)
+
 ifeq ($(PKG_CONFIG),)
 ifneq ($(MAKECMDGOALS),clean)
 $(error Could not find pkg-config)
@@ -153,10 +154,12 @@ ifeq ($(WITH_LIBUSB_DLOPEN),yes)
 ifeq ($(WITH_LIBUSB_STATIC),yes)
 $(error Cannot use dlopen and static linking for libusb)
 endif
+
 	HOTPLUG := libusb (if supported)
 else
 	HOTPLUG := $(shell pkg-config --exists 'libusb-1.0 >= 1.0.16' && echo libusb || echo libusb \(if supported\))
 endif
+
 ifeq ($(WITH_LIBUDEV),check)
 ifeq ($(HOTPLUG),libusb)
 	# libusb hotplug, libudev not required
@@ -168,7 +171,7 @@ else
 endif
 endif
 else
-	# not Linux, libudev not available
+	# not Linux, no libudev
 	WITH_LIBUDEV := no
 endif
 
@@ -187,6 +190,7 @@ SYSTEMD_STATUS := no
 
 ifeq ($(PLATFORM),Linux)
 	PM_UTILS_EXISTS := $(shell pkg-config --exists pm-utils && echo yes || echo no)
+
 ifeq ($(WITH_PM_UTILS),check)
 ifeq ($(PM_UTILS_EXISTS),yes)
 	WITH_PM_UTILS := yes
@@ -195,11 +199,13 @@ else
 endif
 endif
 else
+	# not Linux, no pm-utils
 	WITH_PM_UTILS := no
 endif
 
 ifeq ($(PLATFORM),Linux)
 	SYSTEMD_EXISTS := $(shell systemctl --version >/dev/null 2>&1 && echo yes || echo no)
+
 ifeq ($(WITH_SYSTEMD),check)
 ifeq ($(SYSTEMD_EXISTS),yes)
 	WITH_SYSTEMD := yes
@@ -208,6 +214,7 @@ else
 endif
 endif
 else
+	# not Linux, no systemd
 	WITH_SYSTEMD := no
 endif
 
@@ -254,6 +261,7 @@ ifeq ($(PLATFORM),Windows)
 	SOURCES_BRICKD += event_winapi.c \
 	                  fixes_mingw.c \
 	                  log_winapi.c \
+	                  main_winapi.c \
 	                  service.c \
 	                  usb_winapi.c \
 	                  usb_windows.c
@@ -268,24 +276,16 @@ else
 	SOURCES_BRICKD += usb_posix.c
 endif
 
-ifeq ($(PLATFORM),Windows)
-	SOURCES_BRICKD += main_winapi.c
-endif
-
 ifeq ($(PLATFORM),Linux)
 ifeq ($(WITH_EPOLL),yes)
 	SOURCES_DAEMONLIB += ../daemonlib/event_linux.c
 else
 	SOURCES_DAEMONLIB += ../daemonlib/event_posix.c
 endif
+
 	SOURCES_DAEMONLIB += ../daemonlib/gpio_sysfs.c
 
 	SOURCES_BRICKD += main_linux.c
-
-ifeq ($(WITH_BRICKLET),yes)
-	SOURCES_BRICKD += bricklet.c \
-	                  bricklet_stack.c
-endif
 endif
 
 ifeq ($(PLATFORM),Darwin)
@@ -297,6 +297,11 @@ endif
 
 ifeq ($(WITH_LIBUDEV),yes)
 	SOURCES_BRICKD += udev.c
+endif
+
+ifeq ($(WITH_BRICKLET),yes)
+	SOURCES_BRICKD += bricklet.c \
+	                  bricklet_stack.c
 endif
 
 ifneq ($(WITH_RED_BRICK),no)
@@ -317,7 +322,6 @@ ifeq ($(WITH_LIBUSB_DLOPEN),yes)
 endif
 
 SOURCES := $(SOURCES_DAEMONLIB) $(SOURCES_BRICKD)
-
 OBJECTS := ${SOURCES:.c=.o}
 DEPENDS := ${SOURCES:.c=.p}
 
@@ -378,13 +382,16 @@ ifeq ($(WITH_LIBUSB_DLOPEN),yes)
 	LIBUSB_LIBS :=
 else
 	LIBUSB_VERSION := $(shell pkg-config --exists 'libusb-1.0 >= 1.0.6' && echo okay)
+
 ifeq ($(LIBUSB_VERSION),okay)
 	LIBUSB_STATUS := $(shell pkg-config --modversion libusb-1.0)
 	LIBUSB_CFLAGS := $(shell pkg-config --cflags libusb-1.0)
 	LIBUSB_LDFLAGS := $(shell pkg-config --libs-only-other --libs-only-L libusb-1.0)
+
 ifeq ($(WITH_LIBUSB_STATIC),yes)
 	LIBUSB_STATUS := $(LIBUSB_STATUS) (static)
 	LIBUSB_LIBS := -Wl,-Bstatic $(shell pkg-config --libs-only-l libusb-1.0) -Wl,-Bdynamic
+
 ifeq ($(findstring -ludev,$(shell pkg-config --libs-only-l --static libusb-1.0)),-ludev)
 	LIBUDEV_LINK := yes
 endif
@@ -412,12 +419,14 @@ LIBS += $(LIBUSB_LIBS)
 
 ifeq ($(WITH_LIBUDEV),yes)
 	CFLAGS += -DBRICKD_WITH_LIBUDEV
+
 ifeq ($(WITH_LIBUDEV_DLOPEN),yes)
 	LIBUDEV_STATUS := dlopen
 	CFLAGS += -DBRICKD_WITH_LIBUDEV_DLOPEN
 else
 	LIBUDEV_LINK := yes
 endif
+
 ifeq ($(HOTPLUG),libusb)
 	LIBUDEV_STATUS := $(LIBUDEV_STATUS) (unused)
 endif
@@ -425,6 +434,7 @@ endif
 
 ifeq ($(LIBUDEV_LINK),yes)
 	LIBUDEV_EXISTS := $(shell pkg-config --exists libudev && echo yes || echo no)
+
 ifeq ($(LIBUDEV_EXISTS),yes)
 	LIBUDEV_STATUS := $(shell pkg-config --modversion libudev)
 	LIBUDEV_CFLAGS := $(shell pkg-config --cflags libudev)
@@ -442,6 +452,7 @@ endif
 
 ifeq ($(WITH_PM_UTILS),yes)
 	PM_UTILS_EXISTS := $(shell pkg-config --exists pm-utils && echo yes || echo no)
+
 ifeq ($(PM_UTILS_EXISTS),yes)
 	PM_UTILS_STATUS := $(shell pkg-config --modversion pm-utils)
 else
@@ -453,6 +464,7 @@ endif
 
 ifeq ($(WITH_SYSTEMD),yes)
 	SYSTEMD_EXISTS := $(shell systemctl --version >/dev/null 2>&1 && echo yes || echo no)
+
 ifeq ($(SYSTEMD_EXISTS),yes)
 	SYSTEMD_STATUS := $(shell systemctl --version | head -n1 | awk '{{ print $$2 }}')
 else
