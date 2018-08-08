@@ -282,8 +282,9 @@ int serial_interface_init(const char *serial_interface) {
 	} else if (_red_rs485_extension.stopbits == 2) {
 		serial_interface_config.c_cflag |= CSTOPB; // Setting two stop bits
 	} else {
+		robust_close(_red_rs485_serial_fd);
+
 		log_error("Error in serial stop bits config");
-		close(_red_rs485_serial_fd);
 
 		return -1;
 	}
@@ -299,8 +300,9 @@ int serial_interface_init(const char *serial_interface) {
 		serial_interface_config.c_cflag |= PARENB;
 		serial_interface_config.c_cflag |= PARODD;
 	} else {
+		robust_close(_red_rs485_serial_fd);
+
 		log_error("Error in serial parity config");
-		close(_red_rs485_serial_fd);
 
 		return -1;
 	}
@@ -715,9 +717,9 @@ void serial_data_available_handler(void* opaque) {
 	}
 
 	// Put newly received bytes on the specific index in receive buffer
-	int bytes_received = read(_red_rs485_serial_fd,
-	                          _receive.buffer + _receive_buffer_used,
-	                          RECEIVE_BUFFER_SIZE - _receive_buffer_used);
+	int bytes_received = robust_read(_red_rs485_serial_fd,
+	                                 _receive.buffer + _receive_buffer_used,
+	                                 RECEIVE_BUFFER_SIZE - _receive_buffer_used);
 
 	if (bytes_received < 0) {
 		// FIXME: log error?
@@ -1064,13 +1066,13 @@ int red_rs485_extension_init(ExtensionRS485Config *rs485_config) {
 cleanup:
 	switch (phase) { // no breaks, all cases fall through intentionally
 	case 5:
-		close(_master_timer_event);
 		event_remove_source(_master_timer_event, EVENT_SOURCE_TYPE_GENERIC);
+		robust_close(_master_timer_event);
 		// fall through
 
 	case 4:
-		close(_red_rs485_serial_fd);
 		event_remove_source(_red_rs485_serial_fd, EVENT_SOURCE_TYPE_GENERIC);
+		robust_close(_red_rs485_serial_fd);
 		// fall through
 
 	case 3:
@@ -1118,8 +1120,8 @@ void red_rs485_extension_exit(void) {
 	stack_destroy(&_red_rs485_extension.base);
 
 	// Close file descriptors
-	close(_red_rs485_serial_fd);
-	close(_master_timer_event);
+	robust_close(_red_rs485_serial_fd);
+	robust_close(_master_timer_event);
 
 	if (_red_rs485_extension.address == 0) {
 		for (i = 0; i < _red_rs485_extension.slave_num; i++) {

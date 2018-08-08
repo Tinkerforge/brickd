@@ -1044,7 +1044,7 @@ cleanup:
 		// fall through
 
 	case 3:
-		close(_red_stack_notification_event);
+		robust_close(_red_stack_notification_event);
 		// fall through
 
 	case 2:
@@ -1106,6 +1106,6 @@ void red_stack_exit(void) {
 	mutex_destroy(&_red_stack.response_queue_mutex);
 
 	// Close file descriptors
-	close(_red_stack_notification_event);
-	close(_red_stack_spi_fd);
+	robust_close(_red_stack_notification_event);
+	robust_close(_red_stack_spi_fd);
 }

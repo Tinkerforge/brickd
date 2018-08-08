@@ -836,7 +836,7 @@ BrickletStack* bricklet_stack_init(BrickletStackConfig *config) {
 		// fall through
 
 	case 3:
-		close(bricklet_stack->notification_event);
+		robust_close(bricklet_stack->notification_event);
 		// fall through
 
 	case 2:
@@ -876,8 +876,8 @@ void bricklet_stack_exit(BrickletStack *bricklet_stack) {
 	mutex_destroy(&bricklet_stack->response_queue_mutex);
 
 	// Close file descriptors
-	close(bricklet_stack->notification_event);
-	close(bricklet_stack->spi_fd);
+	robust_close(bricklet_stack->notification_event);
+	robust_close(bricklet_stack->spi_fd);
 
 	// Everything is closed and the threads are destroyed. We can
 	// now free the Bricklet Stack memory. It will not be accessed anymore.

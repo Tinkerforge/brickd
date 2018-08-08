@@ -146,7 +146,7 @@ int red_extension_read_eeprom_from_fs(uint8_t *buffer, int extension) {
 
 	length = robust_fread(fp, buffer, EEPROM_SIZE);
 
-	if (fclose(fp) < 0) {
+	if (robust_fclose(fp) < 0) {
 		log_warn("Could not close file %s", file_name);
 	}
 

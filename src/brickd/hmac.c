@@ -54,7 +54,7 @@ static int read_uint32_non_blocking(const char *filename, uint32_t *value) {
 
 	rc = robust_read(fd, value, sizeof(uint32_t));
 
-	close(fd);
+	robust_close(fd);
 
 	return rc != sizeof(uint32_t) ? -1 : 0;
 }

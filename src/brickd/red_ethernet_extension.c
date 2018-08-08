@@ -150,7 +150,7 @@ int red_ethernet_extension_init(ExtensionEthernetConfig *config) {
 
 	length = robust_fread(fp, buf_module, W5X00_MODULE_MAX_SIZE);
 
-	fclose(fp);
+	robust_fclose(fp);
 
 	// We abort if the read was not successful or the buffer was not big enough
 	if (length < 0 || length == W5X00_MODULE_MAX_SIZE) {
