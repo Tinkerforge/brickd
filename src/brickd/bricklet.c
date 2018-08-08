@@ -158,6 +158,7 @@ int bricklet_init(void) {
                     continue;
                 }
 
+                memset(config.chip_select_gpio_sysfs.name, 0, sizeof(config.chip_select_gpio_sysfs.name));
                 memcpy(config.chip_select_gpio_sysfs.name, config_get_option_value(str_cs_name)->string, length);
             } else if(config.chip_select_driver != CHIP_SELECT_HARDWARE) {
                 continue;
