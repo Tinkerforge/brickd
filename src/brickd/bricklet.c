@@ -50,7 +50,7 @@ static BrickletStack *_bricklet_stack[BRICKLET_SPI_MAX_NUM*BRICKLET_CS_MAX_NUM] 
 // In this case the Bricklets will be shown as connected to the HAT in Brick Viewer.
 static uint32_t bricklet_connected_uid = 0;
 
-static uint8_t bricklet_stack_rpi_hat_gpios[] = {25, 26, 17, 27, 22, 23, 24, 16, 7};
+static uint8_t bricklet_stack_rpi_hat_gpios[] = {23, 27, 24, 22, 25, 7, 26, 6, 5};
 
 // spidev1.x on RPi does not support CPHA:
 // https://www.raspberrypi.org/forums/viewtopic.php?t=186019
