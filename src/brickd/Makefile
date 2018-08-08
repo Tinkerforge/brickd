@@ -91,23 +91,21 @@ ifeq ($(wildcard ../daemonlib),)
 $(error Could not find daemonlib. Please symlink or copy daemonlib into the src/ directory)
 endif
 
-ifeq ($(WITH_EPOLL),check)
 ifeq ($(PLATFORM),Linux)
+ifeq ($(WITH_EPOLL),check)
 	WITH_EPOLL := yes
-else
-	WITH_EPOLL := no
 endif
 else
+	# not Linux, no epoll
 	WITH_EPOLL := no
 endif
 
-ifeq ($(WITH_BRICKLET),check)
 ifeq ($(PLATFORM),Linux)
+ifeq ($(WITH_BRICKLET),check)
 	WITH_BRICKLET := yes
-else
-	WITH_BRICKLET := no
 endif
 else
+	# not Linux, no Bricklet
 	WITH_BRICKLET := no
 endif
 
