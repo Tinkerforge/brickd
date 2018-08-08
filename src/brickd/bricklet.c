@@ -113,7 +113,7 @@ bricklet.group0.cs8.num = 5
 int bricklet_init_rpi_hat(void) {
 	int fd;
 	int rc;
-	char product_id[7] = "\0";
+	char product_id[BRICKLET_RPI_RPODUCT_ID_LENGTH+1] = "\0";
 
     fd = open("/proc/device-tree/hat/product_id", O_RDONLY);
 	if(fd < 0) {
