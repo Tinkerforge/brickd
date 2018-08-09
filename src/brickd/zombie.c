@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2014, 2016 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2014, 2016, 2018 Matthias Bolte <matthias@tinkerforge.com>
  *
  * zombie.c: Zombie client specific functions
  *

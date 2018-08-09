@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2013-2014, 2016 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2013-2018 Matthias Bolte <matthias@tinkerforge.com>
  *
  * hardware.c: Hardware specific functions
  *

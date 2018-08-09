@@ -1,6 +1,7 @@
 /*
  * brickd
  * Copyright (C) 2014 Olaf Lüke <olaf@tinkerforge.com>
+ * Copyright (C) 2017 Matthias Bolte <matthias@tinkerforge.com>
  *
  * red_extension.h: Extension initialization for RED Brick
  *

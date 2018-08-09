@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2012, 2014 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2012-2014 Matthias Bolte <matthias@tinkerforge.com>
  *
  * iokit.h: IOKit specific functions
  *

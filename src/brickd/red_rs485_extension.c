@@ -1,8 +1,8 @@
 /*
  * brickd
- * Copyright (C) 2014 Ishraq Ibne Ashraf <ishraq@tinkerforge.com>
- * Copyright (C) 2014-2016 Matthias Bolte <matthias@tinkerforge.com>
- * Copyright (C) 2014 Olaf Lüke <olaf@tinkerforge.com>
+ * Copyright (C) 2014, 2017 Ishraq Ibne Ashraf <ishraq@tinkerforge.com>
+ * Copyright (C) 2014, 2018 Olaf Lüke <olaf@tinkerforge.com>
+ * Copyright (C) 2014-2018 Matthias Bolte <matthias@tinkerforge.com>
  *
  * red_rs485_extension.c: RS485 extension support for RED Brick
  *

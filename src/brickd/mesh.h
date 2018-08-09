@@ -1,6 +1,7 @@
 /*
  * brickd
  * Copyright (C) 2016 Ishraq Ibne Ashraf <ishraq@tinkerforge.com>
+ * Copyright (C) 2017 Matthias Bolte <matthias@tinkerforge.com>
  *
  * mesh.h: Mesh specific functions
  *

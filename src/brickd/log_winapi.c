@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2012, 2014, 2016, 2018 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2012-2018 Matthias Bolte <matthias@tinkerforge.com>
  *
  * log_winapi.c: Windows Event Log and log viewer handling
  *

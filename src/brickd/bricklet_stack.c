@@ -1,6 +1,7 @@
 /*
  * brickd
  * Copyright (C) 2018 Olaf Lüke <olaf@tinkerforge.com>
+ * Copyright (C) 2018 Matthias Bolte <matthias@tinkerforge.com>
  *
  * bricklet_stack.c: SPI Tinkerforge Protocol (SPITFP) implementation for direct
  *                   communication between brickd and Bricklet with co-processor
