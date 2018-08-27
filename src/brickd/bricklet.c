@@ -33,18 +33,23 @@
 #include <fcntl.h>
 #include <string.h>
 
-#define BRICKLET_SPI_MAX_NUM           2
-#define BRICKLET_CS_MAX_NUM            10
+#define BRICKLET_SPI_MAX_NUM              2
+#define BRICKLET_CS_MAX_NUM               10
 
-#define BRICKLET_CONFIG_STR_GROUP_POS  14
-#define BRICKLET_CONFIG_STR_CS_POS     (BRICKLET_CONFIG_STR_GROUP_POS + 4)
+#define BRICKLET_CONFIG_STR_GROUP_POS     14
+#define BRICKLET_CONFIG_STR_CS_POS        (BRICKLET_CONFIG_STR_GROUP_POS + 4)
 
-#define BRICKLET_RPI_HAT_SPIDEV        "/dev/spidev0.0"
-#define BRICKLET_RPI_HAT_SPIDEV_NUM    0
-#define BRICKLET_RPI_HAT_MASTER_CS     8
+#define BRICKLET_RPI_HAT_SPIDEV           "/dev/spidev0.0"
+#define BRICKLET_RPI_HAT_SPIDEV_NUM       0
+#define BRICKLET_RPI_HAT_MASTER_CS        8
 
-#define BRICKLET_RPI_PRODUCT_ID        "0x084e"
-#define BRICKLET_RPI_RPODUCT_ID_LENGTH 6
+#define BRICKLET_RPI_HAT_ZERO_SPIDEV      "/dev/spidev0.0"
+#define BRICKLET_RPI_HAT_ZERO_SPIDEV_NUM  0
+#define BRICKLET_RPI_HAT_ZERO_MASTER_CS   5
+
+#define BRICKLET_RPI_PRODUCT_ID_LENGTH    6
+#define BRICKLET_RPI_HAT_PRODUCT_ID       "0x084e" // tf device id 2126
+#define BRICKLET_RPI_HAT_ZERO_PRODUCT_ID  "0x085d" // tf device id 2141
 
 static LogSource _log_source = LOG_SOURCE_INITIALIZER;
 
@@ -58,10 +63,14 @@ static BrickletStack *_bricklet_stack[BRICKLET_SPI_MAX_NUM*BRICKLET_CS_MAX_NUM] 
 static uint32_t bricklet_connected_uid = 0;
 
 // GPIOs configuration for HAT Bricklet.
-static const uint8_t bricklet_stack_rpi_hat_gpios[] = {23, 27, 24, 22, 25, 7, 26, 6, 5};
+static const uint8_t bricklet_stack_rpi_hat_gpios[] = {23, 22, 25, 26, 27, 24, 7, 6, 5};
+static const uint8_t bricklet_stack_rpi_hat_zero_gpios[] = {27, 22, 23, 24, 25};
 
 // The equivalent configuration in brickd.conf looks as follows:
 /**************************************
+
+HAT:
+
 bricklet.group0.spidev = /dev/spidev0.0
 
 bricklet.group0.cs0.driver = gpio
@@ -69,28 +78,28 @@ bricklet.group0.cs0.name = gpio23
 bricklet.group0.cs0.num = 23
 
 bricklet.group0.cs1.driver = gpio
-bricklet.group0.cs1.name = gpio27
-bricklet.group0.cs1.num = 27
+bricklet.group0.cs1.name = gpio22
+bricklet.group0.cs1.num = 22
 
 bricklet.group0.cs2.driver = gpio
-bricklet.group0.cs2.name = gpio24
-bricklet.group0.cs2.num = 24
+bricklet.group0.cs2.name = gpio25
+bricklet.group0.cs2.num = 25
 
 bricklet.group0.cs3.driver = gpio
-bricklet.group0.cs3.name = gpio22
-bricklet.group0.cs3.num = 22
+bricklet.group0.cs3.name = gpio26
+bricklet.group0.cs3.num = 26
 
 bricklet.group0.cs4.driver = gpio
-bricklet.group0.cs4.name = gpio25
-bricklet.group0.cs4.num = 25
+bricklet.group0.cs4.name = gpio27
+bricklet.group0.cs4.num = 27
 
 bricklet.group0.cs5.driver = gpio
-bricklet.group0.cs5.name = gpio7
-bricklet.group0.cs5.num = 7
+bricklet.group0.cs5.name = gpio24
+bricklet.group0.cs5.num = 24
 
 bricklet.group0.cs6.driver = gpio
-bricklet.group0.cs6.name = gpio26
-bricklet.group0.cs6.num = 26
+bricklet.group0.cs6.name = gpio7
+bricklet.group0.cs6.num = 7
 
 bricklet.group0.cs7.driver = gpio
 bricklet.group0.cs7.name = gpio6
@@ -99,6 +108,31 @@ bricklet.group0.cs7.num = 6
 bricklet.group0.cs8.driver = gpio
 bricklet.group0.cs8.name = gpio5
 bricklet.group0.cs8.num = 5
+
+
+HAT Zero:
+
+bricklet.group0.spidev = /dev/spidev0.0
+
+bricklet.group0.cs0.driver = gpio
+bricklet.group0.cs0.name = gpio27
+bricklet.group0.cs0.num = 27
+
+bricklet.group0.cs1.driver = gpio
+bricklet.group0.cs1.name = gpio22
+bricklet.group0.cs1.num = 22
+
+bricklet.group0.cs2.driver = gpio
+bricklet.group0.cs2.name = gpio23
+bricklet.group0.cs2.num = 23
+
+bricklet.group0.cs3.driver = gpio
+bricklet.group0.cs3.name = gpio24
+bricklet.group0.cs3.num = 24
+
+bricklet.group0.cs4.driver = gpio
+bricklet.group0.cs4.name = gpio25
+bricklet.group0.cs4.num = 25
 *************************************/
 
 // spidev1.x on RPi does not support CPHA:
@@ -110,46 +144,48 @@ bricklet.group0.cs8.num = 5
 // Additionally, on spidev0.x the SPI_NO_CS option does not work,
 // so we can't intermix hardware CS with gpio CS pins. Because
 // of this the HAT can only use pins for CS that are not HW CS pins...
-int bricklet_init_rpi_hat(void) {
+int bricklet_init_rpi_hat(const char *product_id_test, const char *spidev, const int spidev_num, const uint8_t *gpios, const int gpios_num, const int master_cs, const char *name, const bool last) {
 	int fd;
 	int rc;
-	char product_id[BRICKLET_RPI_RPODUCT_ID_LENGTH+1] = "\0";
+	char product_id[BRICKLET_RPI_PRODUCT_ID_LENGTH+1] = "\0";
 
     fd = open("/proc/device-tree/hat/product_id", O_RDONLY);
 	if(fd < 0) {
-		log_debug("Could not open HAT product_id in device tree, brickd will not use a pre-configured HAT configuration.");
+		log_debug("Could not open %s product_id in device tree, brickd will not use a pre-configured %s configuration.", name, name);
 		return 1;
 	}
 
-    rc = robust_read(fd, &product_id, BRICKLET_RPI_RPODUCT_ID_LENGTH);
+    rc = robust_read(fd, &product_id, BRICKLET_RPI_PRODUCT_ID_LENGTH);
 	robust_close(fd);
 	if(rc != 6) {
-		log_debug("Could not read HAT product_id in device tree, brickd will not use a pre-configured HAT configuration.");
+		log_debug("Could not read %s product_id in device tree, brickd will not use a pre-configured %s configuration.", name, name);
 		return 1;
 	}
 
-    if(strncmp(BRICKLET_RPI_PRODUCT_ID, product_id, BRICKLET_RPI_RPODUCT_ID_LENGTH) != 0) {
-        log_debug("The product_id of the connected HAT (%s) is not supported, brickd will not use a pre-configured HAT configuration.", product_id);
+    if(strncmp(product_id_test, product_id, BRICKLET_RPI_PRODUCT_ID_LENGTH) != 0) {
+        if(last) {
+            log_debug("The product_id of the connected HAT (%s) is not supported, brickd will not use a pre-configured HAT configuration.", product_id);
+        }
 		return 1;
     }
 
-    log_debug("Found product_id \"%s\" in device tree, brickd will use pre-configured HAT configuration.", product_id);
+    log_debug("Found product_id \"%s\" in device tree, brickd will use pre-configured %s configuration.", product_id, name);
     BrickletStackConfig config = {
-        .mutex = &_bricklet_spi_mutex[BRICKLET_RPI_HAT_SPIDEV_NUM],
+        .mutex = &_bricklet_spi_mutex[spidev_num],
     };
 
-    strcpy(config.spi_device, BRICKLET_RPI_HAT_SPIDEV);
+    strcpy(config.spi_device, spidev);
     config.connected_uid = &bricklet_connected_uid;
 
-    for(uint8_t cs = 0; cs < sizeof(bricklet_stack_rpi_hat_gpios); cs++) {
-        if(cs == BRICKLET_RPI_HAT_MASTER_CS) {
+    for(uint8_t cs = 0; cs < gpios_num; cs++) {
+        if(cs == master_cs) {
             config.startup_wait_time = 0;
         } else {
             config.startup_wait_time = 1;
         }
         config.num = _bricklet_stack_num;
         config.chip_select_driver = BRICKLET_CHIP_SELECT_DRIVER_GPIO;
-        config.chip_select_gpio_sysfs.num = bricklet_stack_rpi_hat_gpios[cs];
+        config.chip_select_gpio_sysfs.num = gpios[cs];
         sprintf(config.chip_select_gpio_sysfs.name, "gpio%d", config.chip_select_gpio_sysfs.num);
 
         log_debug("Bricklet found: spidev %s, driver %d, name %s (num %d)", 
@@ -181,8 +217,30 @@ int bricklet_init(void) {
     mutex_create(&_bricklet_spi_mutex[1]);
 
     // First we try to find out if this brickd is installed on a RPi with raspbian
-    // and a Tinkerforge Bricklet HAT ist on top.
-    rc = bricklet_init_rpi_hat();
+    // and a Tinkerforge HAT Bricklet is on top
+    rc = bricklet_init_rpi_hat(BRICKLET_RPI_HAT_PRODUCT_ID,
+                               BRICKLET_RPI_HAT_SPIDEV,
+                               BRICKLET_RPI_HAT_SPIDEV_NUM,
+                               bricklet_stack_rpi_hat_gpios,
+                               sizeof(bricklet_stack_rpi_hat_gpios),
+                               BRICKLET_RPI_HAT_MASTER_CS,
+                               "HAT",
+                               false);
+    if(rc < 0) {
+        return -1;
+    } else if(rc == 0) {
+        return 0;
+    }
+
+    // or a Tinkerforge HAT Zero Bricklet is on top
+    rc = bricklet_init_rpi_hat(BRICKLET_RPI_HAT_ZERO_PRODUCT_ID,
+                               BRICKLET_RPI_HAT_ZERO_SPIDEV,
+                               BRICKLET_RPI_HAT_ZERO_SPIDEV_NUM,
+                               bricklet_stack_rpi_hat_zero_gpios,
+                               sizeof(bricklet_stack_rpi_hat_zero_gpios),
+                               BRICKLET_RPI_HAT_ZERO_MASTER_CS,
+                               "HAT Zero",
+                               true);
     if(rc < 0) {
         return -1;
     } else if(rc == 0) {
