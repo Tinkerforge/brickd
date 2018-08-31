@@ -264,6 +264,11 @@ static void client_handle_read(void *opaque) {
 		} else if (errno_would_block()) {
 			log_debug("Receiving from client ("CLIENT_SIGNATURE_FORMAT") would block, retrying",
 			          client_expand_signature(client));
+		} else if (errno_connection_reset()) {
+			log_info("Client ("CLIENT_SIGNATURE_FORMAT") disconnected by peer (connection reset)",
+			         client_expand_signature(client));
+
+			client->disconnected = true;
 		} else {
 			log_error("Could not receive from client ("CLIENT_SIGNATURE_FORMAT"), disconnecting client: %s (%d)",
 			          client_expand_signature(client), get_errno_name(errno), errno);
