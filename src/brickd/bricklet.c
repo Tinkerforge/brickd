@@ -63,7 +63,7 @@ static BrickletStack *_bricklet_stack[BRICKLET_SPI_MAX_NUM*BRICKLET_CS_MAX_NUM] 
 static uint32_t bricklet_connected_uid = 0;
 
 // GPIOs configuration for HAT Bricklet.
-static const uint8_t bricklet_stack_rpi_hat_gpios[] = {23, 22, 25, 26, 27, 24, 7, 6, 5};
+static const uint8_t bricklet_stack_rpi_hat_gpios[] = {23, 27, 22, 24, 25, 7, 26, 6, 5}; //1.0 Version: {23, 22, 25, 26, 27, 24, 7, 6, 5}
 static const uint8_t bricklet_stack_rpi_hat_zero_gpios[] = {27, 23, 24, 22, 25};
 
 // The equivalent configuration in brickd.conf looks as follows:
