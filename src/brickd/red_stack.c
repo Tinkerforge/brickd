@@ -397,7 +397,7 @@ static int red_stack_spi_transceive_message(REDStackRequest *packet_send, REDSta
 	checksum = red_stack_spi_calculate_pearson_hash(rx, length-1);
 
 	if (checksum != rx[RED_STACK_SPI_CHECKSUM(length)]) {
-		log_error("Received packet with wrong checksum (actual: %x != expected: %x)",
+		log_error("Received packet with wrong checksum (actual: 0x%02X != expected: 0x%02X)",
 		          checksum, rx[RED_STACK_SPI_CHECKSUM(length)]);
 		retval = (retval & (~RED_STACK_TRANSCEIVE_RESULT_MASK_READ)) | RED_STACK_TRANSCEIVE_RESULT_READ_ERROR;
 
