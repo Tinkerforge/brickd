@@ -12,6 +12,10 @@ src/build_data/android/brickd/.idea
 src/build_data/android/brickd/local.properties
 src/build_data/android/brickd/app/.externalNativeBuild
 src/build_data/android/brickd/app/build
+src/build_data/windows/msvc/.vs
+src/build_data/windows/msvc/Debug
+src/build_data/windows/msvc/Release
+src/build_data/windows/msvc/x64
 src/build_data/windows/msvc_uwp/.vs
 src/build_data/windows/msvc_uwp/AppPackages
 src/build_data/windows/msvc_uwp/ARM
