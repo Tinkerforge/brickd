@@ -649,7 +649,7 @@ static void bricklet_stack_spi_thread(void *opaque) {
 	// Pre-fill the send buffer with the "StackEnumerate"-Packet.
 	// This packet will trigger an initial enumeration in the Bricklet.
 	// If the Brick Daemon is restarted, we need to
-	// trigger the initial enumeration, since the Bricklet does not now
+	// trigger the initial enumeration, since the Bricklet does not know
 	// that it has to enumerate itself again.
 	PacketHeader header = {
 		.uid                         = 0,
