@@ -1,16 +1,22 @@
 Brick Daemon
 ============
 
-This repository contains the source code of the Brick Daemon.
+This repository contains the source code of the Brick Daemon. Prebuild
+installers/packages for various platforms are provided here::
+
+ https://www.tinkerforge.com/en/doc/Downloads.html
 
 Compiling the Source Code
 -------------------------
 
-Brick Daemon uses the common Tinkerforge daemonlib::
+Instead of using the prebuild installers/packages, Brick Daemon can also be
+compiled from source code for various platforms.
 
- http://github.com/Tinkerforge/daemonlib
+Brick Daemon uses the Tinkerforge daemonlib::
 
-It has to be cloned or symlinked to the ``src/daemonlib`` directory before
+ https://github.com/Tinkerforge/daemonlib
+
+It has to be cloned or symlinked to the ``src/daemonlib/`` directory before
 the source code can be compiled. Make sure that you're using matching versions
 of the brickd and daemonlib source code. If you're using the current git
 version of brickd then you also need the current git version of daemonlib. If
@@ -21,7 +27,7 @@ Brick Daemon also depends on the following libraries:
 
 * libusb-1.0 (mandatory)
 * libudev (optional for USB hotplug, Linux only)
-* pm-utils (optional for suspend/resume handling, Linux only)
+* pm-utils (optional for suspend/resume handling, Linux without systemd only)
 
 On Debian based Linux distributions try::
 
@@ -68,14 +74,30 @@ WDK command prompt::
  cd src\brickd
  compile.bat
 
-The ``brickd.exe`` binary is created in ``src\brickd\dist``.
+The ``brickd.exe`` binary is created in ``src\brickd\dist\``.
 
-There is also a Makefile to compile the source code using MinGW::
+For the MinGW compiler there is a Makefile to compile the source code::
 
  cd src\brickd
  mingw32-make
 
-The ``brickd.exe`` binary is created in ``src\brickd\dist``.
+The ``brickd.exe`` binary is created in ``src\brickd\dist\``.
+
+Alternatively, there is a Visual Studio 2017 project file to compile the
+source code::
+
+ src\build_data\windows\msvc\brickd.sln
+
+Windows 10 IoT (Universal Windows Platform)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+A Visual Studio 2017 project file to compile the source code::
+
+ src\build_data\windows\msvc_uwp\brickd_uwp.sln
+
+There is a currently unsolved problem with USB hotplug detection::
+
+ https://www.tinkerforge.com/en/blog/brick-daemon-beta-for-windows-10-iot-core-part-12/
 
 macOS
 ^^^^^
@@ -85,7 +107,7 @@ A Makefile is provided to compile the source code using GCC::
  cd src/brickd
  make
 
-The ``brickd`` binary is created in ``src/brickd``.
+The ``brickd`` binary is created in ``src/brickd/``.
 
 Building Packages
 -----------------
