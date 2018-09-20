@@ -133,7 +133,7 @@ OpenWrt
 ^^^^^^^
 
 There is also a Makefile to build an OpenWrt package. To include the package
-into your OpenWrt build simply link or copy the ``src/build_data/openwrt``
+into your OpenWrt build simply link or copy the ``src/build_data/openwrt/``
 folder to the package directory of your OpenWrt build tree, select the
 ``brickd2`` package in the menuconfig and build.
 
