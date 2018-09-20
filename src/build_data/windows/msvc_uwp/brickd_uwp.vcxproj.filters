@@ -46,12 +46,6 @@
     <ClCompile Include="..\..\..\daemonlib\socket_winapi.c">
       <Filter>daemonlib</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\daemonlib\threads_winapi.c">
-      <Filter>daemonlib</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\..\daemonlib\timer_uwp.c">
-      <Filter>daemonlib</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\..\daemonlib\utils.c">
       <Filter>daemonlib</Filter>
     </ClCompile>
@@ -130,6 +124,12 @@
     <ClCompile Include="..\..\..\brickd\zombie.c">
       <Filter>brickd</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\..\daemonlib\threads.c">
+      <Filter>daemonlib</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\daemonlib\timer.c">
+      <Filter>daemonlib</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\daemonlib\base58.h">
@@ -186,13 +186,7 @@
     <ClInclude Include="..\..\..\daemonlib\threads.h">
       <Filter>daemonlib</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\daemonlib\threads_winapi.h">
-      <Filter>daemonlib</Filter>
-    </ClInclude>
     <ClInclude Include="..\..\..\daemonlib\timer.h">
-      <Filter>daemonlib</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\daemonlib\timer_uwp.h">
       <Filter>daemonlib</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\daemonlib\utils.h">
