@@ -131,11 +131,10 @@ static int network_open_server_socket(Socket *socket, uint16_t port,
 }
 
 // drop all pending requests for the given UID from the global list
-static void network_drop_pending_requests(uint32_t uid) {
+static int network_drop_pending_requests(uint32_t uid) {
 	Node *pending_request_global_node = _pending_request_sentinel.next;
 	Node *pending_request_global_node_next;
 	PendingRequest *pending_request;
-	char base58[BASE58_MAX_LENGTH];
 	int count = 0;
 
 	while (pending_request_global_node != &_pending_request_sentinel) {
@@ -152,10 +151,7 @@ static void network_drop_pending_requests(uint32_t uid) {
 		pending_request_global_node = pending_request_global_node_next;
 	}
 
-	if (count > 0) {
-		log_warn("Dropped %d pending request(s) (uid: %s)",
-		         count, base58_encode(base58, uint32_from_le(uid)));
-	}
+	return count;
 }
 
 int network_init(void) {
@@ -361,6 +357,8 @@ void network_client_expects_response(Client *client, Packet *request) {
 
 void network_dispatch_response(Packet *response) {
 	EnumerateCallback *enumerate_callback;
+	int dropped_requests;
+	char base58[BASE58_MAX_LENGTH];
 	char packet_signature[PACKET_MAX_SIGNATURE_LENGTH];
 	int i;
 	Client *client;
@@ -373,9 +371,33 @@ void network_dispatch_response(Packet *response) {
 		if (response->header.function_id == CALLBACK_ENUMERATE) {
 			enumerate_callback = (EnumerateCallback *)response;
 
+			// if an enumerate-connected callback is received then the device
+			// was just started and all pending request that exist for this
+			// device are stale. the device can never have received the requests
+			// and will never respond to them.
+			//
+			// if a new request is received then it is added to the end of the
+			// global pending request list. if the response for this request
+			// arrives then one of the stale pending requests will match it.
+			// this can result in misrouting responses. to avoid this drop all
+			// pending request for a given UID if an enumerate-connected
+			// callback is received for that UID. this ensures that there are
+			// never stale pending requests.
+			//
+			// do the same for an enumerate-disconnected callback. this is not
+			// strictly necessary, but after the device got disconnected the
+			// pending requests for it will never get a response. this stale
+			// requests just waste space in the pending requests list and can
+			// be dropped.
 			if (enumerate_callback->enumeration_type == ENUMERATION_TYPE_CONNECTED ||
 			    enumerate_callback->enumeration_type == ENUMERATION_TYPE_DISCONNECTED) {
-				network_drop_pending_requests(response->header.uid);
+				dropped_requests = network_drop_pending_requests(response->header.uid);
+
+				if (dropped_requests > 0) {
+					log_warn("Received enumerate-%sconnected callback (uid: %s), dropped %d now stale pending request(s)",
+					         enumerate_callback->enumeration_type == ENUMERATION_TYPE_CONNECTED ? "" : "dis",
+					         base58_encode(base58, uint32_from_le(response->header.uid)), dropped_requests);
+				}
 			}
 		}
 
