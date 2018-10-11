@@ -64,12 +64,15 @@
 
 static LogSource _log_source = LOG_SOURCE_INITIALIZER;
 
-static char _config_filename[1024] = SYSCONFDIR"/brickd.conf";
-static char _pid_filename[1024] = LOCALSTATEDIR"/run/brickd.pid";
-static char _log_filename[1024] = LOCALSTATEDIR"/log/brickd.log";
+static char _config_filename_default[1024] = SYSCONFDIR"/brickd.conf";
+static const char *_config_filename = _config_filename_default;
+static char _pid_filename_default[1024] = LOCALSTATEDIR"/run/brickd.pid";
+static const char *_pid_filename = _pid_filename_default;
+static char _log_filename_default[1024] = LOCALSTATEDIR"/log/brickd.log";
+static const char *_log_filename = _log_filename_default;
 static File _log_file;
 
-static int prepare_paths(void) {
+static int prepare_paths(bool daemon) {
 	char *home;
 	struct passwd *pw;
 	char brickd_dirname[1024];
@@ -102,7 +105,7 @@ static int prepare_paths(void) {
 		return -1;
 	}
 
-	if (robust_snprintf(_config_filename, sizeof(_config_filename),
+	if (robust_snprintf(_config_filename_default, sizeof(_config_filename_default),
 	                    "%s/.brickd/brickd.conf", home) < 0) {
 		fprintf(stderr, "Could not format ~/.brickd/brickd.conf file name: %s (%d)\n",
 		        get_errno_name(errno), errno);
@@ -110,7 +113,7 @@ static int prepare_paths(void) {
 		return -1;
 	}
 
-	if (robust_snprintf(_pid_filename, sizeof(_pid_filename),
+	if (robust_snprintf(_pid_filename_default, sizeof(_pid_filename_default),
 	                    "%s/.brickd/brickd.pid", home) < 0) {
 		fprintf(stderr, "Could not format ~/.brickd/brickd.pid file name: %s (%d)\n",
 		        get_errno_name(errno), errno);
@@ -118,12 +121,19 @@ static int prepare_paths(void) {
 		return -1;
 	}
 
-	if (robust_snprintf(_log_filename, sizeof(_log_filename),
+	if (robust_snprintf(_log_filename_default, sizeof(_log_filename_default),
 	                    "%s/.brickd/brickd.log", home) < 0) {
 		fprintf(stderr, "Could not format ~/.brickd/brickd.log file name: %s (%d)\n",
 		        get_errno_name(errno), errno);
 
 		return -1;
+	}
+
+	// only create ~/.brickd directory if necessary
+	if (strcmp(_config_filename, _config_filename_default) != 0 &&
+	    strcmp(_pid_filename, _pid_filename_default) != 0 &&
+	    (!daemon || strcmp(_log_filename, _log_filename_default) != 0)) {
+		return 0;
 	}
 
 	if (mkdir(brickd_dirname, 0755) < 0) {
@@ -153,14 +163,17 @@ static int prepare_paths(void) {
 
 static void print_usage(void) {
 	printf("Usage:\n"
-	       "  brickd [--help|--version|--check-config|--daemon] [--debug [<filter>]]\n"
+	       "  brickd [--help|--version|--check-config|--daemon [<log-file>]] [--debug [<filter>]]\n"
+	       "         [--config-file <config-file>] [--pid-file <pid-file>]\n"
 	       "\n"
 	       "Options:\n"
-	       "  --help              Show this help\n"
-	       "  --version           Show version number\n"
-	       "  --check-config      Check config file for errors\n"
-	       "  --daemon            Run as daemon and write PID and log file\n"
-	       "  --debug [<filter>]  Set log level to debug and apply optional filter\n");
+	       "  --help                       Show this help\n"
+	       "  --version                    Show version number\n"
+	       "  --check-config               Check config file for errors\n"
+	       "  --daemon [<log-file>]        Run as daemon and write log file to overridable location\n"
+	       "  --debug [<filter>]           Set log level to debug and apply optional <filter>\n"
+	       "  --config-file <config-file>  Read config from <config-file> instead of default location\n"
+	       "  --pid-file <pid-file>        Write PID to <pid-file> instead of default location\n");
 }
 
 static void handle_sighup(void) {
@@ -225,11 +238,40 @@ int main(int argc, char **argv) {
 			check_config = true;
 		} else if (strcmp(argv[i], "--daemon") == 0) {
 			daemon = true;
+
+			if (i + 1 < argc && strncmp(argv[i + 1], "--", 2) != 0) {
+				_log_filename = argv[++i];
+
+				if (_log_filename[0] != '/') {
+					fprintf(stderr, "Option --daemon requires an absolute path\n\n");
+					print_usage();
+
+					return EXIT_FAILURE;
+				}
+			}
 		} else if (strcmp(argv[i], "--debug") == 0) {
 			if (i + 1 < argc && strncmp(argv[i + 1], "--", 2) != 0) {
 				debug_filter = argv[++i];
 			} else {
 				debug_filter = "";
+			}
+		} else if (strcmp(argv[i], "--config-file") == 0) {
+			if (i + 1 < argc && strncmp(argv[i + 1], "--", 2) != 0) {
+				_config_filename = argv[++i];
+			} else {
+				fprintf(stderr, "Option --config-file requires <config-file>\n\n");
+				print_usage();
+
+				return EXIT_FAILURE;
+			}
+		} else if (strcmp(argv[i], "--pid-file") == 0) {
+			if (i + 1 < argc && strncmp(argv[i + 1], "--", 2) != 0) {
+				_pid_filename = argv[++i];
+			} else {
+				fprintf(stderr, "Option --pid-file requires <pid-file>\n\n");
+				print_usage();
+
+				return EXIT_FAILURE;
 			}
 		} else {
 			fprintf(stderr, "Unknown option '%s'\n\n", argv[i]);
@@ -251,7 +293,7 @@ int main(int argc, char **argv) {
 		return EXIT_SUCCESS;
 	}
 
-	if (prepare_paths() < 0) {
+	if (prepare_paths(daemon) < 0) {
 		return EXIT_FAILURE;
 	}
 
@@ -296,6 +338,14 @@ int main(int argc, char **argv) {
 	if (debug_filter != NULL) {
 		log_enable_debug_override(debug_filter);
 	}
+
+	log_debug("Using config file: %s", _config_filename);
+
+	if (daemon) {
+		log_debug("Using log file: %s", _log_filename);
+	}
+
+	log_debug("Using PID file: %s", _pid_filename);
 
 	if (config_has_warning()) {
 		log_warn("Warning(s) in config file '%s', run with --check-config option for details",

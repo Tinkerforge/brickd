@@ -1,5 +1,5 @@
 .\" Process this file with: groff -man -Tascii brickd.8
-.TH BRICKD 8 2017-01-10 Tinkerforge
+.TH BRICKD 8 2018-10-11 Tinkerforge
 .\" Turn off justification for nroff. Always turn off hyphenation.
 .if n .ad l
 .nh
@@ -7,7 +7,7 @@
 brickd \- Tinkerforge Brick Daemon
 .SH SYNOPSIS
 .B brickd
-[--help|--version|--check-config|--daemon] [--debug [<filter>]]
+[--help|--version|--check-config|--daemon [<log-file>]] [--debug [<filter>]] [--config-file <config-file>] [--pid-file <pid-file>]
 .SH DESCRIPTION
 The
 .B brickd
@@ -36,8 +36,8 @@ Print help for command line options and exit.
 Print version number and exit.
 .IP "\fB\-\-check-config\fR" 4
 Check configuration file for errors, print the result and exit.
-.IP "\fB\-\-daemon\fR" 4
-Run as daemon and write PID and log file.
+.IP "\fB\-\-daemon\fR [<log-file>]" 4
+Run as daemon and write log file to overridable location.
 .IP "\fB\-\-debug\fR [<filter>]" 4
 Set log severity level to \fIdebug\fR, overriding the configuration file
 value. See
@@ -45,6 +45,10 @@ value. See
 for further details. Also takes an optional comma separated list of filter
 statements that allow to control the visibility of debug messages (FIXME: Add
 more details about filter statements).
+.IP "\fB\-\-config\-file\fR <config-file>" 4
+Read config from <config-file> instead of default location.
+.IP "\fB\-\-pid\-file\fR <pid-file>" 4
+Write PID to <pid-file> instead of default location.
 .SH SIGNALS
 On reception of
 .B SIGHUP
@@ -58,29 +62,31 @@ hotplug support (libusb-1.0 before 1.0.16).
 .SH FILES
 .SS "When run as \fBroot\fP"
 .IP "\fI/etc/brickd.conf\fR" 4
-The system wide configuration file. See
+The system wide default configuration file. See
 .IR brickd.conf (5)
-for further details.
+for further details. Can be overridden using the --config-file option.
 .IP "\fI/var/log/brickd.log\fR" 4
-The system wide log file.
+The system wide default daemon-mode log file. Can be overridden using the optional
+<log-file> argument to the --daemon option.
 .IP "\fI/var/run/brickd.pid\fR" 4
-The system wide PID file.
+The system wide default PID file. Can be overridden using the --pid-file option.
 .SS "When run as \fBnon-root\fP"
 .IP "\fI~/.brickd/brickd.conf\fR" 4
-Per user configuration file. See
+Per user default configuration file. See
 .IR brickd.conf (5)
-for further details.
+for further details. Can be overridden using the --config-file option.
 .IP "\fI~/.brickd/brickd.log\fR" 4
-Per user log file.
+Per user default daemon-mode log file. Can be overridden using the optional
+<log-file> argument to the --daemon option.
 .IP "\fI~/.brickd/brickd.pid\fR" 4
-Per user PID file.
+Per user default PID file. Can be overridden using the --pid-file option.
 .SH BUGS
 Please report all bugs you discover to
 \fI\%https://github.com/Tinkerforge/brickd/issues\fR
 .SH AUTHOR
 Matthias Bolte <matthias@tinkerforge.com>
 .SH COPYRIGHT
-Copyright (C) 2012-2017 Matthias Bolte
+Copyright (C) 2012-2018 Matthias Bolte
 .SH LICENSE
 brickd is distributed under the terms of the GNU GPL v2+. This is free
 software; see the source for copying conditions. There is NO warranty;
@@ -88,4 +94,4 @@ not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 .SH "SEE ALSO"
 .IR brickd.conf (5)
 
-For further information see \fI\%http://www.tinkerforge.com\fR
+For further information see \fI\%https://www.tinkerforge.com\fR

@@ -137,23 +137,6 @@ into your OpenWrt build simply link or copy the ``src/build_data/openwrt/``
 folder to the package directory of your OpenWrt build tree, select the
 ``brickd2`` package in the menuconfig and build.
 
-Commandline Options
--------------------
-
-Common:
-
-* ``--help`` shows help and exits
-* ``--version`` shows version number and exits
-* ``--check-config`` checks config file for errors
-* ``--debug`` sets all log levels to debug
-
-Windows only:
-
-* ``--install`` registers Brick Daemon as service and starts it
-* ``--uninstall`` stops service and unregisters it
-* ``--console`` forces start as console application
-* ``--log-to-file`` writes log messages to file
-
 USB Hotplug Detection
 ---------------------
 
