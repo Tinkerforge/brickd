@@ -103,6 +103,7 @@ copy brickd.exe ..\dist\
 copy brickd.pdb ..\dist\
 copy ..\build_data\windows\libusb\libusb-1.0.dll ..\dist\
 copy ..\build_data\windows\libusb\libusb-1.0.pdb ..\dist\
+copy ..\build_data\windows\brickd.ini ..\dist\
 
 :done
 @endlocal

@@ -554,6 +554,8 @@ all: $(DIST) $(TARGET) Makefile
 	$(E)copy brickd.exe ..\dist\
 	@echo CP libusb-1.0.dll
 	$(E)copy ..\build_data\Windows\libusb\libusb-1.0.dll ..\dist\
+	@echo CP brickd.ini
+	$(E)copy ..\build_data\windows\brickd.ini ..\dist\
 
 clean: Makefile
 	$(E)$(RM) $(GENERATED) $(OBJECTS) $(TARGET) $(DEPENDS)
