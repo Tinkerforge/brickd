@@ -551,9 +551,9 @@ all: $(DIST) $(TARGET) Makefile
 ..\dist\brickd.exe: $(TARGET) Makefile
 	$(E)if not exist ..\dist mkdir ..\dist
 	@echo CP brickd.exe
-	$(E)copy brickd.exe "..\dist\"
+	$(E)copy brickd.exe ..\dist\
 	@echo CP libusb-1.0.dll
-	$(E)copy "..\build_data\Windows\libusb\libusb-1.0.dll" "..\dist\"
+	$(E)copy ..\build_data\Windows\libusb\libusb-1.0.dll ..\dist\
 
 clean: Makefile
 	$(E)$(RM) $(GENERATED) $(OBJECTS) $(TARGET) $(DEPENDS)
@@ -564,42 +564,42 @@ $(TARGET): $(OBJECTS) Makefile
 
 install: all
 ifeq ($(PLATFORM),Linux)
-	@echo "MD $(bindir)"
+	@echo MD $(bindir)
 	$(E)$(INSTALL) -d -m 755 $(bindir)
 
-	@echo "MD $(sysconfdir)"
+	@echo MD $(sysconfdir)
 	$(E)$(INSTALL) -d -m 755 $(sysconfdir)
 
 ifeq ($(WITH_SYSTEMD),no)
-	@echo "MD $(sysconfdir)/init.d"
+	@echo MD $(sysconfdir)/init.d
 	$(E)$(INSTALL) -d -m 755 $(sysconfdir)/init.d
 endif
 
-	@echo "MD $(sysconfdir)/logrotate.d"
+	@echo MD $(sysconfdir)/logrotate.d
 	$(E)$(INSTALL) -d -m 755 $(sysconfdir)/logrotate.d
 
-	@echo "MD $(localstatedir)/log"
+	@echo MD $(localstatedir)/log
 	$(E)$(INSTALL) -d -m 755 $(localstatedir)/log
 
-	@echo "MD $(localstatedir)/run"
+	@echo MD $(localstatedir)/run
 	$(E)$(INSTALL) -d -m 755 $(localstatedir)/run
 
-	@echo "MD $(datadir)"
+	@echo MD $(datadir)
 	$(E)$(INSTALL) -d -m 755 $(datadir)
 
-	@echo "MD $(datadir)/man"
+	@echo MD $(datadir)/man
 	$(E)$(INSTALL) -d -m 755 $(datadir)/man
 
-	@echo "MD $(datadir)/man/man8"
+	@echo MD $(datadir)/man/man8
 	$(E)$(INSTALL) -d -m 755 $(datadir)/man/man8
 
-	@echo "MD $(datadir)/man/man5"
+	@echo MD $(datadir)/man/man5
 	$(E)$(INSTALL) -d -m 755 $(datadir)/man/man5
 
-	@echo "CP brickd"
+	@echo CP brickd
 	$(E)$(INSTALL) -m 755 brickd $(bindir)
 
-	@echo "CP brickd.conf"
+	@echo CP brickd.conf
 ifeq ($(WITH_RED_BRICK),yes)
 	$(E)$(INSTALL) -m 644 ../build_data/linux/installer/etc/brickd-red-brick.conf $(sysconfdir)/brickd.conf
 else
@@ -607,33 +607,33 @@ else
 endif
 
 ifeq ($(WITH_SYSTEMD),no)
-	@echo "CP brickd (init.d script)"
+	@echo CP brickd (init.d script)
 	$(E)$(INSTALL) -m 755 ../build_data/linux/installer/usr/share/brickd/brickd-sysv-init $(sysconfdir)/init.d/brickd
 else
-	@echo "CP brickd.service (systemd service)"
+	@echo CP brickd.service (systemd service)
 	$(E)$(INSTALL) -m 644 ../build_data/linux/installer/lib/systemd/system/brickd.service $(libdir)/systemd/system
 endif
 
-	@echo "CP brickd (logrotate.d script)"
+	@echo CP brickd (logrotate.d script)
 	$(E)$(INSTALL) -m 644 ../build_data/linux/installer/etc/logrotate.d/brickd $(sysconfdir)/logrotate.d
 
-	@echo "CP brickd.8 (manpage)"
+	@echo CP brickd.8 (manpage)
 	$(E)$(INSTALL) -m 644 ../build_data/linux/installer/usr/share/man/man8/brickd.8 $(datadir)/man/man8
 	$(E)gzip -n -f $(datadir)/man/man8/brickd.8
 
-	@echo "CP brickd.conf.5 (manpage)"
+	@echo CP brickd.conf.5 (manpage)
 	$(E)$(INSTALL) -m 644 ../build_data/linux/installer/usr/share/man/man5/brickd.conf.5 $(datadir)/man/man5
 	$(E)gzip -n -f $(datadir)/man/man5/brickd.conf.5
 endif
 
 ifeq ($(WITH_PM_UTILS),yes)
-	@echo "CP 42brickd (pm-utils script)"
+	@echo CP 42brickd (pm-utils script)
 	$(E)$(INSTALL) -m 755 ../build_data/linux/installer/usr/lib/pm-utils/power.d/42brickd $(shell pkg-config pm-utils --variable pm_powerhooks)
 	$(E)$(INSTALL) -m 755 ../build_data/linux/installer/usr/lib/pm-utils/sleep.d/42brickd $(shell pkg-config pm-utils --variable pm_sleephooks)
 endif
 
 ifeq ($(WITH_SYSTEMD),yes)
-	@echo "CP brickd-resume.service (systemd service)"
+	@echo CP brickd-resume.service (systemd service)
 	$(E)$(INSTALL) -m 644 ../build_data/linux/installer/lib/systemd/system/brickd-resume.service $(libdir)/systemd/system
 endif
 
