@@ -74,14 +74,14 @@ WDK command prompt::
  cd src\brickd
  compile.bat
 
-The ``brickd.exe`` binary is created in ``src\brickd\dist\``.
+The ``brickd.exe`` binary is created in ``src\dist\``.
 
 For the MinGW compiler there is a Makefile to compile the source code::
 
  cd src\brickd
  mingw32-make
 
-The ``brickd.exe`` binary is created in ``src\brickd\dist\``.
+The ``brickd.exe`` binary is created in ``src\dist\``.
 
 Alternatively, there is a Visual Studio 2017 project file to compile the
 source code::

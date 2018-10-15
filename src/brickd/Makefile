@@ -326,7 +326,7 @@ DEPENDS := ${SOURCES:.c=.p}
 ifeq ($(PLATFORM),Windows)
 	OBJECTS += brickd.o log_messages.o
 	TARGET := brickd.exe
-	DIST := dist\brickd.exe
+	DIST := ..\dist\brickd.exe
 else
 	TARGET := brickd
 	DIST :=
@@ -548,7 +548,7 @@ endif
 
 all: $(DIST) $(TARGET) Makefile
 
-dist\brickd.exe: $(TARGET) Makefile
+..\dist\brickd.exe: $(TARGET) Makefile
 	$(E)if not exist ..\dist mkdir ..\dist
 	@echo CP brickd.exe
 	$(E)copy brickd.exe "..\dist\"
