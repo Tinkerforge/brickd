@@ -63,7 +63,7 @@ static BrickletStack *_bricklet_stack[BRICKLET_SPI_MAX_NUM*BRICKLET_CS_MAX_NUM] 
 static uint32_t bricklet_connected_uid = 0;
 
 // GPIOs configuration for HAT Bricklet.
-static const uint8_t bricklet_stack_rpi_hat_gpios[] = {23, 27, 22, 24, 25, 7, 26, 6, 5}; //1.0 Version: {23, 22, 25, 26, 27, 24, 7, 6, 5}
+static const uint8_t bricklet_stack_rpi_hat_gpios[] = {23, 22, 25, 26, 27, 24, 7, 6, 5};
 static const uint8_t bricklet_stack_rpi_hat_zero_gpios[] = {27, 23, 24, 22, 25};
 
 // The equivalent configuration in brickd.conf looks as follows:
@@ -78,28 +78,28 @@ bricklet.group0.cs0.name = gpio23
 bricklet.group0.cs0.num = 23
 
 bricklet.group0.cs1.driver = gpio
-bricklet.group0.cs1.name = gpio27
-bricklet.group0.cs1.num = 27
+bricklet.group0.cs1.name = gpio22
+bricklet.group0.cs1.num = 22
 
 bricklet.group0.cs2.driver = gpio
-bricklet.group0.cs2.name = gpio22
-bricklet.group0.cs2.num = 22
+bricklet.group0.cs2.name = gpio25
+bricklet.group0.cs2.num = 25
 
 bricklet.group0.cs3.driver = gpio
-bricklet.group0.cs3.name = gpio24
-bricklet.group0.cs3.num = 24
+bricklet.group0.cs3.name = gpio26
+bricklet.group0.cs3.num = 26
 
 bricklet.group0.cs4.driver = gpio
-bricklet.group0.cs4.name = gpio25
-bricklet.group0.cs4.num = 25
+bricklet.group0.cs4.name = gpio27
+bricklet.group0.cs4.num = 27
 
 bricklet.group0.cs5.driver = gpio
-bricklet.group0.cs5.name = gpio7
-bricklet.group0.cs5.num = 7
+bricklet.group0.cs5.name = gpio24
+bricklet.group0.cs5.num = 24
 
 bricklet.group0.cs6.driver = gpio
-bricklet.group0.cs6.name = gpio26
-bricklet.group0.cs6.num = 26
+bricklet.group0.cs6.name = gpio7
+bricklet.group0.cs6.num = 7
 
 bricklet.group0.cs7.driver = gpio
 bricklet.group0.cs7.name = gpio6
