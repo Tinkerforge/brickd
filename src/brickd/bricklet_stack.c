@@ -550,7 +550,7 @@ static void bricklet_stack_transceive(BrickletStack *bricklet_stack) {
 		}
 	}
 	uint16_t length_write = bricklet_stack->wait_for_ack ? 0 : bricklet_stack->buffer_send_length; 
-	const uint16_t length = MAX(MAX(length_read, length_write), 1);
+	uint16_t length = MAX(MAX(length_read, length_write), 1);
 
 	uint8_t rx[SPITFP_MAX_TFP_MESSAGE_LENGTH] = {0};
 	uint8_t tx[SPITFP_MAX_TFP_MESSAGE_LENGTH] = {0};
@@ -577,7 +577,6 @@ static void bricklet_stack_transceive(BrickletStack *bricklet_stack) {
 		t.tv_sec = 0;
 		t.tv_nsec = 1000*sleep_us;
 		clock_nanosleep(CLOCK_MONOTONIC, 0, &t, NULL);
-
 	}
 
 	memcpy(tx, bricklet_stack->buffer_send, length_write);
@@ -600,6 +599,28 @@ static void bricklet_stack_transceive(BrickletStack *bricklet_stack) {
 	}
 
 	int rc = ioctl(bricklet_stack->spi_fd, SPI_IOC_MESSAGE(1), &spi_transfer);
+
+	// If the lenth is 1 (i.e. we wanted to see if the SPI slave has data for us)
+	// and he does have data for us, we will immidiately retrieve the data without
+	// giving back the mutex.
+	if((length == 1) && (rx[0] != 0) && (rc == length) && (length_write == 0)) {
+		// First add the one byte of already received data to the ringbuffer
+		ringbuffer_add(&bricklet_stack->ringbuffer_recv, rx[0]);
+
+		// Set rc to 0, so if there is no more data to read, we don't get the
+		// "unexpected result" error
+		rc = 0;
+
+		// Get length for rest of message
+		length = bricklet_stack_check_missing_length(bricklet_stack);
+		if(length != 0) {
+			// Set first byte back to 0 and the new length, the rest was not touched
+			// and we don't need to reinizialize it.
+			rx[0] = 0;
+			spi_transfer.len = length;
+			rc = ioctl(bricklet_stack->spi_fd, SPI_IOC_MESSAGE(1), &spi_transfer);
+		}
+	}
 
 	// Do chip deselect by hand if necessary
 	if(bricklet_stack->config.chip_select_driver == CHIP_SELECT_GPIO) {
