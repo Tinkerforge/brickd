@@ -589,14 +589,16 @@ endif
 	@echo MD $(datadir)
 	$(E)$(INSTALL) -d -m 755 $(datadir)
 
-	@echo MD $(datadir)/man
-	$(E)$(INSTALL) -d -m 755 $(datadir)/man
-
 	@echo MD $(datadir)/man/man8
 	$(E)$(INSTALL) -d -m 755 $(datadir)/man/man8
 
 	@echo MD $(datadir)/man/man5
 	$(E)$(INSTALL) -d -m 755 $(datadir)/man/man5
+
+ifeq ($(WITH_SYSTEMD),yes)
+	@echo MD $(libdir)/systemd/system
+	$(E)$(INSTALL) -d -m 755 $(libdir)/systemd/system
+endif
 
 	@echo CP brickd
 	$(E)$(INSTALL) -m 755 brickd $(bindir)
