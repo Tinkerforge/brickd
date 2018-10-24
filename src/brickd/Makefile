@@ -609,33 +609,33 @@ else
 endif
 
 ifeq ($(WITH_SYSTEMD),no)
-	@echo CP brickd (init.d script)
+	@echo CP brickd [init.d script]
 	$(E)$(INSTALL) -m 755 ../build_data/linux/installer/usr/share/brickd/brickd-sysv-init $(sysconfdir)/init.d/brickd
 else
-	@echo CP brickd.service (systemd service)
+	@echo CP brickd.service [systemd service]
 	$(E)$(INSTALL) -m 644 ../build_data/linux/installer/lib/systemd/system/brickd.service $(libdir)/systemd/system
 endif
 
-	@echo CP brickd (logrotate.d script)
+	@echo CP brickd [logrotate.d script]
 	$(E)$(INSTALL) -m 644 ../build_data/linux/installer/etc/logrotate.d/brickd $(sysconfdir)/logrotate.d
 
-	@echo CP brickd.8 (manpage)
+	@echo CP brickd.8 [manpage]
 	$(E)$(INSTALL) -m 644 ../build_data/linux/installer/usr/share/man/man8/brickd.8 $(datadir)/man/man8
 	$(E)gzip -n -f $(datadir)/man/man8/brickd.8
 
-	@echo CP brickd.conf.5 (manpage)
+	@echo CP brickd.conf.5 [manpage]
 	$(E)$(INSTALL) -m 644 ../build_data/linux/installer/usr/share/man/man5/brickd.conf.5 $(datadir)/man/man5
 	$(E)gzip -n -f $(datadir)/man/man5/brickd.conf.5
 endif
 
 ifeq ($(WITH_PM_UTILS),yes)
-	@echo CP 42brickd (pm-utils script)
+	@echo CP 42brickd [pm-utils script]
 	$(E)$(INSTALL) -m 755 ../build_data/linux/installer/usr/lib/pm-utils/power.d/42brickd $(shell pkg-config pm-utils --variable pm_powerhooks)
 	$(E)$(INSTALL) -m 755 ../build_data/linux/installer/usr/lib/pm-utils/sleep.d/42brickd $(shell pkg-config pm-utils --variable pm_sleephooks)
 endif
 
 ifeq ($(WITH_SYSTEMD),yes)
-	@echo CP brickd-resume.service (systemd service)
+	@echo CP brickd-resume.service [systemd service]
 	$(E)$(INSTALL) -m 644 ../build_data/linux/installer/lib/systemd/system/brickd-resume.service $(libdir)/systemd/system
 endif
 
