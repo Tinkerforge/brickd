@@ -73,12 +73,16 @@ ifndef datadir
 endif
 endif
 
-ifndef libdir
+ifndef syslibdir
 ifeq ($(prefix),/usr)
-	libdir := /lib
+	syslibdir := /lib
 else
-	libdir := $(prefix)/lib
+	syslibdir := $(prefix)/lib
 endif
+endif
+
+ifndef libdir
+	libdir := $(prefix)/lib
 endif
 
 ifneq ($(findstring $(MAKEFLAGS),s),s)
@@ -595,9 +599,17 @@ endif
 	@echo MD $(datadir)/man/man5
 	$(E)$(INSTALL) -d -m 755 $(datadir)/man/man5
 
+ifeq ($(WITH_PM_UTILS),yes)
+	@echo MD $(libdir)/pm-utils/power.d
+	$(E)$(INSTALL) -d -m 755 $(libdir)/pm-utils/power.d
+
+	@echo MD $(libdir)/pm-utils/sleep.d
+	$(E)$(INSTALL) -d -m 755 $(libdir)/pm-utils/sleep.d
+endif
+
 ifeq ($(WITH_SYSTEMD),yes)
-	@echo MD $(libdir)/systemd/system
-	$(E)$(INSTALL) -d -m 755 $(libdir)/systemd/system
+	@echo MD $(syslibdir)/systemd/system
+	$(E)$(INSTALL) -d -m 755 $(syslibdir)/systemd/system
 endif
 
 	@echo CP brickd
@@ -615,7 +627,7 @@ ifeq ($(WITH_SYSTEMD),no)
 	$(E)$(INSTALL) -m 755 ../build_data/linux/installer/usr/share/brickd/brickd-sysv-init $(sysconfdir)/init.d/brickd
 else
 	@echo CP brickd.service [systemd service]
-	$(E)$(INSTALL) -m 644 ../build_data/linux/installer/lib/systemd/system/brickd.service $(libdir)/systemd/system
+	$(E)$(INSTALL) -m 644 ../build_data/linux/installer/lib/systemd/system/brickd.service $(syslibdir)/systemd/system
 endif
 
 	@echo CP brickd [logrotate.d script]
@@ -632,13 +644,13 @@ endif
 
 ifeq ($(WITH_PM_UTILS),yes)
 	@echo CP 42brickd [pm-utils script]
-	$(E)$(INSTALL) -m 755 ../build_data/linux/installer/usr/lib/pm-utils/power.d/42brickd $(shell pkg-config pm-utils --variable pm_powerhooks)
-	$(E)$(INSTALL) -m 755 ../build_data/linux/installer/usr/lib/pm-utils/sleep.d/42brickd $(shell pkg-config pm-utils --variable pm_sleephooks)
+	$(E)$(INSTALL) -m 755 ../build_data/linux/installer/usr/lib/pm-utils/power.d/42brickd $(libdir)/pm-utils/power.d
+	$(E)$(INSTALL) -m 755 ../build_data/linux/installer/usr/lib/pm-utils/sleep.d/42brickd $(libdir)/pm-utils/sleep.d
 endif
 
 ifeq ($(WITH_SYSTEMD),yes)
 	@echo CP brickd-resume.service [systemd service]
-	$(E)$(INSTALL) -m 644 ../build_data/linux/installer/lib/systemd/system/brickd-resume.service $(libdir)/systemd/system
+	$(E)$(INSTALL) -m 644 ../build_data/linux/installer/lib/systemd/system/brickd-resume.service $(syslibdir)/systemd/system
 endif
 
 log_messages.h log_messages.rc log_messages_MSG0409.bin: log_messages.mc Makefile
