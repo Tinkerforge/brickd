@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2016-2017 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2016-2019 Matthias Bolte <matthias@tinkerforge.com>
  *
  * libusb_uwp.cpp: Emulating libusb API for Universal Windows Platform
  *
@@ -759,7 +759,7 @@ static int usbi_get_string_descriptor(libusb_device_handle *dev_handle,
 }
 
 static void usbi_set_transfer_status(struct libusb_transfer *transfer,
-                                     IAsyncOperation<size_t> ^operation,
+                                     IAsyncOperation<unsigned int> ^operation,
                                      AsyncStatus status) {
 	int hresult;
 
@@ -1348,8 +1348,8 @@ int libusb_submit_transfer(struct libusb_transfer *transfer) {
 					return LIBUSB_ERROR_NO_DEVICE; // FIXME: assumes that this happened because of device hot-unplug
 				}
 
-				itransfer->load_operation->Completed = ref new AsyncOperationCompletedHandler<size_t>(
-				[ctx, itransfer](IAsyncOperation<size_t> ^operation, AsyncStatus status) {
+				itransfer->load_operation->Completed = ref new AsyncOperationCompletedHandler<unsigned int>(
+				[ctx, itransfer](IAsyncOperation<unsigned int> ^operation, AsyncStatus status) {
 					struct libusb_transfer *transfer = &itransfer->transfer;
 					Array<unsigned char> ^data;
 
@@ -1412,8 +1412,8 @@ int libusb_submit_transfer(struct libusb_transfer *transfer) {
 					return LIBUSB_ERROR_NO_DEVICE; // FIXME: assumes that this happened because of device hot-unplug
 				}
 
-				itransfer->store_operation->Completed = ref new AsyncOperationCompletedHandler<size_t>(
-				[ctx, itransfer](IAsyncOperation<size_t> ^operation, AsyncStatus status) {
+				itransfer->store_operation->Completed = ref new AsyncOperationCompletedHandler<unsigned int>(
+				[ctx, itransfer](IAsyncOperation<unsigned int> ^operation, AsyncStatus status) {
 					struct libusb_transfer *transfer = &itransfer->transfer;
 
 					usbi_set_transfer_status(transfer, operation, status);
