@@ -1385,7 +1385,7 @@ int libusb_submit_transfer(struct libusb_transfer *transfer) {
 		for (i = 0; i < interface->BulkOutPipes->Size; ++i) {
 			pipe_out = interface->BulkOutPipes->GetAt(i);
 
-			if (pipe_out->EndpointDescriptor->EndpointNumber == transfer->endpoint) {
+			if ((LIBUSB_ENDPOINT_OUT | pipe_out->EndpointDescriptor->EndpointNumber) == transfer->endpoint) {
 				libusb_ref_device(dev_handle->dev);
 
 				itransfer->submitted = true;
