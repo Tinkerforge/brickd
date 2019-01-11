@@ -1,6 +1,6 @@
 /*
  * log viewer for brickd
- * Copyright (C) 2013-2014 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2013-2015, 2019 Matthias Bolte <matthias@tinkerforge.com>
  *
  * logviewer.c: Shows event log for brickd
  *
@@ -478,9 +478,9 @@ static DWORD WINAPI read_named_pipe(void *opaque) {
 	HANDLE hpipe;
 	DWORD current_error;
 	DWORD last_error;
-	DWORD mode = PIPE_READMODE_MESSAGE;
 	LogPipeMessage pipe_message;
 	DWORD bytes_read;
+	char buffer[256];
 
 	(void)opaque;
 
@@ -493,8 +493,7 @@ static DWORD WINAPI read_named_pipe(void *opaque) {
 		update_status_bar();
 
 		for (;;) {
-			hpipe = CreateFile(pipe_name, GENERIC_READ | GENERIC_WRITE, 0,
-			                   NULL, OPEN_EXISTING, 0, NULL);
+			hpipe = CreateFile(pipe_name, GENERIC_READ, 0, NULL, OPEN_EXISTING, 0, NULL);
 
 			if (hpipe != INVALID_HANDLE_VALUE) {
 				break;
@@ -502,19 +501,16 @@ static DWORD WINAPI read_named_pipe(void *opaque) {
 
 			current_error = GetLastError();
 
-			if (current_error != last_error && current_error == ERROR_ACCESS_DENIED) {
-				append_debug_meta_message("Access was denied, try running logviewer.exe as administrator");
+			if (current_error != last_error && current_error != ERROR_FILE_NOT_FOUND) {
+				_snprintf(buffer, sizeof(buffer), "Error while connecting to Brick Daemon, trying again: %s (%d)",
+				          get_error_name(current_error), current_error);
+
+				append_debug_meta_message(buffer);
 			}
 
 			last_error = current_error;
 
-			Sleep(250);
-		}
-
-		if (!SetNamedPipeHandleState(hpipe, &mode, NULL, NULL)) {
-			CloseHandle(hpipe);
-
-			continue;
+			Sleep(1000);
 		}
 
 		_debug_connected = 1;

@@ -19,3 +19,6 @@
 - Report access denied errors
 - Adapt to log debug filter addition
 - Add more resolutions to icon
+
+<unknown>: 1.2.1 (<unknown>)
+- Allow running as normal user by opening the named-pipe read-only

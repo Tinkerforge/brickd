@@ -1,6 +1,6 @@
 /*
  * log viewer for brickd
- * Copyright (C) 2014 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2014-2015, 2019 Matthias Bolte <matthias@tinkerforge.com>
  *
  * version.h: Version information
  *
@@ -24,7 +24,7 @@
 
 #define VERSION_MAJOR 1
 #define VERSION_MINOR 2
-#define VERSION_RELEASE 0
+#define VERSION_RELEASE 1
 
 #define INT_TO_STRING_(x) #x
 #define INT_TO_STRING(x) INT_TO_STRING_(x)
