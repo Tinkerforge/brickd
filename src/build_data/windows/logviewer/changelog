@@ -1,0 +1,21 @@
+2013-05-15: 1.0.0 (9625681)
+- Initial version
+
+2014-04-15: 1.1.0 (f28ab8c)
+- Add icon
+- Add Live Debug Log view
+
+2014-07-31: 1.1.1 (e640ee7)
+- Forward libusb log messages
+- Fallback to function name if file name is missing
+- Include timestamp in log file name
+- Change view menu items to radio style
+
+2014-08-07: 1.1.2 (78ecf17)
+- Add SPI and RS485 log categories
+
+2015-01-01: 1.2.0 (20325e6)
+- Remove all log categories
+- Report access denied errors
+- Adapt to log debug filter addition
+- Add more resolutions to icon
