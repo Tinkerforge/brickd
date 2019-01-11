@@ -1,7 +1,7 @@
 /*
  * brickd
  * Copyright (C) 2018 Olaf Lüke <olaf@tinkerforge.com>
- * Copyright (C) 2018 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2018-2019 Matthias Bolte <matthias@tinkerforge.com>
  *
  * bricklet_stack.c: SPI Tinkerforge Protocol (SPITFP) implementation for direct
  *                   communication between brickd and Bricklet with co-processor
@@ -125,13 +125,13 @@ static void bricklet_stack_dispatch_from_spi(void *opaque) {
 		packet = queue_peek(&bricklet_stack->response_queue);
 		mutex_unlock(&bricklet_stack->response_queue_mutex);
 
-		if (packet == NULL) { // eventfd indicates a reponsed but queue is empty
+		if (packet == NULL) { // eventfd indicates a response but queue is empty
 			log_error("Response queue and notification event are out-of-sync");
 
 			return;
 		}
 
-		// Update routing table (this is necessary for Co MCU Bricklets)
+		// Update routing table (this is necessary for Co-MCU Bricklets)
 		if (packet->header.function_id == CALLBACK_ENUMERATE) {
 			stack_add_recipient(&bricklet_stack->base, packet->header.uid, 0);
 		}
@@ -346,7 +346,7 @@ static void bricklet_stack_check_message(BrickletStack *bricklet_stack) {
 				// If we can't send the ack we set a flag here and the ACK is send later on.
 				// If we aren't fast enough the slave may send us a duplicate of the message,
 				// but the duplicate will be thrown away since the sequence number will not
-				// be incresead in the meantime.
+				// be increased in the meantime.
 				bricklet_stack->ack_to_send = true;
 			}
 		}
@@ -494,7 +494,7 @@ static void bricklet_stack_check_message(BrickletStack *bricklet_stack) {
 					const uint8_t message_sequence_number = data_sequence_number & 0x0F;
 					if((message_sequence_number != bricklet_stack->last_sequence_number_seen) || (message_sequence_number == 1)) {
 						// For the special case that the sequence number is 1 (only used for the very first message)
-						// we always send an answer, even if we havn't seen anything else in between.
+						// we always send an answer, even if we haven't seen anything else in between.
 						// Otherwise it is not possible to reset the Master Brick if no messages were exchanged before
 						// the reset
 
@@ -601,8 +601,8 @@ static void bricklet_stack_transceive(BrickletStack *bricklet_stack) {
 
 	int rc = ioctl(bricklet_stack->spi_fd, SPI_IOC_MESSAGE(1), &spi_transfer);
 
-	// If the lenth is 1 (i.e. we wanted to see if the SPI slave has data for us)
-	// and he does have data for us, we will immidiately retrieve the data without
+	// If the length is 1 (i.e. we wanted to see if the SPI slave has data for us)
+	// and he does have data for us, we will immediately retrieve the data without
 	// giving back the mutex.
 	if((length == 1) && (rx[0] != 0) && (rc == length) && (length_write == 0)) {
 		// First add the one byte of already received data to the ringbuffer
