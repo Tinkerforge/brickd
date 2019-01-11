@@ -372,7 +372,7 @@ void network_dispatch_response(Packet *response) {
 			enumerate_callback = (EnumerateCallback *)response;
 
 			// if an enumerate-connected callback is received then the device
-			// was just started and all pending request that exist for this
+			// was just started and all pending requests that exist for this
 			// device are stale. the device can never have received the requests
 			// and will never respond to them.
 			//
