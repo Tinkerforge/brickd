@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2012-2018 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2012-2019 Matthias Bolte <matthias@tinkerforge.com>
  * Copyright (C) 2014, 2018 Olaf Lüke <olaf@tinkerforge.com>
  * Copyright (C) 2014, 2016-2017 Ishraq Ibne Ashraf <ishraq@tinkerforge.com>
  *
@@ -167,9 +167,9 @@ static void print_usage(void) {
 	       "         [--config-file <config-file>] [--pid-file <pid-file>]\n"
 	       "\n"
 	       "Options:\n"
-	       "  --help                       Show this help\n"
-	       "  --version                    Show version number\n"
-	       "  --check-config               Check config file for errors\n"
+	       "  --help                       Show this help and exit\n"
+	       "  --version                    Show version number and exit\n"
+	       "  --check-config               Check config file for errors and exit\n"
 	       "  --daemon [<log-file>]        Run as daemon and write log file to overridable location\n"
 	       "  --debug [<filter>]           Set log level to debug and apply optional <filter>\n"
 	       "  --config-file <config-file>  Read config from <config-file> instead of default location\n"

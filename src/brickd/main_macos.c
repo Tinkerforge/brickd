@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2012-2018 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2012-2019 Matthias Bolte <matthias@tinkerforge.com>
  * Copyright (C) 2016-2017 Ishraq Ibne Ashraf <ishraq@tinkerforge.com>
  *
  * main_macos.c: Brick Daemon starting point for macOS
@@ -58,9 +58,9 @@ static void print_usage(void) {
 	       "         [--debug [<filter>]]\n"
 	       "\n"
 	       "Options:\n"
-	       "  --help              Show this help\n"
-	       "  --version           Show version number\n"
-	       "  --check-config      Check config file for errors\n"
+	       "  --help              Show this help and exit\n"
+	       "  --version           Show version number and exit\n"
+	       "  --check-config      Check config file for errors and exit\n"
 	       "  --daemon            Run as daemon and write PID and log file\n"
 	       "  --launchd           Run as launchd daemon and write PID and log file\n"
 	       "  --debug [<filter>]  Set log level to debug and apply optional filter\n");

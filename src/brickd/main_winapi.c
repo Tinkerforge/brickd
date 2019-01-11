@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2012-2014, 2016-2018 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2012-2014, 2016-2019 Matthias Bolte <matthias@tinkerforge.com>
  * Copyright (C) 2012 Olaf Lüke <olaf@tinkerforge.com>
  * Copyright (C) 2016-2017 Ishraq Ibne Ashraf <ishraq@tinkerforge.com>
  *
@@ -611,9 +611,9 @@ static void print_usage(void) {
 	       "         [--log-to-file] [--debug [<filter>]]\n"
 	       "\n"
 	       "Options:\n"
-	       "  --help              Show this help\n"
-	       "  --version           Show version number\n"
-	       "  --check-config      Check config file for errors\n"
+	       "  --help              Show this help and exit\n"
+	       "  --version           Show version number and exit\n"
+	       "  --check-config      Check config file for errors and exit\n"
 	       "  --install           Register as a service and start it\n"
 	       "  --uninstall         Stop service and unregister it\n"
 	       "  --console           Force start as console application\n"
