@@ -205,7 +205,7 @@
 2018-07-16: 2.3.2 (c58ca19)
 - Fix notification event name handling on Windows 10 IoT Core
 - Read USB string descriptors instead of faking them on Windows 10 IoT Core
-- Add backward compatibility to RED Brick Image 1.9
+- Add compile-time backward compatibility to RED Brick Image 1.9
 - Update bundled libusb to 1.0.22 on Windows and macOS, this fixes enumeration
   problems with ASMedia USB hubs, composite devices and bogus USB device address
   reports on Windows
