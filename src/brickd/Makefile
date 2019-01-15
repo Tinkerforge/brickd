@@ -616,7 +616,7 @@ endif
 	$(E)$(INSTALL) -m 755 brickd $(bindir)
 
 	@echo CP brickd.conf
-ifeq ($(WITH_RED_BRICK),yes)
+ifneq ($(WITH_RED_BRICK),no)
 	$(E)$(INSTALL) -m 644 ../build_data/linux/installer/etc/brickd-red-brick.conf $(sysconfdir)/brickd.conf
 else
 	$(E)$(INSTALL) -m 644 ../build_data/linux/installer/etc/brickd-default.conf $(sysconfdir)/brickd.conf
