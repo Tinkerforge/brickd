@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2012-2018 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2012-2019 Matthias Bolte <matthias@tinkerforge.com>
  * Copyright (C) 2014 Olaf Lüke <olaf@tinkerforge.com>
  *
  * usb.c: USB specific functions
@@ -547,10 +547,10 @@ cleanup:
 		break;
 	}
 
-#if defined _WIN32 || (defined LIBUSB_API_VERSION && LIBUSB_API_VERSION >= 0x01000104) // libusb 1.0.20
+#ifdef _WIN32
 	libusb_free_pollfds(pollfds); // avoids possible heap-mismatch on Windows
 #else
-	free(pollfds);
+	free(pollfds); // use free() elsewhere, because libusb_free_pollfds() was added in libusb 1.0.20
 #endif
 
 	return phase == 3 ? 0 : -1;
@@ -571,10 +571,10 @@ void usb_destroy_context(libusb_context *context) {
 			event_remove_source((*pollfd)->fd, EVENT_SOURCE_TYPE_USB);
 		}
 
-#if defined _WIN32 || (defined LIBUSB_API_VERSION && LIBUSB_API_VERSION >= 0x01000104) // libusb 1.0.20
+#ifdef _WIN32
 		libusb_free_pollfds(pollfds); // avoids possible heap-mismatch on Windows
 #else
-		free(pollfds);
+		free(pollfds); // use free() elsewhere, because libusb_free_pollfds() was added in libusb 1.0.20
 #endif
 	}
 
