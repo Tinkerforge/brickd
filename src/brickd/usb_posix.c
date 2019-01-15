@@ -79,16 +79,6 @@
 
 static LogSource _log_source = LOG_SOURCE_INITIALIZER;
 
-// if compiled with a hotplug capable libusb then don't use dlopen to probe
-#if (defined LIBUSB_API_VERSION  && LIBUSB_API_VERSION  >= 0x01000102) || \
-    (defined LIBUSBX_API_VERSION && LIBUSBX_API_VERSION >= 0x01000102)
-	#define DLOPEN_HOTPLUG_FUNCTIONS 0
-#else
-	#define DLOPEN_HOTPLUG_FUNCTIONS 1
-#endif
-
-#if DLOPEN_HOTPLUG_FUNCTIONS
-
 #define LIBUSBZ_HOTPLUG_MATCH_ANY -1
 
 typedef enum {
@@ -173,25 +163,6 @@ static void usb_dlclose(void) {
 	dlclose(_libusb_handle);
 }
 
-#else
-
-#define LIBUSBZ_HOTPLUG_MATCH_ANY LIBUSB_HOTPLUG_MATCH_ANY
-
-#define LIBUSBZ_CAP_HAS_CAPABILITY LIBUSB_CAP_HAS_CAPABILITY
-#define LIBUSBZ_CAP_HAS_HOTPLUG LIBUSB_CAP_HAS_HOTPLUG
-
-#define LIBUSBZ_HOTPLUG_EVENT_DEVICE_ARRIVED LIBUSB_HOTPLUG_EVENT_DEVICE_ARRIVED
-#define LIBUSBZ_HOTPLUG_EVENT_DEVICE_LEFT LIBUSB_HOTPLUG_EVENT_DEVICE_LEFT
-
-#define libusbz_hotplug_event libusb_hotplug_event
-#define libusbz_hotplug_callback_handle libusb_hotplug_callback_handle
-
-#define libusbz_has_capability libusb_has_capability
-#define libusbz_hotplug_register_callback libusb_hotplug_register_callback
-#define libusbz_hotplug_deregister_callback libusb_hotplug_deregister_callback
-
-#endif
-
 static libusbz_hotplug_callback_handle _brick_hotplug_handle;
 static libusbz_hotplug_callback_handle _red_brick_hotplug_handle;
 
@@ -231,19 +202,15 @@ static int LIBUSB_CALL usb_handle_hotplug(libusb_context *context, libusb_device
 }
 
 int usb_init_platform(void) {
-#if DLOPEN_HOTPLUG_FUNCTIONS
 	if (usb_dlopen() < 0) {
 		return -1;
 	}
-#endif
 
 	return 0;
 }
 
 void usb_exit_platform(void) {
-#if DLOPEN_HOTPLUG_FUNCTIONS
 	usb_dlclose();
-#endif
 }
 
 int usb_init_hotplug(libusb_context *context) {
@@ -293,14 +260,9 @@ void usb_exit_hotplug(libusb_context *context) {
 }
 
 bool usb_has_hotplug(void) {
-#if DLOPEN_HOTPLUG_FUNCTIONS
 	return libusbz_has_capability != NULL &&
 	       libusbz_hotplug_register_callback != NULL &&
 	       libusbz_hotplug_deregister_callback != NULL &&
 	       libusbz_has_capability(LIBUSBZ_CAP_HAS_CAPABILITY) &&
 	       libusbz_has_capability(LIBUSBZ_CAP_HAS_HOTPLUG);
-#else
-	return libusbz_has_capability(LIBUSBZ_CAP_HAS_CAPABILITY) &&
-	       libusbz_has_capability(LIBUSBZ_CAP_HAS_HOTPLUG);
-#endif
 }
