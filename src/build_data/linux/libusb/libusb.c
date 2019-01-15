@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2017 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2017, 2019 Matthias Bolte <matthias@tinkerforge.com>
  *
  * libusb.c: dlopen wrapper for libusb API
  *
@@ -67,7 +67,6 @@ libusb_handle_events_timeout_t libusb_handle_events_timeout;
 libusb_pollfds_handle_timeouts_t libusb_pollfds_handle_timeouts;
 
 libusb_get_pollfds_t libusb_get_pollfds;
-libusb_free_pollfds_t libusb_free_pollfds;
 libusb_set_pollfd_notifiers_t libusb_set_pollfd_notifiers;
 
 #if defined(__clang__) || !defined(__GNUC__) || __GNUC_PREREQ(4, 6)
@@ -138,7 +137,6 @@ int libusb_init_dlopen(void) {
 	LIBUSB_DLSYM(libusb_pollfds_handle_timeouts);
 
 	LIBUSB_DLSYM(libusb_get_pollfds);
-	LIBUSB_DLSYM(libusb_free_pollfds);
 	LIBUSB_DLSYM(libusb_set_pollfd_notifiers);
 
 	return 0;

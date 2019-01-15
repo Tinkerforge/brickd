@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2017 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2017, 2019 Matthias Bolte <matthias@tinkerforge.com>
  *
  * libusb.h: dlopen wrapper for libusb API
  *
@@ -218,7 +218,6 @@ typedef int (*libusb_handle_events_timeout_t)(libusb_context *ctx, struct timeva
 typedef int (*libusb_pollfds_handle_timeouts_t)(libusb_context *ctx);
 
 typedef const struct libusb_pollfd **(*libusb_get_pollfds_t)(libusb_context *ctx);
-typedef void (*libusb_free_pollfds_t)(const struct libusb_pollfd **pollfds);
 typedef void (*libusb_set_pollfd_notifiers_t)(libusb_context *ctx, libusb_pollfd_added_callback added_callback, libusb_pollfd_removed_callback removed_callback, void *user_data);
 
 extern libusb_init_t libusb_init;
@@ -272,7 +271,6 @@ extern libusb_handle_events_timeout_t libusb_handle_events_timeout;
 extern libusb_pollfds_handle_timeouts_t libusb_pollfds_handle_timeouts;
 
 extern libusb_get_pollfds_t libusb_get_pollfds;
-extern libusb_free_pollfds_t libusb_free_pollfds;
 extern libusb_set_pollfd_notifiers_t libusb_set_pollfd_notifiers;
 
 int libusb_init_dlopen(void);

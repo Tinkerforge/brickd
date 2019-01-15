@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2018 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2018-2019 Matthias Bolte <matthias@tinkerforge.com>
  *
  * libusb_android.c: Emulating libusb API for Android
  *
@@ -503,10 +503,6 @@ const struct libusb_pollfd **libusb_get_pollfds(libusb_context *ctx) {
 	pollfds[i] = NULL;
 
 	return pollfds;
-}
-
-void libusb_free_pollfds(const struct libusb_pollfd **pollfds) {
-	free(pollfds);
 }
 
 void libusb_set_pollfd_notifiers(libusb_context *ctx,
