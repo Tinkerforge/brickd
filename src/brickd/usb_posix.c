@@ -168,7 +168,7 @@ static int usb_dlopen(void) {
 }
 
 static void usb_dlclose(void) {
-	log_debug("Unloading brickd (for libusb symbols)");
+	log_debug("Unloading %s", _libusb != NULL ? _libusb : "brickd (for libusb symbols)");
 
 	dlclose(_libusb_handle);
 }
