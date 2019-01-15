@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2013-2014, 2017-2018 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2013-2014, 2017-2019 Matthias Bolte <matthias@tinkerforge.com>
  *
  * usb_posix.c: POSIX based USB specific functions
  *
@@ -250,8 +250,8 @@ int usb_init_hotplug(libusb_context *context) {
 	int rc;
 
 	// cannot use LIBUSBZ_HOTPLUG_ENUMERATE here for initial enumeration,
-	// because it is broken in libusb 1.0.16 as in calling libusb functions
-	// from the hotplug callback might deadlock.
+	// because it is broken in libusb 1.0.16. calling libusb functions from the
+	// hotplug callback might deadlock.
 	rc = libusbz_hotplug_register_callback(context,
 	                                       LIBUSBZ_HOTPLUG_EVENT_DEVICE_ARRIVED |
 	                                       LIBUSBZ_HOTPLUG_EVENT_DEVICE_LEFT, 0,
