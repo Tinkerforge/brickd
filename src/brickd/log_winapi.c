@@ -471,7 +471,6 @@ void log_write_platform(struct timeval *timestamp, LogLevel level,
                         LogSource *source, LogDebugGroup debug_group,
                         const char *function, int line,
                         const char *format, va_list arguments) {
-	bool libusb;
 	LogPipeMessage message;
 	WORD type;
 	DWORD event_id;
@@ -483,21 +482,19 @@ void log_write_platform(struct timeval *timestamp, LogLevel level,
 		return;
 	}
 
-	libusb = strcmp(source->name, "libusb") == 0;
-
 	vsnprintf(message.message, sizeof(message.message), format, arguments);
 
 	if (_event_log != NULL) {
 		switch (level) {
 		case LOG_LEVEL_ERROR:
 			type = EVENTLOG_ERROR_TYPE;
-			event_id = libusb ? BRICKD_LIBUSB_ERROR : BRICKD_GENERIC_ERROR;
+			event_id = source->libusb ? BRICKD_LIBUSB_ERROR : BRICKD_GENERIC_ERROR;
 			insert_strings[0] = message.message;
 			break;
 
 		case LOG_LEVEL_WARN:
 			type = EVENTLOG_WARNING_TYPE;
-			event_id = libusb ? BRICKD_LIBUSB_WARNING : BRICKD_GENERIC_WARNING;
+			event_id = source->libusb ? BRICKD_LIBUSB_WARNING : BRICKD_GENERIC_WARNING;
 			insert_strings[0] = message.message;
 			break;
 
@@ -517,13 +514,13 @@ void log_write_platform(struct timeval *timestamp, LogLevel level,
 
 	if (_named_pipe_connected) {
 		message.length = sizeof(message);
-		message.flags = libusb ? LOG_PIPE_MESSAGE_FLAG_LIBUSB : 0;
+		message.flags = source->libusb ? LOG_PIPE_MESSAGE_FLAG_LIBUSB : 0;
 		message.timestamp = (uint64_t)timestamp->tv_sec * 1000000 + timestamp->tv_usec;
 		message.level = level;
 		message.line = line;
 
 		string_copy(message.source, sizeof(message.source),
-		            libusb ? function : source->name, -1);
+		            source->libusb ? function : source->name, -1);
 
 		log_send_pipe_message(&message);
 	}

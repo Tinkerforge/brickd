@@ -243,6 +243,7 @@ int usb_init(void) {
 
 	_libusb_log_source.file = "libusb";
 	_libusb_log_source.name = "libusb";
+	_libusb_log_source.libusb = true;
 
 #if defined _WIN32 || defined __APPLE__ || defined __ANDROID__
 	libusb_set_log_callback(usb_forward_message);
