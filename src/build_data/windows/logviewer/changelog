@@ -6,7 +6,7 @@
 - Add Live Debug Log view
 
 2014-07-31: 1.1.1 (e640ee7)
-- Forward libusb log messages
+- Show libusb log messages in Live Debug Log view
 - Fallback to function name if file name is missing
 - Include timestamp in log file name
 - Change view menu items to radio style
@@ -20,5 +20,7 @@
 - Adapt to log debug filter addition
 - Add more resolutions to icon
 
-<unknown>: 1.2.1 (<unknown>)
+2019-01-16: 1.2.1 (<unknown>)
 - Allow running as normal user by opening the named-pipe read-only
+- Show log message source in Windows Event Log view to distinguish between
+  brickd and libusb log messages

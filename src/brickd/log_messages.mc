@@ -13,3 +13,17 @@ SymbolicName=BRICKD_GENERIC_ERROR
 Language=English
 %1
 .
+
+MessageId=0x03
+Severity=Warning
+SymbolicName=BRICKD_LIBUSB_WARNING
+Language=English
+%1
+.
+
+MessageId=0x04
+Severity=Error
+SymbolicName=BRICKD_LIBUSB_ERROR
+Language=English
+%1
+.

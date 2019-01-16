@@ -10,6 +10,7 @@
 
 @set CC=cl /nologo /c /MD /O2 /W4 /wd4200 /wd4214 /DWIN32_LEAN_AND_MEAN /DNDEBUG
 @set LD=link /nologo /subsystem:windows /debug /opt:ref /opt:icf
+@set MC=mc
 @set RC=rc /dWIN32 /r
 
 @if defined DDKBUILDENV (
@@ -25,14 +26,18 @@
 
 @set CC=%CC% /I..
 
-@del *.obj *.res *.bin *.exp *.pdb *.exe
+@del *.obj *.res *.bin *.exp *.pdb *.exe log_messages.h log_messages.rc
+
+%MC% -A -b ../../../brickd/log_messages.mc
 
 %CC% logviewer.c
+
+%RC% /folog_messages.res log_messages.rc
 %RC% /fologviewer.res logviewer.rc
 
 %LD% /out:logviewer.exe *.obj *.res advapi32.lib comctl32.lib comdlg32.lib user32.lib
 
-@del *.obj *.res *.bin *.exp
+@del *.obj *.res *.bin *.exp log_messages.h log_messages.rc
 
 :done
 @endlocal

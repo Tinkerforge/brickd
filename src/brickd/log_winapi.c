@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2012-2018 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2012-2019 Matthias Bolte <matthias@tinkerforge.com>
  *
  * log_winapi.c: Windows Event Log and log viewer handling
  *
@@ -487,17 +487,17 @@ void log_write_platform(struct timeval *timestamp, LogLevel level,
 
 	vsnprintf(message.message, sizeof(message.message), format, arguments);
 
-	if (_event_log != NULL && !libusb) {
+	if (_event_log != NULL) {
 		switch (level) {
 		case LOG_LEVEL_ERROR:
 			type = EVENTLOG_ERROR_TYPE;
-			event_id = BRICKD_GENERIC_ERROR;
+			event_id = libusb ? BRICKD_LIBUSB_ERROR : BRICKD_GENERIC_ERROR;
 			insert_strings[0] = message.message;
 			break;
 
 		case LOG_LEVEL_WARN:
 			type = EVENTLOG_WARNING_TYPE;
-			event_id = BRICKD_GENERIC_WARNING;
+			event_id = libusb ? BRICKD_LIBUSB_WARNING : BRICKD_GENERIC_WARNING;
 			insert_strings[0] = message.message;
 			break;
 

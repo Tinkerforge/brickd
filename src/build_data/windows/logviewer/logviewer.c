@@ -28,6 +28,7 @@
 #include <commctrl.h>
 #include <commdlg.h>
 
+#include "log_messages.h"
 #include "version.h"
 #include "resources.h"
 
@@ -68,6 +69,7 @@ static const char *get_error_name(int error_code) {
 	ERROR_NAME(ERROR_INVALID_PARAMETER);
 	ERROR_NAME(ERROR_INSUFFICIENT_BUFFER);
 	ERROR_NAME(ERROR_INVALID_WINDOW_HANDLE);
+	ERROR_NAME(ERROR_PIPE_BUSY);
 
 	// FIXME
 
@@ -267,7 +269,8 @@ static int create_event_list_view(void) {
 
 	if (insert_list_view_column(_event_list_view, 0, 120, "Timestamp") < 0 ||
 	    insert_list_view_column(_event_list_view, 1,  60, "Level") < 0 ||
-	    insert_list_view_column(_event_list_view, 2, 780, "Message") < 0) {
+	    insert_list_view_column(_event_list_view, 2,  60, "Source") < 0 ||
+	    insert_list_view_column(_event_list_view, 3, 720, "Message") < 0) {
 		return -1;
 	}
 
@@ -316,7 +319,7 @@ static int create_debug_list_view(void) {
 }
 
 static void append_event_item(const char *timestamp, const char *level,
-                              const char *message) {
+                              const char *source, const char *message) {
 	SCROLLINFO si;
 	LVITEM lvi;
 
@@ -337,6 +340,10 @@ static void append_event_item(const char *timestamp, const char *level,
 	ListView_SetItem(_event_list_view, &lvi);
 
 	lvi.iSubItem = 2;
+	lvi.pszText = (char *)source;
+	ListView_SetItem(_event_list_view, &lvi);
+
+	lvi.iSubItem = 3;
 	lvi.pszText = (char *)message;
 	ListView_SetItem(_event_list_view, &lvi);
 
@@ -449,7 +456,7 @@ static void append_debug_pipe_message(LogPipeMessage *pipe_message) {
 	char timestamp[MAX_TIMESTAMP_LENGTH];
 	uint64_t seconds = pipe_message->timestamp / 1000000;
 	int microseconds = pipe_message->timestamp % 1000000;
-	const char *level = "<unknown>";
+	const char *level = "Unknown";
 	char source[192];
 
 	format_timestamp(seconds, microseconds, timestamp, sizeof(timestamp),
@@ -590,6 +597,7 @@ static void read_event_log(void) {
 			PBYTE end_of_records = _record_buffer + bytes_read;
 			char timestamp[MAX_TIMESTAMP_LENGTH];
 			const char *level;
+			const char *source;
 			const char *message;
 
 			while (record < end_of_records) {
@@ -619,17 +627,33 @@ static void read_event_log(void) {
 						break;
 
 					default:
-						level = "<unknown>";
+						level = "Unknown";
+						break;
+					}
+
+					switch (((PEVENTLOGRECORD)record)->EventID) {
+					case BRICKD_GENERIC_WARNING:
+					case BRICKD_GENERIC_ERROR:
+						source = "Generic";
+						break;
+
+					case BRICKD_LIBUSB_WARNING:
+					case BRICKD_LIBUSB_ERROR:
+						source = "Libusb";
+						break;
+
+					default:
+						source = "Unknown";
 						break;
 					}
 
 					if (((PEVENTLOGRECORD)record)->NumStrings > 0) {
 						message = (const char *)(record + ((PEVENTLOGRECORD)record)->StringOffset);
 					} else {
-						message = "<unknown>";
+						message = "Unknown";
 					}
 
-					append_event_item(timestamp, level, message);
+					append_event_item(timestamp, level, source, message);
 				}
 
 				record += ((PEVENTLOGRECORD)record)->Length;
@@ -649,6 +673,8 @@ static void save_event_log(void) {
 	char timestamp[128];
 	LVITEM lvi_level;
 	char level[64];
+	LVITEM lvi_source;
+	char source[64];
 	LVITEM lvi_message;
 	char message[1024];
 	int i;
@@ -690,7 +716,12 @@ static void save_event_log(void) {
 	lvi_level.pszText = level;
 	lvi_level.cchTextMax = sizeof(level) - 1;
 
-	lvi_message.iSubItem = 2;
+	lvi_source.iSubItem = 2;
+	lvi_source.mask = LVIF_TEXT;
+	lvi_source.pszText = source;
+	lvi_source.cchTextMax = sizeof(source) - 1;
+
+	lvi_message.iSubItem = 3;
 	lvi_message.mask = LVIF_TEXT;
 	lvi_message.pszText = message;
 	lvi_message.cchTextMax = sizeof(message) - 1;
@@ -698,21 +729,26 @@ static void save_event_log(void) {
 	for (i = 0; i < count; ++i) {
 		lvi_timestamp.iItem = i;
 		lvi_level.iItem = i;
+		lvi_source.iItem = i;
 		lvi_message.iItem = i;
 
 		if (!ListView_GetItem(_event_list_view, &lvi_timestamp)) {
-			strcpy(timestamp, "<unknown>");
+			strcpy(timestamp, "Unknown");
 		}
 
 		if (!ListView_GetItem(_event_list_view, &lvi_level)) {
-			strcpy(level, "unknown");
+			strcpy(level, "Unknown");
+		}
+
+		if (!ListView_GetItem(_event_list_view, &lvi_source)) {
+			strcpy(source, "Unknown");
 		}
 
 		if (!ListView_GetItem(_event_list_view, &lvi_message)) {
-			strcpy(message, "<unknown>");
+			strcpy(message, "Unknown");
 		}
 
-		fprintf(fp, "%s <%s> %s\r\n", timestamp, level, message);
+		fprintf(fp, "%s <%s> [%s] %s\r\n", timestamp, level, source, message);
 	}
 
 	fclose(fp);
@@ -789,22 +825,22 @@ static void save_debug_log(void) {
 		lvi_message.iItem = i;
 
 		if (!ListView_GetItem(_debug_list_view, &lvi_timestamp)) {
-			strcpy(timestamp, "<unknown>");
+			strcpy(timestamp, "Unknown");
 		}
 
 		if (!ListView_GetItem(_debug_list_view, &lvi_level)) {
-			strcpy(level, "unknown");
+			strcpy(level, "Unknown");
 		}
 
 		if (!ListView_GetItem(_debug_list_view, &lvi_source)) {
-			strcpy(source, "unknown");
+			strcpy(source, "Unknown");
 		}
 
 		if (!ListView_GetItem(_debug_list_view, &lvi_message)) {
-			strcpy(message, "<unknown>");
+			strcpy(message, "Unknown");
 		}
 
-		fprintf(fp, "%s <%s> <%s> %s\r\n", timestamp, level, source, message);
+		fprintf(fp, "%s <%s> [%s] %s\r\n", timestamp, level, source, message);
 	}
 
 	fclose(fp);
