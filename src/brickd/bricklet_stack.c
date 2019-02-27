@@ -149,7 +149,7 @@ static void bricklet_stack_dispatch_from_spi(void *opaque) {
 			// If the Bricklet is connected to an isolator we don't have to
 			// update the position and the connected UID. this is already
 			// done by the isolator itself.
-			if(ec->position != 'Z') {
+			if(ec->position != 'Z' || ec->connected_uid[0] == '\0') {
 				memcpy(ec->connected_uid, PACKET_NO_CONNECTED_UID_STR, PACKET_NO_CONNECTED_UID_STR_LENGTH);
 				if((*bricklet_stack->config.connected_uid != 0) && (ec->device_identifier != 2126) && (ec->device_identifier != 2141)) {
 					char base58[BASE58_MAX_LENGTH];
