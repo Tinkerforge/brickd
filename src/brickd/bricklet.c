@@ -205,6 +205,38 @@ int bricklet_init_rpi_hat(const char *product_id_test, const char *spidev, const
     return 0;
 }
 
+int bricklet_init_hctosys(void) {
+	FILE *fp;
+	char buffer[256];
+	int rc;
+
+	buffer[0] = '\0';
+
+	fp = popen("/sbin/hwclock --hctosys", "r");
+	if(fp == NULL) {
+		log_debug("Could not popen /sbin/hwclock. Time will not be updated.");
+		return -1;
+	}
+
+	// If there is no error, we expect that hwclock does not print anything
+	// to stdout or stderr and the exit code is 0.
+	if(fgets(buffer, sizeof(buffer), fp) == NULL) {
+		rc = pclose(fp);
+
+		if(rc == 0) {
+			log_debug("Updated system time to RTC time with \"hwclock --hctosys\"");
+			return 0;
+		} else {
+			log_debug("Unexpected exit code of \"hwclock --hctosys\"-call: %d", rc);
+			return -1;
+		}
+	}
+
+	rc = pclose(fp);
+	log_debug("Unexpected return from /sbin/hwclock call (exit code %d): %s", rc, buffer);
+	return -1;
+}
+
 int bricklet_init(void) {
     int rc;
     int length = 0;
@@ -229,6 +261,9 @@ int bricklet_init(void) {
     if(rc < 0) {
         return -1;
     } else if(rc == 0) {
+        // The HAT Bricklet has a RTC.
+        // If we find one, we update the system time with the RTC time.
+        bricklet_init_hctosys();
         return 0;
     }
 
