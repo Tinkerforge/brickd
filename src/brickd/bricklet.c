@@ -149,60 +149,60 @@ int bricklet_init_rpi_hat(const char *product_id_test, const char *spidev, const
 	int rc;
 	char product_id[BRICKLET_RPI_PRODUCT_ID_LENGTH+1] = "\0";
 
-    fd = open("/proc/device-tree/hat/product_id", O_RDONLY);
+	fd = open("/proc/device-tree/hat/product_id", O_RDONLY);
 	if(fd < 0) {
 		log_debug("Could not open %s product_id in device tree, brickd will not use a pre-configured %s configuration.", name, name);
 		return 1;
 	}
 
-    rc = robust_read(fd, &product_id, BRICKLET_RPI_PRODUCT_ID_LENGTH);
+	rc = robust_read(fd, &product_id, BRICKLET_RPI_PRODUCT_ID_LENGTH);
 	robust_close(fd);
 	if(rc != 6) {
 		log_debug("Could not read %s product_id in device tree, brickd will not use a pre-configured %s configuration.", name, name);
 		return 1;
 	}
 
-    if(strncmp(product_id_test, product_id, BRICKLET_RPI_PRODUCT_ID_LENGTH) != 0) {
-        if(last) {
-            log_debug("The product_id of the connected HAT (%s) is not supported, brickd will not use a pre-configured HAT configuration.", product_id);
-        }
+	if(strncmp(product_id_test, product_id, BRICKLET_RPI_PRODUCT_ID_LENGTH) != 0) {
+		if(last) {
+			log_debug("The product_id of the connected HAT (%s) is not supported, brickd will not use a pre-configured HAT configuration.", product_id);
+		}
 		return 1;
-    }
+	}
 
-    log_debug("Found product_id \"%s\" in device tree, brickd will use pre-configured %s configuration.", product_id, name);
-    BrickletStackConfig config = {
-        .mutex = &_bricklet_spi_mutex[spidev_num],
-    };
+	log_debug("Found product_id \"%s\" in device tree, brickd will use pre-configured %s configuration.", product_id, name);
+	BrickletStackConfig config = {
+		.mutex = &_bricklet_spi_mutex[spidev_num],
+	};
 
-    strcpy(config.spi_device, spidev);
-    config.connected_uid = &bricklet_connected_uid;
+	strcpy(config.spi_device, spidev);
+	config.connected_uid = &bricklet_connected_uid;
 
-    for(uint8_t cs = 0; cs < gpios_num; cs++) {
-        if(cs == master_cs) {
-            config.startup_wait_time = 0;
-        } else {
-            config.startup_wait_time = 1;
-        }
-        config.num = _bricklet_stack_num;
-        config.chip_select_driver = BRICKLET_CHIP_SELECT_DRIVER_GPIO;
-        config.chip_select_gpio_sysfs.num = gpios[cs];
-        sprintf(config.chip_select_gpio_sysfs.name, "gpio%d", config.chip_select_gpio_sysfs.num);
+	for(uint8_t cs = 0; cs < gpios_num; cs++) {
+		if(cs == master_cs) {
+			config.startup_wait_time = 0;
+		} else {
+			config.startup_wait_time = 1;
+		}
+		config.num = _bricklet_stack_num;
+		config.chip_select_driver = BRICKLET_CHIP_SELECT_DRIVER_GPIO;
+		config.chip_select_gpio_sysfs.num = gpios[cs];
+		sprintf(config.chip_select_gpio_sysfs.name, "gpio%d", config.chip_select_gpio_sysfs.num);
 
-        log_debug("Bricklet found: spidev %s, driver %d, name %s (num %d)", 
-                    config.spi_device, 
-                    config.chip_select_driver, 
-                    config.chip_select_gpio_sysfs.name, 
-                    config.chip_select_gpio_sysfs.num);
+		log_debug("Bricklet found: spidev %s, driver %d, name %s (num %d)",
+		          config.spi_device,
+		          config.chip_select_driver,
+		          config.chip_select_gpio_sysfs.name,
+		          config.chip_select_gpio_sysfs.num);
 
-        _bricklet_stack[_bricklet_stack_num] = bricklet_stack_init(&config);
-        if(_bricklet_stack[_bricklet_stack_num] == NULL) {
-            return -1;
-        }
+		_bricklet_stack[_bricklet_stack_num] = bricklet_stack_init(&config);
+		if(_bricklet_stack[_bricklet_stack_num] == NULL) {
+			return -1;
+		}
 
-        _bricklet_stack_num++;
-    }
+		_bricklet_stack_num++;
+	}
 
-    return 0;
+	return 0;
 }
 
 int bricklet_init_hctosys(void) {
@@ -238,115 +238,115 @@ int bricklet_init_hctosys(void) {
 }
 
 int bricklet_init(void) {
-    int rc;
-    int length = 0;
-    char str_spidev[]    = "bricklet.groupX.spidev";
-    char str_cs_driver[] = "bricklet.groupX.csY.driver";
-    char str_cs_name[]   = "bricklet.groupX.csY.name";
-    char str_cs_num[]    = "bricklet.groupX.csY.num";
+	int rc;
+	int length = 0;
+	char str_spidev[]    = "bricklet.groupX.spidev";
+	char str_cs_driver[] = "bricklet.groupX.csY.driver";
+	char str_cs_name[]   = "bricklet.groupX.csY.name";
+	char str_cs_num[]    = "bricklet.groupX.csY.num";
 
-    mutex_create(&_bricklet_spi_mutex[0]);
-    mutex_create(&_bricklet_spi_mutex[1]);
+	mutex_create(&_bricklet_spi_mutex[0]);
+	mutex_create(&_bricklet_spi_mutex[1]);
 
-    // First we try to find out if this brickd is installed on a RPi with raspbian
-    // and a Tinkerforge HAT Bricklet is on top
-    rc = bricklet_init_rpi_hat(BRICKLET_RPI_HAT_PRODUCT_ID,
-                               BRICKLET_RPI_HAT_SPIDEV,
-                               BRICKLET_RPI_HAT_SPIDEV_NUM,
-                               bricklet_stack_rpi_hat_gpios,
-                               sizeof(bricklet_stack_rpi_hat_gpios),
-                               BRICKLET_RPI_HAT_MASTER_CS,
-                               "HAT",
-                               false);
-    if(rc < 0) {
-        return -1;
-    } else if(rc == 0) {
-        // The HAT Bricklet has a RTC.
-        // If we find one, we update the system time with the RTC time.
-        bricklet_init_hctosys();
-        return 0;
-    }
+	// First we try to find out if this brickd is installed on a RPi with raspbian
+	// and a Tinkerforge HAT Bricklet is on top
+	rc = bricklet_init_rpi_hat(BRICKLET_RPI_HAT_PRODUCT_ID,
+	                           BRICKLET_RPI_HAT_SPIDEV,
+	                           BRICKLET_RPI_HAT_SPIDEV_NUM,
+	                           bricklet_stack_rpi_hat_gpios,
+	                           sizeof(bricklet_stack_rpi_hat_gpios),
+	                           BRICKLET_RPI_HAT_MASTER_CS,
+	                           "HAT",
+	                           false);
+	if(rc < 0) {
+		return -1;
+	} else if(rc == 0) {
+		// The HAT Bricklet has a RTC.
+		// If we find one, we update the system time with the RTC time.
+		bricklet_init_hctosys();
+		return 0;
+	}
 
-    // or a Tinkerforge HAT Zero Bricklet is on top
-    rc = bricklet_init_rpi_hat(BRICKLET_RPI_HAT_ZERO_PRODUCT_ID,
-                               BRICKLET_RPI_HAT_ZERO_SPIDEV,
-                               BRICKLET_RPI_HAT_ZERO_SPIDEV_NUM,
-                               bricklet_stack_rpi_hat_zero_gpios,
-                               sizeof(bricklet_stack_rpi_hat_zero_gpios),
-                               BRICKLET_RPI_HAT_ZERO_MASTER_CS,
-                               "HAT Zero",
-                               true);
-    if(rc < 0) {
-        return -1;
-    } else if(rc == 0) {
-        return 0;
-    }
+	// or a Tinkerforge HAT Zero Bricklet is on top
+	rc = bricklet_init_rpi_hat(BRICKLET_RPI_HAT_ZERO_PRODUCT_ID,
+	                           BRICKLET_RPI_HAT_ZERO_SPIDEV,
+	                           BRICKLET_RPI_HAT_ZERO_SPIDEV_NUM,
+	                           bricklet_stack_rpi_hat_zero_gpios,
+	                           sizeof(bricklet_stack_rpi_hat_zero_gpios),
+	                           BRICKLET_RPI_HAT_ZERO_MASTER_CS,
+	                           "HAT Zero",
+	                           true);
+	if(rc < 0) {
+		return -1;
+	} else if(rc == 0) {
+		return 0;
+	}
 
-    // If there is no HAT we try to read the SPI configuration from the config
-    for(uint8_t i = 0; i < BRICKLET_SPI_MAX_NUM; i++) {
-        BrickletStackConfig config = {
-            .mutex = &_bricklet_spi_mutex[i],
-            .connected_uid = &bricklet_connected_uid,
-            .startup_wait_time = 0,
-        };
+	// If there is no HAT we try to read the SPI configuration from the config
+	for(uint8_t i = 0; i < BRICKLET_SPI_MAX_NUM; i++) {
+		BrickletStackConfig config = {
+			.mutex = &_bricklet_spi_mutex[i],
+			.connected_uid = &bricklet_connected_uid,
+			.startup_wait_time = 0,
+		};
 
-        str_spidev[BRICKLET_CONFIG_STR_GROUP_POS] = '0' + i;
-        length = strlen(config_get_option_value(str_spidev)->string);
-        if(length == 0) {
-            continue;
-        }
+		str_spidev[BRICKLET_CONFIG_STR_GROUP_POS] = '0' + i;
+		length = strlen(config_get_option_value(str_spidev)->string);
+		if(length == 0) {
+			continue;
+		}
 
-        memcpy(config.spi_device, config_get_option_value(str_spidev)->string, length);
+		memcpy(config.spi_device, config_get_option_value(str_spidev)->string, length);
 
-        for(uint8_t cs = 0; cs < BRICKLET_CS_MAX_NUM; cs++) {
-            config.num = _bricklet_stack_num;
+		for(uint8_t cs = 0; cs < BRICKLET_CS_MAX_NUM; cs++) {
+			config.num = _bricklet_stack_num;
 
-            str_cs_driver[BRICKLET_CONFIG_STR_GROUP_POS] = '0' + i;
-            str_cs_driver[BRICKLET_CONFIG_STR_CS_POS]    = '0' + cs;
-            config.chip_select_driver = config_get_option_value(str_cs_driver)->symbol;
+			str_cs_driver[BRICKLET_CONFIG_STR_GROUP_POS] = '0' + i;
+			str_cs_driver[BRICKLET_CONFIG_STR_CS_POS]    = '0' + cs;
+			config.chip_select_driver = config_get_option_value(str_cs_driver)->symbol;
 
-            if(config.chip_select_driver == CHIP_SELECT_GPIO) {
-                str_cs_num[BRICKLET_CONFIG_STR_GROUP_POS] = '0' + i;
-                str_cs_num[BRICKLET_CONFIG_STR_CS_POS]    = '0' + cs;
-                config.chip_select_gpio_sysfs.num = config_get_option_value(str_cs_num)->integer;
+			if(config.chip_select_driver == CHIP_SELECT_GPIO) {
+				str_cs_num[BRICKLET_CONFIG_STR_GROUP_POS] = '0' + i;
+				str_cs_num[BRICKLET_CONFIG_STR_CS_POS]    = '0' + cs;
+				config.chip_select_gpio_sysfs.num = config_get_option_value(str_cs_num)->integer;
 
-                str_cs_name[BRICKLET_CONFIG_STR_GROUP_POS] = '0' + i;
-                str_cs_name[BRICKLET_CONFIG_STR_CS_POS]    = '0' + cs;
-                length = strlen(config_get_option_value(str_cs_name)->string);
+				str_cs_name[BRICKLET_CONFIG_STR_GROUP_POS] = '0' + i;
+				str_cs_name[BRICKLET_CONFIG_STR_CS_POS]    = '0' + cs;
+				length = strlen(config_get_option_value(str_cs_name)->string);
 
-                if(length == 0) {
-                    continue;
-                }
+				if(length == 0) {
+					continue;
+				}
 
-                memset(config.chip_select_gpio_sysfs.name, 0, sizeof(config.chip_select_gpio_sysfs.name));
-                memcpy(config.chip_select_gpio_sysfs.name, config_get_option_value(str_cs_name)->string, length);
-            } else if(config.chip_select_driver != CHIP_SELECT_HARDWARE) {
-                continue;
-            }
+				memset(config.chip_select_gpio_sysfs.name, 0, sizeof(config.chip_select_gpio_sysfs.name));
+				memcpy(config.chip_select_gpio_sysfs.name, config_get_option_value(str_cs_name)->string, length);
+			} else if(config.chip_select_driver != CHIP_SELECT_HARDWARE) {
+				continue;
+			}
 
 			log_debug("Bricklet found: spidev %s, driver %d, name %s (num %d)", 
-                      config.spi_device, 
-                      config.chip_select_driver, 
-                      config.chip_select_gpio_sysfs.name, 
-                      config.chip_select_gpio_sysfs.num);
+			          config.spi_device,
+			          config.chip_select_driver,
+			          config.chip_select_gpio_sysfs.name,
+			          config.chip_select_gpio_sysfs.num);
 
-            _bricklet_stack[_bricklet_stack_num] = bricklet_stack_init(&config);
-            if(_bricklet_stack[_bricklet_stack_num] == NULL) {
-                return -1;
-            }
+			_bricklet_stack[_bricklet_stack_num] = bricklet_stack_init(&config);
+			if(_bricklet_stack[_bricklet_stack_num] == NULL) {
+				return -1;
+			}
 
-            _bricklet_stack_num++;
-        }
-    }
+			_bricklet_stack_num++;
+		}
+	}
 
-    return 0;
+	return 0;
 }
 
 void bricklet_exit(void) {
-    for(int i = 0; i < _bricklet_stack_num; i++) {
-        bricklet_stack_exit(_bricklet_stack[i]); 
-    }
+	for(int i = 0; i < _bricklet_stack_num; i++) {
+		bricklet_stack_exit(_bricklet_stack[i]);
+	}
 
-    mutex_destroy(&_bricklet_spi_mutex[0]);
-    mutex_destroy(&_bricklet_spi_mutex[1]);
+	mutex_destroy(&_bricklet_spi_mutex[0]);
+	mutex_destroy(&_bricklet_spi_mutex[1]);
 }
