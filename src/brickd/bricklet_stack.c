@@ -140,9 +140,9 @@ static void bricklet_stack_dispatch_from_spi(void *opaque) {
 		    (packet->header.function_id == FUNCTION_GET_IDENTITY)) {
 			EnumerateCallback *ec = (EnumerateCallback*)packet;
 
-			// If the Bricklet is a HAT Bricklet (ID 2126) or HAT Zero Bricklet (ID 2141)
+			// If the Bricklet is a HAT Brick (ID 111) or HAT Zero Brick (ID 112)
 			// we update the connected_uid.
-			if((ec->device_identifier == 2126) || (ec->device_identifier == 2141)) {
+			if((ec->device_identifier == 111) || (ec->device_identifier == 112)) {
 				*bricklet_stack->config.connected_uid = ec->header.uid;
 			}
 
@@ -151,7 +151,7 @@ static void bricklet_stack_dispatch_from_spi(void *opaque) {
 			// done by the isolator itself.
 			if(ec->position != 'Z' || ec->connected_uid[0] == '\0') {
 				memcpy(ec->connected_uid, PACKET_NO_CONNECTED_UID_STR, PACKET_NO_CONNECTED_UID_STR_LENGTH);
-				if((*bricklet_stack->config.connected_uid != 0) && (ec->device_identifier != 2126) && (ec->device_identifier != 2141)) {
+				if((*bricklet_stack->config.connected_uid != 0) && (ec->device_identifier != 111) && (ec->device_identifier != 112)) {
 					char base58[BASE58_MAX_LENGTH];
 					base58_encode(base58, uint32_from_le(*bricklet_stack->config.connected_uid));
 					strncpy(ec->connected_uid, base58, BASE58_MAX_LENGTH);

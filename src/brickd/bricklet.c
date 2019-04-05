@@ -62,7 +62,7 @@ static BrickletStack *_bricklet_stack[BRICKLET_SPI_MAX_NUM*BRICKLET_CS_MAX_NUM] 
 // In this case the Bricklets will be shown as connected to the HAT in Brick Viewer.
 static uint32_t bricklet_connected_uid = 0;
 
-// GPIOs configuration for HAT Bricklet.
+// GPIOs configuration for HAT Brick.
 static const uint8_t bricklet_stack_rpi_hat_gpios[] = {23, 22, 25, 26, 27, 24, 7, 6, 5};
 static const uint8_t bricklet_stack_rpi_hat_zero_gpios[] = {27, 23, 24, 22, 25};
 
@@ -249,7 +249,7 @@ int bricklet_init(void) {
 	mutex_create(&_bricklet_spi_mutex[1]);
 
 	// First we try to find out if this brickd is installed on a RPi with raspbian
-	// and a Tinkerforge HAT Bricklet is on top
+	// and a Tinkerforge HAT Brick is on top
 	rc = bricklet_init_rpi_hat(BRICKLET_RPI_HAT_PRODUCT_ID,
 	                           BRICKLET_RPI_HAT_SPIDEV,
 	                           BRICKLET_RPI_HAT_SPIDEV_NUM,
@@ -261,13 +261,13 @@ int bricklet_init(void) {
 	if(rc < 0) {
 		return -1;
 	} else if(rc == 0) {
-		// The HAT Bricklet has a RTC.
+		// The HAT Brick has a RTC.
 		// If we find one, we update the system time with the RTC time.
 		bricklet_init_hctosys();
 		return 0;
 	}
 
-	// or a Tinkerforge HAT Zero Bricklet is on top
+	// or a Tinkerforge HAT Zero Brick is on top
 	rc = bricklet_init_rpi_hat(BRICKLET_RPI_HAT_ZERO_PRODUCT_ID,
 	                           BRICKLET_RPI_HAT_ZERO_SPIDEV,
 	                           BRICKLET_RPI_HAT_ZERO_SPIDEV_NUM,
