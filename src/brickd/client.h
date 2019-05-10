@@ -66,11 +66,11 @@ struct _Client {
 	IO *io;
 	bool disconnected;
 	union {
-		uint8_t buffer[512];
+		uint8_t request_buffer[512];
 		Packet request;
 	};
-	int buffer_used;
-	bool header_checked;
+	int request_buffer_used;
+	bool request_header_checked;
 	Node pending_request_sentinel;
 	int pending_request_count;
 	Writer response_writer;
@@ -82,7 +82,7 @@ struct _Client {
 #define CLIENT_SIGNATURE_FORMAT "N: %s, T: %s, H: %d/%d, B: %d, P: %d, A: %s"
 #define client_expand_signature(client) (client)->name, (client)->io->type, \
 	(int)(client)->io->read_handle, (int)(client)->io->write_handle, \
-	(client)->buffer_used, (client)->pending_request_count, \
+	(client)->request_buffer_used, (client)->pending_request_count, \
 	client_get_authentication_state_name((client)->authentication_state)
 
 void pending_request_remove_and_free(PendingRequest *pending_request);

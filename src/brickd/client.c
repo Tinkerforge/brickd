@@ -243,8 +243,8 @@ static void client_handle_read(void *opaque) {
 	char packet_signature[PACKET_MAX_SIGNATURE_LENGTH];
 	Packet request;
 
-	length = io_read(client->io, client->buffer + client->buffer_used,
-	                 sizeof(client->buffer) - client->buffer_used);
+	length = io_read(client->io, client->request_buffer + client->request_buffer_used,
+	                 sizeof(client->request_buffer) - client->request_buffer_used);
 
 	if (length == 0) {
 		log_info("Client ("CLIENT_SIGNATURE_FORMAT") disconnected by peer",
@@ -279,15 +279,15 @@ static void client_handle_read(void *opaque) {
 		return;
 	}
 
-	client->buffer_used += length;
+	client->request_buffer_used += length;
 
-	while (!client->disconnected && client->buffer_used > 0) {
-		if (client->buffer_used < (int)sizeof(PacketHeader)) {
+	while (!client->disconnected && client->request_buffer_used > 0) {
+		if (client->request_buffer_used < (int)sizeof(PacketHeader)) {
 			// wait for complete header
 			break;
 		}
 
-		if (!client->header_checked) {
+		if (!client->request_header_checked) {
 			if (!packet_header_is_valid_request(&client->request.header, &message)) {
 				log_error("Received invalid request (%s) from client ("CLIENT_SIGNATURE_FORMAT"), disconnecting client: %s",
 				          packet_get_request_signature(packet_signature, &client->request),
@@ -298,12 +298,12 @@ static void client_handle_read(void *opaque) {
 				return;
 			}
 
-			client->header_checked = true;
+			client->request_header_checked = true;
 		}
 
 		length = client->request.header.length;
 
-		if (client->buffer_used < length) {
+		if (client->request_buffer_used < length) {
 			// wait for complete packet
 			break;
 		}
@@ -312,7 +312,7 @@ static void client_handle_read(void *opaque) {
 			log_packet_debug("Received disconnect probe from client ("CLIENT_SIGNATURE_FORMAT"), dropping request",
 			                 client_expand_signature(client));
 		} else {
-			memcpy(&request, client->buffer, length);
+			memcpy(&request, &client->request, length);
 
 #ifdef DAEMONLIB_WITH_PACKET_TRACE
 			request.trace_id = packet_get_next_request_trace_id();
@@ -325,10 +325,10 @@ static void client_handle_read(void *opaque) {
 			client_handle_request(client, &request);
 		}
 
-		memmove(client->buffer, client->buffer + length, client->buffer_used - length);
+		memmove(client->request_buffer, client->request_buffer + length, client->request_buffer_used - length);
 
-		client->buffer_used -= length;
-		client->header_checked = false;
+		client->request_buffer_used -= length;
+		client->request_header_checked = false;
 	}
 }
 
@@ -384,8 +384,8 @@ int client_create(Client *client, const char *name, IO *io,
 
 	client->io = io;
 	client->disconnected = false;
-	client->buffer_used = 0;
-	client->header_checked = false;
+	client->request_buffer_used = 0;
+	client->request_header_checked = false;
 	client->pending_request_count = 0;
 	client->authentication_state = CLIENT_AUTHENTICATION_STATE_DISABLED;
 	client->authentication_nonce = authentication_nonce;
