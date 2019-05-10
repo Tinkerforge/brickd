@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2014-2015, 2017-2018 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2014-2015, 2017-2019 Matthias Bolte <matthias@tinkerforge.com>
  *
  * redapid.c: RED Brick API Daemon interface
  *
@@ -46,8 +46,11 @@ typedef struct {
 	Stack base;
 
 	Socket socket;
-	Packet response;
-	int response_used;
+	union {
+		uint8_t response_buffer[512];
+		Packet response;
+	};
+	int response_buffer_used;
 	bool response_header_checked;
 	Writer request_writer;
 } REDBrickAPIDaemon;
@@ -85,8 +88,8 @@ static void redapid_handle_read(void *opaque) {
 
 	(void)opaque;
 
-	length = socket_receive(&_redapid.socket, (uint8_t *)&_redapid.response + _redapid.response_used,
-	                        sizeof(Packet) - _redapid.response_used);
+	length = socket_receive(&_redapid.socket, _redapid.response_buffer + _redapid.response_buffer_used,
+	                        sizeof(_redapid.response_buffer) - _redapid.response_buffer_used);
 
 	if (length == 0) {
 		log_info("RED Brick API Daemon disconnected by peer");
@@ -113,10 +116,10 @@ static void redapid_handle_read(void *opaque) {
 		return;
 	}
 
-	_redapid.response_used += length;
+	_redapid.response_buffer_used += length;
 
-	while (_connected && _redapid.response_used > 0) {
-		if (_redapid.response_used < (int)sizeof(PacketHeader)) {
+	while (_connected && _redapid.response_buffer_used > 0) {
+		if (_redapid.response_buffer_used < (int)sizeof(PacketHeader)) {
 			// wait for complete header
 			break;
 		}
@@ -138,7 +141,7 @@ static void redapid_handle_read(void *opaque) {
 
 		length = _redapid.response.header.length;
 
-		if (_redapid.response_used < length) {
+		if (_redapid.response_buffer_used < length) {
 			// wait for complete packet
 			break;
 		}
@@ -151,10 +154,10 @@ static void redapid_handle_read(void *opaque) {
 
 		network_dispatch_response(&_redapid.response);
 
-		memmove(&_redapid.response, (uint8_t *)&_redapid.response + length,
-		        _redapid.response_used - length);
+		memmove(_redapid.response_buffer, _redapid.response_buffer + length,
+		        _redapid.response_buffer_used - length);
 
-		_redapid.response_used -= length;
+		_redapid.response_buffer_used -= length;
 		_redapid.response_header_checked = false;
 	}
 }
@@ -236,7 +239,7 @@ static void redapid_handle_reconnect(void *opaque) {
 
 	(void)opaque;
 
-	_redapid.response_used = 0;
+	_redapid.response_buffer_used = 0;
 	_redapid.response_header_checked = false;
 
 	log_debug("Connecting to RED Brick API Daemon");
