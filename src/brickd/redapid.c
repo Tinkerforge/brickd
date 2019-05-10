@@ -84,6 +84,7 @@ static void redapid_disconnect(bool reconnect) {
 static void redapid_handle_read(void *opaque) {
 	int length;
 	const char *message = NULL;
+	char packet_dump[PACKET_MAX_DUMP_LENGTH];
 	char packet_signature[PACKET_MAX_SIGNATURE_LENGTH];
 
 	(void)opaque;
@@ -126,9 +127,8 @@ static void redapid_handle_read(void *opaque) {
 
 		if (!_redapid.response_header_checked) {
 			if (!packet_header_is_valid_response(&_redapid.response.header, &message)) {
-				// FIXME: include packet_get_content_dump output in the error message
-				log_error("Received invalid response (%s) from RED Brick API Daemon, disconnecting redapid: %s",
-				          packet_get_response_signature(packet_signature, &_redapid.response),
+				log_error("Received invalid response (packet: %s) from RED Brick API Daemon, disconnecting redapid: %s",
+				          packet_get_dump(packet_dump, &_redapid.response, _redapid.response_buffer_used),
 				          message);
 
 				redapid_disconnect(true);

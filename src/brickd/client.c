@@ -240,6 +240,7 @@ static void client_handle_read(void *opaque) {
 	Client *client = opaque;
 	int length;
 	const char *message = NULL;
+	char packet_dump[PACKET_MAX_DUMP_LENGTH];
 	char packet_signature[PACKET_MAX_SIGNATURE_LENGTH];
 	Packet request;
 
@@ -289,8 +290,8 @@ static void client_handle_read(void *opaque) {
 
 		if (!client->request_header_checked) {
 			if (!packet_header_is_valid_request(&client->request.header, &message)) {
-				log_error("Received invalid request (%s) from client ("CLIENT_SIGNATURE_FORMAT"), disconnecting client: %s",
-				          packet_get_request_signature(packet_signature, &client->request),
+				log_error("Received invalid request (packet: %s) from client ("CLIENT_SIGNATURE_FORMAT"), disconnecting client: %s",
+				          packet_get_dump(packet_dump, &client->request, client->request_buffer_used),
 				          client_expand_signature(client), message);
 
 				client->disconnected = true;
