@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2012-2018 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2012-2019 Matthias Bolte <matthias@tinkerforge.com>
  * Copyright (C) 2014 Olaf Lüke <olaf@tinkerforge.com>
  *
  * usb_stack.c: USB stack specific functions
@@ -57,7 +57,7 @@ static void usb_stack_handle_stall(void *opaque) {
 
 static void usb_stack_read_callback(USBTransfer *usb_transfer) {
 	const char *message = NULL;
-	char packet_content_dump[PACKET_MAX_CONTENT_DUMP_LENGTH];
+	char packet_dump[PACKET_MAX_DUMP_LENGTH];
 	char packet_signature[PACKET_MAX_SIGNATURE_LENGTH];
 
 	// check if packet is too short
@@ -83,8 +83,7 @@ static void usb_stack_read_callback(USBTransfer *usb_transfer) {
 			log_error("Read transfer %p returned response%s%s%s with incomplete header (actual: %u < minimum: %d) from %s",
 			          usb_transfer,
 			          usb_transfer->handle->actual_length > 0 ? " (packet: " : "",
-			          packet_get_content_dump(packet_content_dump, &usb_transfer->packet,
-			                                  usb_transfer->handle->actual_length),
+			          packet_get_dump(packet_dump, &usb_transfer->packet, usb_transfer->handle->actual_length),
 			          usb_transfer->handle->actual_length > 0 ? ")" : "",
 			          usb_transfer->handle->actual_length,
 			          (int)sizeof(PacketHeader),
@@ -104,8 +103,7 @@ static void usb_stack_read_callback(USBTransfer *usb_transfer) {
 		log_error("Read transfer %p returned response%s%s%s with length mismatch (actual: %u != expected: %u) from %s",
 		          usb_transfer,
 		          usb_transfer->handle->actual_length > 0 ? " (packet: " : "",
-		          packet_get_content_dump(packet_content_dump, &usb_transfer->packet,
-		                                  usb_transfer->handle->actual_length),
+		          packet_get_dump(packet_dump, &usb_transfer->packet, usb_transfer->handle->actual_length),
 		          usb_transfer->handle->actual_length > 0 ? ")" : "",
 		          usb_transfer->handle->actual_length,
 		          usb_transfer->packet.header.length,
@@ -118,8 +116,7 @@ static void usb_stack_read_callback(USBTransfer *usb_transfer) {
 	if (!packet_header_is_valid_response(&usb_transfer->packet.header, &message)) {
 		log_debug("Received invalid response%s%s%s from %s: %s",
 		          usb_transfer->handle->actual_length > 0 ? " (packet: " : "",
-		          packet_get_content_dump(packet_content_dump, &usb_transfer->packet,
-		                                  usb_transfer->handle->actual_length),
+		          packet_get_dump(packet_dump, &usb_transfer->packet, usb_transfer->handle->actual_length),
 		          usb_transfer->handle->actual_length > 0 ? ")" : "",
 		          usb_transfer->usb_stack->base.name,
 		          message);

@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2012-2018 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2012-2019 Matthias Bolte <matthias@tinkerforge.com>
  * Copyright (C) 2014 Olaf Lüke <olaf@tinkerforge.com>
  *
  * client.c: Client specific functions
@@ -289,7 +289,6 @@ static void client_handle_read(void *opaque) {
 
 		if (!client->header_checked) {
 			if (!packet_header_is_valid_request(&client->request.header, &message)) {
-				// FIXME: include packet_get_content_dump output in the error message
 				log_error("Received invalid request (%s) from client ("CLIENT_SIGNATURE_FORMAT"), disconnecting client: %s",
 				          packet_get_request_signature(packet_signature, &client->request),
 				          client_expand_signature(client), message);
