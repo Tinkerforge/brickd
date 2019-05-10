@@ -454,8 +454,6 @@ int mesh_stack_create(char *name, Socket *sock) {
 
 void hb_ping_recv_handler(MeshStack *mesh_stack) {
 	MeshHeartBeatPacket pkt_mesh_hb_pong;
-	uint8_t dst[ESP_MESH_ADDRESS_LEN];
-	uint8_t src[ESP_MESH_ADDRESS_LEN];
 	MeshHeartBeatPacket *pkt_mesh_hb_ping = &mesh_stack->heart_beat_response;
 
 	log_debug("Received mesh ping packet (T: PING, L: %d, A: %02X-%02X-%02X-%02X-%02X-%02X)",
@@ -467,8 +465,6 @@ void hb_ping_recv_handler(MeshStack *mesh_stack) {
 	          pkt_mesh_hb_ping->header.src_addr[4],
 	          pkt_mesh_hb_ping->header.src_addr[5]);
 
-	memset(&dst, 0, sizeof(dst));
-	memset(&src, 0, sizeof(src));
 	memset(&pkt_mesh_hb_pong, 0, sizeof(MeshHeartBeatPacket));
 
 	mesh_packet_header_set_direction(&pkt_mesh_hb_ping.header, MESH_PACKET_DIRECTION_DOWNWARD);
