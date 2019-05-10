@@ -465,13 +465,10 @@ void hb_ping_recv_handler(MeshStack *mesh_stack) {
 	          pkt_mesh_hb_ping->header.src_addr[4],
 	          pkt_mesh_hb_ping->header.src_addr[5]);
 
-	memset(&pkt_mesh_hb_pong, 0, sizeof(MeshHeartBeatPacket));
-
-	mesh_packet_header_set_direction(&pkt_mesh_hb_ping.header, MESH_PACKET_DIRECTION_DOWNWARD);
-	memcpy(&pkt_mesh_hb_ping->header.dst_addr, &pkt_mesh_hb_ping->header.src_addr, sizeof(pkt_mesh_hb_ping->header.src_addr));
-	memcpy(&pkt_mesh_hb_ping->header.src_addr, &mesh_stack->gw_addr, sizeof(mesh_stack->gw_addr));
-
-	memcpy(&pkt_mesh_hb_pong.header, &pkt_mesh_hb_ping->header, sizeof(MeshPacketHeader));
+	memcpy(&pkt_mesh_hb_pong, pkt_mesh_hb_ping, sizeof(MeshHeartBeatPacket));
+	mesh_packet_header_set_direction(&pkt_mesh_hb_pong.header, MESH_PACKET_DIRECTION_DOWNWARD);
+	memcpy(&pkt_mesh_hb_pong.header.dst_addr, &pkt_mesh_hb_ping->header.src_addr, sizeof(pkt_mesh_hb_pong.header.src_addr));
+	memcpy(&pkt_mesh_hb_pong.header.src_addr, &mesh_stack->gw_addr, sizeof(mesh_stack->gw_addr));
 
 	pkt_mesh_hb_pong.header.type = MESH_PACKET_TYPE_HEART_BEAT_PONG;
 
