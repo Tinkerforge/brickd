@@ -22,8 +22,16 @@
 
 #include <string.h>
 
+#include <daemonlib/macros.h>
+
 #include "mesh_packet.h"
 
+STATIC_ASSERT(sizeof(MeshPacketHeader) == 17, "MeshPacketHeader has invalid size");
+STATIC_ASSERT(sizeof(MeshHelloPacket) == 43, "MeshHelloPacket has invalid size");
+STATIC_ASSERT(sizeof(MeshOllehPacket) == 17, "MeshOllehPacket has invalid size");
+STATIC_ASSERT(sizeof(MeshResetPacket) == 17, "MeshResetPacket has invalid size");
+STATIC_ASSERT(sizeof(MeshHeartBeatPacket) == 17, "MeshHeartBeatPacket has invalid size");
+STATIC_ASSERT(sizeof(MeshPayloadPacket) == 97, "MeshPayloadPacket has invalid size");
 
 MeshPacketDirection mesh_packet_header_get_direction(MeshPacketHeader *header) {
 	return ((header->flags >> 8) & 0x01) == 0x01;
