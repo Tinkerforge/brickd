@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2012-2014, 2016-2018 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2012-2014, 2016-2019 Matthias Bolte <matthias@tinkerforge.com>
  * Copyright (C) 2014 Olaf Lüke <olaf@tinkerforge.com>
  *
  * client.h: Client specific functions
@@ -79,9 +79,10 @@ struct _Client {
 	ClientDestroyDoneFunction destroy_done;
 };
 
-#define CLIENT_SIGNATURE_FORMAT "N: %s, T: %s, H: %d/%d, A: %s"
+#define CLIENT_SIGNATURE_FORMAT "N: %s, T: %s, H: %d/%d, B: %d, P: %d, A: %s"
 #define client_expand_signature(client) (client)->name, (client)->io->type, \
 	(int)(client)->io->read_handle, (int)(client)->io->write_handle, \
+	(client)->buffer_used, (client)->pending_request_count, \
 	client_get_authentication_state_name((client)->authentication_state)
 
 void pending_request_remove_and_free(PendingRequest *pending_request);
