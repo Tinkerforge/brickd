@@ -61,14 +61,14 @@ typedef struct {
 	uint8_t gw_addr[ESP_MESH_ADDRESS_LEN];
 	uint8_t root_node_addr[ESP_MESH_ADDRESS_LEN];
 	union {
-		uint8_t buffer[512];
-		MeshPacketHeader request_header;
-		MeshHelloPacket hello_request;
-		MeshHeartBeatPacket heart_beat_request;
-		MeshPayloadPacket payload_request;
+		uint8_t response_buffer[512];
+		MeshPacketHeader response_header;
+		MeshHelloPacket hello_response;
+		MeshHeartBeatPacket heart_beat_response;
+		MeshPayloadPacket payload_response;
 	};
-	int buffer_used;
-	bool header_checked;
+	int response_buffer_used;
+	bool response_header_checked;
 } MeshStack;
 
 void timer_hb_do_ping_handler(void *opaque);

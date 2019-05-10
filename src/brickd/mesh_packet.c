@@ -24,63 +24,51 @@
 
 #include "mesh_packet.h"
 
-#define CHECK_BIT(val, pos) ((val) & (1 << (pos)))
 
-bool get_esp_mesh_header_flag_p2p(uint8_t *flags) {
-	if (CHECK_BIT(flags[1], 0x01) > 0) {
-		return true;
+MeshPacketDirection mesh_packet_header_get_direction(MeshPacketHeader *header) {
+	return ((header->flags >> 8) & 0x01) == 0x01;
+}
+
+void mesh_packet_header_set_direction(MeshPacketHeader *header, MeshPacketDirection direction) {
+	header->flags &= ~(0x01 << 8);
+	header->flags |= ((uint16_t)direction & 0x01) << 8;
+}
+
+bool mesh_packet_header_get_p2p(MeshPacketHeader *header) {
+	return ((header->flags >> 9) & 0x01) == 0x01;
+}
+
+void mesh_packet_header_set_p2p(MeshPacketHeader *header, bool p2p) {
+	if (p2p) {
+		header->flags |= 0x01 << 9;
 	} else {
-		return false;
+		header->flags &= ~(0x01 << 9);
 	}
 }
 
-bool get_esp_mesh_header_flag_direction(uint8_t *flags) {
-	if (CHECK_BIT(flags[1], 0x00) > 0) {
-		return true;
-	} else {
-		return false;
-	}
+MeshPacketProtocol mesh_packet_header_get_protocol(MeshPacketHeader *header) {
+	return (header->flags >> 10) & 0x3F;
 }
 
-uint8_t get_esp_mesh_header_flag_protocol(uint8_t *flags) {
-	return (uint8_t)(flags[1] >> 0x02);
+void mesh_packet_header_set_protocol(MeshPacketHeader *header, MeshPacketProtocol protocol) {
+	header->flags &= ~(0x3F << 10);
+	header->flags |= ((uint16_t)protocol & 0x3F) << 10;
 }
 
-void set_esp_mesh_header_flag_p2p(uint8_t *flags, bool val) {
-	if (val) {
-		flags[1] = (flags[1] | 0x02);
-	} else {
-		flags[1] = (flags[1] & ~(0x02));
-	}
-}
-
-void set_esp_mesh_header_flag_protocol(uint8_t *flags, uint8_t val) {
-	flags[1] = flags[1] & 0x03;
-	flags[1] = (flags[1] | (val << 0x02));
-}
-
-void set_esp_mesh_header_flag_direction(uint8_t *flags, uint8_t val) {
-	if (val) {
-		flags[1] = (flags[1] | 0x01);
-	} else {
-		flags[1] = (flags[1] & ~(0x01));
-	}
-}
-
-bool is_mesh_header_valid(MeshPacketHeader *mesh_header, const char **message) {
+bool mesh_packet_header_is_valid_response(MeshPacketHeader *mesh_header, const char **message) {
 	if (mesh_header->length < sizeof(MeshPacketHeader)) {
 		*message = "ESP mesh packet header length is to small";
 
 		return false;
 	}
 
-	if (get_esp_mesh_header_flag_direction((uint8_t *)&mesh_header->flags) == ESP_MESH_PACKET_DOWNWARDS) {
+	if (mesh_packet_header_get_direction(mesh_header) != MESH_PACKET_DIRECTION_UPWARD) {
 		*message = "ESP mesh packet header has downward direction";
 
 		return false;
 	}
 
-	if (get_esp_mesh_header_flag_protocol((uint8_t *)&mesh_header->flags) != ESP_MESH_PAYLOAD_BIN) {
+	if (mesh_packet_header_get_protocol(mesh_header) != MESH_PACKET_PROTOCOL_BINARY) {
 		*message = "ESP mesh packet payload type is not binary";
 
 		return false;
@@ -89,21 +77,19 @@ bool is_mesh_header_valid(MeshPacketHeader *mesh_header, const char **message) {
 	return true;
 }
 
-void esp_mesh_get_packet_header(MeshPacketHeader *mesh_header,
-                                uint8_t flag_direction,
-                                bool flag_p2p,
-                                uint8_t flag_protocol,
-                                uint16_t length,
-                                uint8_t *mesh_dst_addr,
-                                uint8_t *mesh_src_addr,
-                                uint8_t type) {
-	memset(mesh_header, 0, sizeof(MeshPacketHeader));
-	set_esp_mesh_header_flag_direction((uint8_t *)&mesh_header->flags, flag_direction);
-	set_esp_mesh_header_flag_p2p((uint8_t *)&mesh_header->flags, flag_p2p);
-	set_esp_mesh_header_flag_protocol((uint8_t *)&mesh_header->flags, flag_protocol);
-	mesh_header->length = length;
+void mesh_packet_header_create(MeshPacketHeader *header, MeshPacketDirection direction,
+                               bool p2p, MeshPacketProtocol protocol, uint16_t length,
+                               uint8_t *dst_addr, uint8_t *src_addr, MeshPacketType type) {
+	memset(header, 0, sizeof(MeshPacketHeader));
 
-	memcpy(&mesh_header->dst_addr, mesh_dst_addr, sizeof(mesh_header->dst_addr));
-	memcpy(&mesh_header->src_addr, mesh_src_addr, sizeof(mesh_header->src_addr));
-	mesh_header->type = type;
+	mesh_packet_header_set_direction(header, direction);
+	mesh_packet_header_set_p2p(header, p2p);
+	mesh_packet_header_set_protocol(header, protocol);
+
+	header->length = length;
+
+	memcpy(header->dst_addr, dst_addr, sizeof(header->dst_addr));
+	memcpy(header->src_addr, src_addr, sizeof(header->src_addr));
+
+	header->type = type;
 }

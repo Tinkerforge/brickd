@@ -52,8 +52,8 @@ static void mesh_stack_recv_handler(void *opaque) {
 	}
 
 	length = socket_receive(mesh_stack->sock,
-	                        mesh_stack->buffer + mesh_stack->buffer_used,
-	                        sizeof(mesh_stack->buffer) - mesh_stack->buffer_used);
+	                        mesh_stack->response_buffer + mesh_stack->response_buffer_used,
+	                        sizeof(mesh_stack->response_buffer) - mesh_stack->response_buffer_used);
 
 	if (length == 0) {
 		log_info("Mesh stack (N: %s) disconnected by peer",
@@ -88,17 +88,17 @@ static void mesh_stack_recv_handler(void *opaque) {
 		return;
 	}
 
-	mesh_stack->buffer_used += length;
+	mesh_stack->response_buffer_used += length;
 
-	while (!mesh_stack->cleanup && mesh_stack->buffer_used > 0) {
-		if (mesh_stack->buffer_used < (int)sizeof(MeshPacketHeader)) {
-			// Wait for complete mesh header
+	while (!mesh_stack->cleanup && mesh_stack->response_buffer_used > 0) {
+		if (mesh_stack->response_buffer_used < (int)sizeof(MeshPacketHeader)) {
+			// wait for complete header
 			break;
 		}
 
 		// Now we have a complete mesh header.
-		if (!mesh_stack->header_checked) {
-			if (!is_mesh_header_valid(&mesh_stack->request_header, &message)) {
+		if (!mesh_stack->response_header_checked) {
+			if (!mesh_packet_header_is_valid_response(&mesh_stack->response_header, &message)) {
 				log_error("Received invalid mesh header, disconnecting mesh stack (N: %s): %s",
 				          mesh_stack->name, message);
 
@@ -107,34 +107,34 @@ static void mesh_stack_recv_handler(void *opaque) {
 				return;
 			}
 
-			mesh_stack->header_checked = true;
+			mesh_stack->response_header_checked = true;
 		}
 
-		length = mesh_stack->request_header.length;
+		length = mesh_stack->response_header.length;
 
 		// FIXME: add mesh_header->len validation
 
-		if (mesh_stack->buffer_used < length) {
-			// Wait for complete packet
+		if (mesh_stack->response_buffer_used < length) {
+			// wait for complete packet
 			break;
 		}
 
-		mesh_pkt_type = mesh_stack->request_header.type;
+		mesh_pkt_type = mesh_stack->response_header.type;
 
 		// Handle mesh hello packet.
-		if (mesh_pkt_type == MESH_PACKET_HELLO) {
+		if (mesh_pkt_type == MESH_PACKET_TYPE_HELLO) {
 			hello_recv_handler(mesh_stack);
 		}
 		// Handle heart beat ping packet.
-		else if (mesh_pkt_type == MESH_PACKET_HB_PING) {
+		else if (mesh_pkt_type == MESH_PACKET_TYPE_HEART_BEAT_PING) {
 			hb_ping_recv_handler(mesh_stack);
 		}
 		// Handle heart beat pong packet.
-		else if (mesh_pkt_type == MESH_PACKET_HB_PONG) {
+		else if (mesh_pkt_type == MESH_PACKET_TYPE_HEART_BEAT_PONG) {
 			hb_pong_recv_handler(mesh_stack);
 		}
 		// Handle TFP packet.
-		else if (mesh_pkt_type == MESH_PACKET_TFP) {
+		else if (mesh_pkt_type == MESH_PACKET_TYPE_PAYLOAD) {
 			tfp_recv_handler(mesh_stack);
 		}
 		// Packet type is unknown.
@@ -142,11 +142,11 @@ static void mesh_stack_recv_handler(void *opaque) {
 			log_error("Unknown mesh packet type received");
 		}
 
-		memmove(mesh_stack->buffer, mesh_stack->buffer + length,
-		        mesh_stack->buffer_used - length);
+		memmove(mesh_stack->response_buffer, mesh_stack->response_buffer + length,
+		        mesh_stack->response_buffer_used - length);
 
-		mesh_stack->header_checked = false;
-		mesh_stack->buffer_used -= length;
+		mesh_stack->response_buffer_used -= length;
+		mesh_stack->response_header_checked = false;
 	}
 }
 
@@ -182,20 +182,20 @@ void timer_hb_do_ping_handler(void *opaque) {
 	MeshHeartBeatPacket pkt_mesh_hb;
 
 	memset(&pkt_mesh_hb, 0, sizeof(MeshHeartBeatPacket));
-	esp_mesh_get_packet_header(&pkt_mesh_hb.header,
+	mesh_packet_header_create(&pkt_mesh_hb.header,
 	                             // Direction.
-	                             ESP_MESH_PACKET_DOWNWARDS,
+	                             MESH_PACKET_DIRECTION_DOWNWARD,
 	                             // P2P.
 	                             false,
 	                             // ESP mesh payload protocol.
-	                             ESP_MESH_PAYLOAD_BIN,
+	                             MESH_PACKET_PROTOCOL_BINARY,
 	                             // Length of the mesh packet.
 	                             sizeof(MeshHeartBeatPacket),
 	                             // Destination address.
 	                             mesh_stack->root_node_addr,
 	                             // Source address.
 	                             mesh_stack->gw_addr,
-	                             MESH_PACKET_HB_PING);
+	                             MESH_PACKET_TYPE_HEART_BEAT_PING);
 
 	log_debug("Sending ping to mesh root node");
 
@@ -229,7 +229,7 @@ void timer_hb_wait_pong_handler(void *opaque) {
 
 void hello_recv_handler(MeshStack *mesh_stack) {
 	char prefix_str[17];
-	MeshHelloPacket *pkt_mesh_hello = &mesh_stack->hello_request;
+	MeshHelloPacket *pkt_mesh_hello = &mesh_stack->hello_response;
 
 	log_debug("Received mesh packet (T: HELLO, L: %d)", pkt_mesh_hello->header.length);
 
@@ -277,7 +277,7 @@ void hello_recv_handler(MeshStack *mesh_stack) {
 
 bool tfp_recv_handler(MeshStack *mesh_stack) {
 	uint64_t mesh_src_addr = 0;
-	MeshPayloadPacket *pkt_mesh_tfp = &mesh_stack->payload_request;
+	MeshPayloadPacket *pkt_mesh_tfp = &mesh_stack->payload_response;
 
 	log_debug("Received mesh packet (T: TFP, L: %d, A: %02X-%02X-%02X-%02X-%02X-%02X)",
 	          pkt_mesh_tfp->header.length,
@@ -373,8 +373,8 @@ int mesh_stack_create(char *name, Socket *sock) {
 	// Initialise the mesh stack.
 	mesh_stack->sock = sock;
 	mesh_stack->cleanup = false;
-	mesh_stack->buffer_used = 0;
-	mesh_stack->header_checked = false;
+	mesh_stack->response_buffer_used = 0;
+	mesh_stack->response_header_checked = false;
 
 	snprintf(mesh_stack->name, sizeof(mesh_stack->name), "%s", name);
 
@@ -456,7 +456,7 @@ void hb_ping_recv_handler(MeshStack *mesh_stack) {
 	MeshHeartBeatPacket pkt_mesh_hb_pong;
 	uint8_t dst[ESP_MESH_ADDRESS_LEN];
 	uint8_t src[ESP_MESH_ADDRESS_LEN];
-	MeshHeartBeatPacket *pkt_mesh_hb_ping = &mesh_stack->heart_beat_request;
+	MeshHeartBeatPacket *pkt_mesh_hb_ping = &mesh_stack->heart_beat_response;
 
 	log_debug("Received mesh ping packet (T: PING, L: %d, A: %02X-%02X-%02X-%02X-%02X-%02X)",
 	          pkt_mesh_hb_ping->header.length,
@@ -471,13 +471,13 @@ void hb_ping_recv_handler(MeshStack *mesh_stack) {
 	memset(&src, 0, sizeof(src));
 	memset(&pkt_mesh_hb_pong, 0, sizeof(MeshHeartBeatPacket));
 
-	set_esp_mesh_header_flag_direction((uint8_t *)&pkt_mesh_hb_ping->header.flags, ESP_MESH_PACKET_DOWNWARDS);
+	mesh_packet_header_set_direction(&pkt_mesh_hb_ping.header, MESH_PACKET_DIRECTION_DOWNWARD);
 	memcpy(&pkt_mesh_hb_ping->header.dst_addr, &pkt_mesh_hb_ping->header.src_addr, sizeof(pkt_mesh_hb_ping->header.src_addr));
 	memcpy(&pkt_mesh_hb_ping->header.src_addr, &mesh_stack->gw_addr, sizeof(mesh_stack->gw_addr));
 
 	memcpy(&pkt_mesh_hb_pong.header, &pkt_mesh_hb_ping->header, sizeof(MeshPacketHeader));
 
-	pkt_mesh_hb_pong.header.type = MESH_PACKET_HB_PONG;
+	pkt_mesh_hb_pong.header.type = MESH_PACKET_TYPE_HEART_BEAT_PONG;
 
 	// TODO: Integrate buffered IO write.
 	if (socket_send(mesh_stack->sock, &pkt_mesh_hb_pong, pkt_mesh_hb_pong.header.length) < 0) {
@@ -494,7 +494,7 @@ void hb_ping_recv_handler(MeshStack *mesh_stack) {
 }
 
 void hb_pong_recv_handler(MeshStack *mesh_stack) {
-	MeshHeartBeatPacket *pkt_mesh_hb = &mesh_stack->heart_beat_request;
+	MeshHeartBeatPacket *pkt_mesh_hb = &mesh_stack->heart_beat_response;
 
 	timer_configure(&mesh_stack->timer_hb_wait_pong, 0, 0);
 
@@ -527,20 +527,20 @@ void broadcast_reset_packet(MeshStack *mesh_stack) {
 
 	memset(&addr, 0, sizeof(addr));
 	memset(&pkt_mesh_reset, 0, sizeof(MeshResetPacket));
-	esp_mesh_get_packet_header(&pkt_mesh_reset.header,
+	mesh_packet_header_create(&pkt_mesh_reset.header,
 	                             // Direction.
-	                             ESP_MESH_PACKET_DOWNWARDS,
+	                             MESH_PACKET_DIRECTION_DOWNWARD,
 	                             // P2P.
 	                             false,
 	                             // ESP mesh payload protocol.
-	                             ESP_MESH_PAYLOAD_BIN,
+	                             MESH_PACKET_PROTOCOL_BINARY,
 	                             // Length of the mesh packet.
 	                             sizeof(MeshResetPacket),
 	                             // Destination address.
 	                             addr,
 	                             // Source address.
 	                             addr,
-	                             MESH_PACKET_RESET);
+	                             MESH_PACKET_TYPE_RESET);
 
 	// TODO: Integrate buffered IO write.
 	if (socket_send(mesh_stack->sock, &pkt_mesh_reset, pkt_mesh_reset.header.length) < 0) {
@@ -554,7 +554,7 @@ bool hello_root_recv_handler(MeshStack *mesh_stack) {
 	char prefix_str[17];
 	MeshOllehPacket olleh_mesh_pkt;
 	MeshStack *mesh_stack_from_list = NULL;
-	MeshHelloPacket *hello_mesh_pkt = &mesh_stack->hello_request;
+	MeshHelloPacket *hello_mesh_pkt = &mesh_stack->hello_response;
 	int i;
 
 #ifdef BRICKD_WITH_MESH_SINGLE_ROOT_NODE
@@ -593,23 +593,23 @@ bool hello_root_recv_handler(MeshStack *mesh_stack) {
 
 			// Reset the mesh stack that was found on the list.
 			memset(&pkt_mesh_reset, 0, sizeof(MeshResetPacket));
-			esp_mesh_get_packet_header(&pkt_mesh_reset.header,
+			mesh_packet_header_create(&pkt_mesh_reset.header,
 			                             // Direction.
-			                             ESP_MESH_PACKET_DOWNWARDS,
+			                             MESH_PACKET_DIRECTION_DOWNWARD,
 			                             // P2P.
 			                             false,
 			                             // ESP mesh payload protocol.
-			                             ESP_MESH_PAYLOAD_BIN,
+			                             MESH_PACKET_PROTOCOL_BINARY,
 			                             // Length of the payload of the mesh packet.
 			                             sizeof(MeshResetPacket),
 			                             // Destination address.
 			                             mesh_stack_from_list->root_node_addr,
 			                             // Source address.
 			                             hello_mesh_pkt->header.dst_addr,
-			                             MESH_PACKET_RESET);
+			                             MESH_PACKET_TYPE_RESET);
 
 			// TODO: Integrate buffered IO write.
-			if (socket_send(mesh_stack_from_list->sock, &pkt_mesh_reset, pkt_mesh_reset.header.len) < 0) {
+			if (socket_send(mesh_stack_from_list->sock, &pkt_mesh_reset, pkt_mesh_reset.header.length) < 0) {
 				log_error("Failed to send mesh stack reset packet (A: %02X-%02X-%02X-%02X-%02X-%02X)",
 				          mesh_stack_from_list->root_node_addr[0],
 				          mesh_stack_from_list->root_node_addr[1],
@@ -629,23 +629,23 @@ bool hello_root_recv_handler(MeshStack *mesh_stack) {
 
 			// Reset the mesh stack from which we just received.
 			memset(&pkt_mesh_reset, 0, sizeof(MeshResetPacket));
-			esp_mesh_get_packet_header(&pkt_mesh_reset.header,
+			mesh_packet_header_create(&pkt_mesh_reset.header,
 			                             // Direction.
-			                             ESP_MESH_PACKET_DOWNWARDS,
+			                             MESH_PACKET_DIRECTION_DOWNWARD,
 			                             // P2P.
 			                             false,
 			                             // ESP mesh payload protocol.
-			                             ESP_MESH_PAYLOAD_BIN,
+			                             MESH_PACKET_PROTOCOL_BINARY,
 			                             // Length of the mesh packet.
 			                             sizeof(MeshResetPacket),
 			                             // Destination address.
 			                             hello_mesh_pkt->header.src_addr,
 			                             // Source address.
 			                             hello_mesh_pkt->header.dst_addr,
-			                             MESH_PACKET_RESET);
+			                             MESH_PACKET_TYPE_RESET);
 
 			// TODO: Integrate buffered IO write.
-			if (socket_send(mesh_stack->sock, &pkt_mesh_reset, pkt_mesh_reset.header.len) < 0) {
+			if (socket_send(mesh_stack->sock, &pkt_mesh_reset, pkt_mesh_reset.header.length) < 0) {
 				log_error("Failed to send mesh stack reset packet (A: %02X-%02X-%02X-%02X-%02X-%02X)",
 				          hello_mesh_pkt->header.src_addr[0],
 				          hello_mesh_pkt->header.src_addr[1],
@@ -727,20 +727,20 @@ bool hello_root_recv_handler(MeshStack *mesh_stack) {
 
 	// Prepare the olleh packet.
 	memset(&olleh_mesh_pkt, 0, sizeof(MeshOllehPacket));
-	esp_mesh_get_packet_header(&olleh_mesh_pkt.header,
+	mesh_packet_header_create(&olleh_mesh_pkt.header,
 	                             // Direction.
-	                             ESP_MESH_PACKET_DOWNWARDS,
+	                             MESH_PACKET_DIRECTION_DOWNWARD,
 	                             // P2P.
 	                             false,
 	                             // ESP mesh payload protocol.
-	                             ESP_MESH_PAYLOAD_BIN,
+	                             MESH_PACKET_PROTOCOL_BINARY,
 	                             // Length of the mesh packet.
 	                             sizeof(MeshOllehPacket),
 	                             // Destination address.
 	                             hello_mesh_pkt->header.src_addr,
 	                             // Source address.
 	                             hello_mesh_pkt->header.dst_addr,
-	                             MESH_PACKET_OLLEH);
+	                             MESH_PACKET_TYPE_OLLEH);
 
 	// TODO: Integrate buffered IO write.
 	if (socket_send(mesh_stack->sock, &olleh_mesh_pkt, olleh_mesh_pkt.header.length) < 0) {
@@ -819,20 +819,20 @@ int mesh_stack_dispatch_request(Stack *stack, Packet *request, Recipient *recipi
 	}
 
 	memset(&tfp_mesh_pkt, 0, sizeof(MeshPayloadPacket));
-	esp_mesh_get_packet_header(&tfp_mesh_pkt.header,
+	mesh_packet_header_create(&tfp_mesh_pkt.header,
 	                             // Direction.
-	                             ESP_MESH_PACKET_DOWNWARDS,
+	                             MESH_PACKET_DIRECTION_DOWNWARD,
 	                             // P2P.
 	                             false,
 	                             // ESP mesh payload protocol.
-	                             ESP_MESH_PAYLOAD_BIN,
+	                             MESH_PACKET_PROTOCOL_BINARY,
 	                             // Length of the mesh packet.
 	                             sizeof(MeshPacketHeader) + request->header.length,
 	                             // Destination address.
 	                             dst_addr,
 	                             // Source address.
 	                             mesh_stack->gw_addr,
-	                             MESH_PACKET_TFP);
+	                             MESH_PACKET_TYPE_PAYLOAD);
 
 	memcpy(&tfp_mesh_pkt.payload, request, request->header.length);
 
@@ -906,24 +906,24 @@ void arm_timer_cleanup_after_reset_sent(MeshStack *mesh_stack) {
 
 bool hello_non_root_recv_handler(MeshStack *mesh_stack) {
 	MeshOllehPacket olleh_mesh_pkt;
-	MeshHelloPacket *hello_mesh_pkt = &mesh_stack->hello_request;
+	MeshHelloPacket *hello_mesh_pkt = &mesh_stack->hello_response;
 
 	// Prepare the olleh packet.
 	memset(&olleh_mesh_pkt, 0, sizeof(MeshOllehPacket));
-	esp_mesh_get_packet_header(&olleh_mesh_pkt.header,
+	mesh_packet_header_create(&olleh_mesh_pkt.header,
 	                             // Direction.
-	                             ESP_MESH_PACKET_DOWNWARDS,
+	                             MESH_PACKET_DIRECTION_DOWNWARD,
 	                             // P2P.
 	                             false,
 	                             // ESP mesh payload protocol.
-	                             ESP_MESH_PAYLOAD_BIN,
+	                             MESH_PACKET_PROTOCOL_BINARY,
 	                             // Length of the mesh packet.
 	                             sizeof(MeshOllehPacket),
 	                             // Destination address.
 	                             hello_mesh_pkt->header.src_addr,
 	                             // Source address.
 	                             mesh_stack->gw_addr,
-	                             MESH_PACKET_OLLEH);
+	                             MESH_PACKET_TYPE_OLLEH);
 
 	// TODO: Integrate buffered IO write.
 	if (socket_send(mesh_stack->sock, &olleh_mesh_pkt, olleh_mesh_pkt.header.length) < 0) {

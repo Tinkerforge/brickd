@@ -27,45 +27,33 @@
 
 #define ESP_MESH_ADDRESS_LEN 6
 
-enum {
-	ESP_MESH_PACKET_DOWNWARDS = 0,
-	ESP_MESH_PACKET_UPWARDS,
-};
+typedef enum {
+	MESH_PACKET_DIRECTION_DOWNWARD = 0,
+	MESH_PACKET_DIRECTION_UPWARD = 1
+} MeshPacketDirection;
 
-enum {
-	ESP_MESH_PAYLOAD_NONE = 0,
-	ESP_MESH_PAYLOAD_HTTP,
-	ESP_MESH_PAYLOAD_JSON,
-	ESP_MESH_PAYLOAD_MQTT,
-	ESP_MESH_PAYLOAD_BIN,
-};
+typedef enum {
+	MESH_PACKET_PROTOCOL_NONE = 0,
+	MESH_PACKET_PROTOCOL_HTTP = 1,
+	MESH_PACKET_PROTOCOL_JSON = 2,
+	MESH_PACKET_PROTOCOL_MQTT = 3,
+	MESH_PACKET_PROTOCOL_BINARY = 4
+} MeshPacketProtocol;
 
-enum {
-	MESH_PACKET_HELLO = 1,
-	MESH_PACKET_OLLEH,
-	MESH_PACKET_RESET,
-	MESH_PACKET_HB_PING,
-	MESH_PACKET_HB_PONG,
-	MESH_PACKET_TFP
-};
+typedef enum {
+	MESH_PACKET_TYPE_HELLO = 1,
+	MESH_PACKET_TYPE_OLLEH = 2,
+	MESH_PACKET_TYPE_RESET = 3,
+	MESH_PACKET_TYPE_HEART_BEAT_PING = 4,
+	MESH_PACKET_TYPE_HEART_BEAT_PONG = 5,
+	MESH_PACKET_TYPE_PAYLOAD = 6
+} MeshPacketType;
 
-#include "daemonlib/packed_begin.h"
+#include <daemonlib/packed_begin.h>
 
 typedef struct {
-	/*
-	 * Flag bit size and assignment,
-	 *
-	 * version          :2
-	 * option_exist     :1
-	 * piggyback_permit :1
-	 * piggyback_request:1
-	 * reserved         :3
-	 * direction        :1, Upwards = 1, Downwards = 0
-	 * p2p              :1
-	 * protocol         :6
-	 */
-	uint16_t flags;
-	uint16_t length; // Packet total length (including mesh header).
+	uint16_t flags; // 6 bit protocol, 1 bit p2p, 1 bit direction, 8 bit unused
+	uint16_t length; // packet length including header
 	uint8_t dst_addr[ESP_MESH_ADDRESS_LEN]; // Destination address.
 	uint8_t src_addr[ESP_MESH_ADDRESS_LEN]; // Source address.
 	uint8_t type;
@@ -73,7 +61,7 @@ typedef struct {
 
 typedef struct {
 	MeshPacketHeader header;
-	bool is_root_node;
+	uint8_t is_root_node; // bool
 	uint8_t group_id[6];
 	char prefix[16];
 	uint8_t firmware_version[3];
@@ -96,22 +84,21 @@ typedef struct {
 	Packet payload;
 } ATTRIBUTE_PACKED MeshPayloadPacket;
 
-#include "daemonlib/packed_end.h"
+#include <daemonlib/packed_end.h>
 
-bool get_esp_mesh_header_flag_p2p(uint8_t *flags);
-bool get_esp_mesh_header_flag_direction(uint8_t *flags);
-bool is_mesh_header_valid(MeshPacketHeader *mesh_header, const char **message);
-uint8_t get_esp_mesh_header_flag_protocol(uint8_t *flags);
-void set_esp_mesh_header_flag_p2p(uint8_t *flags, bool val);
-void set_esp_mesh_header_flag_protocol(uint8_t *flags, uint8_t val);
-void set_esp_mesh_header_flag_direction(uint8_t *flags, uint8_t val);
-void esp_mesh_get_packet_header(MeshPacketHeader *mesh_header,
-                                uint8_t flag_direction,
-                                bool flag_p2p,
-                                uint8_t flag_protocol,
-                                uint16_t len,
-                                uint8_t *mesh_dst_addr,
-                                uint8_t *mesh_src_addr,
-                                uint8_t type);
+MeshPacketDirection mesh_packet_header_get_direction(MeshPacketHeader *header);
+void mesh_packet_header_set_direction(MeshPacketHeader *header, MeshPacketDirection direction);
+
+bool mesh_packet_header_get_p2p(MeshPacketHeader *header);
+void mesh_packet_header_set_p2p(MeshPacketHeader *header, bool p2p);
+
+MeshPacketProtocol mesh_packet_header_get_protocol(MeshPacketHeader *header);
+void mesh_packet_header_set_protocol(MeshPacketHeader *header, MeshPacketProtocol protocol);
+
+void mesh_packet_header_create(MeshPacketHeader *header, MeshPacketDirection direction,
+                               bool p2p, MeshPacketProtocol protocol, uint16_t length,
+                               uint8_t *dst_addr, uint8_t *src_addr, MeshPacketType type);
+
+bool mesh_packet_header_is_valid_response(MeshPacketHeader *header, const char **message);
 
 #endif // BRICKD_MESH_PACKET_H
