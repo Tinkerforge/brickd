@@ -77,9 +77,8 @@ static void mesh_stack_recv_handler(void *opaque) {
 		} else if (errno_would_block()) {
 			log_debug("Receiving would block, retrying");
 		} else {
-			log_error("Could not receive from mesh client, disconnecting stack (N: %s, R: %d)",
-			          mesh_stack->name,
-			          read_len);
+			log_error("Could not receive from mesh stack (N: %s), disconnecting mesh stack: %s (%d)",
+			          mesh_stack->name, get_errno_name(errno), errno);
 
 			mesh_stack->cleanup = true;
 		}
