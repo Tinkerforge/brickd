@@ -246,6 +246,7 @@ SOURCES_BRICKD := base64.c \
                   hardware.c \
                   hmac.c \
                   mesh.c \
+                  mesh_packet.c \
                   mesh_stack.c \
                   network.c \
                   sha1.c \

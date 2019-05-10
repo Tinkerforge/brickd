@@ -35,8 +35,6 @@
 #include "hardware.h"
 #include "network.h"
 
-#define CHECK_BIT(val, pos) ((val) & (1 << (pos)))
-
 static LogSource _log_source = LOG_SOURCE_INITIALIZER;
 
 extern Array mesh_stacks;
@@ -45,6 +43,7 @@ static void mesh_stack_recv_handler(void *opaque) {
 	int length = 0;
 	uint8_t mesh_pkt_type = 0;
 	MeshStack *mesh_stack = (MeshStack *)opaque;
+	const char *message = NULL;
 
 	if (mesh_stack->cleanup) {
 		log_warn("Mesh stack already scheduled for cleanup, ignoring receive...");
@@ -99,9 +98,9 @@ static void mesh_stack_recv_handler(void *opaque) {
 
 		// Now we have a complete mesh header.
 		if (!mesh_stack->header_checked) {
-			if (!is_mesh_header_valid(&mesh_stack->request_header)) {
-				log_error("Received invalid mesh header, disconnecting mesh stack (N: %s)",
-				          mesh_stack->name);
+			if (!is_mesh_header_valid(&mesh_stack->request_header, &message)) {
+				log_error("Received invalid mesh header, disconnecting mesh stack (N: %s): %s",
+				          mesh_stack->name, message);
 
 				mesh_stack->cleanup = true;
 
@@ -176,47 +175,6 @@ static void timer_cleanup_after_reset_sent_handler(void *opaque) {
 	log_debug("Cleaning up mesh stack (N: %s)", mesh_stack->name);
 
 	mesh_stack->cleanup = true;
-}
-
-bool get_esp_mesh_header_flag_p2p(uint8_t *flags) {
-	if (CHECK_BIT(flags[1], 0x01) > 0) {
-		return true;
-	} else {
-		return false;
-	}
-}
-
-bool get_esp_mesh_header_flag_direction(uint8_t *flags) {
-	if (CHECK_BIT(flags[1], 0x00) > 0) {
-		return true;
-	} else {
-		return false;
-	}
-}
-
-uint8_t get_esp_mesh_header_flag_protocol(uint8_t *flags) {
-	return (uint8_t)(flags[1] >> 0x02);
-}
-
-void set_esp_mesh_header_flag_p2p(uint8_t *flags, bool val) {
-	if (val) {
-		flags[1] = (flags[1] | 0x02);
-	} else {
-		flags[1] = (flags[1] & ~(0x02));
-	}
-}
-
-void set_esp_mesh_header_flag_protocol(uint8_t *flags, uint8_t val) {
-	flags[1] = flags[1] & 0x03;
-	flags[1] = (flags[1] | (val << 0x02));
-}
-
-void set_esp_mesh_header_flag_direction(uint8_t *flags, uint8_t val) {
-	if (val) {
-		flags[1] = (flags[1] | 0x01);
-	} else {
-		flags[1] = (flags[1] & ~(0x01));
-	}
 }
 
 void timer_hb_do_ping_handler(void *opaque) {
@@ -843,28 +801,6 @@ bool hello_root_recv_handler(MeshStack *mesh_stack) {
 	return true;
 }
 
-bool is_mesh_header_valid(MeshPacketHeader *mesh_header) {
-	if (mesh_header->length < sizeof(MeshPacketHeader)) {
-		log_error("ESP mesh packet header length is to small");
-
-		return false;
-	}
-
-	if (get_esp_mesh_header_flag_direction((uint8_t *)&mesh_header->flags) == ESP_MESH_PACKET_DOWNWARDS) {
-		log_error("ESP mesh packet header has downward direction");
-
-		return false;
-	}
-
-	if (get_esp_mesh_header_flag_protocol((uint8_t *)&mesh_header->flags) != ESP_MESH_PAYLOAD_BIN) {
-		log_error("ESP mesh packet payload type is not binary");
-
-		return false;
-	}
-
-	return true;
-}
-
 int mesh_stack_dispatch_request(Stack *stack, Packet *request, Recipient *recipient) {
 	int ret = 0;
 	bool is_broadcast = true;
@@ -1011,23 +947,4 @@ bool hello_non_root_recv_handler(MeshStack *mesh_stack) {
 	          hello_mesh_pkt->header.src_addr[5]);
 
 	return true;
-}
-
-void esp_mesh_get_packet_header(MeshPacketHeader *mesh_header,
-                                uint8_t flag_direction,
-                                bool flag_p2p,
-                                uint8_t flag_protocol,
-                                uint16_t length,
-                                uint8_t *mesh_dst_addr,
-                                uint8_t *mesh_src_addr,
-                                uint8_t type) {
-	memset(mesh_header, 0, sizeof(MeshPacketHeader));
-	set_esp_mesh_header_flag_direction((uint8_t *)&mesh_header->flags, flag_direction);
-	set_esp_mesh_header_flag_p2p((uint8_t *)&mesh_header->flags, flag_p2p);
-	set_esp_mesh_header_flag_protocol((uint8_t *)&mesh_header->flags, flag_protocol);
-	mesh_header->length = length;
-
-	memcpy(&mesh_header->dst_addr, mesh_dst_addr, sizeof(mesh_header->dst_addr));
-	memcpy(&mesh_header->src_addr, mesh_src_addr, sizeof(mesh_header->src_addr));
-	mesh_header->type = type;
 }

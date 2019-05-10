@@ -27,7 +27,7 @@
 #include <daemonlib/socket.h>
 
 #include "stack.h"
-#include "daemonlib/packet.h"
+#include "mesh_packet.h"
 
 #define MAX_MESH_STACKS 64
 
@@ -40,80 +40,6 @@
 #define TIME_HB_WAIT_PONG (TIME_HB_DO_PING/2)
 #define TIME_CLEANUP_AFTER_RESET_SENT 4000000
 
-#define ESP_MESH_ADDRESS_LEN 6
-
-enum {
-	ESP_MESH_PACKET_DOWNWARDS = 0,
-	ESP_MESH_PACKET_UPWARDS,
-};
-
-enum {
-	ESP_MESH_PAYLOAD_NONE = 0,
-	ESP_MESH_PAYLOAD_HTTP,
-	ESP_MESH_PAYLOAD_JSON,
-	ESP_MESH_PAYLOAD_MQTT,
-	ESP_MESH_PAYLOAD_BIN,
-};
-
-enum {
-	MESH_PACKET_HELLO = 1,
-	MESH_PACKET_OLLEH,
-	MESH_PACKET_RESET,
-	MESH_PACKET_HB_PING,
-	MESH_PACKET_HB_PONG,
-	MESH_PACKET_TFP
-};
-
-// Packet types.
-#include "daemonlib/packed_begin.h"
-
-typedef struct {
-	/*
-	 * Flag bit size and assignment,
-	 *
-	 * version          :2
-	 * option_exist     :1
-	 * piggyback_permit :1
-	 * piggyback_request:1
-	 * reserved         :3
-	 * direction        :1, Upwards = 1, Downwards = 0
-	 * p2p              :1
-	 * protocol         :6
-	 */
-	uint16_t flags;
-	uint16_t length; // Packet total length (including mesh header).
-	uint8_t dst_addr[ESP_MESH_ADDRESS_LEN]; // Destination address.
-	uint8_t src_addr[ESP_MESH_ADDRESS_LEN]; // Source address.
-	uint8_t type;
-} ATTRIBUTE_PACKED MeshPacketHeader;
-
-typedef struct {
-	MeshPacketHeader header;
-	bool is_root_node;
-	uint8_t group_id[6];
-	char prefix[16];
-	uint8_t firmware_version[3];
-} ATTRIBUTE_PACKED MeshHelloPacket;
-
-typedef struct {
-	MeshPacketHeader header;
-} ATTRIBUTE_PACKED MeshOllehPacket;
-
-typedef struct {
-	MeshPacketHeader header;
-} ATTRIBUTE_PACKED MeshResetPacket;
-
-typedef struct {
-	MeshPacketHeader header;
-} ATTRIBUTE_PACKED MeshHeartBeatPacket;
-
-typedef struct {
-	MeshPacketHeader header;
-	Packet payload;
-} ATTRIBUTE_PACKED MeshPayloadPacket;
-
-#include "daemonlib/packed_end.h"
-
 // Mesh stack struct.
 typedef struct {
 	/*
@@ -121,7 +47,7 @@ typedef struct {
 	 * stack in the central list of stacks.
 	 */
 	Stack base;
-	Socket *sock;
+	Socket *sock; // FIXME_ does this have to be a pointer?
 	bool cleanup;
 	uint8_t state;
 	char prefix[16];
@@ -156,25 +82,8 @@ void hb_pong_recv_handler(MeshStack *mesh_stack);
 void arm_timer_hb_do_ping(MeshStack *mesh_stack);
 void broadcast_reset_packet(MeshStack *mesh_stack);
 bool hello_root_recv_handler(MeshStack *mesh_stack);
-bool get_esp_mesh_header_flag_p2p(uint8_t *flags);
 bool hello_non_root_recv_handler(MeshStack *mesh_stack);
-bool get_esp_mesh_header_flag_direction(uint8_t *flags);
-bool is_mesh_header_valid(MeshPacketHeader *mesh_header);
-uint8_t get_esp_mesh_header_flag_protocol(uint8_t *flags);
-void set_esp_mesh_header_flag_p2p(uint8_t *flags, bool val);
 void arm_timer_cleanup_after_reset_sent(MeshStack *mesh_stack);
-void set_esp_mesh_header_flag_protocol(uint8_t *flags, uint8_t val);
-void set_esp_mesh_header_flag_direction(uint8_t *flags, uint8_t val);
 int mesh_stack_dispatch_request(Stack *stack, Packet *request, Recipient *recipient);
-
-// Generate a mesh packet header.
-void esp_mesh_get_packet_header(MeshPacketHeader *mesh_header,
-                                uint8_t flag_direction,
-                                bool flag_p2p,
-                                uint8_t flag_protocol,
-                                uint16_t len,
-                                uint8_t *mesh_dst_addr,
-                                uint8_t *mesh_src_addr,
-                                uint8_t type);
 
 #endif // BRICKD_MESH_STACK_H
