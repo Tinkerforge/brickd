@@ -63,21 +63,92 @@ void mesh_packet_header_set_protocol(MeshPacketHeader *header, MeshPacketProtoco
 	header->flags |= ((uint16_t)protocol & 0x3F) << 10;
 }
 
-bool mesh_packet_header_is_valid_response(MeshPacketHeader *mesh_header, const char **message) {
-	if (mesh_header->length < sizeof(MeshPacketHeader)) {
-		*message = "ESP mesh packet header length is to small";
+bool mesh_packet_header_is_valid_response(MeshPacketHeader *header, const char **message) {
+	if (header->length < sizeof(MeshPacketHeader)) {
+		if (message != NULL) {
+			*message = "Length is too small";
+		}
 
 		return false;
 	}
 
-	if (mesh_packet_header_get_direction(mesh_header) != MESH_PACKET_DIRECTION_UPWARD) {
-		*message = "ESP mesh packet header has downward direction";
+	switch (header->type) {
+	case MESH_PACKET_TYPE_HELLO:
+		if (header->length != sizeof(MeshHelloPacket)) {
+			if (message != NULL) {
+				*message = "Length does not match packet type";
+			}
+
+			return false;
+		}
+
+		break;
+
+	case MESH_PACKET_TYPE_OLLEH:
+		if (header->length != sizeof(MeshOllehPacket)) {
+			if (message != NULL) {
+				*message = "Length does not match packet type";
+			}
+
+			return false;
+		}
+
+		break;
+
+	case MESH_PACKET_TYPE_RESET:
+		if (header->length != sizeof(MeshResetPacket)) {
+			if (message != NULL) {
+				*message = "Length does not match packet type";
+			}
+
+			return false;
+		}
+
+		break;
+
+	case MESH_PACKET_TYPE_HEART_BEAT_PING:
+	case MESH_PACKET_TYPE_HEART_BEAT_PONG:
+		if (header->length != sizeof(MeshHeartBeatPacket)) {
+			if (message != NULL) {
+				*message = "Length does not match packet type";
+			}
+
+			return false;
+		}
+
+		break;
+
+	case MESH_PACKET_TYPE_PAYLOAD:
+		if (header->length < sizeof(MeshPacketHeader) + sizeof(PacketHeader)) {
+			if (message != NULL) {
+				*message = "Length is too small";
+			}
+
+			return false;
+		}
+
+		break;
+
+	default:
+		if (message != NULL) {
+			*message = "Invalid packet type";
+		}
 
 		return false;
 	}
 
-	if (mesh_packet_header_get_protocol(mesh_header) != MESH_PACKET_PROTOCOL_BINARY) {
-		*message = "ESP mesh packet payload type is not binary";
+	if (mesh_packet_header_get_direction(header) != MESH_PACKET_DIRECTION_UPWARD) {
+		if (message != NULL) {
+			*message = "Invalid packet direction";
+		}
+
+		return false;
+	}
+
+	if (mesh_packet_header_get_protocol(header) != MESH_PACKET_PROTOCOL_BINARY) {
+		if (message != NULL) {
+			*message = "Invalid packet protocol";
+		}
 
 		return false;
 	}
