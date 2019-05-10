@@ -325,8 +325,7 @@ static void client_handle_read(void *opaque) {
 			client_handle_request(client, &request);
 		}
 
-		memmove(client->buffer, &client->buffer[length],
-		        client->buffer_used - length);
+		memmove(client->buffer, client->buffer + length, client->buffer_used - length);
 
 		client->buffer_used -= length;
 		client->header_checked = false;

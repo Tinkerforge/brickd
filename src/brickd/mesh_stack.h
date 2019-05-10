@@ -1,7 +1,7 @@
 /*
  * brickd
  * Copyright (C) 2016-2017 Ishraq Ibne Ashraf <ishraq@tinkerforge.com>
- * Copyright (C) 2017-2018 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2017-2019 Matthias Bolte <matthias@tinkerforge.com>
  *
  * mesh_stack.h: Mesh stack specific functions
  *
@@ -66,6 +66,7 @@ enum {
 
 // Packet types.
 #include "daemonlib/packed_begin.h"
+
 typedef struct {
 	/*
 	 * Flag bit size and assignment,
@@ -80,40 +81,37 @@ typedef struct {
 	 * protocol         :6
 	 */
 	uint16_t flags;
-	uint16_t len; // Packet total length (including mesh header).
+	uint16_t length; // Packet total length (including mesh header).
 	uint8_t dst_addr[ESP_MESH_ADDRESS_LEN]; // Destination address.
 	uint8_t src_addr[ESP_MESH_ADDRESS_LEN]; // Source address.
-} ATTRIBUTE_PACKED esp_mesh_header_t;
+	uint8_t type;
+} ATTRIBUTE_PACKED MeshPacketHeader;
 
 typedef struct {
-	esp_mesh_header_t header;
-	uint8_t type;
+	MeshPacketHeader header;
 	bool is_root_node;
 	uint8_t group_id[6];
 	char prefix[16];
 	uint8_t firmware_version[3];
-} ATTRIBUTE_PACKED pkt_mesh_hello_t;
+} ATTRIBUTE_PACKED MeshHelloPacket;
 
 typedef struct {
-	esp_mesh_header_t header;
-	uint8_t type;
-} ATTRIBUTE_PACKED pkt_mesh_olleh_t;
+	MeshPacketHeader header;
+} ATTRIBUTE_PACKED MeshOllehPacket;
 
 typedef struct {
-	esp_mesh_header_t header;
-	uint8_t type;
-} ATTRIBUTE_PACKED pkt_mesh_reset_t;
+	MeshPacketHeader header;
+} ATTRIBUTE_PACKED MeshResetPacket;
 
 typedef struct {
-	esp_mesh_header_t header;
-	uint8_t type;
-} ATTRIBUTE_PACKED pkt_mesh_hb_t;
+	MeshPacketHeader header;
+} ATTRIBUTE_PACKED MeshHeartBeatPacket;
 
 typedef struct {
-	esp_mesh_header_t header;
-	uint8_t type;
-	Packet pkt_tfp;
-} ATTRIBUTE_PACKED pkt_mesh_tfp_t;
+	MeshPacketHeader header;
+	Packet payload;
+} ATTRIBUTE_PACKED MeshPayloadPacket;
+
 #include "daemonlib/packed_end.h"
 
 // Mesh stack struct.
@@ -131,14 +129,20 @@ typedef struct {
 	Timer timer_wait_hello;
 	Timer timer_hb_do_ping;
 	Timer timer_hb_wait_pong;
-	int incoming_buffer_used;
-	bool mesh_header_checked;
 	char name[STACK_MAX_NAME_LENGTH];
 	Timer timer_cleanup_after_reset_sent;
 	uint8_t root_node_firmware_version[3];
 	uint8_t gw_addr[ESP_MESH_ADDRESS_LEN];
 	uint8_t root_node_addr[ESP_MESH_ADDRESS_LEN];
-	uint8_t incoming_buffer[sizeof(esp_mesh_header_t) + sizeof(Packet) + 1];
+	union {
+		uint8_t buffer[512];
+		MeshPacketHeader request_header;
+		MeshHelloPacket hello_request;
+		MeshHeartBeatPacket heart_beat_request;
+		MeshPayloadPacket payload_request;
+	};
+	int buffer_used;
+	bool header_checked;
 } MeshStack;
 
 void timer_hb_do_ping_handler(void *opaque);
@@ -155,7 +159,7 @@ bool hello_root_recv_handler(MeshStack *mesh_stack);
 bool get_esp_mesh_header_flag_p2p(uint8_t *flags);
 bool hello_non_root_recv_handler(MeshStack *mesh_stack);
 bool get_esp_mesh_header_flag_direction(uint8_t *flags);
-bool is_mesh_header_valid(esp_mesh_header_t *mesh_header);
+bool is_mesh_header_valid(MeshPacketHeader *mesh_header);
 uint8_t get_esp_mesh_header_flag_protocol(uint8_t *flags);
 void set_esp_mesh_header_flag_p2p(uint8_t *flags, bool val);
 void arm_timer_cleanup_after_reset_sent(MeshStack *mesh_stack);
@@ -164,12 +168,13 @@ void set_esp_mesh_header_flag_direction(uint8_t *flags, uint8_t val);
 int mesh_stack_dispatch_request(Stack *stack, Packet *request, Recipient *recipient);
 
 // Generate a mesh packet header.
-void esp_mesh_get_packet_header(esp_mesh_header_t *mesh_header,
+void esp_mesh_get_packet_header(MeshPacketHeader *mesh_header,
                                 uint8_t flag_direction,
                                 bool flag_p2p,
                                 uint8_t flag_protocol,
                                 uint16_t len,
                                 uint8_t *mesh_dst_addr,
-                                uint8_t *mesh_src_addr);
+                                uint8_t *mesh_src_addr,
+                                uint8_t type);
 
 #endif // BRICKD_MESH_STACK_H
