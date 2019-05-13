@@ -21,6 +21,7 @@
  */
 
 #include <string.h>
+#include <stdio.h>
 
 #include <daemonlib/macros.h>
 
@@ -171,4 +172,24 @@ void mesh_packet_header_create(MeshPacketHeader *header, MeshPacketDirection dir
 	memcpy(header->src_addr, src_addr, sizeof(header->src_addr));
 
 	header->type = type;
+}
+
+char *mesh_packet_get_dump(char *dump, uint8_t *packet, int length) {
+	int i;
+
+	if (length > (int)sizeof(MeshPayloadPacket)) {
+		length = (int)sizeof(MeshPayloadPacket);
+	}
+
+	for (i = 0; i < length; ++i) {
+		snprintf(dump + i * 3, 4, "%02X ", packet[i]);
+	}
+
+	if (length > 0) {
+		dump[length * 3 - 1] = '\0';
+	} else {
+		dump[0] = '\0';
+	}
+
+	return dump;
 }

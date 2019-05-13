@@ -86,6 +86,8 @@ typedef struct {
 
 #include <daemonlib/packed_end.h>
 
+#define MESH_PACKET_MAX_DUMP_LENGTH ((int)sizeof(MeshPayloadPacket) * 3 + 1)
+
 MeshPacketDirection mesh_packet_header_get_direction(MeshPacketHeader *header);
 void mesh_packet_header_set_direction(MeshPacketHeader *header, MeshPacketDirection direction);
 
@@ -95,10 +97,12 @@ void mesh_packet_header_set_p2p(MeshPacketHeader *header, bool p2p);
 MeshPacketProtocol mesh_packet_header_get_protocol(MeshPacketHeader *header);
 void mesh_packet_header_set_protocol(MeshPacketHeader *header, MeshPacketProtocol protocol);
 
+bool mesh_packet_header_is_valid_response(MeshPacketHeader *header, const char **message);
+
 void mesh_packet_header_create(MeshPacketHeader *header, MeshPacketDirection direction,
                                bool p2p, MeshPacketProtocol protocol, uint16_t length,
                                uint8_t *dst_addr, uint8_t *src_addr, MeshPacketType type);
 
-bool mesh_packet_header_is_valid_response(MeshPacketHeader *header, const char **message);
+char *mesh_packet_get_dump(char *dump, uint8_t *packet, int length);
 
 #endif // BRICKD_MESH_PACKET_H
