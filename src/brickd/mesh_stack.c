@@ -139,6 +139,29 @@ static void mesh_stack_recv_handler(void *opaque) {
 		}
 		// Handle TFP packet.
 		else if (mesh_pkt_type == MESH_PACKET_TYPE_PAYLOAD) {
+			if (mesh_stack->payload_response.header.length != sizeof(MeshPacketHeader) + mesh_stack->payload_response.payload.header.length) {
+				log_error("Received mesh response (packet: %s) with length mismatch (outer: %d != header + inner: %d) from mesh stack (N: %s), disconnecting mesh stack",
+				          mesh_packet_get_dump(mesh_packet_dump, mesh_stack->response_buffer, mesh_stack->response_buffer_used),
+				          mesh_stack->payload_response.header.length,
+				          (int)sizeof(MeshPacketHeader) + mesh_stack->payload_response.payload.header.length,
+				          mesh_stack->name);
+
+				mesh_stack->cleanup = true;
+
+				return;
+			}
+
+			if (!packet_header_is_valid_response(&mesh_stack->payload_response.payload.header, &message)) {
+				log_debug("Received invalid response (packet: %s) from mesh stack (N: %s), disconnecting mesh stack: %s",
+				          packet_get_dump(packet_dump, &mesh_stack->payload_response.payload, mesh_stack->response_buffer_used - sizeof(MeshPacketHeader)),
+				          mesh_stack->name,
+				          message);
+
+				mesh_stack->cleanup = true;
+
+				return;
+			}
+
 			tfp_recv_handler(mesh_stack);
 		}
 		// Packet type is unknown.
