@@ -114,7 +114,7 @@ static void usb_stack_read_callback(USBTransfer *usb_transfer) {
 
 	// check if packet is a valid response
 	if (!packet_header_is_valid_response(&usb_transfer->packet.header, &message)) {
-		log_debug("Received invalid response%s%s%s from %s: %s",
+		log_error("Received invalid response%s%s%s from %s: %s",
 		          usb_transfer->handle->actual_length > 0 ? " (packet: " : "",
 		          packet_get_dump(packet_dump, &usb_transfer->packet, usb_transfer->handle->actual_length),
 		          usb_transfer->handle->actual_length > 0 ? ")" : "",
