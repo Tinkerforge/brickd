@@ -329,10 +329,26 @@ void hello_recv_handler(MeshStack *mesh_stack) {
 	}
 }
 
-bool tfp_recv_handler(MeshStack *mesh_stack) {
+void tfp_recv_handler(MeshStack *mesh_stack) {
 	uint64_t mesh_src_addr = 0;
 	MeshPayloadPacket *pkt_mesh_tfp = &mesh_stack->payload_response;
 	char mesh_packet_dump[MESH_PACKET_MAX_DUMP_LENGTH];
+
+	// FIXME: the stack is not fully initialized until the hello packet is received
+	if (mesh_stack->state != MESH_STACK_STATE_OPERATIONAL) {
+		log_warn("Dropping mesh packet (T: TFP, L: %d, A: %02X-%02X-%02X-%02X-%02X-%02X, packet: %s), because mesh stack (N: %s) is not operational yet",
+		         pkt_mesh_tfp->header.length,
+		         pkt_mesh_tfp->header.src_addr[0],
+		         pkt_mesh_tfp->header.src_addr[1],
+		         pkt_mesh_tfp->header.src_addr[2],
+		         pkt_mesh_tfp->header.src_addr[3],
+		         pkt_mesh_tfp->header.src_addr[4],
+		         pkt_mesh_tfp->header.src_addr[5],
+		         mesh_packet_get_dump(mesh_packet_dump, (uint8_t *)pkt_mesh_tfp, pkt_mesh_tfp->header.length),
+		         mesh_stack->name);
+
+		return;
+	}
 
 	log_debug("Received mesh packet (T: TFP, L: %d, A: %02X-%02X-%02X-%02X-%02X-%02X, packet: %s)",
 	          pkt_mesh_tfp->header.length,
@@ -351,14 +367,12 @@ bool tfp_recv_handler(MeshStack *mesh_stack) {
 	if (stack_add_recipient(&mesh_stack->base, pkt_mesh_tfp->payload.header.uid, mesh_src_addr) < 0) {
 		log_error("Failed to add recipient to mesh stack");
 
-		return false;
+		return;
 	}
 
 	network_dispatch_response(&pkt_mesh_tfp->payload);
 
 	log_debug("TFP packet dispatched (L: %d)", pkt_mesh_tfp->payload.header.length);
-
-	return true;
 }
 
 void mesh_stack_destroy(MeshStack *mesh_stack) {
@@ -763,6 +777,10 @@ bool hello_root_recv_handler(MeshStack *mesh_stack) {
 #endif
 
 	// Create a new stack object for the mesh stack.
+	// FIXME: creating the stack here is too late. either create the stack earlier
+	//        or drop all TFP packets until a hello is received to avoid calling
+	//        stack functions (e.g. stack_add_recipient) before the stack object
+	//        is created
 	if (stack_create(&mesh_stack->base,
 	                 mesh_stack->name,
 	                 mesh_stack_dispatch_request) < 0) {

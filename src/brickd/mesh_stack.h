@@ -72,7 +72,7 @@ typedef struct {
 } MeshStack;
 
 void timer_hb_do_ping_handler(void *opaque);
-bool tfp_recv_handler(MeshStack *mesh_stack);
+void tfp_recv_handler(MeshStack *mesh_stack);
 void timer_hb_wait_pong_handler(void *opaque);
 void hello_recv_handler(MeshStack *mesh_stack);
 void mesh_stack_destroy(MeshStack *mesh_stack);
