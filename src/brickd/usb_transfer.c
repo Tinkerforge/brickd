@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2012-2018 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2012-2019 Matthias Bolte <matthias@tinkerforge.com>
  *
  * usb_transfer.c: libusb transfer specific functions
  *
@@ -260,7 +260,7 @@ int usb_transfer_submit(USBTransfer *usb_transfer) {
 	switch (usb_transfer->type) {
 	case USB_TRANSFER_TYPE_READ:
 		endpoint = usb_transfer->usb_stack->endpoint_in;
-		length = sizeof(Packet);
+		length = sizeof(usb_transfer->packet_buffer);
 		break;
 
 	case USB_TRANSFER_TYPE_WRITE:
@@ -285,7 +285,7 @@ int usb_transfer_submit(USBTransfer *usb_transfer) {
 	libusb_fill_bulk_transfer(usb_transfer->handle,
 	                          usb_transfer->usb_stack->device_handle,
 	                          endpoint,
-	                          (unsigned char *)&usb_transfer->packet,
+	                          usb_transfer->packet_buffer,
 	                          length,
 	                          usb_transfer_wrapper,
 	                          usb_transfer,
