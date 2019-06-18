@@ -100,11 +100,9 @@ static void usb_stack_read_callback(USBTransfer *usb_transfer) {
 
 	// check if USB transfer length and packet length in header mismatches
 	if (usb_transfer->handle->actual_length != usb_transfer->packet.header.length) {
-		log_error("Read transfer %p returned response%s%s%s with length mismatch (actual: %u != expected: %u) from %s",
+		log_error("Read transfer %p returned response (packet: %s) with length mismatch (actual: %u != expected: %u) from %s",
 		          usb_transfer,
-		          usb_transfer->handle->actual_length > 0 ? " (packet: " : "",
 		          packet_get_dump(packet_dump, &usb_transfer->packet, usb_transfer->handle->actual_length),
-		          usb_transfer->handle->actual_length > 0 ? ")" : "",
 		          usb_transfer->handle->actual_length,
 		          usb_transfer->packet.header.length,
 		          usb_transfer->usb_stack->base.name);
@@ -114,10 +112,8 @@ static void usb_stack_read_callback(USBTransfer *usb_transfer) {
 
 	// check if packet is a valid response
 	if (!packet_header_is_valid_response(&usb_transfer->packet.header, &message)) {
-		log_error("Received invalid response%s%s%s from %s: %s",
-		          usb_transfer->handle->actual_length > 0 ? " (packet: " : "",
+		log_error("Received invalid response (packet: %s) from %s: %s",
 		          packet_get_dump(packet_dump, &usb_transfer->packet, usb_transfer->handle->actual_length),
-		          usb_transfer->handle->actual_length > 0 ? ")" : "",
 		          usb_transfer->usb_stack->base.name,
 		          message);
 
