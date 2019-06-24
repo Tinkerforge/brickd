@@ -1,8 +1,8 @@
 diff --git a/libusb/core.c b/libusb/core.c
-index 50f92f6..41af7aa 100644
+index 741bf99..28186f8 100644
 --- a/libusb/core.c
 +++ b/libusb/core.c
-@@ -2398,20 +2398,32 @@ static void usbi_log_str(enum libusb_log_level level, const char *str)
+@@ -2553,20 +2553,32 @@ static void usbi_log_str(enum libusb_log_level level, const char *str)
  	UNUSED(level);
  }
  
@@ -37,10 +37,10 @@ index 50f92f6..41af7aa 100644
  	USBI_GET_CONTEXT(ctx);
  	if (ctx)
 diff --git a/libusb/io.c b/libusb/io.c
-index a03bfaa..8100551 100644
+index ef2b7c4..9a14438 100644
 --- a/libusb/io.c
 +++ b/libusb/io.c
-@@ -2722,7 +2722,6 @@ DEFAULT_VISIBILITY
+@@ -2738,7 +2738,6 @@ DEFAULT_VISIBILITY
  const struct libusb_pollfd ** LIBUSB_CALL libusb_get_pollfds(
  	libusb_context *ctx)
  {
@@ -48,7 +48,7 @@ index a03bfaa..8100551 100644
  	struct libusb_pollfd **ret = NULL;
  	struct usbi_pollfd *ipollfd;
  	size_t i = 0;
-@@ -2741,11 +2740,6 @@ const struct libusb_pollfd ** LIBUSB_CALL libusb_get_pollfds(
+@@ -2757,11 +2756,6 @@ const struct libusb_pollfd ** LIBUSB_CALL libusb_get_pollfds(
  out:
  	usbi_mutex_unlock(&ctx->event_data_lock);
  	return (const struct libusb_pollfd **) ret;
@@ -61,10 +61,10 @@ index a03bfaa..8100551 100644
  
  /** \ingroup libusb_poll
 diff --git a/libusb/libusb-1.0.def b/libusb/libusb-1.0.def
-index 3fd4b6b..76c09c7 100644
+index 6eba4ff..62363b7 100644
 --- a/libusb/libusb-1.0.def
 +++ b/libusb/libusb-1.0.def
-@@ -174,3 +174,15 @@ EXPORTS
+@@ -176,3 +176,15 @@ EXPORTS
    libusb_unref_device@4 = libusb_unref_device
    libusb_wait_for_event
    libusb_wait_for_event@8 = libusb_wait_for_event
@@ -81,7 +81,7 @@ index 3fd4b6b..76c09c7 100644
 +  usbi_close
 +  usbi_close@4 = usbi_close
 diff --git a/libusb/libusb-1.0.rc b/libusb/libusb-1.0.rc
-index 3dce6d5..864f87b 100644
+index 3dce6d5..3092bfa 100644
 --- a/libusb/libusb-1.0.rc
 +++ b/libusb/libusb-1.0.rc
 @@ -49,7 +49,7 @@ BEGIN
@@ -89,12 +89,12 @@ index 3dce6d5..864f87b 100644
  			VALUE "OriginalFilename", "libusb-1.0.dll\0"
  			VALUE "PrivateBuild", "\0"
 -			VALUE "ProductName", "libusb-1.0\0"
-+			VALUE "ProductName", "libusb-1.0-0034b2afdcdb1614e78edaa2a9e22d5936aeae5d-tf-20\0"
++			VALUE "ProductName", "libusb-1.0-f1e385390213aab96d2a40e4858ff0d019a1b0b7-tf-21\0"
  			VALUE "ProductVersion", LIBUSB_VERSIONSTRING
  			VALUE "SpecialBuild", "\0"
  		END
 diff --git a/libusb/libusb.h b/libusb/libusb.h
-index 430136b..4ae209a 100644
+index 8a6b0bf..a94160a 100644
 --- a/libusb/libusb.h
 +++ b/libusb/libusb.h
 @@ -60,6 +60,7 @@ typedef unsigned __int32  uint32_t;
@@ -105,15 +105,15 @@ index 430136b..4ae209a 100644
  
  #if defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 199901L)
  #define ZERO_SIZED_ARRAY		/* [] - valid C99 code */
-@@ -1296,7 +1297,6 @@ enum libusb_log_level {
+@@ -1321,7 +1322,6 @@ typedef void (LIBUSB_CALL *libusb_log_cb)(libusb_context *ctx,
  
  int LIBUSB_CALL libusb_init(libusb_context **ctx);
  void LIBUSB_CALL libusb_exit(libusb_context *ctx);
 -LIBUSB_DEPRECATED_FOR(libusb_set_option)
  void LIBUSB_CALL libusb_set_debug(libusb_context *ctx, int level);
+ void LIBUSB_CALL libusb_set_log_cb(libusb_context *ctx, libusb_log_cb cb, int mode);
  const struct libusb_version * LIBUSB_CALL libusb_get_version(void);
- int LIBUSB_CALL libusb_has_capability(uint32_t capability);
-@@ -2032,6 +2032,13 @@ enum libusb_option {
+@@ -2059,6 +2059,13 @@ enum libusb_option {
  
  int LIBUSB_CALL libusb_set_option(libusb_context *ctx, enum libusb_option option, ...);
  
@@ -128,13 +128,14 @@ index 430136b..4ae209a 100644
  }
  #endif
 diff --git a/libusb/os/poll_windows.c b/libusb/os/poll_windows.c
-index 4d28333..4a83992 100644
+index 208953b..f35ea9b 100644
 --- a/libusb/os/poll_windows.c
 +++ b/libusb/os/poll_windows.c
-@@ -117,6 +117,35 @@ struct winfd usbi_create_fd(void)
+@@ -119,9 +119,38 @@ struct winfd usbi_create_fd(void)
  	return wfd;
  }
  
+-int usbi_inc_fds_ref(struct pollfd *fds, unsigned int nfds)
 +typedef struct {
 +	CRITICAL_SECTION mutex;
 +	int index;
@@ -148,7 +149,8 @@ index 4d28333..4a83992 100644
 +} usbi_wait_object_wrapper;
 +
 +static void CALLBACK usbi_poll_callback(void *opaque, BOOLEAN timeout)
-+{
+ {
+-	int n;
 +	usbi_wait_object_wrapper *wrapper = (usbi_wait_object_wrapper *)opaque;
 +
 +	if (!timeout) {
@@ -164,10 +166,25 @@ index 4d28333..4a83992 100644
 +	}
 +}
 +
- static int check_pollfds(struct pollfd *fds, unsigned int nfds,
- 	HANDLE *wait_handles, DWORD *nb_wait_handles)
++void usbi_inc_fds_ref(struct pollfd *fds, unsigned int nfds)
++{
++	unsigned int n;
+ 	usbi_mutex_static_lock(&fd_table_lock);
+ 	for (n = 0; n < nfds; ++n) {
+ 		fd_table[fds[n].fd]->refcount++;
+@@ -129,9 +158,9 @@ int usbi_inc_fds_ref(struct pollfd *fds, unsigned int nfds)
+ 	usbi_mutex_static_unlock(&fd_table_lock);
+ }
+ 
+-int usbi_dec_fds_ref(struct pollfd *fds, unsigned int nfds)
++void usbi_dec_fds_ref(struct pollfd *fds, unsigned int nfds)
  {
-@@ -167,29 +196,103 @@ static int check_pollfds(struct pollfd *fds, unsigned int nfds,
+-	int n;
++	unsigned int n;
+ 	struct file_descriptor *fd;
+ 
+ 	usbi_mutex_static_lock(&fd_table_lock);
+@@ -206,29 +235,103 @@ static int check_pollfds(struct pollfd *fds, unsigned int nfds,
  
  	return nready;
  }
@@ -276,7 +293,7 @@ index 4d28333..4a83992 100644
  			nready = -1;
  		}
  	}
-@@ -200,7 +303,7 @@ int usbi_poll(struct pollfd *fds, unsigned int nfds, int timeout)
+@@ -239,7 +342,7 @@ int usbi_poll(struct pollfd *fds, unsigned int nfds, int timeout)
  /*
   * close a fake file descriptor
   */
@@ -285,7 +302,7 @@ index 4d28333..4a83992 100644
  {
  	struct file_descriptor *fd;
  
-@@ -237,7 +340,7 @@ err_badfd:
+@@ -280,7 +383,7 @@ err_badfd:
  * event. To that extent, we create a single wfd and overlapped as a means
  * to access that event.
  */
@@ -294,7 +311,7 @@ index 4d28333..4a83992 100644
  {
  	struct file_descriptor *fd;
  	int r_fd = -1, w_fd = -1;
-@@ -290,7 +393,7 @@ int usbi_pipe(int filedes[2])
+@@ -333,7 +436,7 @@ int usbi_pipe(int filedes[2])
  /*
   * synchronous write for fake "pipe" signaling
   */
@@ -303,7 +320,7 @@ index 4d28333..4a83992 100644
  {
  	int error = EBADF;
  
-@@ -328,7 +431,7 @@ err_out:
+@@ -371,7 +474,7 @@ err_out:
  /*
   * synchronous read for fake "pipe" signaling
   */
@@ -313,7 +330,7 @@ index 4d28333..4a83992 100644
  	int error = EBADF;
  
 diff --git a/libusb/os/poll_windows.h b/libusb/os/poll_windows.h
-index bd22c7f..4c3c76d 100644
+index 980870d..19e0e1b 100644
 --- a/libusb/os/poll_windows.h
 +++ b/libusb/os/poll_windows.h
 @@ -41,7 +41,7 @@
@@ -325,7 +342,7 @@ index bd22c7f..4c3c76d 100644
  
  #define POLLIN      0x0001    /* There is data to read */
  #define POLLPRI     0x0002    /* There is urgent data to read */
-@@ -65,11 +65,11 @@ extern const struct winfd INVALID_WINFD;
+@@ -65,14 +65,14 @@ extern const struct winfd INVALID_WINFD;
  
  struct winfd usbi_create_fd(void);
  
@@ -340,10 +357,15 @@ index bd22c7f..4c3c76d 100644
 +ssize_t LIBUSB_CALL usbi_read(int fd, void *buf, size_t count);
 +int LIBUSB_CALL usbi_close(int fd);
  
+-int usbi_inc_fds_ref(struct pollfd *fds, unsigned int nfds);
+-int usbi_dec_fds_ref(struct pollfd *fds, unsigned int nfds);
++void usbi_inc_fds_ref(struct pollfd *fds, unsigned int nfds);
++void usbi_dec_fds_ref(struct pollfd *fds, unsigned int nfds);
+ 
  /*
   * Timeval operations
 diff --git a/libusb/os/windows_nt_common.c b/libusb/os/windows_nt_common.c
-index 92dbde5..fe2281e 100644
+index 7ead83d..912b400 100644
 --- a/libusb/os/windows_nt_common.c
 +++ b/libusb/os/windows_nt_common.c
 @@ -897,8 +897,8 @@ static int windows_handle_events(struct libusb_context *ctx, struct pollfd *fds,
@@ -358,10 +380,10 @@ index 92dbde5..fe2281e 100644
  	}
  	usbi_mutex_unlock(&ctx->open_devs_lock);
 diff --git a/libusb/os/windows_winusb.c b/libusb/os/windows_winusb.c
-index 2c4a81e..d68db2d 100644
+index 423fb3d..43d8214 100644
 --- a/libusb/os/windows_winusb.c
 +++ b/libusb/os/windows_winusb.c
-@@ -808,6 +808,13 @@ static int init_device(struct libusb_device *dev, struct libusb_device *parent_d
+@@ -813,6 +813,13 @@ static int init_device(struct libusb_device *dev, struct libusb_device *parent_d
  			return LIBUSB_ERROR_NOT_FOUND;
  		}
  
@@ -375,7 +397,27 @@ index 2c4a81e..d68db2d 100644
  		// Calculate depth and fetch bus number
  		bus_number = parent_dev->bus_number;
  		if (bus_number == 0) {
-@@ -1106,6 +1113,7 @@ static int winusb_get_device_list(struct libusb_context *ctx, struct discovered_
+@@ -953,15 +960,15 @@ static int enumerate_hcd_root_hub(struct libusb_context *ctx, const char *dev_id
+ 	DEVINST child_devinst;
+ 
+ 	if (CM_Get_Child(&child_devinst, devinst, 0) != CR_SUCCESS) {
+-		usbi_err(ctx, "could not get child devinst for '%s'", dev_id);
+-		return LIBUSB_ERROR_OTHER;
++		usbi_warn(ctx, "could not get child devinst for '%s'", dev_id);
++		return LIBUSB_SUCCESS;
+ 	}
+ 
+ 	session_id = (unsigned long)child_devinst;
+ 	dev = usbi_get_device_by_session_id(ctx, session_id);
+ 	if (dev == NULL) {
+-		usbi_err(ctx, "program assertion failed - HCD '%s' child not found", dev_id);
+-		return LIBUSB_ERROR_NO_DEVICE;
++		usbi_warn(ctx, "HCD '%s' child not found", dev_id);
++		return LIBUSB_SUCCESS;
+ 	}
+ 
+ 	if (dev->bus_number == 0) {
+@@ -1134,6 +1141,7 @@ static int winusb_get_device_list(struct libusb_context *ctx, struct discovered_
  	char *dev_interface_path = NULL;
  	unsigned long session_id;
  	DWORD size, port_nr, reg_type, install_state;
@@ -383,7 +425,7 @@ index 2c4a81e..d68db2d 100644
  	HKEY key;
  	WCHAR guid_string_w[MAX_GUID_STRING_LENGTH];
  	GUID *if_guid;
-@@ -1174,7 +1182,7 @@ static int winusb_get_device_list(struct libusb_context *ctx, struct discovered_
+@@ -1202,7 +1210,7 @@ static int winusb_get_device_list(struct libusb_context *ctx, struct discovered_
  	}
  
  	for (pass = 0; ((pass < nb_guids) && (r == LIBUSB_SUCCESS)); pass++) {
@@ -392,7 +434,7 @@ index 2c4a81e..d68db2d 100644
  #if defined(ENABLE_LOGGING) && defined(ENUM_DEBUG)
  		const char * const passname[] = {"HUB", "DEV", "HCD", "GEN", "HID", "EXT"};
  		usbi_dbg("#### PROCESSING %ss %s", passname[MIN(pass, EXT_PASS)], guid_to_string(guid_list[pass]));
-@@ -1447,6 +1455,12 @@ static int winusb_get_device_list(struct libusb_context *ctx, struct discovered_
+@@ -1475,6 +1483,12 @@ static int winusb_get_device_list(struct libusb_context *ctx, struct discovered_
  				r = enumerate_hcd_root_hub(ctx, dev_id, (uint8_t)(i + 1), dev_info_data.DevInst);
  				break;
  			case GEN_PASS:
@@ -406,7 +448,7 @@ index 2c4a81e..d68db2d 100644
  				port_nr = 0;
  				if (!pSetupDiGetDeviceRegistryPropertyA(*dev_info, &dev_info_data, SPDRP_ADDRESS,
 diff --git a/libusb/os/windows_winusb.h b/libusb/os/windows_winusb.h
-index 597384a..43a1439 100644
+index 651d7c4..438ca49 100644
 --- a/libusb/os/windows_winusb.h
 +++ b/libusb/os/windows_winusb.h
 @@ -42,6 +42,9 @@
