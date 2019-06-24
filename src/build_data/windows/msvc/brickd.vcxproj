@@ -29,6 +29,7 @@
     <ClCompile Include="..\..\..\brickd\log_winapi.c" />
     <ClCompile Include="..\..\..\brickd\main_winapi.c" />
     <ClCompile Include="..\..\..\brickd\mesh.c" />
+    <ClCompile Include="..\..\..\brickd\mesh_packet.c" />
     <ClCompile Include="..\..\..\brickd\mesh_stack.c" />
     <ClCompile Include="..\..\..\brickd\network.c" />
     <ClCompile Include="..\..\..\brickd\service.c" />
@@ -68,6 +69,7 @@
     <ClInclude Include="..\..\..\brickd\hardware.h" />
     <ClInclude Include="..\..\..\brickd\hmac.h" />
     <ClInclude Include="..\..\..\brickd\mesh.h" />
+    <ClInclude Include="..\..\..\brickd\mesh_packet.h" />
     <ClInclude Include="..\..\..\brickd\mesh_stack.h" />
     <ClInclude Include="..\..\..\brickd\network.h" />
     <ClInclude Include="..\..\..\brickd\service.h" />

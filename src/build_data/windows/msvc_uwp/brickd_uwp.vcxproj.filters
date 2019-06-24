@@ -130,6 +130,9 @@
     <ClCompile Include="..\..\..\daemonlib\timer.c">
       <Filter>daemonlib</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\..\brickd\mesh_packet.c">
+      <Filter>brickd</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\daemonlib\base58.h">
@@ -253,6 +256,9 @@
       <Filter>brickd</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\brickd\zombie.h">
+      <Filter>brickd</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\brickd\mesh_packet.h">
       <Filter>brickd</Filter>
     </ClInclude>
   </ItemGroup>

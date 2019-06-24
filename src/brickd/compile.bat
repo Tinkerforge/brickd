@@ -74,6 +74,7 @@
  hmac.c^
  log_winapi.c^
  mesh.c^
+ mesh_packet.c^
  mesh_stack.c^
  main_winapi.c^
  network.c^
