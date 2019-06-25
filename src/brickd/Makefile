@@ -133,7 +133,7 @@ else
 	WITH_RED_BRICK := no
 endif
 
-ifneq ($(PLATFORM),Windows)
+ifeq ($(PLATFORM),Linux)
 	PKG_CONFIG := $(shell which pkg-config 2>/dev/null)
 
 ifeq ($(PKG_CONFIG),)
