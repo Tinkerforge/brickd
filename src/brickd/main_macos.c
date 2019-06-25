@@ -136,6 +136,13 @@ int main(int argc, char **argv) {
 		return config_check(CONFIG_FILENAME) < 0 ? EXIT_FAILURE : EXIT_SUCCESS;
 	}
 
+	if (daemon && launchd) {
+		fprintf(stderr, "Options --daemon and --launchd cannot be used at the same time\n\n");
+		print_usage();
+
+		return EXIT_FAILURE;
+	}
+
 	config_init(CONFIG_FILENAME);
 
 	phase = 1;
