@@ -47,23 +47,25 @@
 
 static LogSource _log_source = LOG_SOURCE_INITIALIZER;
 
-#define CONFIG_FILENAME (SYSCONFDIR "/brickd.conf")
-#define PID_FILENAME (LOCALSTATEDIR "/run/brickd.pid")
-#define LOG_FILENAME (LOCALSTATEDIR "/log/brickd.log")
+static const char *_config_filename = SYSCONFDIR"/brickd.conf";
+static const char *_pid_filename = LOCALSTATEDIR"/run/brickd.pid";
+static const char *_log_filename = LOCALSTATEDIR"/log/brickd.log";
 static File _log_file;
 
 static void print_usage(void) {
 	printf("Usage:\n"
-	       "  brickd [--help|--version|--check-config|--daemon|--launchd]\n"
-	       "         [--debug [<filter>]]\n"
+	       "  brickd [--help|--version|--check-config|--daemon [<log-file>]|--launchd [<log-file>]]\n"
+	       "         [--debug [<filter>]] [--config-file <config-file>] [--pid-file <pid-file>]\n"
 	       "\n"
 	       "Options:\n"
-	       "  --help              Show this help and exit\n"
-	       "  --version           Show version number and exit\n"
-	       "  --check-config      Check config file for errors and exit\n"
-	       "  --daemon            Run as daemon and write PID and log file\n"
-	       "  --launchd           Run as launchd daemon and write PID and log file\n"
-	       "  --debug [<filter>]  Set log level to debug and apply optional filter\n");
+	       "  --help                       Show this help and exit\n"
+	       "  --version                    Show version number and exit\n"
+	       "  --check-config               Check config file for errors and exit\n"
+	       "  --daemon [<log-file>]        Run as daemon and write log file to overridable location\n"
+	       "  --launchd [<log-file>]       Run as launchd daemon and write log file to overridable location\n"
+	       "  --debug [<filter>]           Set log level to debug and apply optional filter\n"
+	       "  --config-file <config-file>  Read config from <config-file> instead of default location\n"
+	       "  --pid-file <pid-file>        Write PID to <pid-file> instead of default location\n");
 }
 
 static void handle_sigusr1(void) {
@@ -104,13 +106,46 @@ int main(int argc, char **argv) {
 			check_config = true;
 		} else if (strcmp(argv[i], "--daemon") == 0) {
 			daemon = true;
+
+			if (i + 1 < argc && strncmp(argv[i + 1], "--", 2) != 0) {
+				_log_filename = argv[++i];
+
+				if (_log_filename[0] != '/') {
+					fprintf(stderr, "Option --daemon requires an absolute path\n\n");
+					print_usage();
+
+					return EXIT_FAILURE;
+				}
+			}
 		} else if (strcmp(argv[i], "--launchd") == 0) {
 			launchd = true;
+
+			if (i + 1 < argc && strncmp(argv[i + 1], "--", 2) != 0) {
+				_log_filename = argv[++i];
+			}
 		} else if (strcmp(argv[i], "--debug") == 0) {
 			if (i + 1 < argc && strncmp(argv[i + 1], "--", 2) != 0) {
 				debug_filter = argv[++i];
 			} else {
 				debug_filter = "";
+			}
+		} else if (strcmp(argv[i], "--config-file") == 0) {
+			if (i + 1 < argc && strncmp(argv[i + 1], "--", 2) != 0) {
+				_config_filename = argv[++i];
+			} else {
+				fprintf(stderr, "Option --config-file requires <config-file>\n\n");
+				print_usage();
+
+				return EXIT_FAILURE;
+			}
+		} else if (strcmp(argv[i], "--pid-file") == 0) {
+			if (i + 1 < argc && strncmp(argv[i + 1], "--", 2) != 0) {
+				_pid_filename = argv[++i];
+			} else {
+				fprintf(stderr, "Option --pid-file requires <pid-file>\n\n");
+				print_usage();
+
+				return EXIT_FAILURE;
 			}
 		} else {
 			fprintf(stderr, "Unknown option '%s'\n\n", argv[i]);
@@ -133,7 +168,7 @@ int main(int argc, char **argv) {
 	}
 
 	if (check_config) {
-		return config_check(CONFIG_FILENAME) < 0 ? EXIT_FAILURE : EXIT_SUCCESS;
+		return config_check(_config_filename) < 0 ? EXIT_FAILURE : EXIT_SUCCESS;
 	}
 
 	if (daemon && launchd) {
@@ -143,13 +178,13 @@ int main(int argc, char **argv) {
 		return EXIT_FAILURE;
 	}
 
-	config_init(CONFIG_FILENAME);
+	config_init(_config_filename);
 
 	phase = 1;
 
 	if (config_has_error()) {
 		fprintf(stderr, "Error(s) occurred while reading config file '%s'\n",
-		        CONFIG_FILENAME);
+		        _config_filename);
 
 		goto cleanup;
 	}
@@ -157,12 +192,12 @@ int main(int argc, char **argv) {
 	log_init();
 
 	if (daemon || launchd) {
-		pid_fd = daemon_start(LOG_FILENAME, &_log_file, PID_FILENAME, !launchd);
+		pid_fd = daemon_start(_log_filename, &_log_file, _pid_filename, !launchd);
 	} else {
-		pid_fd = pid_file_acquire(PID_FILENAME, getpid());
+		pid_fd = pid_file_acquire(_pid_filename, getpid());
 
 		if (pid_fd == PID_FILE_ALREADY_ACQUIRED) {
-			fprintf(stderr, "Already running according to '%s'\n", PID_FILENAME);
+			fprintf(stderr, "Already running according to '%s'\n", _pid_filename);
 		}
 	}
 
@@ -173,7 +208,7 @@ int main(int argc, char **argv) {
 	}
 
 	log_info("Brick Daemon %s started (pid: %u, daemonized: %d)",
-	         VERSION_STRING, getpid(), daemon ? 1 : 0);
+	         VERSION_STRING, getpid(), daemon || launchd ? 1 : 0);
 
 	phase = 3;
 
@@ -181,9 +216,17 @@ int main(int argc, char **argv) {
 		log_enable_debug_override(debug_filter);
 	}
 
+	log_debug("Using config file: %s", _config_filename);
+
+	if (daemon || launchd) {
+		log_debug("Using log file: %s", _log_filename);
+	}
+
+	log_debug("Using PID file: %s", _pid_filename);
+
 	if (config_has_warning()) {
 		log_warn("Warning(s) in config file '%s', run with --check-config option for details",
-		         CONFIG_FILENAME);
+		         _config_filename);
 	}
 
 	if (event_init() < 0) {
@@ -270,7 +313,7 @@ cleanup:
 
 	case 2:
 		if (pid_fd >= 0) {
-			pid_file_release(PID_FILENAME, pid_fd);
+			pid_file_release(_pid_filename, pid_fd);
 		}
 
 		log_exit();
