@@ -30,8 +30,6 @@
 #include <daemonlib/threads.h>
 #include <daemonlib/utils.h>
 
-#include "log_messages.h"
-
 static LogSource _log_source = LOG_SOURCE_INITIALIZER;
 
 enum { // bitmask
@@ -61,7 +59,6 @@ typedef struct {
 static IO *_output = NULL;
 static HANDLE _console = NULL;
 static WORD _default_attributes = 0;
-static HANDLE _event_log = NULL;
 static bool _named_pipe_connected = false;
 static bool _named_pipe_running = false;
 static HANDLE _named_pipe = INVALID_HANDLE_VALUE;
@@ -71,7 +68,6 @@ static Mutex _named_pipe_write_event_mutex; // protects _named_pipe_write_event
 static HANDLE _named_pipe_stop_event = NULL;
 
 void log_set_output_platform(IO *output);
-void log_apply_color_platform(LogLevel level, bool begin);
 
 static WORD log_prepare_color_attributes(WORD color) {
 	WORD attributes = _default_attributes;
@@ -303,16 +299,6 @@ void log_init_platform(IO *output) {
 
 	mutex_create(&_named_pipe_write_event_mutex);
 
-	// open event log
-	_event_log = RegisterEventSourceA(NULL, "Brick Daemon");
-
-	if (_event_log == NULL) {
-		rc = ERRNO_WINAPI_OFFSET + GetLastError();
-
-		log_error("Could not open Windows event log: %s (%d)",
-		          get_errno_name(rc), rc);
-	}
-
 	// create named pipe for log messages
 	_named_pipe_write_event = CreateEventA(NULL, TRUE, FALSE, NULL);
 
@@ -383,10 +369,6 @@ void log_exit_platform(void) {
 
 	if (_named_pipe_write_event != NULL) {
 		CloseHandle(_named_pipe_write_event);
-	}
-
-	if (_event_log != NULL) {
-		DeregisterEventSource(_event_log);
 	}
 
 	mutex_destroy(&_named_pipe_write_event_mutex);
@@ -462,8 +444,7 @@ bool log_is_included_platform(LogLevel level, LogSource *source,
 	(void)source;
 	(void)debug_group;
 
-	return _named_pipe_connected ||
-	       level == LOG_LEVEL_ERROR || level == LOG_LEVEL_WARN;
+	return _named_pipe_connected;
 }
 
 // NOTE: assumes that _mutex (in log.c) is locked
@@ -472,56 +453,23 @@ void log_write_platform(struct timeval *timestamp, LogLevel level,
                         const char *function, int line,
                         const char *format, va_list arguments) {
 	LogPipeMessage message;
-	WORD type;
-	DWORD event_id;
-	LPCSTR insert_strings[1];
 
 	(void)debug_group;
 
-	if (_event_log == NULL && !_named_pipe_connected) {
+	if (!_named_pipe_connected) {
 		return;
 	}
 
 	vsnprintf(message.message, sizeof(message.message), format, arguments);
 
-	if (_event_log != NULL) {
-		switch (level) {
-		case LOG_LEVEL_ERROR:
-			type = EVENTLOG_ERROR_TYPE;
-			event_id = source->libusb ? BRICKD_LIBUSB_ERROR : BRICKD_GENERIC_ERROR;
-			insert_strings[0] = message.message;
-			break;
+	message.length = sizeof(message);
+	message.flags = source->libusb ? LOG_PIPE_MESSAGE_FLAG_LIBUSB : 0;
+	message.timestamp = (uint64_t)timestamp->tv_sec * 1000000 + timestamp->tv_usec;
+	message.level = level;
+	message.line = line;
 
-		case LOG_LEVEL_WARN:
-			type = EVENTLOG_WARNING_TYPE;
-			event_id = source->libusb ? BRICKD_LIBUSB_WARNING : BRICKD_GENERIC_WARNING;
-			insert_strings[0] = message.message;
-			break;
+	string_copy(message.source, sizeof(message.source),
+	            source->libusb ? function : source->name, -1);
 
-		default:
-			// ignore all other log levels for the event log
-			type = 0;
-			event_id = 0;
-			insert_strings[0] = NULL;
-			break;
-		}
-
-		if (insert_strings[0] != NULL) {
-			ReportEventA(_event_log, type, 0, event_id, NULL, 1, 0,
-			             insert_strings, NULL);
-		}
-	}
-
-	if (_named_pipe_connected) {
-		message.length = sizeof(message);
-		message.flags = source->libusb ? LOG_PIPE_MESSAGE_FLAG_LIBUSB : 0;
-		message.timestamp = (uint64_t)timestamp->tv_sec * 1000000 + timestamp->tv_usec;
-		message.level = level;
-		message.line = line;
-
-		string_copy(message.source, sizeof(message.source),
-		            source->libusb ? function : source->name, -1);
-
-		log_send_pipe_message(&message);
-	}
+	log_send_pipe_message(&message);
 }

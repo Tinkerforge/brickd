@@ -329,7 +329,7 @@ OBJECTS := ${SOURCES:.c=.o}
 DEPENDS := ${SOURCES:.c=.p}
 
 ifeq ($(PLATFORM),Windows)
-	OBJECTS += brickd.o log_messages.o
+	OBJECTS += brickd.o
 	TARGET := brickd.exe
 	DIST := ..\dist\brickd.exe
 else
@@ -523,10 +523,6 @@ ifeq ($(WITH_MESH_SINGLE_ROOT_NODE),yes)
 	CFLAGS += -DBRICKD_WITH_MESH_SINGLE_ROOT_NODE
 endif
 
-ifeq ($(PLATFORM),Windows)
-	GENERATED := log_messages.h log_messages.rc log_messages_MSG0409.bin
-endif
-
 ifneq ($(MAKECMDGOALS),clean)
 $(info libraries/tools:)
 $(info - libusb:                $(LIBUSB_STATUS))
@@ -559,11 +555,9 @@ all: $(DIST) $(TARGET) Makefile
 	$(E)copy "brickd.exe" "..\dist\"
 	@echo CP libusb-1.0.dll
 	$(E)copy "..\build_data\windows\libusb\libusb-1.0.dll" "..\dist\"
-	@echo CP brickd.ini
-	$(E)copy "..\build_data\windows\brickd.ini" "..\dist\"
 
 clean: Makefile
-	$(E)$(RM) $(GENERATED) $(OBJECTS) $(TARGET) $(DEPENDS)
+	$(E)$(RM) $(OBJECTS) $(TARGET) $(DEPENDS)
 
 $(TARGET): $(OBJECTS) Makefile
 	@echo LD $@
@@ -654,11 +648,7 @@ ifeq ($(WITH_SYSTEMD),yes)
 	$(E)$(INSTALL) -m 644 ../build_data/linux/installer/lib/systemd/system/brickd-resume.service $(syslibdir)/systemd/system
 endif
 
-log_messages.h log_messages.rc log_messages_MSG0409.bin: log_messages.mc Makefile
-	@echo GEN $@
-	$(E)windmc -A -b log_messages.mc
-
-%.o: %.c $(GENERATED) Makefile
+%.o: %.c Makefile
 	@echo CC $@
 ifneq ($(PLATFORM),Windows)
 	$(E)$(CC) -M $(CFLAGS) -o $*.d $<; cp $*.d $*.p; sed -e 's/#.*//' -e 's/^[^:]*: *//' -e 's/ *\\$$//' -e '/^$$/ d' -e 's/$$/ :/' < $*.d >> $*.p; rm -f $*.d

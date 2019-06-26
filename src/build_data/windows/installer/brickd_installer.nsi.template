@@ -134,7 +134,7 @@ FunctionEnd
 
 
 
-Name "Brick Daemon <<BRICKD_DOT_VERSION>>"
+Name "Brick Daemon <<BRICKD_VERSION>>"
 
 OutFile "brickd_windows_<<BRICKD_UNDERSCORE_VERSION>>.exe"
 
@@ -152,7 +152,7 @@ RequestExecutionLevel admin
 
 ;--------------------------------
 
-!define BRICKD_VERSION <<BRICKD_DOT_VERSION>>
+!define BRICKD_VERSION <<BRICKD_VERSION>>
 
 ;--------------------------------
 
@@ -220,6 +220,20 @@ Section "Install Brick Daemon ${BRICKD_VERSION}"
   SetOutPath "$INSTDIR"
   File /r /x installer ..\*
 
+  SetShellVarContext all
+  CreateDirectory "$APPDATA\Tinkerforge\Brickd"
+  IfFileExists "$APPDATA\Tinkerforge\Brickd\brickd.ini" done_ini copy_ini
+
+copy_ini:
+  CopyFiles "$INSTDIR\brickd-default.ini" "$APPDATA\Tinkerforge\Brickd\brickd.ini"
+
+done_ini:
+  CreateShortCut "$INSTDIR\brickd.ini.lnk" "$APPDATA\Tinkerforge\Brickd\brickd.ini"
+  FileOpen $0 "$APPDATA\Tinkerforge\Brickd\brickd.log" a
+  FileClose $0
+  CreateShortCut "$INSTDIR\brickd.log.lnk" "$APPDATA\Tinkerforge\Brickd\brickd.log"
+  SetShellVarContext current
+
   ; Write the installation path into the registry
   WriteRegStr HKLM "Software\Tinkerforge\Brickd" "Install_Dir" "$INSTDIR"
   WriteRegStr HKLM "Software\Tinkerforge\Brickd" "Version" ${BRICKD_VERSION}
@@ -236,8 +250,8 @@ Section "Install Brick Daemon ${BRICKD_VERSION}"
   ; Create start menu shortcut for all users
   SetOutPath "$INSTDIR" ; set working directory for logviewer.exe
   SetShellVarContext all
-  createDirectory "$SMPROGRAMS\Tinkerforge"
-  createShortCut "$SMPROGRAMS\Tinkerforge\Brickd ${BRICKD_VERSION} - Log Viewer.lnk" "$INSTDIR\logviewer.exe"
+  CreateDirectory "$SMPROGRAMS\Tinkerforge"
+  CreateShortCut "$SMPROGRAMS\Tinkerforge\Brickd ${BRICKD_VERSION} - Log Viewer.lnk" "$INSTDIR\logviewer.exe"
   SetShellVarContext current
 
 SectionEnd

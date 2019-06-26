@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2012-2014, 2016, 2018 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2012-2014, 2016, 2018-2019 Matthias Bolte <matthias@tinkerforge.com>
  *
  * service.c: Windows service specific functions
  *
@@ -31,7 +31,6 @@ static LogSource _log_source = LOG_SOURCE_INITIALIZER;
 
 static char *_service_name = "Brick Daemon";
 static char *_service_description = "Brick Daemon is a bridge between USB devices (Bricks) and TCP/IP sockets. It can be used to read out and control Bricks.";
-static char *_event_log_key_name = "SYSTEM\\CurrentControlSet\\Services\\EventLog\\Application\\Brick Daemon";
 static SERVICE_STATUS _service_status;
 static SERVICE_STATUS_HANDLE _service_status_handle = 0;
 
@@ -142,23 +141,16 @@ char *service_get_name(void) {
 	return _service_name;
 }
 
-int service_install(bool log_to_file, const char *debug_filter) {
+int service_install(const char *debug_filter) {
 	SC_HANDLE service_control_manager;
 	int rc;
 	char filename[1024];
 	char quoted_filename[1024];
-	HKEY key = NULL;
-	DWORD types = EVENTLOG_ERROR_TYPE | EVENTLOG_WARNING_TYPE;
 	SC_HANDLE service;
 	SERVICE_DESCRIPTIONA description;
-	const char *buffer[3];
+	const char *buffer[2];
 	DWORD argc = 0;
 	const char **argv = NULL;
-
-	if (log_to_file) {
-		buffer[argc++] = "--log-to-file";
-		argv = buffer;
-	}
 
 	if (debug_filter != NULL) {
 		buffer[argc++] = "--debug";
@@ -177,15 +169,6 @@ int service_install(bool log_to_file, const char *debug_filter) {
 		        get_errno_name(rc), rc);
 
 		return -1;
-	}
-
-	// register message catalog for event log
-	if (RegCreateKeyA(HKEY_LOCAL_MACHINE, _event_log_key_name, &key) == ERROR_SUCCESS) {
-		RegSetValueExA(key, "EventMessageFile", 0, REG_EXPAND_SZ,
-		               (PBYTE)filename, strlen(filename));
-		RegSetValueExA(key, "TypesSupported", 0, REG_DWORD,
-		               (LPBYTE)&types, sizeof(DWORD));
-		RegCloseKey(key);
 	}
 
 	// open service control manager
@@ -277,11 +260,7 @@ int service_install(bool log_to_file, const char *debug_filter) {
 	} else {
 		// FIXME: query status and wait until service is really started
 
-		if (log_to_file && debug_filter != NULL) {
-			printf("Started '%s' service with --log-to-file and --debug option\n", _service_name);
-		} else if (log_to_file) {
-			printf("Started '%s' service with --log-to-file option\n", _service_name);
-		} else if (debug_filter != NULL) {
+		if (debug_filter != NULL) {
 			printf("Started '%s' service with --debug option\n", _service_name);
 		} else {
 			printf("Started '%s' service\n", _service_name);
@@ -413,9 +392,6 @@ int service_uninstall(void) {
 
 	CloseServiceHandle(service);
 	CloseServiceHandle(service_control_manager);
-
-	// unregister message catalog for event log
-	RegDeleteKeyA(HKEY_LOCAL_MACHINE, _event_log_key_name);
 
 	return 0;
 }

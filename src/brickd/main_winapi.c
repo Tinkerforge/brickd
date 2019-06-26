@@ -31,6 +31,7 @@
 #include <conio.h>
 #include <fcntl.h>
 #include <sys/stat.h>
+#include <shlobj.h>
 
 #ifndef BRICKD_WDK_BUILD
 	#include <tlhelp32.h>
@@ -70,6 +71,7 @@ BOOL WINAPI Process32Next(HANDLE hSnapshot, PROCESSENTRY32 *lppe);
 
 static LogSource _log_source = LOG_SOURCE_INITIALIZER;
 
+static char _program_data_directory[MAX_PATH];
 static char _config_filename[1024];
 static bool _run_as_service = true;
 static bool _pause_before_exit = false;
@@ -272,8 +274,7 @@ static int generic_main(bool log_to_file, const char *debug_filter) {
 	bool fatal_error = false;
 	DWORD service_exit_code = NO_ERROR;
 	int rc;
-	char filename[1024];
-	int i;
+	char log_filename[1024];
 	File log_file;
 	WSADATA wsa_data;
 
@@ -337,31 +338,18 @@ static int generic_main(bool log_to_file, const char *debug_filter) {
 	}
 
 	if (log_to_file) {
-		if (GetModuleFileNameA(NULL, filename, sizeof(filename)) == 0) {
-			rc = ERRNO_WINAPI_OFFSET + GetLastError();
+		string_copy(log_filename, sizeof(log_filename), _program_data_directory, -1);
+		string_append(log_filename, sizeof(log_filename), "brickd.log");
 
-			log_warn("Could not get module file name: %s (%d)",
-			         get_errno_name(rc), rc);
+		if (file_create(&log_file, log_filename,
+		                _O_CREAT | _O_WRONLY | _O_APPEND | _O_BINARY,
+		                _S_IREAD | _S_IWRITE) < 0) {
+			log_warn("Could not open log file '%s': %s (%d)",
+			         log_filename, get_errno_name(errno), errno);
 		} else {
-			i = strlen(filename);
+			printf("Logging to '%s'\n", log_filename);
 
-			if (i < 4) {
-				log_warn("Module file name '%s' is too short", filename);
-			} else {
-				filename[i - 3] = '\0';
-				string_append(filename, sizeof(filename), "log");
-
-				if (file_create(&log_file, filename,
-				                _O_CREAT | _O_WRONLY | _O_APPEND | _O_BINARY,
-				                _S_IREAD | _S_IWRITE) < 0) {
-					log_warn("Could not open log file '%s': %s (%d)",
-					         filename, get_errno_name(errno), errno);
-				} else {
-					printf("Logging to '%s'\n", filename);
-
-					log_set_output(&log_file.base);
-				}
-			}
+			log_set_output(&log_file.base);
 		}
 	} else if (_run_as_service) {
 		log_set_output(NULL);
@@ -385,11 +373,7 @@ static int generic_main(bool log_to_file, const char *debug_filter) {
 		goto init;
 	}
 
-	if (_run_as_service) {
-		log_info("Brick Daemon %s started (as service)", VERSION_STRING);
-	} else {
-		log_info("Brick Daemon %s started", VERSION_STRING);
-	}
+	log_info("Brick Daemon %s started%s", VERSION_STRING, _run_as_service ? " (as service)" : "");
 
 	if (debug_filter != NULL) {
 		log_enable_debug_override(debug_filter);
@@ -546,13 +530,10 @@ exit:
 
 static void WINAPI service_main(DWORD argc, char **argv) {
 	DWORD i;
-	bool log_to_file = false;
 	const char *debug_filter = NULL;
 
 	for (i = 1; i < argc; ++i) {
-		if (strcmp(argv[i], "--log-to-file") == 0) {
-			log_to_file = true;
-		} else if (strcmp(argv[i], "--debug") == 0) {
+		if (strcmp(argv[i], "--debug") == 0) {
 			if (i + 1 < argc && strncmp(argv[i + 1], "--", 2) != 0) {
 				debug_filter = argv[++i];
 			} else {
@@ -563,7 +544,7 @@ static void WINAPI service_main(DWORD argc, char **argv) {
 		}
 	}
 
-	generic_main(log_to_file, debug_filter);
+	generic_main(true, debug_filter);
 }
 
 static int service_run(bool log_to_file, const char *debug_filter) {
@@ -647,6 +628,7 @@ int main(int argc, char **argv) {
 	bool console = false;
 	bool log_to_file = false;
 	const char *debug_filter = NULL;
+	HRESULT hrc;
 	int rc;
 
 	fixes_init();
@@ -692,25 +674,22 @@ int main(int argc, char **argv) {
 		return EXIT_SUCCESS;
 	}
 
-	if (GetModuleFileNameA(NULL, _config_filename, sizeof(_config_filename)) == 0) {
-		rc = ERRNO_WINAPI_OFFSET + GetLastError();
+	hrc = SHGetFolderPathA(NULL, CSIDL_COMMON_APPDATA, NULL, 0, _program_data_directory);
 
-		fprintf(stderr, "Could not get module file name: %s (%d)\n",
-		        get_errno_name(rc), rc);
-
-		return EXIT_FAILURE;
-	}
-
-	i = strlen(_config_filename);
-
-	if (i < 4) {
-		fprintf(stderr, "Module file name '%s' is too short", _config_filename);
+	if (!SUCCEEDED(hrc)) {
+		fprintf(stderr, "Could not get program data directory: %08x\n", hrc);
 
 		return EXIT_FAILURE;
 	}
 
-	_config_filename[i - 3] = '\0';
-	string_append(_config_filename, sizeof(_config_filename), "ini");
+	if (!string_ends_with(_program_data_directory, "\\", false)) {
+		string_append(_program_data_directory, sizeof(_program_data_directory), "\\");
+	}
+
+	string_append(_program_data_directory, sizeof(_program_data_directory), "Tinkerforge\\Brickd\\");
+
+	string_copy(_config_filename, sizeof(_config_filename), _program_data_directory, -1);
+	string_append(_config_filename, sizeof(_config_filename), "brickd.ini");
 
 	if (check_config) {
 		rc = config_check(_config_filename);
@@ -724,14 +703,14 @@ int main(int argc, char **argv) {
 	}
 
 	if (install && uninstall) {
-		fprintf(stderr, "Invalid option combination\n");
+		fprintf(stderr, "Options --install and --uninstall cannot be used at the same time\n\n");
 		print_usage();
 
 		return EXIT_FAILURE;
 	}
 
 	if (install) {
-		if (service_install(log_to_file, debug_filter) < 0) {
+		if (service_install(debug_filter) < 0) {
 			return EXIT_FAILURE;
 		}
 	} else if (uninstall) {

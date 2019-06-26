@@ -174,7 +174,7 @@ def build_windows_pkg():
     installer_path = os.path.join(dist_path, 'installer', 'brickd_installer.nsi')
     os.makedirs(os.path.join(dist_path, 'installer'))
     specialize_template(installer_template_path, installer_path,
-                        {'<<BRICKD_DOT_VERSION>>': version,
+                        {'<<BRICKD_VERSION>>': version,
                          '<<BRICKD_UNDERSCORE_VERSION>>': version.replace('.', '_')})
 
     print('copying build data')
@@ -182,7 +182,7 @@ def build_windows_pkg():
     dist_drivers_path = os.path.join(dist_path, 'drivers')
     shutil.copytree(drivers_path, dist_drivers_path)
     shutil.copy(os.path.join(build_data_path, 'readme.txt'), dist_path)
-    shutil.copy(os.path.join(build_data_path, 'brickd.ini'), dist_path)
+    shutil.copy(os.path.join(build_data_path, 'brickd-default.ini'), dist_path)
     shutil.copy(os.path.join(build_data_path, 'logviewer', 'logviewer.exe'), dist_path)
     shutil.copy(os.path.join(build_data_path, 'logviewer', 'logviewer.pdb'), dist_path)
 

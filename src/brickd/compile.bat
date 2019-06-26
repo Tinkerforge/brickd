@@ -39,9 +39,7 @@
 @set CC=%CC% /I..\build_data\windows /I..\build_data\windows\libusb /I..
 @set LD=%LD% /libpath:..\build_data\windows\libusb
 
-@del *.obj *.res *.bin *.exp *.manifest *.pdb *.exe log_messages.h log_messages.rc
-
-%MC% -A -b log_messages.mc
+@del *.obj *.res *.bin *.exp *.manifest *.pdb *.exe
 
 %CC% /FI..\brickd\fixes_msvc.h^
  ..\daemonlib\array.c^
@@ -89,22 +87,20 @@
  websocket.c^
  zombie.c
 
-%RC% /folog_messages.res log_messages.rc
 %RC% /fobrickd.res brickd.rc
 
-%LD% /out:brickd.exe *.obj *.res libusb-1.0.lib advapi32.lib user32.lib ws2_32.lib
+%LD% /out:brickd.exe *.obj *.res libusb-1.0.lib advapi32.lib user32.lib ws2_32.lib shell32.lib
 
 @if exist brickd.exe.manifest^
  %MT% /manifest brickd.exe.manifest -outputresource:brickd.exe
 
-@del *.obj *.res *.bin *.exp *.manifest log_messages.h log_messages.rc
+@del *.obj *.res *.bin *.exp *.manifest
 
 @if not exist ..\dist mkdir ..\dist
 copy brickd.exe ..\dist\
 copy brickd.pdb ..\dist\
 copy ..\build_data\windows\libusb\libusb-1.0.dll ..\dist\
 copy ..\build_data\windows\libusb\libusb-1.0.pdb ..\dist\
-copy ..\build_data\windows\brickd.ini ..\dist\
 
 :done
 @endlocal
