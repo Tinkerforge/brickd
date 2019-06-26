@@ -27,6 +27,7 @@ import sys
 import os
 import shutil
 import subprocess
+import time
 
 
 def system(command):
@@ -155,6 +156,7 @@ def build_windows_pkg():
 
     if os.path.exists(dist_path):
         shutil.rmtree(dist_path)
+        time.sleep(1) # FIXME: without this sleep the following makedirs call fails with an access-denied error
 
     os.makedirs(dist_path)
 
