@@ -2,7 +2,7 @@
  * log viewer for brickd
  * Copyright (C) 2013-2015, 2019 Matthias Bolte <matthias@tinkerforge.com>
  *
- * logviewer.c: Shows event log for brickd
+ * logviewer.c: Shows brickd log file
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -27,25 +27,142 @@
 #include <windows.h>
 #include <commctrl.h>
 #include <commdlg.h>
+#include <shlobj.h>
+#include <shellapi.h>
 
-#include "log_messages.h"
-#include "version.h"
+#include "../../../brickd/version.h"
 #include "resources.h"
 
-static const char *_title = "Brick Daemon - Log Viewer " VERSION_STRING;
-static HINSTANCE _hinstance = NULL;
-static HANDLE _event_log = NULL;
-static HWND _hwnd = NULL;
-static HMENU _view_menu = NULL;
-static HWND _status_bar = NULL;
-static HWND _event_list_view = NULL;
-static HWND _debug_list_view = NULL;
-static HWND _current_list_view = NULL;
-static PBYTE _record_buffer = NULL;
-static int _debug_connected = 0;
-
 #define MAX_TIMESTAMP_LENGTH (26 + 1) // yyyy-mm-dd hh:mm:ss.uuuuuu
-#define MAX_RECORD_BUFFER_SIZE 0x10000 // 64k
+#define MAX_LIVE_LOG_QUEUE_LENGTH 10000
+#define MAX_LIVE_LOG_VIEW_LENGTH 5000
+#define DELTA_EPOCH 116444736000000000ULL // difference between Unix epoch and January 1, 1601 in 100-nanoseconds
+
+typedef enum {
+	LOG_LEVEL_ERROR = 0,
+	LOG_LEVEL_WARN,
+	LOG_LEVEL_INFO,
+	LOG_LEVEL_DEBUG
+} LogLevel;
+
+enum {
+	ID_BRICK_DAEMON_RESTART,
+	ID_BRICK_DAEMON_STOP,
+	ID_BRICK_DAEMON_EXIT,
+	ID_LIVE_LOG_ERROR_LEVEL,
+	ID_LIVE_LOG_WARN_LEVEL,
+	ID_LIVE_LOG_INFO_LEVEL,
+	ID_LIVE_LOG_DEBUG_LEVEL,
+	ID_LIVE_LOG_PAUSE,
+	ID_LIVE_LOG_SAVE,
+	ID_LOG_FILE_VIEW_FILE,
+	ID_LOG_FILE_VIEW_DIRECTORY,
+	ID_CONFIG_FILE_EDIT_FILE,
+	ID_CONFIG_FILE_VIEW_FILE,
+	ID_CONFIG_FILE_VIEW_DIRECTORY,
+	ID_CONFIG_FILE_VIEW_DEFAULT
+};
+
+enum {
+	IDC_STATUSBAR = 1
+};
+
+typedef struct {
+	char timestamp[MAX_TIMESTAMP_LENGTH];
+	char level[16];
+	char source[192];
+	char message[1024];
+} LiveLogItem;
+
+typedef enum { // bitmask
+	LOG_PIPE_MESSAGE_FLAG_LIBUSB = 0x0001
+} LogPipeMessageFlag;
+
+#pragma pack(push)
+#pragma pack(1)
+
+typedef struct {
+	uint16_t length;
+	uint8_t flags;
+	uint64_t timestamp; // in microseconds
+	uint8_t level;
+	char source[128];
+	int line;
+	char message[1024];
+} LogPipeMessage;
+
+#pragma pack(pop)
+
+typedef void (WINAPI *GETSYSTEMTIMEPRECISEASFILETIME)(LPFILETIME);
+
+static GETSYSTEMTIMEPRECISEASFILETIME ptr_GetSystemTimePreciseAsFileTime = NULL;
+
+static char _executable_filename[MAX_PATH];
+static char _executable_directory[MAX_PATH];
+static char _program_data_directory[MAX_PATH];
+static char _log_filename[MAX_PATH];
+static char _config_filename[MAX_PATH];
+static char _config_default_filename[MAX_PATH];
+static const char *_title = "Brick Daemon " VERSION_STRING " - Log Viewer";
+static HINSTANCE _hinstance = NULL;
+static HWND _hwnd = NULL;
+static HMENU _live_log_menu = NULL;
+static HWND _status_bar = NULL;
+static HWND _live_log_view = NULL;
+static LogLevel _live_log_level = LOG_LEVEL_INFO;
+static int _live_log_paused = 0;
+static int _live_log_saving = 0;
+static CRITICAL_SECTION _live_log_dropped_lock;
+static unsigned int _live_log_dropped = 0; // protected by _live_log_dropped_lock
+static unsigned int _live_log_last_dropped = 0;
+static int _live_log_connected = 0;
+static CRITICAL_SECTION _live_log_queue_lock;
+static LiveLogItem *_live_log_queue_items[2] = {NULL, NULL}; // protected by _live_log_queue_lock
+static int _live_log_queue_used[2] = {0, 0}; // protected by _live_log_queue_lock
+
+static const char *_pipe_names[] = {
+	"\\\\.\\pipe\\tinkerforge-brick-daemon-error-log",
+	"\\\\.\\pipe\\tinkerforge-brick-daemon-warn-log",
+	"\\\\.\\pipe\\tinkerforge-brick-daemon-info-log",
+	"\\\\.\\pipe\\tinkerforge-brick-daemon-debug-log",
+};
+
+static void string_copy(char *target, int target_length,
+                 const char *source, int source_length) {
+	int copy_length;
+
+	if (target_length <= 0) {
+		return;
+	}
+
+	if (source_length >= 0 && source_length < target_length - 1) {
+		copy_length = source_length;
+	} else {
+		copy_length = target_length - 1;
+	}
+
+	strncpy(target, source, copy_length);
+
+	target[copy_length] = '\0';
+}
+
+static void string_append(char *target, int target_length, const char *source) {
+	int offset;
+
+	if (target_length <= 0) {
+		return;
+	}
+
+	offset = strlen(target);
+
+	if (offset >= target_length - 1) {
+		return;
+	}
+
+	strncpy(target + offset, source, target_length - offset - 1);
+
+	target[target_length - 1] = '\0';
+}
 
 static void report_error(const char *format, ...) {
 	char message[1024 + 1];
@@ -77,48 +194,78 @@ static const char *get_error_name(int error_code) {
 	}
 }
 
-enum {
-	ID_FILE_SAVE,
-	ID_FILE_EXIT,
-	ID_VIEW_EVENT,
-	ID_VIEW_DEBUG
-};
+static void microtime(uint64_t *seconds, int *microseconds) {
+	FILETIME ft;
+	uint64_t t;
 
-static void create_menu(void) {
-	HMENU menu = CreateMenu();
-	HMENU file_menu = CreatePopupMenu();
+	if (ptr_GetSystemTimePreciseAsFileTime != NULL) {
+		ptr_GetSystemTimePreciseAsFileTime(&ft);
+	} else {
+		GetSystemTimeAsFileTime(&ft);
+	}
+
+	t = ((unsigned long long)ft.dwHighDateTime << 32) | (unsigned long long)ft.dwLowDateTime;
+	t = (t - DELTA_EPOCH) / 10; // 100-nanoseconds to microseconds
+
+	*seconds = t / 1000000UL;
+	*microseconds = (int)(t % 1000000UL);
+}
+
+static void set_menu_item_type(HMENU menu, unsigned int item, unsigned int type) {
 	MENUITEMINFO menu_item_info;
 
-	_view_menu = CreatePopupMenu();
-
-	AppendMenu(menu, MF_STRING | MF_POPUP, (UINT)file_menu, "&File");
-	AppendMenu(file_menu, MF_STRING, ID_FILE_SAVE, "&Save...");
-	AppendMenu(file_menu, MF_STRING, ID_FILE_EXIT, "&Exit");
-
-	AppendMenu(menu, MF_STRING | MF_POPUP, (UINT)_view_menu, "&View");
-	AppendMenu(_view_menu, MF_STRING, ID_VIEW_EVENT, "Windows &Event Log");
-	AppendMenu(_view_menu, MF_STRING, ID_VIEW_DEBUG, "Live &Debug Log");
-
 	memset(&menu_item_info, 0, sizeof(menu_item_info));
 
 	menu_item_info.cbSize = sizeof(menu_item_info);
 	menu_item_info.fMask = MIIM_FTYPE;
-	menu_item_info.fType = MFT_STRING | MFT_RADIOCHECK;
+	menu_item_info.fType = MFT_STRING | type;
 
-	SetMenuItemInfo(_view_menu, ID_VIEW_EVENT, FALSE, &menu_item_info);
+	SetMenuItemInfo(menu, item, FALSE, &menu_item_info);
+}
 
-	memset(&menu_item_info, 0, sizeof(menu_item_info));
+static void create_menu() {
+	HMENU menu = CreateMenu();
+	HMENU brick_daemon_menu = CreatePopupMenu();
+	HMENU log_file_menu = CreatePopupMenu();
+	HMENU config_file_menu = CreatePopupMenu();
 
-	menu_item_info.cbSize = sizeof(menu_item_info);
-	menu_item_info.fMask = MIIM_FTYPE;
-	menu_item_info.fType = MFT_STRING | MFT_RADIOCHECK;
+	_live_log_menu = CreatePopupMenu();
 
-	SetMenuItemInfo(_view_menu, ID_VIEW_DEBUG, FALSE, &menu_item_info);
+	AppendMenu(menu, MF_STRING | MF_POPUP, (UINT)brick_daemon_menu, "&Brick Daemon");
+	AppendMenu(brick_daemon_menu, MF_STRING, ID_BRICK_DAEMON_RESTART, "(&Re)start Brick Daemon");
+	AppendMenu(brick_daemon_menu, MF_STRING, ID_BRICK_DAEMON_STOP, "S&top Brick Daemon");
+	AppendMenu(brick_daemon_menu, MF_SEPARATOR, 0, "");
+	AppendMenu(brick_daemon_menu, MF_STRING, ID_BRICK_DAEMON_EXIT, "&Exit Log Viewer");
+
+	AppendMenu(menu, MF_STRING | MF_POPUP, (UINT)_live_log_menu, "&Live Log");
+	AppendMenu(_live_log_menu, MF_STRING, ID_LIVE_LOG_ERROR_LEVEL, "&Error Level");
+	AppendMenu(_live_log_menu, MF_STRING, ID_LIVE_LOG_WARN_LEVEL, "&Warn Level");
+	AppendMenu(_live_log_menu, MF_STRING, ID_LIVE_LOG_INFO_LEVEL, "&Info Level");
+	AppendMenu(_live_log_menu, MF_STRING, ID_LIVE_LOG_DEBUG_LEVEL, "&Debug Level");
+	AppendMenu(_live_log_menu, MF_SEPARATOR, 0, "");
+	AppendMenu(_live_log_menu, MF_STRING, ID_LIVE_LOG_PAUSE, "&Pause");
+	AppendMenu(_live_log_menu, MF_SEPARATOR, 0, "");
+	AppendMenu(_live_log_menu, MF_STRING, ID_LIVE_LOG_SAVE, "&Save...");
+
+	set_menu_item_type(_live_log_menu, ID_LIVE_LOG_ERROR_LEVEL, MFT_RADIOCHECK);
+	set_menu_item_type(_live_log_menu, ID_LIVE_LOG_WARN_LEVEL, MFT_RADIOCHECK);
+	set_menu_item_type(_live_log_menu, ID_LIVE_LOG_INFO_LEVEL, MFT_RADIOCHECK);
+	set_menu_item_type(_live_log_menu, ID_LIVE_LOG_DEBUG_LEVEL, MFT_RADIOCHECK);
+
+	AppendMenu(menu, MF_STRING | MF_POPUP, (UINT)log_file_menu, "L&og File");
+	AppendMenu(log_file_menu, MF_STRING, ID_LOG_FILE_VIEW_FILE, "View &Log File (read-only)");
+	AppendMenu(log_file_menu, MF_STRING, ID_LOG_FILE_VIEW_DIRECTORY, "View Log &Directory");
+
+	AppendMenu(menu, MF_STRING | MF_POPUP, (UINT)config_file_menu, "&Config File");
+	AppendMenu(config_file_menu, MF_STRING, ID_CONFIG_FILE_EDIT_FILE, "&Edit Config File");
+	AppendMenu(config_file_menu, MF_STRING, ID_CONFIG_FILE_VIEW_FILE, "&View Config File (read-only)");
+	AppendMenu(config_file_menu, MF_STRING, ID_CONFIG_FILE_VIEW_DIRECTORY, "View Config D&irectory");
+	AppendMenu(config_file_menu, MF_STRING, ID_CONFIG_FILE_VIEW_DEFAULT, "View &Default Config File (read-only)");
 
 	SetMenu(_hwnd, menu);
 }
 
-static void set_view_menu_item_state(UINT item, UINT state) {
+static void set_live_log_menu_item_state(UINT item, UINT state) {
 	MENUITEMINFO menu_item_info;
 
 	memset(&menu_item_info, 0, sizeof(menu_item_info));
@@ -127,43 +274,62 @@ static void set_view_menu_item_state(UINT item, UINT state) {
 	menu_item_info.fMask = MIIM_STATE;
 	menu_item_info.fState = state;
 
-	SetMenuItemInfo(_view_menu, item, FALSE, &menu_item_info);
+	SetMenuItemInfo(_live_log_menu, item, FALSE, &menu_item_info);
 }
 
-static void update_status_bar_message_count() {
-	int count = ListView_GetItemCount(_current_list_view);
+static void update_status_bar() {
+	const char *log_name = "Unknown";
+	int message_count = ListView_GetItemCount(_live_log_view);
+	unsigned int dropped;
 	char buffer[128];
 
-	_snprintf(buffer, sizeof(buffer), "%d Message%s", count, count == 1 ? "" : "s");
+	switch (_live_log_level) {
+	case LOG_LEVEL_ERROR: log_name = "Live Error Log"; break;
+	case LOG_LEVEL_WARN:  log_name = "Live Warn Log";  break;
+	case LOG_LEVEL_INFO:  log_name = "Live Info Log";  break;
+	case LOG_LEVEL_DEBUG: log_name = "Live Debug Log"; break;
+	}
+
+	_snprintf(buffer, sizeof(buffer), _live_log_saving ? "%s [Saving]" : (_live_log_paused ? "%s [Paused]" : "%s"), log_name);
+	SendMessage(_status_bar, SB_SETTEXT, 0, (LPARAM)buffer);
+
+	SendMessage(_status_bar, SB_SETTEXT, 1, (LPARAM)(_live_log_connected ? "Connected" : "Connecting..."));
+
+	EnterCriticalSection(&_live_log_dropped_lock);
+	dropped = _live_log_dropped;
+	LeaveCriticalSection(&_live_log_dropped_lock);
+
+	if (dropped == 0) {
+		_snprintf(buffer, sizeof(buffer), "%d Message%s", message_count, message_count == 1 ? "" : "s");
+	} else {
+		_snprintf(buffer, sizeof(buffer), "Last %d of %d Message%s", message_count, dropped + message_count, message_count == 1 ? "" : "s");
+	}
 
 	SendMessage(_status_bar, SB_SETTEXT, 2, (LPARAM)buffer);
 }
 
-static void update_status_bar() {
-	if (_current_list_view == _event_list_view) {
-		SendMessage(_status_bar, SB_SETTEXT, 0, (LPARAM)"Windows Event Log");
-		SendMessage(_status_bar, SB_SETTEXT, 1, (LPARAM)"");
-	} else {
-		SendMessage(_status_bar, SB_SETTEXT, 0, (LPARAM)"Live Debug Log");
-		SendMessage(_status_bar, SB_SETTEXT, 1, (LPARAM)(_debug_connected ? "Connected" : "Connecting..."));
+static void set_live_log_level(LogLevel level) {
+	_live_log_level = level;
+
+	set_live_log_menu_item_state(ID_LIVE_LOG_ERROR_LEVEL, MFS_UNCHECKED);
+	set_live_log_menu_item_state(ID_LIVE_LOG_WARN_LEVEL, MFS_UNCHECKED);
+	set_live_log_menu_item_state(ID_LIVE_LOG_INFO_LEVEL, MFS_UNCHECKED);
+	set_live_log_menu_item_state(ID_LIVE_LOG_DEBUG_LEVEL, MFS_UNCHECKED);
+
+	switch (level) {
+	case LOG_LEVEL_ERROR: set_live_log_menu_item_state(ID_LIVE_LOG_ERROR_LEVEL, MFS_CHECKED); break;
+	case LOG_LEVEL_WARN:  set_live_log_menu_item_state(ID_LIVE_LOG_WARN_LEVEL, MFS_CHECKED);  break;
+	case LOG_LEVEL_INFO:  set_live_log_menu_item_state(ID_LIVE_LOG_INFO_LEVEL, MFS_CHECKED);  break;
+	case LOG_LEVEL_DEBUG: set_live_log_menu_item_state(ID_LIVE_LOG_DEBUG_LEVEL, MFS_CHECKED); break;
 	}
 
-	update_status_bar_message_count();
+	update_status_bar();
 }
 
-static void set_current_list_view(HWND list_view) {
-	if (_current_list_view != NULL) {
-		ShowWindow(_current_list_view, SW_HIDE);
-	}
+static void set_live_log_paused(int paused) {
+	_live_log_paused = paused;
 
-	_current_list_view = list_view;
-
-	set_view_menu_item_state(ID_VIEW_EVENT, list_view == _event_list_view ? MFS_CHECKED : MFS_UNCHECKED);
-	set_view_menu_item_state(ID_VIEW_DEBUG, list_view == _debug_list_view ? MFS_CHECKED : MFS_UNCHECKED);
-
-	ShowWindow(_current_list_view, SW_SHOW);
-	SetFocus(_current_list_view);
-	UpdateWindow(_current_list_view);
+	set_live_log_menu_item_state(ID_LIVE_LOG_PAUSE, _live_log_paused ? MFS_CHECKED : MFS_UNCHECKED);
 
 	update_status_bar();
 }
@@ -203,11 +369,7 @@ static int insert_list_view_column(HWND list_view, int sub_item, int width,
 	return 0;
 }
 
-enum {
-	IDC_STATUSBAR = 1
-};
-
-static int create_status_bar(void) {
+static int create_status_bar() {
 	int rc;
 	int widths[] = {175, 350, -1};
 
@@ -236,25 +398,25 @@ static int create_status_bar(void) {
 	return 0;
 }
 
-static int create_event_list_view(void) {
+static int create_live_log_view() {
 	RECT client_rect;
 	int rc;
 
 	GetClientRect(_hwnd, &client_rect);
 
-	_event_list_view = CreateWindow(WC_LISTVIEW,
-	                                "",
-	                                WS_CHILD | LVS_REPORT |
-	                                LVS_SHOWSELALWAYS | LVS_NOSORTHEADER,
-	                                0, 0,
-	                                client_rect.right - client_rect.left,
-	                                client_rect.bottom - client_rect.top,
-	                                _hwnd,
-	                                NULL,
-	                                _hinstance,
-	                                NULL);
+	_live_log_view = CreateWindow(WC_LISTVIEW,
+	                              "",
+	                              WS_CHILD | LVS_REPORT |
+	                              LVS_SHOWSELALWAYS | LVS_NOSORTHEADER,
+	                              0, 0,
+	                              client_rect.right - client_rect.left,
+	                              client_rect.bottom - client_rect.top,
+	                              _hwnd,
+	                              NULL,
+	                              _hinstance,
+	                              NULL);
 
-	if (_event_list_view == NULL) {
+	if (_live_log_view == NULL) {
 		rc = GetLastError();
 
 		report_error("Could not create list view: %s (%d)",
@@ -263,131 +425,45 @@ static int create_event_list_view(void) {
 		return -1;
 	}
 
-	ListView_SetExtendedListViewStyleEx(_event_list_view,
-	                                    LVS_EX_FULLROWSELECT,
-	                                    LVS_EX_FULLROWSELECT);
+	ListView_SetExtendedListViewStyleEx(_live_log_view,
+	                                    LVS_EX_FULLROWSELECT | LVS_EX_DOUBLEBUFFER,
+	                                    LVS_EX_FULLROWSELECT | LVS_EX_DOUBLEBUFFER);
 
-	if (insert_list_view_column(_event_list_view, 0, 120, "Timestamp") < 0 ||
-	    insert_list_view_column(_event_list_view, 1,  60, "Level") < 0 ||
-	    insert_list_view_column(_event_list_view, 2,  60, "Source") < 0 ||
-	    insert_list_view_column(_event_list_view, 3, 720, "Message") < 0) {
+	if (insert_list_view_column(_live_log_view, 0, 160, "Timestamp") < 0 ||
+	    insert_list_view_column(_live_log_view, 1,  60, "Level") < 0 ||
+	    insert_list_view_column(_live_log_view, 2, 180, "Source") < 0 ||
+	    insert_list_view_column(_live_log_view, 3, 560, "Message") < 0) {
 		return -1;
 	}
 
 	return 0;
 }
 
-static int create_debug_list_view(void) {
-	RECT client_rect;
-	int rc;
+static void queue_live_log_item(const char *timestamp, const char *level,
+                                const char *source, const char *message) {
+	LiveLogItem *item;
+	int dropped = 0;
 
-	GetClientRect(_hwnd, &client_rect);
+	EnterCriticalSection(&_live_log_queue_lock);
 
-	_debug_list_view = CreateWindow(WC_LISTVIEW,
-	                                "",
-	                                WS_CHILD | LVS_REPORT |
-	                                LVS_SHOWSELALWAYS | LVS_NOSORTHEADER,
-	                                0, 0,
-	                                client_rect.right - client_rect.left,
-	                                client_rect.bottom - client_rect.top,
-	                                _hwnd,
-	                                NULL,
-	                                _hinstance,
-	                                NULL);
+	if (_live_log_queue_used[0] + 1 < MAX_LIVE_LOG_QUEUE_LENGTH) {
+		item = &_live_log_queue_items[0][_live_log_queue_used[0]++];
 
-	if (_debug_list_view == NULL) {
-		rc = GetLastError();
-
-		report_error("Could not create list view: %s (%d)",
-		             get_error_name(rc), rc);
-
-		return -1;
+		string_copy(item->timestamp, sizeof(item->timestamp), timestamp, -1);
+		string_copy(item->level, sizeof(item->level), level, -1);
+		string_copy(item->source, sizeof(item->source), source, -1);
+		string_copy(item->message, sizeof(item->message), message, -1);
+	} else {
+		dropped = 1;
 	}
 
-	ListView_SetExtendedListViewStyleEx(_debug_list_view,
-	                                    LVS_EX_FULLROWSELECT,
-	                                    LVS_EX_FULLROWSELECT);
+	LeaveCriticalSection(&_live_log_queue_lock);
 
-	if (insert_list_view_column(_debug_list_view, 0, 160, "Timestamp") < 0 ||
-	    insert_list_view_column(_debug_list_view, 1,  60, "Level") < 0 ||
-	    insert_list_view_column(_debug_list_view, 2, 180, "Source") < 0 ||
-	    insert_list_view_column(_debug_list_view, 3, 560, "Message") < 0) {
-		return -1;
+	if (dropped) {
+		EnterCriticalSection(&_live_log_dropped_lock);
+		++_live_log_dropped;
+		LeaveCriticalSection(&_live_log_dropped_lock);
 	}
-
-	return 0;
-}
-
-static void append_event_item(const char *timestamp, const char *level,
-                              const char *source, const char *message) {
-	SCROLLINFO si;
-	LVITEM lvi;
-
-	si.cbSize = sizeof(si);
-	si.fMask = SIF_RANGE | SIF_POS | SIF_PAGE;
-
-	GetScrollInfo(_event_list_view, SB_VERT, &si);
-
-	lvi.mask = LVIF_TEXT;
-
-	lvi.iItem = ListView_GetItemCount(_event_list_view);
-	lvi.iSubItem = 0;
-	lvi.pszText = (char *)timestamp;
-	ListView_InsertItem(_event_list_view, &lvi);
-
-	lvi.iSubItem = 1;
-	lvi.pszText = (char *)level;
-	ListView_SetItem(_event_list_view, &lvi);
-
-	lvi.iSubItem = 2;
-	lvi.pszText = (char *)source;
-	ListView_SetItem(_event_list_view, &lvi);
-
-	lvi.iSubItem = 3;
-	lvi.pszText = (char *)message;
-	ListView_SetItem(_event_list_view, &lvi);
-
-	if (si.nPos >= si.nMax - (int)si.nPage) {
-		ListView_EnsureVisible(_event_list_view, lvi.iItem, FALSE);
-	}
-
-	update_status_bar_message_count();
-}
-
-static void append_debug_item(const char *timestamp, const char *level,
-                              const char *source, const char *message) {
-	SCROLLINFO si;
-	LVITEM lvi;
-
-	si.cbSize = sizeof(si);
-	si.fMask = SIF_RANGE | SIF_POS | SIF_PAGE;
-
-	GetScrollInfo(_debug_list_view, SB_VERT, &si);
-
-	lvi.mask = LVIF_TEXT;
-
-	lvi.iItem = ListView_GetItemCount(_debug_list_view);
-	lvi.iSubItem = 0;
-	lvi.pszText = (char *)timestamp;
-	ListView_InsertItem(_debug_list_view, &lvi);
-
-	lvi.iSubItem = 1;
-	lvi.pszText = (char *)level;
-	ListView_SetItem(_debug_list_view, &lvi);
-
-	lvi.iSubItem = 2;
-	lvi.pszText = (char *)source;
-	ListView_SetItem(_debug_list_view, &lvi);
-
-	lvi.iSubItem = 3;
-	lvi.pszText = (char *)message;
-	ListView_SetItem(_debug_list_view, &lvi);
-
-	if (si.nPos >= si.nMax - (int)si.nPage) {
-		ListView_EnsureVisible(_debug_list_view, lvi.iItem, FALSE);
-	}
-
-	update_status_bar_message_count();
 }
 
 static void format_timestamp(uint64_t seconds, int microseconds,
@@ -418,89 +494,88 @@ static void format_timestamp(uint64_t seconds, int microseconds,
 	}
 }
 
-typedef enum {
-	LOG_LEVEL_ERROR = 0,
-	LOG_LEVEL_WARN,
-	LOG_LEVEL_INFO,
-	LOG_LEVEL_DEBUG
-} LogLevel;
-
-typedef enum { // bitmask
-	LOG_PIPE_MESSAGE_FLAG_LIBUSB = 0x0001
-} LogPipeMessageFlag;
-
-#pragma pack(push)
-#pragma pack(1)
-
-typedef struct {
-	uint16_t length;
-	uint8_t flags;
-	uint64_t timestamp; // in microseconds
-	uint8_t level;
-	char source[128];
-	int line;
-	char message[1024];
-} LogPipeMessage;
-
-#pragma pack(pop)
-
-static void append_debug_meta_message(const char *message) {
+static void queue_live_log_meta_message(const char *format, ...) {
 	char timestamp[MAX_TIMESTAMP_LENGTH];
+	uint64_t seconds;
+	int microseconds;
+	char message[1024 + 1];
+	va_list arguments;
 
-	format_timestamp(time(NULL), 0, timestamp, sizeof(timestamp), "-", " ", ":");
+	microtime(&seconds, &microseconds);
+	format_timestamp(seconds, microseconds, timestamp, sizeof(timestamp), "-", " ", ":");
 
-	append_debug_item(timestamp, "Meta", "", message);
+	va_start(arguments, format);
+	_vsnprintf_s(message, sizeof(message), sizeof(message) - 1, format, arguments);
+	va_end(arguments);
+
+	queue_live_log_item(timestamp, "Meta", "Log Viewer", message);
 }
 
-static void append_debug_pipe_message(LogPipeMessage *pipe_message) {
+static void queue_live_log_pipe_message(LogPipeMessage *message) {
 	char timestamp[MAX_TIMESTAMP_LENGTH];
-	uint64_t seconds = pipe_message->timestamp / 1000000;
-	int microseconds = pipe_message->timestamp % 1000000;
+	uint64_t seconds = message->timestamp / 1000000;
+	int microseconds = message->timestamp % 1000000;
 	const char *level = "Unknown";
 	char source[192];
 
-	format_timestamp(seconds, microseconds, timestamp, sizeof(timestamp),
-	                 "-", " ", ":");
+	format_timestamp(seconds, microseconds, timestamp, sizeof(timestamp), "-", " ", ":");
 
-	switch (pipe_message->level) {
+	switch (message->level) {
 	case LOG_LEVEL_ERROR: level = "Error"; break;
 	case LOG_LEVEL_WARN:  level = "Warn";  break;
 	case LOG_LEVEL_INFO:  level = "Info";  break;
 	case LOG_LEVEL_DEBUG: level = "Debug"; break;
 	}
 
-	if ((pipe_message->flags & LOG_PIPE_MESSAGE_FLAG_LIBUSB) != 0) {
-		_snprintf(source, sizeof(source), "libusb:%s", pipe_message->source);
+	if ((message->flags & LOG_PIPE_MESSAGE_FLAG_LIBUSB) != 0) {
+		_snprintf(source, sizeof(source), "libusb:%s", message->source);
 	} else {
-		_snprintf(source, sizeof(source), "%s:%d", pipe_message->source,
-		          pipe_message->line);
+		_snprintf(source, sizeof(source), "%s:%d", message->source, message->line);
 	}
 
-	append_debug_item(timestamp, level, source, pipe_message->message);
+	queue_live_log_item(timestamp, level, source, message->message);
 }
 
 // this thread works in a fire-and-forget fashion, it's started and then just runs
-static DWORD WINAPI read_named_pipe(void *opaque) {
-	const char *pipe_name = "\\\\.\\pipe\\tinkerforge-brick-daemon-debug-log";
+static DWORD WINAPI read_live_log(void *opaque) {
+	HANDLE overlapped_event;
 	HANDLE hpipe;
+	LogLevel current_live_log_level;
 	DWORD current_error;
 	DWORD last_error;
-	LogPipeMessage pipe_message;
+	OVERLAPPED overlapped;
+	LogPipeMessage message;
 	DWORD bytes_read;
-	char buffer[256];
+	int live_log_level_changed = 0;
+	DWORD rc;
 
 	(void)opaque;
 
-	append_debug_meta_message("Connecting to Brick Daemon...");
+	overlapped_event = CreateEvent(NULL, TRUE, FALSE, NULL);
+
+	if (overlapped_event == NULL) {
+		current_error = GetLastError();
+
+		queue_live_log_meta_message("Count not create event for async read: %s (%d)",
+		                            get_error_name(current_error), current_error);
+
+		return 0;
+	}
+
+	queue_live_log_meta_message("Connecting to Brick Daemon...");
 
 	for (;;) {
-		_debug_connected = 0;
+		_live_log_connected = 0;
+		live_log_level_changed = 0;
 		last_error = ERROR_SUCCESS;
 
 		update_status_bar();
 
 		for (;;) {
-			hpipe = CreateFile(pipe_name, GENERIC_READ, 0, NULL, OPEN_EXISTING, 0, NULL);
+			current_live_log_level = _live_log_level;
+
+			hpipe = CreateFile(_pipe_names[current_live_log_level], GENERIC_READ,
+			                   0, NULL, OPEN_EXISTING, FILE_FLAG_OVERLAPPED, NULL);
 
 			if (hpipe != INVALID_HANDLE_VALUE) {
 				break;
@@ -509,252 +584,210 @@ static DWORD WINAPI read_named_pipe(void *opaque) {
 			current_error = GetLastError();
 
 			if (current_error != last_error && current_error != ERROR_FILE_NOT_FOUND) {
-				_snprintf(buffer, sizeof(buffer), "Error while connecting to Brick Daemon, trying again: %s (%d)",
-				          get_error_name(current_error), current_error);
-
-				append_debug_meta_message(buffer);
+				queue_live_log_meta_message("Error while connecting to Brick Daemon, trying again: %s (%d)",
+				                            get_error_name(current_error), current_error);
 			}
 
 			last_error = current_error;
 
-			Sleep(1000);
+			Sleep(500);
 		}
 
-		_debug_connected = 1;
+		_live_log_connected = 1;
 
 		update_status_bar();
-		append_debug_meta_message("Connected to Brick Daemon");
+		queue_live_log_meta_message("Connected to Brick Daemon");
 
 		for (;;) {
-			if (!ReadFile(hpipe, &pipe_message, sizeof(pipe_message), &bytes_read, NULL)) {
-				append_debug_meta_message("Disconnected from Brick Daemon, reconnecting...");
+			memset(&overlapped, 0, sizeof(overlapped));
+			overlapped.hEvent = overlapped_event;
+
+			if (!ReadFile(hpipe, &message, sizeof(message), NULL, &overlapped)) {
+				current_error = GetLastError();
+
+				if (current_error != ERROR_IO_PENDING) {
+					if (current_error == ERROR_BROKEN_PIPE) {
+						queue_live_log_meta_message("Disconnected from Brick Daemon, reconnecting...");
+					} else {
+						queue_live_log_meta_message("Disconnected from Brick Daemon, reconnecting: %s (%d)",
+						                            get_error_name(current_error), current_error);
+					}
+
+					CloseHandle(hpipe);
+
+					break;
+				}
+			}
+
+			for (;;) {
+				current_error = ERROR_SUCCESS;
+
+				if (current_live_log_level != _live_log_level) {
+					current_live_log_level = _live_log_level;
+					live_log_level_changed = 1;
+
+					queue_live_log_meta_message("Live Log Level changed, reconnecting...");
+
+					CancelIo(hpipe);
+				}
+
+				rc = WaitForSingleObject(overlapped_event, 100);
+
+				if (rc != WAIT_OBJECT_0 && rc != WAIT_TIMEOUT) {
+					CancelIo(hpipe);
+				}
+
+				if (GetOverlappedResult(hpipe, &overlapped, &bytes_read, FALSE)) {
+					break;
+				}
+
+				current_error = GetLastError();
+
+				if (current_error == ERROR_IO_INCOMPLETE) {
+					continue;
+				}
+
+				break;
+			}
+
+			if (current_error != ERROR_SUCCESS) {
+				if (current_error == ERROR_BROKEN_PIPE) {
+					queue_live_log_meta_message("Disconnected from Brick Daemon, reconnecting...");
+				} else if (current_error != ERROR_OPERATION_ABORTED) {
+					queue_live_log_meta_message("Error while reading from Brick Daemon, reconnecting: %s (%d)",
+					                            get_error_name(current_error), current_error);
+				}
+
 				CloseHandle(hpipe);
 
 				break;
 			}
 
-			if (bytes_read == sizeof(pipe_message) &&
-			    pipe_message.length == sizeof(pipe_message)) {
-				// enforce that strings are NUL-terminated
-				pipe_message.source[sizeof(pipe_message.source) - 1] = '\0';
-				pipe_message.message[sizeof(pipe_message.message) - 1] = '\0';
+			if (live_log_level_changed) {
+				CloseHandle(hpipe);
 
-				append_debug_pipe_message(&pipe_message);
+				break;
+			}
+
+			if (bytes_read == sizeof(message) && message.length == sizeof(message)) {
+				if (!_live_log_paused && !_live_log_saving) {
+					// enforce that strings are NUL-terminated
+					message.source[sizeof(message.source) - 1] = '\0';
+					message.message[sizeof(message.message) - 1] = '\0';
+
+					queue_live_log_pipe_message(&message);
+				} else {
+					EnterCriticalSection(&_live_log_dropped_lock);
+					++_live_log_dropped;
+					LeaveCriticalSection(&_live_log_dropped_lock);
+				}
 			}
 		}
 	}
 }
 
-static void read_event_log(void) {
-	DWORD status = ERROR_SUCCESS;
-	DWORD bytes_to_read = 0;
-	DWORD bytes_read = 0;
-	DWORD minimum_bytes_to_read = 0;
-	PBYTE temp = NULL;
-
-	if (_record_buffer == NULL) {
-		bytes_to_read = MAX_RECORD_BUFFER_SIZE;
-		_record_buffer = (PBYTE)malloc(bytes_to_read);
-
-		if (_record_buffer == NULL) {
-			report_error("Could not allocate record buffer");
-
-			return;
-		}
-	}
-
-	while (status == ERROR_SUCCESS) {
-		if (!ReadEventLog(_event_log,
-		                  EVENTLOG_SEQUENTIAL_READ | EVENTLOG_FORWARDS_READ,
-		                  0,
-		                  _record_buffer,
-		                  bytes_to_read,
-		                  &bytes_read,
-		                  &minimum_bytes_to_read)) {
-			status = GetLastError();
-
-			if (status == ERROR_INSUFFICIENT_BUFFER) {
-				status = ERROR_SUCCESS;
-				temp = (PBYTE)realloc(_record_buffer, minimum_bytes_to_read);
-
-				if (temp == NULL) {
-					report_error("Could not reallocate record buffer to %u bytes",
-					             minimum_bytes_to_read);
-
-					return;
-				}
-
-				_record_buffer = temp;
-				bytes_to_read = minimum_bytes_to_read;
-			} else if (status != ERROR_HANDLE_EOF) {
-				report_error("Could not read event log: %s (%d)",
-				             get_error_name(status), status);
-
-				return;
-			}
-		} else {
-			PBYTE record = _record_buffer;
-			PBYTE end_of_records = _record_buffer + bytes_read;
-			char timestamp[MAX_TIMESTAMP_LENGTH];
-			const char *level;
-			const char *source;
-			const char *message;
-
-			while (record < end_of_records) {
-				if (strcmp((const char *)(record + sizeof(EVENTLOGRECORD)), "Brick Daemon") == 0) {
-					format_timestamp(((PEVENTLOGRECORD)record)->TimeGenerated, -1,
-					                 timestamp, sizeof(timestamp), "-", " ", ":");
-
-					switch (((PEVENTLOGRECORD)record)->EventType) {
-					case EVENTLOG_ERROR_TYPE:
-						level = "Error";
-						break;
-
-					case EVENTLOG_WARNING_TYPE:
-						level = "Warn";
-						break;
-
-					case EVENTLOG_INFORMATION_TYPE:
-						level = "Info";
-						break;
-
-					case EVENTLOG_AUDIT_SUCCESS:
-						level = "Audit Success";
-						break;
-
-					case EVENTLOG_AUDIT_FAILURE:
-						level = "Audit Failure";
-						break;
-
-					default:
-						level = "Unknown";
-						break;
-					}
-
-					switch (((PEVENTLOGRECORD)record)->EventID) {
-					case BRICKD_GENERIC_WARNING:
-					case BRICKD_GENERIC_ERROR:
-						source = "Generic";
-						break;
-
-					case BRICKD_LIBUSB_WARNING:
-					case BRICKD_LIBUSB_ERROR:
-						source = "Libusb";
-						break;
-
-					default:
-						source = "Unknown";
-						break;
-					}
-
-					if (((PEVENTLOGRECORD)record)->NumStrings > 0) {
-						message = (const char *)(record + ((PEVENTLOGRECORD)record)->StringOffset);
-					} else {
-						message = "Unknown";
-					}
-
-					append_event_item(timestamp, level, source, message);
-				}
-
-				record += ((PEVENTLOGRECORD)record)->Length;
-			}
-		}
-	}
-}
-
-static void save_event_log(void) {
-	char filename_timestamp[MAX_TIMESTAMP_LENGTH];
-	char filename[_MAX_PATH];
-	char *filters = "Log Files (*.log, *.txt)\0*.log;*.txt\0\0";
-	OPENFILENAME ofn;
-	FILE *fp;
-	int count;
-	LVITEM lvi_timestamp;
-	char timestamp[128];
-	LVITEM lvi_level;
-	char level[64];
-	LVITEM lvi_source;
-	char source[64];
-	LVITEM lvi_message;
-	char message[1024];
+static void update_live_log_view(void) {
 	int i;
+	int offset;
+	unsigned int dropped;
+	LiveLogItem *item;
+	SCROLLINFO si;
+	LVITEM lvi;
 
-	format_timestamp(time(NULL), -1, filename_timestamp, sizeof(filename_timestamp), "", "_", "");
-	_snprintf(filename, sizeof(filename), "brickd_event_%s.log", filename_timestamp);
+	EnterCriticalSection(&_live_log_queue_lock);
 
-	memset(&ofn, 0, sizeof(ofn));
+	item = _live_log_queue_items[0];
+	_live_log_queue_items[0] = _live_log_queue_items[1];
+	_live_log_queue_items[1] = item;
 
-	ofn.lStructSize = sizeof(ofn);
-	ofn.hwndOwner = _hwnd;
-	ofn.hInstance = _hinstance;
-	ofn.lpstrFilter = filters;
-	ofn.lpstrFile = filename;
-	ofn.lpstrDefExt = "log";
-	ofn.nMaxFile = sizeof(filename);
-	ofn.lpstrTitle = "Save Windows Event Log";
-	ofn.Flags = OFN_EXPLORER | OFN_OVERWRITEPROMPT;
+	i = _live_log_queue_used[0];
+	_live_log_queue_used[0] = _live_log_queue_used[1];
+	_live_log_queue_used[1] = i;
 
-	if (!GetSaveFileName(&ofn)) {
+	LeaveCriticalSection(&_live_log_queue_lock);
+
+	if (_live_log_queue_used[1] == 0) {
+		EnterCriticalSection(&_live_log_dropped_lock);
+		dropped = _live_log_dropped;
+		LeaveCriticalSection(&_live_log_dropped_lock);
+
+		if (_live_log_last_dropped != dropped) {
+			_live_log_last_dropped = dropped;
+
+			update_status_bar();
+		}
+
 		return;
 	}
 
-	fp = fopen(filename, "wb");
+	si.cbSize = sizeof(si);
+	si.fMask = SIF_RANGE | SIF_POS | SIF_PAGE;
 
-	if (fp == NULL) {
-		report_error("Could not write to '%s'", filename);
+	lvi.mask = LVIF_TEXT;
+
+	GetScrollInfo(_live_log_view, SB_VERT, &si);
+	SendMessage(_live_log_view, WM_SETREDRAW, (WPARAM)FALSE, 0);
+
+	if (_live_log_queue_used[1] >= MAX_LIVE_LOG_VIEW_LENGTH) {
+		offset = _live_log_queue_used[1] - MAX_LIVE_LOG_VIEW_LENGTH;
+
+		EnterCriticalSection(&_live_log_dropped_lock);
+		_live_log_dropped += ListView_GetItemCount(_live_log_view);
+		LeaveCriticalSection(&_live_log_dropped_lock);
+
+		ListView_DeleteAllItems(_live_log_view);
+	} else {
+		offset = 0;
+		dropped = 0;
+
+		while (ListView_GetItemCount(_live_log_view) > MAX_LIVE_LOG_VIEW_LENGTH - _live_log_queue_used[1]) {
+			++dropped;
+
+			ListView_DeleteItem(_live_log_view, 0);
+		}
+
+		EnterCriticalSection(&_live_log_dropped_lock);
+		_live_log_dropped += dropped;
+		LeaveCriticalSection(&_live_log_dropped_lock);
 	}
 
-	count = ListView_GetItemCount(_event_list_view);
+	EnterCriticalSection(&_live_log_dropped_lock);
+	_live_log_dropped += offset;
+	LeaveCriticalSection(&_live_log_dropped_lock);
 
-	lvi_timestamp.iSubItem = 0;
-	lvi_timestamp.mask = LVIF_TEXT;
-	lvi_timestamp.pszText = timestamp;
-	lvi_timestamp.cchTextMax = sizeof(timestamp) - 1;
+	for (i = offset; i < _live_log_queue_used[1]; ++i) {
+		item = &_live_log_queue_items[1][i];
 
-	lvi_level.iSubItem = 1;
-	lvi_level.mask = LVIF_TEXT;
-	lvi_level.pszText = level;
-	lvi_level.cchTextMax = sizeof(level) - 1;
+		lvi.iItem = ListView_GetItemCount(_live_log_view);
+		lvi.iSubItem = 0;
+		lvi.pszText = (char *)item->timestamp;
+		ListView_InsertItem(_live_log_view, &lvi);
 
-	lvi_source.iSubItem = 2;
-	lvi_source.mask = LVIF_TEXT;
-	lvi_source.pszText = source;
-	lvi_source.cchTextMax = sizeof(source) - 1;
+		lvi.iSubItem = 1;
+		lvi.pszText = (char *)item->level;
+		ListView_SetItem(_live_log_view, &lvi);
 
-	lvi_message.iSubItem = 3;
-	lvi_message.mask = LVIF_TEXT;
-	lvi_message.pszText = message;
-	lvi_message.cchTextMax = sizeof(message) - 1;
+		lvi.iSubItem = 2;
+		lvi.pszText = (char *)item->source;
+		ListView_SetItem(_live_log_view, &lvi);
 
-	for (i = 0; i < count; ++i) {
-		lvi_timestamp.iItem = i;
-		lvi_level.iItem = i;
-		lvi_source.iItem = i;
-		lvi_message.iItem = i;
-
-		if (!ListView_GetItem(_event_list_view, &lvi_timestamp)) {
-			strcpy(timestamp, "Unknown");
-		}
-
-		if (!ListView_GetItem(_event_list_view, &lvi_level)) {
-			strcpy(level, "Unknown");
-		}
-
-		if (!ListView_GetItem(_event_list_view, &lvi_source)) {
-			strcpy(source, "Unknown");
-		}
-
-		if (!ListView_GetItem(_event_list_view, &lvi_message)) {
-			strcpy(message, "Unknown");
-		}
-
-		fprintf(fp, "%s <%s> [%s] %s\r\n", timestamp, level, source, message);
+		lvi.iSubItem = 3;
+		lvi.pszText = (char *)item->message;
+		ListView_SetItem(_live_log_view, &lvi);
 	}
 
-	fclose(fp);
+	_live_log_queue_used[1] = 0;
+
+	//if (si.nPos >= si.nMax - (int)si.nPage) {
+		ListView_EnsureVisible(_live_log_view, ListView_GetItemCount(_live_log_view) - 1, FALSE);
+	//}
+
+	SendMessage(_live_log_view, WM_SETREDRAW, (WPARAM)TRUE, 0);
+
+	update_status_bar();
 }
 
-static void save_debug_log(void) {
+static void save_live_log(void) {
 	char save_timestamp[MAX_TIMESTAMP_LENGTH];
 	char save_filename[_MAX_PATH];
 	char *filters = "Log Files (*.log, *.txt)\0*.log;*.txt\0\0";
@@ -771,8 +804,12 @@ static void save_debug_log(void) {
 	char message[1024];
 	int i;
 
+	_live_log_saving = 1;
+
+	update_status_bar();
+
 	format_timestamp(time(NULL), -1, save_timestamp, sizeof(save_timestamp), "", "_", "");
-	_snprintf(save_filename, sizeof(save_filename), "brickd_debug_%s.log", save_timestamp);
+	_snprintf(save_filename, sizeof(save_filename), "brickd_live_%s.log", save_timestamp);
 
 	memset(&ofn, 0, sizeof(ofn));
 
@@ -783,20 +820,29 @@ static void save_debug_log(void) {
 	ofn.lpstrFile = save_filename;
 	ofn.lpstrDefExt = "log";
 	ofn.nMaxFile = sizeof(save_filename);
-	ofn.lpstrTitle = "Save Live Debug Log";
+	ofn.lpstrTitle = "Save Live Log";
 	ofn.Flags = OFN_EXPLORER | OFN_OVERWRITEPROMPT;
 
 	if (!GetSaveFileName(&ofn)) {
+		_live_log_saving = 0;
+
+		update_status_bar();
+
 		return;
 	}
 
 	fp = fopen(save_filename, "wb");
 
 	if (fp == NULL) {
+		_live_log_saving = 0;
+
+		update_status_bar();
 		report_error("Could not write to '%s'", save_filename);
+
+		return;
 	}
 
-	count = ListView_GetItemCount(_debug_list_view);
+	count = ListView_GetItemCount(_live_log_view);
 
 	lvi_timestamp.iSubItem = 0;
 	lvi_timestamp.mask = LVIF_TEXT;
@@ -824,19 +870,19 @@ static void save_debug_log(void) {
 		lvi_source.iItem = i;
 		lvi_message.iItem = i;
 
-		if (!ListView_GetItem(_debug_list_view, &lvi_timestamp)) {
+		if (!ListView_GetItem(_live_log_view, &lvi_timestamp)) {
 			strcpy(timestamp, "Unknown");
 		}
 
-		if (!ListView_GetItem(_debug_list_view, &lvi_level)) {
+		if (!ListView_GetItem(_live_log_view, &lvi_level)) {
 			strcpy(level, "Unknown");
 		}
 
-		if (!ListView_GetItem(_debug_list_view, &lvi_source)) {
+		if (!ListView_GetItem(_live_log_view, &lvi_source)) {
 			strcpy(source, "Unknown");
 		}
 
-		if (!ListView_GetItem(_debug_list_view, &lvi_message)) {
+		if (!ListView_GetItem(_live_log_view, &lvi_message)) {
 			strcpy(message, "Unknown");
 		}
 
@@ -844,10 +890,13 @@ static void save_debug_log(void) {
 	}
 
 	fclose(fp);
+
+	_live_log_saving = 0;
+
+	update_status_bar();
 }
 
-static LRESULT CALLBACK window_proc(HWND hwnd, UINT msg,
-                                    WPARAM wparam, LPARAM lparam) {
+static LRESULT CALLBACK window_proc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
 	RECT client_rect;
 	RECT status_bar_rect;
 	MINMAXINFO *info;
@@ -867,15 +916,8 @@ static LRESULT CALLBACK window_proc(HWND hwnd, UINT msg,
 		GetWindowRect(_status_bar, &status_bar_rect);
 		client_rect.bottom -= status_bar_rect.bottom - status_bar_rect.top;
 
-		if (_event_list_view != NULL) {
-			SetWindowPos(_event_list_view, NULL, 0, 0,
-			             client_rect.right - client_rect.left,
-			             client_rect.bottom - client_rect.top,
-			             SWP_NOMOVE);
-		}
-
-		if (_debug_list_view != NULL) {
-			SetWindowPos(_debug_list_view, NULL, 0, 0,
+		if (_live_log_view != NULL) {
+			SetWindowPos(_live_log_view, NULL, 0, 0,
 			             client_rect.right - client_rect.left,
 			             client_rect.bottom - client_rect.top,
 			             SWP_NOMOVE);
@@ -890,30 +932,69 @@ static LRESULT CALLBACK window_proc(HWND hwnd, UINT msg,
 		break;
 
 	case WM_TIMER:
-		read_event_log();
+		update_live_log_view();
 		break;
 
 	case WM_COMMAND:
 		switch (LOWORD(wparam)) {
-		case ID_FILE_SAVE:
-			if (_current_list_view == _event_list_view) {
-				save_event_log();
-			} else {
-				save_debug_log();
-			}
-
+		case ID_BRICK_DAEMON_RESTART:
+			ShellExecuteA(hwnd, "runas", _executable_filename, "brickd-restart", NULL, SW_HIDE);
 			break;
 
-		case ID_FILE_EXIT:
+		case ID_BRICK_DAEMON_STOP:
+			ShellExecuteA(hwnd, "runas", _executable_filename, "brickd-stop", NULL, SW_HIDE);
+			break;
+
+		case ID_BRICK_DAEMON_EXIT:
 			PostQuitMessage(0);
 			break;
 
-		case ID_VIEW_EVENT:
-			set_current_list_view(_event_list_view);
+		case ID_LIVE_LOG_ERROR_LEVEL:
+			set_live_log_level(LOG_LEVEL_ERROR);
 			break;
 
-		case ID_VIEW_DEBUG:
-			set_current_list_view(_debug_list_view);
+		case ID_LIVE_LOG_WARN_LEVEL:
+			set_live_log_level(LOG_LEVEL_WARN);
+			break;
+
+		case ID_LIVE_LOG_INFO_LEVEL:
+			set_live_log_level(LOG_LEVEL_INFO);
+			break;
+
+		case ID_LIVE_LOG_DEBUG_LEVEL:
+			set_live_log_level(LOG_LEVEL_DEBUG);
+			break;
+
+		case ID_LIVE_LOG_PAUSE:
+			set_live_log_paused(!_live_log_paused);
+			break;
+
+		case ID_LIVE_LOG_SAVE:
+			save_live_log();
+			break;
+
+		case ID_LOG_FILE_VIEW_FILE:
+			ShellExecuteA(hwnd, "open", "notepad.exe", _log_filename, NULL, SW_SHOWNORMAL);
+			break;
+
+		case ID_LOG_FILE_VIEW_DIRECTORY:
+			ShellExecuteA(hwnd, "explore", _program_data_directory, NULL, NULL, SW_SHOWNORMAL);
+			break;
+
+		case ID_CONFIG_FILE_EDIT_FILE:
+			ShellExecuteA(hwnd, "runas", "notepad.exe", _config_filename, NULL, SW_SHOWNORMAL);
+			break;
+
+		case ID_CONFIG_FILE_VIEW_FILE:
+			ShellExecuteA(hwnd, "open", "notepad.exe", _config_filename, NULL, SW_SHOWNORMAL);
+			break;
+
+		case ID_CONFIG_FILE_VIEW_DIRECTORY:
+			ShellExecuteA(hwnd, "explore", _program_data_directory, NULL, NULL, SW_SHOWNORMAL);
+			break;
+
+		case ID_CONFIG_FILE_VIEW_DEFAULT:
+			ShellExecuteA(hwnd, "open", "notepad.exe", _config_default_filename, NULL, SW_SHOWNORMAL);
 			break;
 		}
 
@@ -928,26 +1009,91 @@ static LRESULT CALLBACK window_proc(HWND hwnd, UINT msg,
 
 int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
                      LPSTR lpCmdLine, int nCmdShow) {
+	char *p;
+	HRESULT hrc;
 	int rc;
 	WNDCLASSEX wc;
 	MSG msg;
 	const char *class_name = "brickd_logviewer";
 
 	(void)hPrevInstance;
-	(void)lpCmdLine;
 
-	_hinstance = hInstance;
+	if (strcmp(lpCmdLine, "brickd-restart") == 0) {
+		rc = (int)ShellExecuteA(NULL, "runas", "cmd.exe", "/c sc stop \"Brick Daemon\"", NULL, SW_HIDE);
 
-	_event_log = OpenEventLog(NULL, "Brick Daemon");
+		if (rc <= 32) {
+			report_error("Could not (re)start Brick Daemon: %s (%d)", get_error_name(rc), rc);
 
-	if (_event_log == NULL) {
-		rc = GetLastError();
+			return 0;
+		}
 
-		report_error("Could not open event log: %s (%d)",
-		             get_error_name(rc), rc);
+		rc = (int)ShellExecuteA(NULL, "runas", "cmd.exe", "/c sc start \"Brick Daemon\"", NULL, SW_HIDE);
+
+		if (rc <= 32) {
+			report_error("Could not (re)start Brick Daemon: %s (%d)", get_error_name(rc), rc);
+		}
+
+		return 0;
+	} else if (strcmp(lpCmdLine, "brickd-stop") == 0) {
+		rc = (int)ShellExecuteA(NULL, "runas", "cmd.exe", "/c sc stop \"Brick Daemon\"", NULL, SW_HIDE);
+
+		if (rc <= 32) {
+			report_error("Could not stop Brick Daemon: %s (%d)", get_error_name(rc), rc);
+		}
 
 		return 0;
 	}
+
+	ptr_GetSystemTimePreciseAsFileTime =
+	  (GETSYSTEMTIMEPRECISEASFILETIME)GetProcAddress(GetModuleHandleA("kernel32"),
+	                                                 "GetSystemTimePreciseAsFileTime");
+
+	_hinstance = hInstance;
+
+	if (GetModuleFileNameA(NULL, _executable_filename, sizeof(_executable_filename)) == 0)  {
+		rc = GetLastError();
+
+		report_error("Could not get executable filename: %s (%d)", get_error_name(rc), rc);
+
+		return 0;
+	}
+
+	string_copy(_executable_directory, sizeof(_executable_directory), _executable_filename, -1);
+
+	p = strrchr(_executable_directory, '\\');
+
+	if (p == NULL) {
+		report_error("Executable filename is malformed: %s\n", _executable_filename);
+
+		return 0;
+	}
+
+	*p = '\0';
+
+	hrc = SHGetFolderPathA(NULL, CSIDL_COMMON_APPDATA, NULL, 0, _program_data_directory);
+
+	if (!SUCCEEDED(hrc)) {
+		report_error("Could not get program data directory: %08x\n", hrc);
+
+		return 0;
+	}
+
+	string_append(_program_data_directory, sizeof(_program_data_directory), "\\Tinkerforge\\Brickd");
+
+	string_copy(_log_filename, sizeof(_log_filename), _program_data_directory, -1);
+	string_append(_log_filename, sizeof(_log_filename), "\\brickd.log");
+
+	string_copy(_config_filename, sizeof(_config_filename), _program_data_directory, -1);
+	string_append(_config_filename, sizeof(_config_filename), "\\brickd.ini");
+
+	string_copy(_config_default_filename, sizeof(_config_default_filename), _executable_directory, -1);
+	string_append(_config_default_filename, sizeof(_config_default_filename), "\\brickd-default.ini");
+
+	_live_log_queue_items[0] = calloc(MAX_LIVE_LOG_QUEUE_LENGTH, sizeof(LiveLogItem));
+	_live_log_queue_items[1] = calloc(MAX_LIVE_LOG_QUEUE_LENGTH, sizeof(LiveLogItem));
+
+	InitializeCriticalSection(&_live_log_dropped_lock);
+	InitializeCriticalSection(&_live_log_queue_lock);
 
 	wc.cbSize = sizeof(WNDCLASSEX);
 	wc.style = 0;
@@ -967,8 +1113,6 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
 
 		report_error("Could not register window class: %s (%d)",
 		             get_error_name(rc), rc);
-
-		CloseEventLog(_event_log);
 
 		return 0;
 	}
@@ -990,8 +1134,6 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
 		report_error("Could not create window: %s (%d)",
 		             get_error_name(rc), rc);
 
-		CloseEventLog(_event_log);
-
 		return 0;
 	}
 
@@ -1001,27 +1143,26 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
 	create_menu();
 
 	if (init_common_controls() < 0 ||
-	    create_status_bar() < 0 ||
-	    create_event_list_view() < 0 ||
-	    create_debug_list_view() < 0) {
-		CloseEventLog(_event_log);
-
+	    create_status_bar() < 0||
+	    create_live_log_view() < 0 ) {
 		return 0;
 	}
 
-	set_current_list_view(_event_list_view);
+	ShowWindow(_live_log_view, SW_SHOW);
+	SetFocus(_live_log_view);
+	UpdateWindow(_live_log_view);
+
+	set_live_log_level(LOG_LEVEL_INFO);
 
 	ShowWindow(_hwnd, nCmdShow);
 	UpdateWindow(_hwnd);
 
-	if (CreateThread(NULL, 0, read_named_pipe, NULL, 0, NULL) == NULL) {
+	if (CreateThread(NULL, 0, read_live_log, NULL, 0, NULL) == NULL) {
 		rc = GetLastError();
 
-		report_error("Could not create named pipe thread: %s (%d)",
+		report_error("Could not create live log read thread: %s (%d)",
 		             get_error_name(rc), rc);
 	}
-
-	read_event_log();
 
 	SetTimer(_hwnd, 1, 200, (TIMERPROC)NULL);
 
@@ -1038,9 +1179,6 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
 			DispatchMessage(&msg);
 		}
 	}
-
-	free(_record_buffer);
-	CloseEventLog(_event_log);
 
 	return msg.wParam;
 }

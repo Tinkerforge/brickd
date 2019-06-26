@@ -14,30 +14,27 @@
 @set RC=rc /dWIN32 /r
 
 @if defined DDKBUILDENV (
- set CC=%CC% /I%CRT_INC_PATH% /DBRICKD_WDK_BUILD
+ set CC=%CC% /I%CRT_INC_PATH%
  set LD=%LD% /libpath:%SDK_LIB_PATH:~0,-2%\i386^
   /libpath:%CRT_LIB_PATH:~0,-2%\i386 %SDK_LIB_PATH:~0,-2%\i386\msvcrt_*.obj
  set RC=%RC% /i%CRT_INC_PATH%
  echo WDK build
 ) else (
- set CC=%CC% /D_CRT_SECURE_NO_WARNINGS
+ set CC=%CC% /D_CRT_SECURE_NO_WARNINGS /D_CRT_NONSTDC_NO_DEPRECATE
  echo non-WDK build
 )
 
 @set CC=%CC% /I..
 
-@del *.obj *.res *.bin *.exp *.pdb *.exe log_messages.h log_messages.rc
-
-%MC% -A -b ../../../brickd/log_messages.mc
+@del *.obj *.res *.bin *.exp *.pdb *.exe
 
 %CC% logviewer.c
 
-%RC% /folog_messages.res log_messages.rc
 %RC% /fologviewer.res logviewer.rc
 
-%LD% /out:logviewer.exe *.obj *.res advapi32.lib comctl32.lib comdlg32.lib user32.lib
+%LD% /out:logviewer.exe *.obj *.res advapi32.lib comctl32.lib comdlg32.lib user32.lib shell32.lib
 
-@del *.obj *.res *.bin *.exp log_messages.h log_messages.rc
+@del *.obj *.res *.bin *.exp
 
 :done
 @endlocal

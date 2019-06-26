@@ -160,14 +160,25 @@ def build_windows_pkg():
 
     os.makedirs(dist_path)
 
-    print('compiling')
+    print('compiling brickd.exe')
     system('cd brickd && compile.bat')
 
-    print('signing brickd.exe')
-    system('signtool.exe sign /v /tr http://rfc3161timestamp.globalsign.com/advanced /td sha256 /n "Tinkerforge GmbH" dist\\brickd.exe')
+    if '--no-sign' not in sys.argv:
+        print('signing brickd.exe')
+        system('signtool.exe sign /v /tr http://rfc3161timestamp.globalsign.com/advanced /td sha256 /n "Tinkerforge GmbH" dist\\brickd.exe')
 
-    print('verifying signature')
-    system('signtool.exe verify /v /pa dist\\brickd.exe')
+        print('verifying brickd.exe signature')
+        system('signtool.exe verify /v /pa dist\\brickd.exe')
+
+    print('compiling logviewer.exe')
+    system('cd build_data\\windows\\logviewer && compile.bat')
+
+    if '--no-sign' not in sys.argv:
+        print('signing logviewer.exe')
+        system('signtool.exe sign /v /tr http://rfc3161timestamp.globalsign.com/advanced /td sha256 /n "Tinkerforge GmbH" build_data\\windows\\logviewer\\logviewer.exe')
+
+        print('verifying logviewer.exe signature')
+        system('signtool.exe verify /v /pa build_data\\windows\\logviewer\\logviewer.exe')
 
     print('creating NSIS script from template')
     version = check_output(['dist\\brickd.exe', '--version']).replace('\r\n', '')
@@ -197,11 +208,12 @@ def build_windows_pkg():
 
     shutil.move(os.path.join(dist_path, 'installer', installer), root_path)
 
-    print('signing NSIS installer')
-    system('signtool.exe sign /v /tr http://rfc3161timestamp.globalsign.com/advanced /td sha256 /n "Tinkerforge GmbH" ' + installer)
+    if '--no-sign' not in sys.argv:
+        print('signing NSIS installer')
+        system('signtool.exe sign /v /tr http://rfc3161timestamp.globalsign.com/advanced /td sha256 /n "Tinkerforge GmbH" ' + installer)
 
-    print('verifying signature')
-    system('signtool.exe verify /v /pa ' + installer)
+        print('verifying NSIS installer signature')
+        system('signtool.exe verify /v /pa ' + installer)
 
 
 def build_linux_pkg():

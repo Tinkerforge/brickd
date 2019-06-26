@@ -1,6 +1,6 @@
 /*
  * log viewer for brickd
- * Copyright (C) 2014 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2014, 2019 Matthias Bolte <matthias@tinkerforge.com>
  *
  * logviewer.rc: Version information for Windows
  *
@@ -22,7 +22,7 @@
 #include <winver.h>
 #include <winuser.h>
 
-#include "version.h"
+#include "../../../brickd/version.h"
 #include "resources.h"
 
 IDI_ICON ICON DISCARDABLE "logviewer.ico"

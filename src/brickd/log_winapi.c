@@ -50,6 +50,15 @@ typedef struct {
 
 #include <daemonlib/packed_end.h>
 
+typedef struct {
+	const char *name;
+	HANDLE handle;
+	bool connected;
+	Thread thread;
+	bool running;
+	Semaphore handshake;
+} LogPipe;
+
 #define NAMED_PIPE_BUFFER_LENGTH (sizeof(LogPipeMessage) * 4)
 #define FOREGROUND_ALL (FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE | FOREGROUND_INTENSITY)
 #define BACKGROUND_ALL (BACKGROUND_RED | BACKGROUND_GREEN | BACKGROUND_BLUE | BACKGROUND_INTENSITY)
@@ -59,13 +68,18 @@ typedef struct {
 static IO *_output = NULL;
 static HANDLE _console = NULL;
 static WORD _default_attributes = 0;
-static bool _named_pipe_connected = false;
-static bool _named_pipe_running = false;
-static HANDLE _named_pipe = INVALID_HANDLE_VALUE;
-static Thread _named_pipe_thread;
-static HANDLE _named_pipe_write_event = NULL;
-static Mutex _named_pipe_write_event_mutex; // protects _named_pipe_write_event
-static HANDLE _named_pipe_stop_event = NULL;
+static bool _pipes_initialized = false;
+static LogPipe _pipes[4];
+
+static const char *_pipes_names[4][2] = {
+	{"error", "\\\\.\\pipe\\tinkerforge-brick-daemon-error-log"},
+	{"warn", "\\\\.\\pipe\\tinkerforge-brick-daemon-warn-log"},
+	{"info", "\\\\.\\pipe\\tinkerforge-brick-daemon-info-log"},
+	{"debug", "\\\\.\\pipe\\tinkerforge-brick-daemon-debug-log"}
+};
+
+static HANDLE _pipes_write_event = NULL;
+static HANDLE _pipes_stop_event = NULL;
 
 void log_set_output_platform(IO *output);
 
@@ -96,37 +110,12 @@ static WORD log_prepare_color_attributes(WORD color) {
 	return attributes;
 }
 
-static void log_send_pipe_message(LogPipeMessage *pipe_message) {
-	OVERLAPPED overlapped;
-	DWORD bytes_written;
-
-	if (!_named_pipe_connected) {
-		return;
-	}
-
-	mutex_lock(&_named_pipe_write_event_mutex);
-
-	memset(&overlapped, 0, sizeof(overlapped));
-	overlapped.hEvent = _named_pipe_write_event;
-
-	if (!WriteFile(_named_pipe, pipe_message, sizeof(*pipe_message),
-	               NULL, &overlapped) &&
-	    GetLastError() == ERROR_IO_PENDING) {
-		// wait for result of overlapped I/O to avoid a race condition with
-		// the next WriteFile call that will reuse the same event handle
-		GetOverlappedResult(_named_pipe, &overlapped, &bytes_written, TRUE);
-	}
-
-	mutex_unlock(&_named_pipe_write_event_mutex);
-}
-
-static void log_connect_named_pipe(void *opaque) {
-	int phase = 0;
+static void log_connect_pipe(void *opaque) {
+	LogPipe *pipe = opaque;
 	HANDLE overlapped_event;
 	HANDLE events[2];
 	int rc;
 	OVERLAPPED overlapped;
-	Semaphore *handshake = opaque;
 	uint8_t byte;
 
 	// create connect/read event
@@ -135,40 +124,28 @@ static void log_connect_named_pipe(void *opaque) {
 	if (overlapped_event == NULL) {
 		rc = ERRNO_WINAPI_OFFSET + GetLastError();
 
-		log_error("Could not create named pipe overlapped connect/read event: %s (%d)",
-		          get_errno_name(rc), rc);
+		log_error("Could not create overlapped connect/read event for %s pipe: %s (%d)",
+		          pipe->name, get_errno_name(rc), rc);
 
-		goto cleanup;
+		// need to release the handshake in all cases, otherwise
+		// log_init_platform will block forever in semaphore_acquire
+		semaphore_release(&pipe->handshake);
+
+		return;
 	}
-
-	phase = 1;
-
-	// create stop event
-	_named_pipe_stop_event = CreateEvent(NULL, TRUE, FALSE, NULL);
-
-	if (_named_pipe_stop_event == NULL) {
-		rc = ERRNO_WINAPI_OFFSET + GetLastError();
-
-		log_error("Could not create named pipe stop event: %s (%d)",
-		          get_errno_name(rc), rc);
-
-		goto cleanup;
-	}
-
-	phase = 2;
 
 	// start loop
-	_named_pipe_running = true;
-	semaphore_release(handshake);
+	pipe->running = true;
+	semaphore_release(&pipe->handshake);
 
-	log_debug("Started named pipe connect thread");
+	log_debug("Started pipe connect thread");
 
-	while (_named_pipe_running) {
-		// connect named pipe
+	while (pipe->running) {
+		// connect pipe
 		memset(&overlapped, 0, sizeof(overlapped));
 		overlapped.hEvent = overlapped_event;
 
-		if (ConnectNamedPipe(_named_pipe, &overlapped)) {
+		if (ConnectNamedPipe(pipe->handle, &overlapped)) {
 			rc = ERRNO_WINAPI_OFFSET + GetLastError();
 
 			log_error("Could not connect named pipe: %s (%d)",
@@ -182,23 +159,23 @@ static void log_connect_named_pipe(void *opaque) {
 		// wait for connect/stop event
 		switch (rc)  {
 		case ERROR_IO_PENDING: // connection in progress
-			events[0] = _named_pipe_stop_event;
+			events[0] = _pipes_stop_event;
 			events[1] = overlapped_event;
 
 			rc = WaitForMultipleObjects(2, events, FALSE, INFINITE);
 
 			if (rc == WAIT_OBJECT_0) {
-				// named pipe connect thread stopped
+				// pipe connect thread stopped
 				goto cleanup;
 			} else if (rc == WAIT_OBJECT_0 + 1) {
-				_named_pipe_connected = true;
+				pipe->connected = true;
 
-				log_info("Log Viewer connected");
+				log_info("Log Viewer connected to %s pipe", pipe->name);
 			} else {
 				rc = ERRNO_WINAPI_OFFSET + GetLastError();
 
-				log_error("Could not wait for connect/stop event: %s (%d)",
-				          get_errno_name(rc), rc);
+				log_error("Could not wait for connect/stop event of %s pipe: %s (%d)",
+				          pipe->name, get_errno_name(rc), rc);
 
 				goto cleanup;
 			}
@@ -214,54 +191,54 @@ static void log_connect_named_pipe(void *opaque) {
 		default:
 			rc += ERRNO_WINAPI_OFFSET;
 
-			log_error("Could not connect named pipe: %s (%d)",
-			          get_errno_name(rc), rc);
+			log_error("Could not connect %s pipe: %s (%d)",
+			          pipe->name, get_errno_name(rc), rc);
 
 			goto cleanup;
 		}
 
-		// read from named pipe to detect client disconnect
+		// read from pipe to detect client disconnect
 		for (;;) {
 			ResetEvent(overlapped_event);
 
 			memset(&overlapped, 0, sizeof(overlapped));
 			overlapped.hEvent = overlapped_event;
 
-			if (ReadFile(_named_pipe, &byte, 1, NULL, &overlapped)) {
+			if (ReadFile(pipe->handle, &byte, 1, NULL, &overlapped)) {
 				continue;
 			}
 
 			if (GetLastError() != ERROR_IO_PENDING) {
-				DisconnectNamedPipe(_named_pipe);
+				DisconnectNamedPipe(pipe->handle);
 
-				log_info("Log Viewer disconnected");
+				log_info("Log Viewer disconnected from %s pipe", pipe->name);
 
-				_named_pipe_connected = false;
+				pipe->connected = false;
 
 				break;
 			}
 
-			events[0] = _named_pipe_stop_event;
+			events[0] = _pipes_stop_event;
 			events[1] = overlapped_event;
 
 			rc = WaitForMultipleObjects(2, events, FALSE, INFINITE);
 
 			if (rc == WAIT_OBJECT_0) {
-				// named pipe connect thread stopped
+				// pipe connect thread stopped
 				goto cleanup;
 			} else if (rc == WAIT_OBJECT_0 + 1) {
-				DisconnectNamedPipe(_named_pipe);
+				DisconnectNamedPipe(pipe->handle);
 
-				log_info("Log Viewer disconnected");
+				log_info("Log Viewer disconnected from %s pipe", pipe->name);
 
-				_named_pipe_connected = false;
+				pipe->connected = false;
 
 				break;
 			} else {
 				rc = ERRNO_WINAPI_OFFSET + GetLastError();
 
-				log_error("Could not wait for connect/stop event: %s (%d)",
-				          get_errno_name(rc), rc);
+				log_error("Could not wait for connect/stop event of %s pipe: %s (%d)",
+				          pipe->name, get_errno_name(rc), rc);
 
 				goto cleanup;
 			}
@@ -269,58 +246,64 @@ static void log_connect_named_pipe(void *opaque) {
 	}
 
 cleanup:
-	if (!_named_pipe_running) {
-		// need to release the handshake in all cases, otherwise
-		// log_init_platform will block forever in semaphore_acquire
-		semaphore_release(handshake);
-	}
+	CloseHandle(overlapped_event);
 
-	switch (phase) { // no breaks, all cases fall through intentionally
-	case 2:
-		CloseHandle(_named_pipe_stop_event);
-		// fall through
-
-	case 1:
-		CloseHandle(overlapped_event);
-		// fall through
-
-	default:
-		break;
-	}
-
-	_named_pipe_running = false;
+	pipe->running = false;
 }
 
 void log_init_platform(IO *output) {
 	int rc;
-	Semaphore handshake;
+	int i;
 
 	log_set_output_platform(output);
 
-	mutex_create(&_named_pipe_write_event_mutex);
+	// initialize pipes
+	memset(_pipes, 0, sizeof(_pipes));
 
-	// create named pipe for log messages
-	_named_pipe_write_event = CreateEventA(NULL, TRUE, FALSE, NULL);
+	for (i = 0; i < 4; ++i) {
+		_pipes[i].name = _pipes_names[i][0];
+		_pipes[i].handle = INVALID_HANDLE_VALUE;
+	}
 
-	if (_named_pipe_write_event == NULL) {
+	// create stop event
+	_pipes_stop_event = CreateEventA(NULL, TRUE, FALSE, NULL);
+
+	if (_pipes_stop_event == NULL) {
 		rc = ERRNO_WINAPI_OFFSET + GetLastError();
 
-		log_error("Could not create named pipe overlapped write event: %s (%d)",
+		log_error("Could not create pipe stop event: %s (%d)",
 		          get_errno_name(rc), rc);
-	} else {
-		_named_pipe = CreateNamedPipeA("\\\\.\\pipe\\tinkerforge-brick-daemon-debug-log",
-		                               PIPE_ACCESS_DUPLEX |
-		                               FILE_FLAG_OVERLAPPED |
-		                               FILE_FLAG_FIRST_PIPE_INSTANCE,
-		                               PIPE_TYPE_MESSAGE |
-		                               PIPE_WAIT,
-		                               1,
-		                               NAMED_PIPE_BUFFER_LENGTH,
-		                               NAMED_PIPE_BUFFER_LENGTH,
-		                               0,
-		                               NULL);
 
-		if (_named_pipe == INVALID_HANDLE_VALUE) {
+		return;
+	}
+
+	// create write event
+	_pipes_write_event = CreateEventA(NULL, TRUE, FALSE, NULL);
+
+	if (_pipes_write_event == NULL) {
+		rc = ERRNO_WINAPI_OFFSET + GetLastError();
+
+		log_error("Could not create pipe overlapped write event: %s (%d)",
+		          get_errno_name(rc), rc);
+
+		return;
+	}
+
+	// create pipes
+	for (i = 0; i < 4; ++i) {
+		_pipes[i].handle = CreateNamedPipeA(_pipes_names[i][1],
+		                                    PIPE_ACCESS_DUPLEX |
+		                                    FILE_FLAG_OVERLAPPED |
+		                                    FILE_FLAG_FIRST_PIPE_INSTANCE,
+		                                    PIPE_TYPE_MESSAGE |
+		                                    PIPE_WAIT,
+		                                    1,
+		                                    NAMED_PIPE_BUFFER_LENGTH,
+		                                    NAMED_PIPE_BUFFER_LENGTH,
+		                                    0,
+		                                    NULL);
+
+		if (_pipes[i].handle == INVALID_HANDLE_VALUE) {
 			rc = ERRNO_WINAPI_OFFSET + GetLastError();
 
 			// ERROR_PIPE_BUSY/ERROR_ACCESS_DENIED means pipe already exists
@@ -329,49 +312,52 @@ void log_init_platform(IO *output) {
 			// at the default info level yet. so just ignore these two cases
 			if (rc != ERRNO_WINAPI_OFFSET + ERROR_PIPE_BUSY &&
 			    rc != ERRNO_WINAPI_OFFSET + ERROR_ACCESS_DENIED) {
-				log_error("Could not create named pipe: %s (%d)",
-				          get_errno_name(rc), rc);
+				log_error("Could not create %s pipe: %s (%d)",
+				          _pipes[i].name, get_errno_name(rc), rc);
 			}
 		} else {
 			// create named pipe connect thread
-			if (semaphore_create(&handshake) < 0) {
+			if (semaphore_create(&_pipes[i].handshake) < 0) {
 				rc = ERRNO_WINAPI_OFFSET + GetLastError();
 
-				log_error("Could not create handshake semaphore: %s (%d)",
-				          get_errno_name(rc), rc);
+				log_error("Could not create handshake semaphore for %s pipe: %s (%d)",
+				          _pipes[i].name, get_errno_name(rc), rc);
 			} else {
-				thread_create(&_named_pipe_thread, log_connect_named_pipe, &handshake);
+				thread_create(&_pipes[i].thread, log_connect_pipe, &_pipes[i]);
 
-				semaphore_acquire(&handshake);
-				semaphore_destroy(&handshake);
+				semaphore_acquire(&_pipes[i].handshake);
+				semaphore_destroy(&_pipes[i].handshake);
 			}
 		}
 	}
+
+	_pipes_initialized = true;
 }
 
 void log_exit_platform(void) {
-	if (_named_pipe_running) {
-		SetEvent(_named_pipe_stop_event);
+	int i;
 
-		thread_join(&_named_pipe_thread);
-		thread_destroy(&_named_pipe_thread);
+	if (!_pipes_initialized) {
+		return;
 	}
 
-	_named_pipe_connected = false;
+	SetEvent(_pipes_stop_event);
 
-	if (_named_pipe != INVALID_HANDLE_VALUE) {
-		CloseHandle(_named_pipe);
+	for (i = 0; i < 4; ++i) {
+		if (_pipes[i].running) {
+			thread_join(&_pipes[i].thread);
+			thread_destroy(&_pipes[i].thread);
+		}
+
+		_pipes[i].connected = false;
+
+		if (_pipes[i].handle != INVALID_HANDLE_VALUE) {
+			CloseHandle(_pipes[i].handle);
+		}
 	}
 
-	if (_named_pipe_stop_event != NULL) {
-		CloseHandle(_named_pipe_stop_event);
-	}
-
-	if (_named_pipe_write_event != NULL) {
-		CloseHandle(_named_pipe_write_event);
-	}
-
-	mutex_destroy(&_named_pipe_write_event_mutex);
+	CloseHandle(_pipes_stop_event);
+	CloseHandle(_pipes_write_event);
 }
 
 void log_set_output_platform(IO *output) {
@@ -444,7 +430,24 @@ bool log_is_included_platform(LogLevel level, LogSource *source,
 	(void)source;
 	(void)debug_group;
 
-	return _named_pipe_connected;
+	switch (level) {
+	case LOG_LEVEL_DUMMY: // ignore this to avoid compiler warning
+		return false;
+
+	case LOG_LEVEL_ERROR:
+		return _pipes[3].connected || _pipes[2].connected || _pipes[1].connected || _pipes[0].connected;
+
+	case LOG_LEVEL_WARN:
+		return _pipes[3].connected || _pipes[2].connected || _pipes[1].connected;
+
+	case LOG_LEVEL_INFO:
+		return _pipes[3].connected || _pipes[2].connected;
+
+	case LOG_LEVEL_DEBUG:
+		return _pipes[3].connected;
+	}
+
+	return false;
 }
 
 // NOTE: assumes that _mutex (in log.c) is locked
@@ -452,11 +455,22 @@ void log_write_platform(struct timeval *timestamp, LogLevel level,
                         LogSource *source, LogDebugGroup debug_group,
                         const char *function, int line,
                         const char *format, va_list arguments) {
+	int i;
+	LogPipe *pipe = NULL;
 	LogPipeMessage message;
+	OVERLAPPED overlapped;
+	DWORD bytes_written;
 
 	(void)debug_group;
 
-	if (!_named_pipe_connected) {
+	for (i = level; i < 4; ++i) {
+		if (_pipes[i].connected) {
+			pipe = &_pipes[i];
+			break;
+		}
+	}
+
+	if (pipe == NULL) {
 		return;
 	}
 
@@ -471,5 +485,13 @@ void log_write_platform(struct timeval *timestamp, LogLevel level,
 	string_copy(message.source, sizeof(message.source),
 	            source->libusb ? function : source->name, -1);
 
-	log_send_pipe_message(&message);
+	memset(&overlapped, 0, sizeof(overlapped));
+	overlapped.hEvent = _pipes_write_event;
+
+	if (!WriteFile(pipe->handle, &message, sizeof(message), NULL, &overlapped) &&
+	    GetLastError() == ERROR_IO_PENDING) {
+		// wait for result of overlapped I/O to avoid a race condition with
+		// the next WriteFile call that will reuse the same event handle
+		GetOverlappedResult(pipe->handle, &overlapped, &bytes_written, TRUE);
+	}
 }
