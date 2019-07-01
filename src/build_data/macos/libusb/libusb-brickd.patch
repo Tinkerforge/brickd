@@ -11,10 +11,10 @@ index e4da62e..7929168 100644
  
  if OS_OPENBSD
 diff --git a/libusb/core.c b/libusb/core.c
-index 50f92f6..c054432 100644
+index 741bf99..953c6ee 100644
 --- a/libusb/core.c
 +++ b/libusb/core.c
-@@ -2398,21 +2398,32 @@ static void usbi_log_str(enum libusb_log_level level, const char *str)
+@@ -2553,21 +2553,32 @@ static void usbi_log_str(enum libusb_log_level level, const char *str)
  	UNUSED(level);
  }
  
@@ -50,7 +50,7 @@ index 50f92f6..c054432 100644
  	if (ctx)
  		ctx_level = ctx->debug;
 diff --git a/libusb/libusb.h b/libusb/libusb.h
-index 430136b..9b726ac 100644
+index 8a6b0bf..a94160a 100644
 --- a/libusb/libusb.h
 +++ b/libusb/libusb.h
 @@ -60,6 +60,7 @@ typedef unsigned __int32  uint32_t;
@@ -61,15 +61,15 @@ index 430136b..9b726ac 100644
  
  #if defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 199901L)
  #define ZERO_SIZED_ARRAY		/* [] - valid C99 code */
-@@ -1296,7 +1297,6 @@ enum libusb_log_level {
+@@ -1321,7 +1322,6 @@ typedef void (LIBUSB_CALL *libusb_log_cb)(libusb_context *ctx,
  
  int LIBUSB_CALL libusb_init(libusb_context **ctx);
  void LIBUSB_CALL libusb_exit(libusb_context *ctx);
 -LIBUSB_DEPRECATED_FOR(libusb_set_option)
  void LIBUSB_CALL libusb_set_debug(libusb_context *ctx, int level);
+ void LIBUSB_CALL libusb_set_log_cb(libusb_context *ctx, libusb_log_cb cb, int mode);
  const struct libusb_version * LIBUSB_CALL libusb_get_version(void);
- int LIBUSB_CALL libusb_has_capability(uint32_t capability);
-@@ -2032,6 +2032,13 @@ enum libusb_option {
+@@ -2059,6 +2059,13 @@ enum libusb_option {
  
  int LIBUSB_CALL libusb_set_option(libusb_context *ctx, enum libusb_option option, ...);
  
@@ -84,10 +84,10 @@ index 430136b..9b726ac 100644
  }
  #endif
 diff --git a/libusb/os/darwin_usb.c b/libusb/os/darwin_usb.c
-index 35ea1c3..a9ea70d 100644
+index f6e853b..77d2e62 100644
 --- a/libusb/os/darwin_usb.c
 +++ b/libusb/os/darwin_usb.c
-@@ -759,7 +759,13 @@ static int darwin_cache_device_descriptor (struct libusb_context *ctx, struct da
+@@ -766,7 +766,13 @@ static enum libusb_error darwin_cache_device_descriptor (struct libusb_context *
    /* According to Apple's documentation the device must be open for DeviceRequest but we may not be able to open some
     * devices and Apple's USB Prober doesn't bother to open the device before issuing a descriptor request.  Still,
     * to follow the spec as closely as possible, try opening the device */
