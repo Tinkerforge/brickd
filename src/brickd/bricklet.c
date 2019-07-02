@@ -151,25 +151,25 @@ int bricklet_init_rpi_hat(const char *product_id_test, const char *spidev, const
 
 	fd = open("/proc/device-tree/hat/product_id", O_RDONLY);
 	if(fd < 0) {
-		log_debug("Could not open %s product_id in device tree, not using pre-configured %s setup", name, name);
+		log_debug("Could not open HAT product_id in device tree, not using pre-configured %s Brick setup", name);
 		return 1;
 	}
 
 	rc = robust_read(fd, &product_id, BRICKLET_RPI_PRODUCT_ID_LENGTH);
 	robust_close(fd);
 	if(rc != BRICKLET_RPI_PRODUCT_ID_LENGTH) {
-		log_debug("Could not read %s product_id in device tree, not using pre-configured %s setup", name, name);
+		log_debug("Could not read HAT product_id in device tree, not using pre-configured %s Brick setup", name);
 		return 1;
 	}
 
 	if(strncmp(product_id_test, product_id, BRICKLET_RPI_PRODUCT_ID_LENGTH) != 0) {
 		if(last) {
-			log_debug("The product_id of the connected HAT (%s) is not supported, not using pre-configured HAT setup", product_id);
+			log_debug("The product_id of the connected HAT (%s) is not supported, not using pre-configured %s Brick setup", product_id, name);
 		}
 		return 1;
 	}
 
-	log_debug("Found product_id \"%s\" in device tree, using pre-configured %s setup", product_id, name);
+	log_debug("Found product_id \"%s\" in device tree, using pre-configured %s Brick setup", product_id, name);
 	BrickletStackConfig config = {
 		.mutex = &_bricklet_spi_mutex[spidev_num],
 	};
@@ -214,7 +214,7 @@ int bricklet_init_hctosys(void) {
 
 	fp = popen("/sbin/hwclock --hctosys", "r");
 	if(fp == NULL) {
-		log_debug("Could not popen /sbin/hwclock. Time will not be updated.");
+		log_debug("Could not popen /sbin/hwclock, time will not be updated");
 		return -1;
 	}
 
