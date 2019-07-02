@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2012-2018 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2012-2019 Matthias Bolte <matthias@tinkerforge.com>
  * Copyright (C) 2014 Olaf Lüke <olaf@tinkerforge.com>
  * Copyright (C) 2016-2017 Ishraq Ibne Ashraf <ishraq@tinkerforge.com>
  *
@@ -51,10 +51,8 @@ static LogSource _log_source = LOG_SOURCE_INITIALIZER;
 
 static Array _clients;
 static Array _zombies;
-static Socket _plain_server_socket;
-static bool _plain_server_socket_open = false;
-static Socket _websocket_server_socket;
-static bool _websocket_server_socket_open = false;
+static Array _plain_server_sockets;
+static Array _websocket_server_sockets;
 static uint32_t _next_authentication_nonce = 0;
 static Node _pending_request_sentinel;
 
@@ -111,23 +109,40 @@ static void network_handle_accept(void *opaque) {
 #endif
 }
 
-static int network_open_server_socket(Socket *socket, uint16_t port,
-                                      SocketCreateAllocatedFunction create_allocated) {
+static void network_open_server(Array *server_sockets, uint16_t port,
+                                SocketCreateAllocatedFunction create_allocated) {
 	const char *address = config_get_option_value("listen.address")->string;
 	bool dual_stack = config_get_option_value("listen.dual_stack")->boolean;
+	int i;
+	Socket *server_socket;
 
-	if (socket_open_server(socket, address, port, dual_stack, create_allocated) < 0) {
-		return -1;
+	socket_open_server(server_sockets, address, port, dual_stack, create_allocated);
+
+	for (i = 0; i < server_sockets->count; ++i) {
+		server_socket = array_get(server_sockets, i);
+
+		if (event_add_source(server_socket->handle, EVENT_SOURCE_TYPE_GENERIC, "server",
+		                     EVENT_READ, network_handle_accept, server_socket) < 0) {
+			break;
+		}
 	}
 
-	if (event_add_source(socket->handle, EVENT_SOURCE_TYPE_GENERIC, "server",
-	                     EVENT_READ, network_handle_accept, socket) < 0) {
-		socket_destroy(socket);
+	if (i < server_sockets->count) {
+		for (--i; i >= 0; --i) {
+			server_socket = array_get(server_sockets, i);
 
-		return -1;
+			event_remove_source(server_socket->handle, EVENT_SOURCE_TYPE_GENERIC);
+		}
+
+		for (i = 0; i < server_sockets->count; ++i) {
+			array_remove(server_sockets, i, (ItemDestroyFunction)socket_destroy);
+		}
 	}
+}
 
-	return 0;
+static void network_destroy_server_socket(Socket *server_socket) {
+	event_remove_source(server_socket->handle, EVENT_SOURCE_TYPE_GENERIC);
+	socket_destroy(server_socket);
 }
 
 // drop all pending requests for the given UID from the global list
@@ -155,6 +170,7 @@ static int network_drop_pending_requests(uint32_t uid) {
 }
 
 int network_init(void) {
+	int phase = 0;
 	uint16_t plain_port = (uint16_t)config_get_option_value("listen.plain_port")->integer;
 	uint16_t websocket_port = (uint16_t)config_get_option_value("listen.websocket_port")->integer;
 
@@ -174,8 +190,10 @@ int network_init(void) {
 		log_error("Could not create client array: %s (%d)",
 		          get_errno_name(errno), errno);
 
-		return -1;
+		goto cleanup;
 	}
+
+	phase = 1;
 
 	// create zombie array. the Zombie struct is not relocatable, because a
 	// pointer to it is passed as opaque parameter to its timer object
@@ -183,14 +201,31 @@ int network_init(void) {
 		log_error("Could not create zombie array: %s (%d)",
 		          get_errno_name(errno), errno);
 
-		array_destroy(&_clients, (ItemDestroyFunction)client_destroy);
-
-		return -1;
+		goto cleanup;
 	}
 
-	if (network_open_server_socket(&_plain_server_socket, plain_port,
-	                               socket_create_allocated) >= 0) {
-		_plain_server_socket_open = true;
+	phase = 2;
+
+	// create plain server sockets. the Socket struct is not relocatable, because a
+	// pointer to it is passed as opaque parameter to accept function
+	if (array_create(&_plain_server_sockets, 8, sizeof(Socket), false) < 0) {
+		log_error("Could not create plain server socket array: %s (%d)",
+		          get_errno_name(errno), errno);
+
+		goto cleanup;
+	}
+
+	network_open_server(&_plain_server_sockets, plain_port, socket_create_allocated);
+
+	phase = 3;
+
+	// create websocket server sockets. the Socket struct is not relocatable, because a
+	// pointer to it is passed as opaque parameter to accept function
+	if (array_create(&_websocket_server_sockets, 8, sizeof(Socket), false) < 0) {
+		log_error("Could not create websocket server socket array: %s (%d)",
+		          get_errno_name(errno), errno);
+
+		goto cleanup;
 	}
 
 	if (websocket_port != 0) {
@@ -198,39 +233,51 @@ int network_init(void) {
 			log_warn("WebSocket support is enabled without authentication");
 		}
 
-		if (network_open_server_socket(&_websocket_server_socket, websocket_port,
-		                               websocket_create_allocated) >= 0) {
-			_websocket_server_socket_open = true;
-		}
+		network_open_server(&_websocket_server_sockets, websocket_port, websocket_create_allocated);
 	}
 
-	if (!_plain_server_socket_open && !_websocket_server_socket_open) {
+	phase = 4;
+
+	if (_plain_server_sockets.count + _websocket_server_sockets.count == 0) {
 		log_error("Could not open any socket to listen to");
 
-		array_destroy(&_zombies, (ItemDestroyFunction)zombie_destroy);
-		array_destroy(&_clients, (ItemDestroyFunction)client_destroy);
-
-		return -1;
+		goto cleanup;
 	}
 
-	return 0;
+	phase = 5;
+
+cleanup:
+	switch (phase) { // no breaks, all cases fall through intentionally
+	case 4:
+		array_destroy(&_websocket_server_sockets, (ItemDestroyFunction)network_destroy_server_socket);
+		// fall through
+
+	case 3:
+		array_destroy(&_plain_server_sockets, (ItemDestroyFunction)network_destroy_server_socket);
+		// fall through
+
+	case 2:
+		array_destroy(&_zombies, (ItemDestroyFunction)zombie_destroy);
+		// fall through
+
+	case 1:
+		array_destroy(&_clients, (ItemDestroyFunction)client_destroy);
+		// fall through
+
+	default:
+		break;
+	}
+
+	return phase == 5 ? 0 : -1;
 }
 
 void network_exit(void) {
 	log_debug("Shutting down network subsystem");
 
+	array_destroy(&_websocket_server_sockets, (ItemDestroyFunction)network_destroy_server_socket);
+	array_destroy(&_plain_server_sockets, (ItemDestroyFunction)network_destroy_server_socket);
 	array_destroy(&_clients, (ItemDestroyFunction)client_destroy); // might call network_create_zombie
 	array_destroy(&_zombies, (ItemDestroyFunction)zombie_destroy);
-
-	if (_plain_server_socket_open) {
-		event_remove_source(_plain_server_socket.handle, EVENT_SOURCE_TYPE_GENERIC);
-		socket_destroy(&_plain_server_socket);
-	}
-
-	if (_websocket_server_socket_open) {
-		event_remove_source(_websocket_server_socket.handle, EVENT_SOURCE_TYPE_GENERIC);
-		socket_destroy(&_websocket_server_socket);
-	}
 }
 
 Client *network_create_client(const char *name, IO *io) {
