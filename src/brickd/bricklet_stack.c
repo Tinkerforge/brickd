@@ -733,11 +733,10 @@ static int bricklet_stack_init_spi(BrickletStack *bricklet_stack) {
 }
 
 BrickletStack* bricklet_stack_init(BrickletStackConfig *config) {
-    int phase = 0;
-	char bricklet_stack_name[129] = {'\0'};
-	char notification_name[129] = {'\0'};
+	int phase = 0;
+	char bricklet_stack_name[128];
 
-    log_debug("Initializing BrickletStack subsystem for '%s' (num %d)", config->spi_device, config->chip_select_gpio_sysfs.num);
+	log_debug("Initializing Bricklet stack subsystem for '%s' (num %d)", config->spi_device, config->chip_select_gpio_sysfs.num);
 
 	if(config->chip_select_driver == CHIP_SELECT_GPIO) {
 		if(gpio_sysfs_export(&config->chip_select_gpio_sysfs) < 0) {
@@ -768,14 +767,15 @@ BrickletStack* bricklet_stack_init(BrickletStackConfig *config) {
 
 	ringbuffer_init(&bricklet_stack->ringbuffer_recv, 
 	                BRICKLET_STACK_SPI_RECEIVE_BUFFER_LENGTH, 
-					bricklet_stack->buffer_recv);
+	                bricklet_stack->buffer_recv);
 
 	// create base stack
-	if (snprintf(bricklet_stack_name, 128, "bricklet-stack-%s", bricklet_stack->config.spi_device) < 0) {
+	if (snprintf(bricklet_stack_name, sizeof(bricklet_stack_name), "Bricklet-%s", bricklet_stack->config.spi_device) < 0) {
 		goto cleanup;
 	}
+
 	if (stack_create(&bricklet_stack->base, bricklet_stack_name, bricklet_stack_dispatch_to_spi) < 0) {
-		log_error("Could not create base stack for BrickletStack: %s (%d)",
+		log_error("Could not create base stack for Bricklet stack: %s (%d)",
 		          get_errno_name(errno), errno);
 
 		goto cleanup;
@@ -791,7 +791,7 @@ BrickletStack* bricklet_stack_init(BrickletStackConfig *config) {
 	phase = 2;
 
 	if ((bricklet_stack->notification_event = eventfd(0, EFD_NONBLOCK | EFD_SEMAPHORE)) < 0) {
-		log_error("Could not create bricklet notification event: %s (%d)",
+		log_error("Could not create Bricklet notification event: %s (%d)",
 		          get_errno_name(errno), errno);
 
 		goto cleanup;
@@ -801,13 +801,10 @@ BrickletStack* bricklet_stack_init(BrickletStackConfig *config) {
 
 	// Add notification pipe as event source.
 	// Event is used to dispatch packets.
-	if (snprintf(notification_name, 128, "bricklet-stack-notification-%s", bricklet_stack->config.spi_device) < 0) {
-		goto cleanup;
-	}
 	if (event_add_source(bricklet_stack->notification_event, EVENT_SOURCE_TYPE_GENERIC,
-	                     notification_name, EVENT_READ,
+	                     "bricklet-stack-notification", EVENT_READ,
 	                     bricklet_stack_dispatch_from_spi, bricklet_stack) < 0) {
-		log_error("Could not add bricklet notification pipe as event source");
+		log_error("Could not add Bricklet notification pipe as event source");
 
 		goto cleanup;
 	}
