@@ -152,7 +152,7 @@ static void mesh_stack_recv_handler(void *opaque) {
 			}
 
 			if (!packet_header_is_valid_response(&mesh_stack->payload_response.payload.header, &message)) {
-				log_debug("Received invalid response (packet: %s) from mesh stack (N: %s), disconnecting mesh stack: %s",
+				log_error("Received invalid response (packet: %s) from mesh stack (N: %s), disconnecting mesh stack: %s",
 				          packet_get_dump(packet_dump, &mesh_stack->payload_response.payload, mesh_stack->response_buffer_used - sizeof(MeshPacketHeader)),
 				          mesh_stack->name,
 				          message);
@@ -256,8 +256,8 @@ void timer_hb_do_ping_handler(void *opaque) {
 void timer_hb_wait_pong_handler(void *opaque) {
 	MeshStack *mesh_stack = (MeshStack *)opaque;
 
-	log_debug("Wait pong timed out, cleaning up mesh stack (N: %s)",
-	          mesh_stack->name);
+	log_warn("Wait pong timed out, cleaning up mesh stack (N: %s)",
+	         mesh_stack->name);
 
 	mesh_stack->cleanup = true;
 }
