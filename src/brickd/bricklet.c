@@ -151,25 +151,25 @@ int bricklet_init_rpi_hat(const char *product_id_test, const char *spidev, const
 
 	fd = open("/proc/device-tree/hat/product_id", O_RDONLY);
 	if(fd < 0) {
-		log_debug("Could not open %s product_id in device tree, brickd will not use a pre-configured %s configuration.", name, name);
+		log_debug("Could not open %s product_id in device tree, not using pre-configured %s setup", name, name);
 		return 1;
 	}
 
 	rc = robust_read(fd, &product_id, BRICKLET_RPI_PRODUCT_ID_LENGTH);
 	robust_close(fd);
-	if(rc != 6) {
-		log_debug("Could not read %s product_id in device tree, brickd will not use a pre-configured %s configuration.", name, name);
+	if(rc != BRICKLET_RPI_PRODUCT_ID_LENGTH) {
+		log_debug("Could not read %s product_id in device tree, not using pre-configured %s setup", name, name);
 		return 1;
 	}
 
 	if(strncmp(product_id_test, product_id, BRICKLET_RPI_PRODUCT_ID_LENGTH) != 0) {
 		if(last) {
-			log_debug("The product_id of the connected HAT (%s) is not supported, brickd will not use a pre-configured HAT configuration.", product_id);
+			log_debug("The product_id of the connected HAT (%s) is not supported, not using pre-configured HAT setup", product_id);
 		}
 		return 1;
 	}
 
-	log_debug("Found product_id \"%s\" in device tree, brickd will use pre-configured %s configuration.", product_id, name);
+	log_debug("Found product_id \"%s\" in device tree, using pre-configured %s setup", product_id, name);
 	BrickletStackConfig config = {
 		.mutex = &_bricklet_spi_mutex[spidev_num],
 	};
