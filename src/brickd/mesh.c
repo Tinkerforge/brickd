@@ -112,7 +112,11 @@ void mesh_handle_accept(void *opaque) {
 		log_warn("Could not get hostname and port of mesh client (socket: %d): %s (%d)",
 		         client_socket->handle, get_errno_name(errno), errno);
 	} else {
-		snprintf(buffer, sizeof(buffer), "%s:%s", hostname, port);
+		if (address.ss_family == AF_INET6) {
+			snprintf(buffer, sizeof(buffer), "[%s]:%s", hostname, port);
+		} else {
+			snprintf(buffer, sizeof(buffer), "%s:%s", hostname, port);
+		}
 
 		name = buffer;
 	}
