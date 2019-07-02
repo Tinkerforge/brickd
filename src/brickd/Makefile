@@ -29,7 +29,7 @@ WITH_USB_REOPEN_ON_SIGUSR1 ?= yes
 WITH_PM_UTILS ?= check
 WITH_SYSTEMD ?= check
 WITH_RED_BRICK ?= check
-WITH_BRICKLET ?= no
+WITH_BRICKLET ?= check
 WITH_MESH_SINGLE_ROOT_NODE ?= no
 
 ## RULES ######################################################################
