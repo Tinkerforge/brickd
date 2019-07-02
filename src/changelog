@@ -28,7 +28,7 @@
 - Break a reference cycle between USBDevice and USBTransfer objects
 - Add date to log output
 - Fix stack ID routing for enumerate with multiple connected stacks
-- Add --version commandline argument
+- Add --version commandline option
 
 2012-07-30: 1.0.9 (7002e21)
 - Reduce Windows and macOS installer size
@@ -213,3 +213,19 @@
 - Use systemd instead of init.d on Linux, if available
 - Add initial Android support, no precompiled app available yet, brickd for
   Android has to be compiled from source
+
+2019-07-02: 2.4.0 (<unknown>)
+- Add support for HAT (Zero) Brick (SPI connected Bricklets)
+- Install Log Viewer start menu link for all users on Windows
+- Add commandline options to override config, log and PID file location on Linux
+  and macOS
+- Remove accidental dependency to libusb 1.0.20 on Linux
+- Replace Event Log usage with persistent log file on Windows
+- Extend Log Viewer to start/stop brickd, view log file and edit config file on
+  Windows
+- Fix rare crash in WIFI Extension 2.0 mesh packet handling
+- Add support for receiving multiple response packets per USB read transfer
+- Update bundled libusb to 1.0.23-rc1 on Windows and macOS, this fixes problems
+  with ROOT/SYSTEM/0001 USB hubs on Windows
+- Bind to all IP addresses resolved from the listen.address config option,
+  instead of just the first one
