@@ -105,15 +105,6 @@ else
 endif
 
 ifeq ($(PLATFORM),Linux)
-ifeq ($(WITH_BRICKLET),check)
-	WITH_BRICKLET := yes
-endif
-else
-	# not Linux, no Bricklet
-	WITH_BRICKLET := no
-endif
-
-ifeq ($(PLATFORM),Linux)
 ifeq ($(WITH_RED_BRICK),check)
 ifneq ($(wildcard /proc/red_brick_uid),)
 	# Linux and RED Brick <= 1.9
@@ -131,6 +122,20 @@ endif
 else
 	# not Linux, no RED Brick
 	WITH_RED_BRICK := no
+endif
+
+ifeq ($(PLATFORM),Linux)
+ifeq ($(WITH_BRICKLET),check)
+ifeq ($(WITH_RED_BRICK),no)
+	WITH_BRICKLET := yes
+else
+	# RED Brick, no Bricklet
+	WITH_BRICKLET := no
+endif
+endif
+else
+	# not Linux, no Bricklet
+	WITH_BRICKLET := no
 endif
 
 ifeq ($(PLATFORM),Linux)
