@@ -259,15 +259,7 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <CustomBuild Include="..\..\..\brickd\log_messages.mc">
-      <Filter>brickd</Filter>
-    </CustomBuild>
-  </ItemGroup>
-  <ItemGroup>
     <ResourceCompile Include="..\..\..\brickd\brickd.rc">
-      <Filter>brickd</Filter>
-    </ResourceCompile>
-    <ResourceCompile Include="..\..\..\brickd\log_messages.rc">
       <Filter>brickd</Filter>
     </ResourceCompile>
   </ItemGroup>

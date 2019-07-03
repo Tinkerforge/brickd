@@ -105,57 +105,39 @@
     <ClInclude Include="..\..\..\daemonlib\writer.h" />
   </ItemGroup>
   <ItemGroup>
-    <CustomBuild Include="..\..\..\brickd\log_messages.mc">
-      <FileType>Document</FileType>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">mc -A -b -h %(RootDir)%(Directory) -r %(RootDir)%(Directory) %(FullPath)</Command>
-      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Compiling Messages...</Message>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">mc -A -b -h %(RootDir)%(Directory) -r %(RootDir)%(Directory) %(FullPath)</Command>
-      <Message Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Compiling Messages...</Message>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">mc -A -b -h %(RootDir)%(Directory) -r %(RootDir)%(Directory) %(FullPath)</Command>
-      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Compiling Messages...</Message>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">mc -A -b -h %(RootDir)%(Directory) -r %(RootDir)%(Directory) %(FullPath)</Command>
-      <Message Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Compiling Messages...</Message>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">%(RootDir)%(Directory)%(Filename).h;%(RootDir)%(Directory)%(Filename).rc;%(RootDir)%(Directory)%(Filename)_MSG0409.bin</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">%(RootDir)%(Directory)%(Filename).h;%(RootDir)%(Directory)%(Filename).rc;%(RootDir)%(Directory)%(Filename)_MSG0409.bin</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">%(RootDir)%(Directory)%(Filename).h;%(RootDir)%(Directory)%(Filename).rc;%(RootDir)%(Directory)%(Filename)_MSG0409.bin</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">%(RootDir)%(Directory)%(Filename).h;%(RootDir)%(Directory)%(Filename).rc;%(RootDir)%(Directory)%(Filename)_MSG0409.bin</Outputs>
-    </CustomBuild>
-  </ItemGroup>
-  <ItemGroup>
     <ResourceCompile Include="..\..\..\brickd\brickd.rc" />
-    <ResourceCompile Include="..\..\..\brickd\log_messages.rc" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>15.0</VCProjectVersion>
     <ProjectGuid>{01F89771-3CE1-4955-8522-CB31963F850F}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
     <RootNamespace>brickd</RootNamespace>
-    <WindowsTargetPlatformVersion>10.0.16299.0</WindowsTargetPlatformVersion>
+    <WindowsTargetPlatformVersion>10.0.17763.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
-    <PlatformToolset>v141</PlatformToolset>
+    <PlatformToolset>v142</PlatformToolset>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
-    <PlatformToolset>v141</PlatformToolset>
+    <PlatformToolset>v142</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
-    <PlatformToolset>v141</PlatformToolset>
+    <PlatformToolset>v142</PlatformToolset>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
-    <PlatformToolset>v141</PlatformToolset>
+    <PlatformToolset>v142</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
