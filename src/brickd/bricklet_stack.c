@@ -308,7 +308,7 @@ static bool bricklet_stack_handle_message_from_bricklet(BrickletStack *bricklet_
 	mutex_unlock(&bricklet_stack->response_queue_mutex);
 
 	if (eventfd_write(bricklet_stack->notification_event, ev) < 0) {
-		log_error("Could not write to red stack spi notification event: %s (%d)",
+		log_error("Could not write to Bricklet stack SPI notification event: %s (%d)",
 		          get_errno_name(errno), errno);
 
 		return false;
