@@ -781,6 +781,8 @@ BrickletStack *bricklet_stack_init(BrickletStackConfig *config) {
 		goto cleanup;
 	}
 
+	phase = 1;
+
 	bricklet_stack->spi_fd = -1;
 	bricklet_stack->spi_thread_running = false;
 
@@ -802,14 +804,14 @@ BrickletStack *bricklet_stack_init(BrickletStackConfig *config) {
 		goto cleanup;
 	}
 
-	phase = 1;
+	phase = 2;
 
 	// add to stacks array
 	if (hardware_add_stack(&bricklet_stack->base) < 0) {
 		goto cleanup;
 	}
 
-	phase = 2;
+	phase = 3;
 
 	if ((bricklet_stack->notification_event = eventfd(0, EFD_NONBLOCK | EFD_SEMAPHORE)) < 0) {
 		log_error("Could not create Bricklet notification event: %s (%d)",
@@ -818,7 +820,7 @@ BrickletStack *bricklet_stack_init(BrickletStackConfig *config) {
 		goto cleanup;
 	}
 
-	phase = 3;
+	phase = 4;
 
 	// Add notification pipe as event source.
 	// Event is used to dispatch packets.
@@ -830,7 +832,7 @@ BrickletStack *bricklet_stack_init(BrickletStackConfig *config) {
 		goto cleanup;
 	}
 
-	phase = 4;
+	phase = 5;
 
 	// Initialize SPI packet queues
 	if (queue_create(&bricklet_stack->request_queue, sizeof(Packet)) < 0) {
@@ -842,7 +844,7 @@ BrickletStack *bricklet_stack_init(BrickletStackConfig *config) {
 
 	mutex_create(&bricklet_stack->request_queue_mutex);
 
-	phase = 5;
+	phase = 6;
 
 	if (queue_create(&bricklet_stack->response_queue, sizeof(Packet)) < 0) {
 		log_error("Could not create SPI response queue: %s (%d)",
@@ -853,48 +855,52 @@ BrickletStack *bricklet_stack_init(BrickletStackConfig *config) {
 
 	mutex_create(&bricklet_stack->response_queue_mutex);
 
-	phase = 6;
+	phase = 7;
 
 	if (bricklet_stack_init_spi(bricklet_stack) < 0) {
 		goto cleanup;
 	}
 
-	phase = 7;
+	phase = 8;
 
 cleanup:
 	switch (phase) { // no breaks, all cases fall through intentionally
-	case 6:
+	case 7:
 		mutex_destroy(&bricklet_stack->response_queue_mutex);
 		queue_destroy(&bricklet_stack->response_queue, NULL);
 		// fall through
 
-	case 5:
+	case 6:
 		mutex_destroy(&bricklet_stack->request_queue_mutex);
 		queue_destroy(&bricklet_stack->request_queue, NULL);
 
 		// fall through
 
-	case 4:
+	case 5:
 		event_remove_source(bricklet_stack->notification_event, EVENT_SOURCE_TYPE_GENERIC);
 		// fall through
 
-	case 3:
+	case 4:
 		robust_close(bricklet_stack->notification_event);
 		// fall through
 
-	case 2:
+	case 3:
 		hardware_remove_stack(&bricklet_stack->base);
 		// fall through
 
-	case 1:
+	case 2:
 		stack_destroy(&bricklet_stack->base);
+		// fall through
+
+	case 1:
+		free(bricklet_stack);
 		// fall through
 
 	default:
 		break;
 	}
 
-	return phase == 7 ? bricklet_stack : NULL;
+	return phase == 8 ? bricklet_stack : NULL;
 }
 
 void bricklet_stack_exit(BrickletStack *bricklet_stack) {
