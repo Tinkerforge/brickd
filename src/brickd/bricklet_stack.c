@@ -775,13 +775,11 @@ BrickletStack *bricklet_stack_init(BrickletStackConfig *config) {
 	}
 
 	// create bricklet_stack struct
-	BrickletStack *bricklet_stack = (BrickletStack*)malloc(sizeof(BrickletStack));
+	BrickletStack *bricklet_stack = calloc(1, sizeof(BrickletStack));
 
 	if(bricklet_stack == NULL) {
 		goto cleanup;
 	}
-
-	memset(bricklet_stack, 0, sizeof(BrickletStack));
 
 	bricklet_stack->spi_fd = -1;
 	bricklet_stack->spi_thread_running = false;
