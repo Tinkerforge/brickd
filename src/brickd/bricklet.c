@@ -1,6 +1,7 @@
 /*
  * brickd
  * Copyright (C) 2018 Olaf Lüke <olaf@tinkerforge.com>
+ * Copyright (C) 2019 Matthias Bolte <matthias@tinkerforge.com>
  *
  * bricklet.c: Bricklet support
  *
@@ -144,19 +145,25 @@ bricklet.group0.cs4.num = 25
 // Additionally, on spidev0.x the SPI_NO_CS option does not work,
 // so we can't intermix hardware CS with gpio CS pins. Because
 // of this the HAT can only use pins for CS that are not HW CS pins...
-int bricklet_init_rpi_hat(const char *product_id_test, const char *spidev, const int spidev_num, const uint8_t *gpios, const int gpios_num, const int master_cs, const char *name, const bool last) {
+int bricklet_init_rpi_hat(const char *product_id_test, const char *spidev,
+                          const int spidev_num, const uint8_t *gpios,
+                          const int gpios_num, const int master_cs,
+                          const char *name, const bool last) {
 	int fd;
 	int rc;
 	char product_id[BRICKLET_RPI_PRODUCT_ID_LENGTH+1] = "\0";
 
 	fd = open("/proc/device-tree/hat/product_id", O_RDONLY);
+
 	if(fd < 0) {
 		log_debug("Could not open HAT product_id in device tree, not using pre-configured %s Brick setup", name);
 		return 1;
 	}
 
 	rc = robust_read(fd, &product_id, BRICKLET_RPI_PRODUCT_ID_LENGTH);
+
 	robust_close(fd);
+
 	if(rc != BRICKLET_RPI_PRODUCT_ID_LENGTH) {
 		log_debug("Could not read HAT product_id in device tree, not using pre-configured %s Brick setup", name);
 		return 1;
@@ -166,10 +173,12 @@ int bricklet_init_rpi_hat(const char *product_id_test, const char *spidev, const
 		if(last) {
 			log_debug("The product_id of the connected HAT (%s) is not supported, not using pre-configured %s Brick setup", product_id, name);
 		}
+
 		return 1;
 	}
 
 	log_debug("Found product_id \"%s\" in device tree, using pre-configured %s Brick setup", product_id, name);
+
 	BrickletStackConfig config = {
 		.mutex = &_bricklet_spi_mutex[spidev_num],
 	};
@@ -183,9 +192,11 @@ int bricklet_init_rpi_hat(const char *product_id_test, const char *spidev, const
 		} else {
 			config.startup_wait_time = 1;
 		}
+
 		config.num = _bricklet_stack_num;
 		config.chip_select_driver = BRICKLET_CHIP_SELECT_DRIVER_GPIO;
 		config.chip_select_gpio_sysfs.num = gpios[cs];
+
 		sprintf(config.chip_select_gpio_sysfs.name, "gpio%d", config.chip_select_gpio_sysfs.num);
 
 		log_debug("Bricklet found: spidev %s, driver %d, name %s (num %d)",
@@ -195,6 +206,7 @@ int bricklet_init_rpi_hat(const char *product_id_test, const char *spidev, const
 		          config.chip_select_gpio_sysfs.num);
 
 		_bricklet_stack[_bricklet_stack_num] = bricklet_stack_init(&config);
+
 		if(_bricklet_stack[_bricklet_stack_num] == NULL) {
 			return -1;
 		}
@@ -213,6 +225,7 @@ int bricklet_init_hctosys(void) {
 	buffer[0] = '\0';
 
 	fp = popen("/sbin/hwclock --hctosys", "r");
+
 	if(fp == NULL) {
 		log_debug("Could not popen /sbin/hwclock, time will not be updated");
 		return -1;
@@ -258,6 +271,7 @@ int bricklet_init(void) {
 	                           BRICKLET_RPI_HAT_MASTER_CS,
 	                           "HAT",
 	                           false);
+
 	if(rc < 0) {
 		return -1;
 	} else if(rc == 0) {
@@ -276,6 +290,7 @@ int bricklet_init(void) {
 	                           BRICKLET_RPI_HAT_ZERO_MASTER_CS,
 	                           "HAT Zero",
 	                           true);
+
 	if(rc < 0) {
 		return -1;
 	} else if(rc == 0) {
@@ -292,6 +307,7 @@ int bricklet_init(void) {
 
 		str_spidev[BRICKLET_CONFIG_STR_GROUP_POS] = '0' + i;
 		length = strlen(config_get_option_value(str_spidev)->string);
+
 		if(length == 0) {
 			continue;
 		}
@@ -324,13 +340,14 @@ int bricklet_init(void) {
 				continue;
 			}
 
-			log_debug("Bricklet found: spidev %s, driver %d, name %s (num %d)", 
+			log_debug("Bricklet found: spidev %s, driver %d, name %s (num %d)",
 			          config.spi_device,
 			          config.chip_select_driver,
 			          config.chip_select_gpio_sysfs.name,
 			          config.chip_select_gpio_sysfs.num);
 
 			_bricklet_stack[_bricklet_stack_num] = bricklet_stack_init(&config);
+
 			if(_bricklet_stack[_bricklet_stack_num] == NULL) {
 				return -1;
 			}

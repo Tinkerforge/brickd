@@ -93,9 +93,9 @@ static int bricklet_stack_dispatch_to_spi(Stack *stack, Packet *request, Recipie
 	mutex_unlock(&bricklet_stack->request_queue_mutex);
 
 	log_packet_debug("Packet is queued to be send over SPI (%s)",
-					 packet_get_request_signature(packet_signature, request));
+	                 packet_get_request_signature(packet_signature, request));
 
-    return 0;
+	return 0;
 }
 
 // New packet from BrickletStack is send into brickd event loop
@@ -151,6 +151,7 @@ static void bricklet_stack_dispatch_from_spi(void *opaque) {
 			// done by the isolator itself.
 			if(ec->position != 'Z' || ec->connected_uid[0] == '\0') {
 				memcpy(ec->connected_uid, PACKET_NO_CONNECTED_UID_STR, PACKET_NO_CONNECTED_UID_STR_LENGTH);
+
 				if((*bricklet_stack->config.connected_uid != 0) && (ec->device_identifier != 111) && (ec->device_identifier != 112)) {
 					char base58[BASE58_MAX_LENGTH];
 					base58_encode(base58, uint32_from_le(*bricklet_stack->config.connected_uid));
@@ -172,8 +173,8 @@ static void bricklet_stack_dispatch_from_spi(void *opaque) {
 }
 
 static uint64_t bricklet_stack_get_ms(void) {
-    struct timespec spec;
-    clock_gettime(CLOCK_MONOTONIC, &spec);
+	struct timespec spec;
+	clock_gettime(CLOCK_MONOTONIC, &spec);
 	return (((uint64_t)spec.tv_sec)*1000) + ((spec.tv_nsec + 1000*1000/2) / (1000*1000));
 }
 
@@ -185,17 +186,21 @@ static uint16_t bricklet_stack_check_missing_length(BrickletStack *bricklet_stac
 	// Peak into the buffer to get the message length.
 	// Only call this before or after bricklet_co_mcu_check_recv.
 	Ringbuffer *rb = &bricklet_stack->ringbuffer_recv;
+
 	while(rb->start != rb->end) {
 		uint8_t length = rb->buffer[rb->start];
+
 		if((length < SPITFP_MIN_TFP_MESSAGE_LENGTH || length > SPITFP_MAX_TFP_MESSAGE_LENGTH) && length != SPITFP_PROTOCOL_OVERHEAD) {
 			if(length != 0) {
 				bricklet_stack->error_count_frame++;
 			}
+
 			ringbuffer_remove(rb, 1);
 			continue;
 		}
 
 		int32_t ret = length - ringbuffer_get_used(rb);
+
 		if((ret < 0) || (ret > TFP_MESSAGE_MAX_LENGTH)) {
 			return 0;
 		}
@@ -219,9 +224,9 @@ static uint8_t bricklet_stack_get_sequence_byte(BrickletStack *bricklet_stack, c
 
 static void bricklet_stack_check_message_send_timeout(BrickletStack *bricklet_stack) {
 	// If we are not currently sending a message
-	// and there is still data in the buffer 
+	// and there is still data in the buffer
 	// and the timeout ran out we resend the message
-	if((bricklet_stack->buffer_send_length > SPITFP_PROTOCOL_OVERHEAD) && 
+	if((bricklet_stack->buffer_send_length > SPITFP_PROTOCOL_OVERHEAD) &&
 	   (bricklet_stack_is_time_elapsed_ms(bricklet_stack->last_send_started, SPITFP_TIMEOUT) || bricklet_stack->ack_to_send)) {
 
 		// Update sequence number of send buffer. We don't increase the current sequence
@@ -229,16 +234,19 @@ static void bricklet_stack_check_message_send_timeout(BrickletStack *bricklet_st
 		// the updated "last seen sequence number".
 		// If the number changed we also have to update the checksum.
 		uint8_t new_sequence_byte = bricklet_stack_get_sequence_byte(bricklet_stack, false);
+
 		if(new_sequence_byte != bricklet_stack->buffer_send[1]) {
 			bricklet_stack->buffer_send[1] = new_sequence_byte;
+
 			uint8_t checksum = 0;
+
 			for(uint8_t i = 0; i < bricklet_stack->buffer_send[0]-1; i++) {
 				PEARSON(checksum, bricklet_stack->buffer_send[i]);
 			}
 
 			bricklet_stack->buffer_send[bricklet_stack->buffer_send[0]-1] = checksum;
 		}
-	
+
 		bricklet_stack->wait_for_ack = false;
 		bricklet_stack->ack_to_send = false;
 		bricklet_stack->last_send_started = bricklet_stack_get_ms();
@@ -247,6 +255,7 @@ static void bricklet_stack_check_message_send_timeout(BrickletStack *bricklet_st
 
 static void bricklet_stack_send_ack_and_message(BrickletStack *bricklet_stack, uint8_t *data, const uint8_t length) {
 	uint8_t checksum = 0;
+
 	bricklet_stack->buffer_send_length = length + SPITFP_PROTOCOL_OVERHEAD;
 	bricklet_stack->buffer_send[0] = bricklet_stack->buffer_send_length;
 	PEARSON(checksum, bricklet_stack->buffer_send_length);
@@ -261,7 +270,6 @@ static void bricklet_stack_send_ack_and_message(BrickletStack *bricklet_stack, u
 
 	bricklet_stack->buffer_send[length + SPITFP_PROTOCOL_OVERHEAD-1] = checksum;
 
-
 	bricklet_stack->ack_to_send = false;
 	bricklet_stack->last_send_started = bricklet_stack_get_ms();
 }
@@ -274,6 +282,7 @@ static void bricklet_stack_check_request_queue(BrickletStack *bricklet_stack) {
 	mutex_lock(&bricklet_stack->request_queue_mutex);
 	Packet *request = queue_peek(&bricklet_stack->request_queue);
 	mutex_unlock(&bricklet_stack->request_queue_mutex);
+
 	if(request != NULL) {
 		bricklet_stack_send_ack_and_message(bricklet_stack, (uint8_t*)request, request->header.length);
 
@@ -308,10 +317,10 @@ static bool bricklet_stack_handle_message_from_bricklet(BrickletStack *bricklet_
 	return true;
 }
 
-
 static void bricklet_stack_send_ack(BrickletStack *bricklet_stack) {
 	// If there is a request to send, we can do it now and include the ACK
 	bricklet_stack_check_request_queue(bricklet_stack);
+
 	if(bricklet_stack->buffer_send_length > 0) {
 		return;
 	}
@@ -352,7 +361,6 @@ static void bricklet_stack_check_message(BrickletStack *bricklet_stack) {
 		}
 	}
 
-
 	// Check if we didn't receive an ACK within the timeout time and resend the message if necessary.
 	bricklet_stack_check_message_send_timeout(bricklet_stack);
 
@@ -378,6 +386,7 @@ static void bricklet_stack_check_message(BrickletStack *bricklet_stack) {
 			bricklet_stack->ringbuffer_recv.start = (bricklet_stack->ringbuffer_recv.start + 1) & BRICKLET_STACK_SPI_RECEIVE_BUFFER_MASK;
 			continue;
 		}
+
 		num_to_remove_from_ringbuffer++;
 
 		switch(state) {
@@ -404,10 +413,12 @@ static void bricklet_stack_check_message(BrickletStack *bricklet_stack) {
 				}
 
 				data_length = data;
+
 				if((start+used - i) < data_length) {
 					// There can't be enough data for a whole message, we can return here.
 					return;
 				}
+
 				PEARSON(checksum, data_length);
 
 				break;
@@ -435,6 +446,7 @@ static void bricklet_stack_check_message(BrickletStack *bricklet_stack) {
 				}
 
 				uint8_t last_sequence_number_seen_by_slave = (data_sequence_number & 0xF0) >> 4;
+
 				if(last_sequence_number_seen_by_slave == bricklet_stack->current_sequence_number) {
 					bricklet_stack->buffer_send_length = 0;
 					bricklet_stack->wait_for_ack = false;
@@ -471,7 +483,6 @@ static void bricklet_stack_check_message(BrickletStack *bricklet_stack) {
 				ringbuffer_remove(&bricklet_stack->ringbuffer_recv, num_to_remove_from_ringbuffer);
 				num_to_remove_from_ringbuffer = 0;
 
-
 				if(checksum != data) {
 					bricklet_stack->error_count_message_checksum++;
 					bricklet_stack_handle_protocol_error(bricklet_stack);
@@ -492,6 +503,7 @@ static void bricklet_stack_check_message(BrickletStack *bricklet_stack) {
 					// If sequence number is new, we can handle the message.
 					// Otherwise we only ACK the already handled message again.
 					const uint8_t message_sequence_number = data_sequence_number & 0x0F;
+
 					if((message_sequence_number != bricklet_stack->last_sequence_number_seen) || (message_sequence_number == 1)) {
 						// For the special case that the sequence number is 1 (only used for the very first message)
 						// we always send an answer, even if we haven't seen anything else in between.
@@ -521,6 +533,7 @@ static void bricklet_stack_check_message(BrickletStack *bricklet_stack) {
 						}
 					}
 				}
+
 				return;
 			}
 		}
@@ -541,16 +554,19 @@ static void bricklet_stack_transceive(BrickletStack *bricklet_stack) {
 	}
 
 	const uint16_t length_read = bricklet_stack_check_missing_length(bricklet_stack);
+
 	if(bricklet_stack->buffer_send_length == 0) {
 		// If buffer is empty we try to send request from the queue.
 		bricklet_stack_check_request_queue(bricklet_stack);
+
 		if((bricklet_stack->buffer_send_length == 0) && (bricklet_stack->ack_to_send)) {
 			// If there is no request in the queue (buffer still empty)
 			// and we have to send an ACK still, we send the ACK.
 			bricklet_stack_send_ack(bricklet_stack);
 		}
 	}
-	uint16_t length_write = bricklet_stack->wait_for_ack ? 0 : bricklet_stack->buffer_send_length; 
+
+	uint16_t length_write = bricklet_stack->wait_for_ack ? 0 : bricklet_stack->buffer_send_length;
 	uint16_t length = MAX(MAX(length_read, length_write), 1);
 
 	uint8_t rx[SPITFP_MAX_TFP_MESSAGE_LENGTH] = {0};
@@ -563,6 +579,7 @@ static void bricklet_stack_transceive(BrickletStack *bricklet_stack) {
 		// If we have nothing to send and we are currently not awaiting data from the Bricklet, we will
 		// poll every 200 us.
 		uint32_t sleep_us = 200;
+
 		if(!bricklet_stack->data_seen) {
 			// If we have never seen any data, we will first poll every 1ms with the StackEnumerate message
 			// and switch to polling every 500ms after we tried BRICKLET_STACK_FIRST_MESSAGE_TRIES times.
@@ -574,6 +591,7 @@ static void bricklet_stack_transceive(BrickletStack *bricklet_stack) {
 				sleep_us = 500*1000;
 			}
 		}
+
 		struct timespec t;
 		t.tv_sec = 0;
 		t.tv_nsec = 1000*sleep_us;
@@ -614,6 +632,7 @@ static void bricklet_stack_transceive(BrickletStack *bricklet_stack) {
 
 		// Get length for rest of message
 		length = bricklet_stack_check_missing_length(bricklet_stack);
+
 		if(length != 0) {
 			// Set first byte back to 0 and the new length, the rest was not touched
 			// and we don't need to reinizialize it.
@@ -646,8 +665,8 @@ static void bricklet_stack_transceive(BrickletStack *bricklet_stack) {
 	// We don't expect an ACK to be acked, so we can set the length to 0 here
 	if(bricklet_stack->buffer_send_length == SPITFP_PROTOCOL_OVERHEAD) {
 		bricklet_stack->buffer_send_length = 0;
-	} 
-	
+	}
+
 	if(bricklet_stack->buffer_send_length >= SPITFP_MIN_TFP_MESSAGE_LENGTH) {
 		bricklet_stack->wait_for_ack = true;
 	}
@@ -666,7 +685,8 @@ static void bricklet_stack_spi_thread(void *opaque) {
 	struct timespec t = {
 		.tv_sec = bricklet_stack->config.startup_wait_time,
 	};
-	clock_nanosleep(CLOCK_MONOTONIC, 0, &t, NULL);	
+
+	clock_nanosleep(CLOCK_MONOTONIC, 0, &t, NULL);
 
 	// Pre-fill the send buffer with the "StackEnumerate"-Packet.
 	// This packet will trigger an initial enumeration in the Bricklet.
@@ -680,6 +700,7 @@ static void bricklet_stack_spi_thread(void *opaque) {
 		.sequence_number_and_options = 0x08, // return expected
 		.error_code_and_future_use   = 0
 	};
+
 	bricklet_stack_send_ack_and_message(bricklet_stack, (uint8_t*)&header, sizeof(PacketHeader));
 
 	while (bricklet_stack->spi_thread_running) {
@@ -697,6 +718,7 @@ static int bricklet_stack_init_spi(BrickletStack *bricklet_stack) {
 
 	// Open spidev
 	bricklet_stack->spi_fd = open(bricklet_stack->config.spi_device, O_RDWR);
+
 	if (bricklet_stack->spi_fd < 0) {
 		log_error("Could not open %s: : %s (%d)",
 		          bricklet_stack->config.spi_device, get_errno_name(errno), errno);
@@ -732,7 +754,7 @@ static int bricklet_stack_init_spi(BrickletStack *bricklet_stack) {
 	return 0;
 }
 
-BrickletStack* bricklet_stack_init(BrickletStackConfig *config) {
+BrickletStack *bricklet_stack_init(BrickletStackConfig *config) {
 	int phase = 0;
 	char bricklet_stack_name[128];
 
@@ -753,7 +775,8 @@ BrickletStack* bricklet_stack_init(BrickletStackConfig *config) {
 	}
 
 	// create bricklet_stack struct
-	BrickletStack *bricklet_stack = (BrickletStack*)malloc(sizeof(BrickletStack));	
+	BrickletStack *bricklet_stack = (BrickletStack*)malloc(sizeof(BrickletStack));
+
 	if(bricklet_stack == NULL) {
 		goto cleanup;
 	}
@@ -765,8 +788,8 @@ BrickletStack* bricklet_stack_init(BrickletStackConfig *config) {
 
 	memcpy(&bricklet_stack->config, config, sizeof(BrickletStackConfig));
 
-	ringbuffer_init(&bricklet_stack->ringbuffer_recv, 
-	                BRICKLET_STACK_SPI_RECEIVE_BUFFER_LENGTH, 
+	ringbuffer_init(&bricklet_stack->ringbuffer_recv,
+	                BRICKLET_STACK_SPI_RECEIVE_BUFFER_LENGTH,
 	                bricklet_stack->buffer_recv);
 
 	// create base stack
@@ -818,6 +841,7 @@ BrickletStack* bricklet_stack_init(BrickletStackConfig *config) {
 
 		goto cleanup;
 	}
+
 	mutex_create(&bricklet_stack->request_queue_mutex);
 
 	phase = 5;
@@ -828,6 +852,7 @@ BrickletStack* bricklet_stack_init(BrickletStackConfig *config) {
 
 		goto cleanup;
 	}
+
 	mutex_create(&bricklet_stack->response_queue_mutex);
 
 	phase = 6;
@@ -838,7 +863,7 @@ BrickletStack* bricklet_stack_init(BrickletStackConfig *config) {
 
 	phase = 7;
 
-    cleanup:
+cleanup:
 	switch (phase) { // no breaks, all cases fall through intentionally
 	case 6:
 		mutex_destroy(&bricklet_stack->response_queue_mutex);

@@ -1,6 +1,7 @@
 /*
  * brickd
  * Copyright (C) 2018 Olaf Lüke <olaf@tinkerforge.com>
+ * Copyright (C) 2019 Matthias Bolte <matthias@tinkerforge.com>
  *
  * bricklet_stack.h: SPI Tinkerforge Protocol (SPITFP) implementation for direct
  *                   communication between brickd and Bricklets with co-processor
@@ -88,7 +89,6 @@ typedef struct {
 	Thread spi_thread;
 
 	BrickletStackConfig config;
-
 
 	// SPITFP protocol related variables.
 	uint8_t buffer_recv[BRICKLET_STACK_SPI_RECEIVE_BUFFER_LENGTH];
