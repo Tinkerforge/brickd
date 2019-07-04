@@ -71,11 +71,11 @@ typedef struct {
 
 	uint32_t *connected_uid;
 	uint8_t num;
-	uint8_t startup_wait_time; // in seconds
+	uint32_t startup_wait_time; // in milliseconds
 } BrickletStackConfig;
 
 typedef struct {
-    Stack base;
+	Stack base;
 
 	Queue request_queue;
 	Mutex request_queue_mutex;

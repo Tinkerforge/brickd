@@ -190,7 +190,7 @@ int bricklet_init_rpi_hat(const char *product_id_test, const char *spidev,
 		if(cs == master_cs) {
 			config.startup_wait_time = 0;
 		} else {
-			config.startup_wait_time = 1;
+			config.startup_wait_time = 1000;
 		}
 
 		config.num = _bricklet_stack_num;

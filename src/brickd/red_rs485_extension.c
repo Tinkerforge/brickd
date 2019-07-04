@@ -2,7 +2,7 @@
  * brickd
  * Copyright (C) 2014, 2017 Ishraq Ibne Ashraf <ishraq@tinkerforge.com>
  * Copyright (C) 2014, 2018 Olaf Lüke <olaf@tinkerforge.com>
- * Copyright (C) 2014-2018 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2014-2019 Matthias Bolte <matthias@tinkerforge.com>
  *
  * red_rs485_extension.c: RS485 extension support for RED Brick
  *
@@ -81,7 +81,7 @@ static uint64_t TIMEOUT = 0;
 // delay between polls in nanoseconds. configurable with brickd.conf option poll_delay.rs485 in microseconds
 static uint64_t MASTER_POLL_SLAVE_INTERVAL = 40000000;
 static uint32_t TIMEOUT_BYTES = 86;
-static uint64_t last_timer_enable_at_uS = 0;
+static uint64_t last_timer_enable_at_us = 0;
 static uint64_t time_passed_from_last_timer_enable = 0;
 
 // Frame related constants
@@ -665,7 +665,7 @@ void send_packet(void) {
 	master_timer.it_value.tv_sec = 0;
 	master_timer.it_value.tv_nsec = TIMEOUT;
 	timerfd_settime(_master_timer_event, 0, &master_timer, NULL);
-	last_timer_enable_at_uS = microseconds();
+	last_timer_enable_at_us = microtime();
 }
 
 // Initialize RX state
@@ -787,7 +787,7 @@ void master_timeout_handler(void* opaque) {
 		// For some unknown reason the timer randomly times out or this timeout function is called
 		// much long before the actual timeout. This is a fix to this problem
 		// until we find the real problem
-		time_passed_from_last_timer_enable = (microseconds() - last_timer_enable_at_uS) * 1000;
+		time_passed_from_last_timer_enable = (microtime() - last_timer_enable_at_us) * 1000;
 
 		if (time_passed_from_last_timer_enable < MASTER_POLL_SLAVE_INTERVAL) {
 			master_timer.it_interval.tv_sec = 0;
@@ -795,7 +795,7 @@ void master_timeout_handler(void* opaque) {
 			master_timer.it_value.tv_sec = 0;
 			master_timer.it_value.tv_nsec = MASTER_POLL_SLAVE_INTERVAL;
 			timerfd_settime(_master_timer_event, 0, &master_timer, NULL);
-			last_timer_enable_at_uS = microseconds();
+			last_timer_enable_at_us = microtime();
 
 			return;
 		}
@@ -810,7 +810,7 @@ void master_timeout_handler(void* opaque) {
 	// For some unknown reason the timer randomly times out or this timeout function is called
 	// much long before the actual timeout. This is a fix to this problem
 	// until we find the real problem
-	time_passed_from_last_timer_enable = (microseconds() - last_timer_enable_at_uS) * 1000;
+	time_passed_from_last_timer_enable = (microtime() - last_timer_enable_at_us) * 1000;
 
 	if (time_passed_from_last_timer_enable < TIMEOUT) {
 		master_timer.it_interval.tv_sec = 0;
@@ -818,7 +818,7 @@ void master_timeout_handler(void* opaque) {
 		master_timer.it_value.tv_sec = 0;
 		master_timer.it_value.tv_nsec = TIMEOUT;
 		timerfd_settime(_master_timer_event, 0, &master_timer, NULL);
-		last_timer_enable_at_uS = microseconds();
+		last_timer_enable_at_us = microtime();
 
 		return;
 	}
@@ -879,7 +879,7 @@ void arm_master_poll_slave_interval_timer(void) {
 	master_timer.it_value.tv_sec = 0;
 	master_timer.it_value.tv_nsec = MASTER_POLL_SLAVE_INTERVAL;
 	timerfd_settime(_master_timer_event, 0, &master_timer, NULL);
-	last_timer_enable_at_uS = microseconds();
+	last_timer_enable_at_us = microtime();
 }
 
 // New packet from brickd event loop is queued to be sent via RS485 interface

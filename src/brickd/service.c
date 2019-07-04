@@ -357,7 +357,7 @@ int service_uninstall(void) {
 				return -1;
 			}
 
-			Sleep(500);
+			millisleep(500);
 
 			++tries;
 		}

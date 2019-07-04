@@ -172,14 +172,8 @@ static void bricklet_stack_dispatch_from_spi(void *opaque) {
 	}
 }
 
-static uint64_t bricklet_stack_get_ms(void) {
-	struct timespec spec;
-	clock_gettime(CLOCK_MONOTONIC, &spec);
-	return (((uint64_t)spec.tv_sec)*1000) + ((spec.tv_nsec + 1000*1000/2) / (1000*1000));
-}
-
 static bool bricklet_stack_is_time_elapsed_ms(const uint64_t start_measurement, const uint64_t time_to_be_elapsed) {
-	return (bricklet_stack_get_ms() - start_measurement) >= time_to_be_elapsed;
+	return (millitime() - start_measurement) >= time_to_be_elapsed;
 }
 
 static uint16_t bricklet_stack_check_missing_length(BrickletStack *bricklet_stack) {
@@ -249,7 +243,7 @@ static void bricklet_stack_check_message_send_timeout(BrickletStack *bricklet_st
 
 		bricklet_stack->wait_for_ack = false;
 		bricklet_stack->ack_to_send = false;
-		bricklet_stack->last_send_started = bricklet_stack_get_ms();
+		bricklet_stack->last_send_started = millitime();
 	}
 }
 
@@ -271,7 +265,7 @@ static void bricklet_stack_send_ack_and_message(BrickletStack *bricklet_stack, u
 	bricklet_stack->buffer_send[length + SPITFP_PROTOCOL_OVERHEAD-1] = checksum;
 
 	bricklet_stack->ack_to_send = false;
-	bricklet_stack->last_send_started = bricklet_stack_get_ms();
+	bricklet_stack->last_send_started = millitime();
 }
 
 static void bricklet_stack_check_request_queue(BrickletStack *bricklet_stack) {
@@ -334,7 +328,7 @@ static void bricklet_stack_send_ack(BrickletStack *bricklet_stack) {
 
 	bricklet_stack->ack_to_send = false;
 
-	bricklet_stack->last_send_started = bricklet_stack_get_ms();
+	bricklet_stack->last_send_started = millitime();
 }
 
 static bool bricklet_stack_is_send_possible(BrickletStack *bricklet_stack) {
@@ -586,16 +580,13 @@ static void bricklet_stack_transceive(BrickletStack *bricklet_stack) {
 			// In this case there is likely no Bricklet connected. If a Bricklet is hotpluged "data_seen"
 			// will be true and we will switch to polling every 200us immediately.
 			if(bricklet_stack->first_message_tries < BRICKLET_STACK_FIRST_MESSAGE_TRIES) {
-				sleep_us = 1*1000;
+				sleep_us = 1000;
 			} else {
-				sleep_us = 500*1000;
+				sleep_us = 500000;
 			}
 		}
 
-		struct timespec t;
-		t.tv_sec = 0;
-		t.tv_nsec = 1000*sleep_us;
-		clock_nanosleep(CLOCK_MONOTONIC, 0, &t, NULL);
+		microsleep(sleep_us);
 	}
 
 	memcpy(tx, bricklet_stack->buffer_send, length_write);
@@ -682,11 +673,7 @@ static void bricklet_stack_spi_thread(void *opaque) {
 
 	// Depending on the configuration we wait on startup for
 	// other Bricklets to identify themself first.
-	struct timespec t = {
-		.tv_sec = bricklet_stack->config.startup_wait_time,
-	};
-
-	clock_nanosleep(CLOCK_MONOTONIC, 0, &t, NULL);
+	millisleep(bricklet_stack->config.startup_wait_time);
 
 	// Pre-fill the send buffer with the "StackEnumerate"-Packet.
 	// This packet will trigger an initial enumeration in the Bricklet.

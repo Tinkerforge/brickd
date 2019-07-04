@@ -1,7 +1,7 @@
 /*
  * brickd
  * Copyright (C) 2014-2016, 2018 Olaf Lüke <olaf@tinkerforge.com>
- * Copyright (C) 2014-2018 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2014-2019 Matthias Bolte <matthias@tinkerforge.com>
  * Copyright (C) 2017 Ishraq Ibne Ashraf <ishraq@tinkerforge.com>
  *
  * red_stack.c: SPI stack support for RED Brick
@@ -63,7 +63,7 @@ static LogSource _log_source = LOG_SOURCE_INITIALIZER;
 #define RED_STACK_SPI_INFO(length)      ((length) -2)
 #define RED_STACK_SPI_CHECKSUM(length)  ((length) -1)
 #define RED_STACK_SPI_MAX_SLAVES        8
-#define RED_STACK_SPI_ROUTING_WAIT      (1000*1000*50) // Give slave 50ms between each routing table setup try
+#define RED_STACK_SPI_ROUTING_WAIT      50             // Give slave 50ms between each routing table setup try
 #define RED_STACK_SPI_ROUTING_TRIES     10             // Try 10 times for each slave to setup routing table
 
 #define RED_STACK_SPI_INFO_SEQUENCE_MASTER_MASK (0x07)
@@ -184,20 +184,6 @@ static const GPIOREDPin _red_stack_slave_select_pins[RED_STACK_SPI_MAX_SLAVES] =
 
 static const char *_red_stack_spi_device = "/dev/spidev0.0";
 
-#define SLEEP_NS(s, ns) do { \
-	struct timespec t; \
-	t.tv_sec = (s); \
-	t.tv_nsec = (ns); \
-	clock_nanosleep(CLOCK_MONOTONIC, 0, &t, NULL); \
-} while(0)
-
-#define PRINT_TIME(str) do { \
-	struct timespec t; \
-	clock_gettime(CLOCK_MONOTONIC, &t); \
-	printf(str ": %lds %ldms %ldus %ldns\n", t.tv_sec, t.tv_nsec/(1000*1000), t.tv_nsec/1000, t.tv_nsec); \
-} while(0)
-
-
 // * Packet structure:
 //  * Byte 0: Preamble = 0xAA
 //  * Byte 1: Length = n+2
@@ -208,10 +194,8 @@ static const char *_red_stack_spi_device = "/dev/spidev0.0";
 //   * Bit 6-7: Currently unused
 //  * Byte n+2: Checksum over bytes 0 to n+1
 
-
 // ----- RED STACK SPI ------
 // These functions run in SPI thread
-
 
 static void red_stack_increase_master_sequence_number(REDStackSlave *slave) {
 	slave->sequence_number_master += 1;
@@ -509,7 +493,7 @@ static void red_stack_spi_create_routing_table(void) {
 				break;
 			}
 
-			SLEEP_NS(0, RED_STACK_SPI_ROUTING_WAIT); // Give slave some more time
+			millisleep(RED_STACK_SPI_ROUTING_WAIT); // Give slave some more time
 		}
 
 		if (tries == RED_STACK_SPI_ROUTING_TRIES) {
@@ -530,7 +514,7 @@ static void red_stack_spi_create_routing_table(void) {
 			// Here we sleep before transceive so that there is some time
 			// between the sending of stack enumerate and the receiving
 			// of the answer
-			SLEEP_NS(0, RED_STACK_SPI_ROUTING_WAIT); // Give slave some more time
+			millisleep(RED_STACK_SPI_ROUTING_WAIT); // Give slave some more time
 
 			ret = red_stack_spi_transceive_message(NULL, &response, slave);
 		}
@@ -591,10 +575,10 @@ static void red_stack_spi_handle_reset(void) {
 	// Someone pressed reset we have to wait until he stops pressing
 	while (gpio_red_input(_red_stack_reset_stack_pin) == 0) {
 		// Wait 100us and check again. We wait as long as the user presses the button
-		SLEEP_NS(0, 1000*100);
+		microsleep(100);
 	}
 
-	SLEEP_NS(1, 1000*1000*500); // Wait 1.5s so slaves can start properly
+	millisleep(1500); // Wait 1.5s so slaves can start properly
 
 	// Reinitialize slaves
 	_red_stack.slave_num = 0;
@@ -699,7 +683,7 @@ static void red_stack_spi_thread(void *opaque) {
 				//semaphore_acquire(&_red_stack_dispatch_packet_from_spi_semaphore);
 			}
 
-			SLEEP_NS(0, 1000*_red_stack_spi_poll_delay);
+			microsleep(_red_stack_spi_poll_delay);
 		}
 
 		if (_red_stack.slave_num == 0) {
@@ -730,9 +714,9 @@ static void red_stack_reset(void) {
 	gpio_red_mux_configure(_red_stack_reset_stack_pin, GPIO_RED_MUX_OUTPUT);
 
 	gpio_red_output_clear(_red_stack_reset_stack_pin);
-	SLEEP_NS(0, 1000*1000*100); // Clear reset pin for 100ms to force reset
+	millisleep(100); // Clear reset pin for 100ms to force reset
 	gpio_red_output_set(_red_stack_reset_stack_pin);
-	SLEEP_NS(1, 1000*1000*500); // Wait 1.5s so slaves can start properly
+	millisleep(1500); // Wait 1.5s so slaves can start properly
 
 	// Change mux back to interrupt, so we can see if a human presses reset
 	gpio_red_mux_configure(_red_stack_reset_stack_pin, GPIO_RED_MUX_6);
