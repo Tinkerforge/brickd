@@ -57,7 +57,7 @@ static LogSource _log_source = LOG_SOURCE_INITIALIZER;
 // We support up to two parallel SPI hardware units, each one of those needs a mutex.
 static Mutex _bricklet_spi_mutex[BRICKLET_SPI_MAX_NUM];
 static int _bricklet_stack_num = 0;
-static BrickletStack *_bricklet_stack[BRICKLET_SPI_MAX_NUM*BRICKLET_CS_MAX_NUM] = {NULL};
+static BrickletStack _bricklet_stack[BRICKLET_SPI_MAX_NUM*BRICKLET_CS_MAX_NUM];
 
 // The "connected to uid" can be overwritten if the UID of the HAT itself is known.
 // In this case the Bricklets will be shown as connected to the HAT in Brick Viewer.
@@ -152,6 +152,7 @@ int bricklet_init_rpi_hat(const char *product_id_test, const char *spidev,
 	int fd;
 	int rc;
 	char product_id[BRICKLET_RPI_PRODUCT_ID_LENGTH+1] = "\0";
+	BrickletStackConfig config;
 
 	fd = open("/proc/device-tree/hat/product_id", O_RDONLY);
 
@@ -179,10 +180,9 @@ int bricklet_init_rpi_hat(const char *product_id_test, const char *spidev,
 
 	log_debug("Found product_id \"%s\" in device tree, using pre-configured %s Brick setup", product_id, name);
 
-	BrickletStackConfig config = {
-		.mutex = &_bricklet_spi_mutex[spidev_num],
-	};
+	memset(&config, 0, sizeof(config));
 
+	config.mutex = &_bricklet_spi_mutex[spidev_num];
 	strcpy(config.spi_device, spidev);
 	config.connected_uid = &bricklet_connected_uid;
 
@@ -205,9 +205,7 @@ int bricklet_init_rpi_hat(const char *product_id_test, const char *spidev,
 		          config.chip_select_gpio_sysfs.name,
 		          config.chip_select_gpio_sysfs.num);
 
-		_bricklet_stack[_bricklet_stack_num] = bricklet_stack_init(&config);
-
-		if(_bricklet_stack[_bricklet_stack_num] == NULL) {
+		if(bricklet_stack_init(&_bricklet_stack[_bricklet_stack_num], &config) < 0) {
 			return -1;
 		}
 
@@ -257,6 +255,7 @@ int bricklet_init(void) {
 	char str_cs_driver[] = "bricklet.groupX.csY.driver";
 	char str_cs_name[]   = "bricklet.groupX.csY.name";
 	char str_cs_num[]    = "bricklet.groupX.csY.num";
+	BrickletStackConfig config;
 
 	mutex_create(&_bricklet_spi_mutex[0]);
 	mutex_create(&_bricklet_spi_mutex[1]);
@@ -299,11 +298,11 @@ int bricklet_init(void) {
 
 	// If there is no HAT we try to read the SPI configuration from the config
 	for(uint8_t i = 0; i < BRICKLET_SPI_MAX_NUM; i++) {
-		BrickletStackConfig config = {
-			.mutex = &_bricklet_spi_mutex[i],
-			.connected_uid = &bricklet_connected_uid,
-			.startup_wait_time = 0,
-		};
+		memset(&config, 0, sizeof(config));
+
+		config.mutex = &_bricklet_spi_mutex[i],
+		config.connected_uid = &bricklet_connected_uid,
+		config.startup_wait_time = 0,
 
 		str_spidev[BRICKLET_CONFIG_STR_GROUP_POS] = '0' + i;
 		length = strlen(config_get_option_value(str_spidev)->string);
@@ -346,9 +345,7 @@ int bricklet_init(void) {
 			          config.chip_select_gpio_sysfs.name,
 			          config.chip_select_gpio_sysfs.num);
 
-			_bricklet_stack[_bricklet_stack_num] = bricklet_stack_init(&config);
-
-			if(_bricklet_stack[_bricklet_stack_num] == NULL) {
+			if(bricklet_stack_init(&_bricklet_stack[_bricklet_stack_num], &config) < 0) {
 				return -1;
 			}
 
@@ -361,7 +358,7 @@ int bricklet_init(void) {
 
 void bricklet_exit(void) {
 	for(int i = 0; i < _bricklet_stack_num; i++) {
-		bricklet_stack_exit(_bricklet_stack[i]);
+		bricklet_stack_exit(&_bricklet_stack[i]);
 	}
 
 	mutex_destroy(&_bricklet_spi_mutex[0]);

@@ -100,12 +100,10 @@ static int bricklet_stack_dispatch_to_spi(Stack *stack, Packet *request, Recipie
 
 // New packet from BrickletStack is send into brickd event loop
 static void bricklet_stack_dispatch_from_spi(void *opaque) {
-	BrickletStack *bricklet_stack = (BrickletStack*)opaque;
+	BrickletStack *bricklet_stack = opaque;
 	int i;
 	eventfd_t ev;
 	Packet *packet;
-
-	(void)opaque;
 
 	// handle at most 5 queued responses at once to avoid blocking the event
 	// loop for too long
@@ -741,7 +739,7 @@ static int bricklet_stack_init_spi(BrickletStack *bricklet_stack) {
 	return 0;
 }
 
-BrickletStack *bricklet_stack_init(BrickletStackConfig *config) {
+int bricklet_stack_init(BrickletStack *bricklet_stack, BrickletStackConfig *config) {
 	int phase = 0;
 	char bricklet_stack_name[128];
 
@@ -762,14 +760,6 @@ BrickletStack *bricklet_stack_init(BrickletStackConfig *config) {
 	}
 
 	// create bricklet_stack struct
-	BrickletStack *bricklet_stack = calloc(1, sizeof(BrickletStack));
-
-	if(bricklet_stack == NULL) {
-		goto cleanup;
-	}
-
-	phase = 1;
-
 	bricklet_stack->spi_fd = -1;
 	bricklet_stack->spi_thread_running = false;
 
@@ -791,14 +781,14 @@ BrickletStack *bricklet_stack_init(BrickletStackConfig *config) {
 		goto cleanup;
 	}
 
-	phase = 2;
+	phase = 1;
 
 	// add to stacks array
 	if (hardware_add_stack(&bricklet_stack->base) < 0) {
 		goto cleanup;
 	}
 
-	phase = 3;
+	phase = 2;
 
 	if ((bricklet_stack->notification_event = eventfd(0, EFD_NONBLOCK | EFD_SEMAPHORE)) < 0) {
 		log_error("Could not create Bricklet notification event: %s (%d)",
@@ -807,7 +797,7 @@ BrickletStack *bricklet_stack_init(BrickletStackConfig *config) {
 		goto cleanup;
 	}
 
-	phase = 4;
+	phase = 3;
 
 	// Add notification pipe as event source.
 	// Event is used to dispatch packets.
@@ -819,7 +809,7 @@ BrickletStack *bricklet_stack_init(BrickletStackConfig *config) {
 		goto cleanup;
 	}
 
-	phase = 5;
+	phase = 4;
 
 	// Initialize SPI packet queues
 	if (queue_create(&bricklet_stack->request_queue, sizeof(Packet)) < 0) {
@@ -831,7 +821,7 @@ BrickletStack *bricklet_stack_init(BrickletStackConfig *config) {
 
 	mutex_create(&bricklet_stack->request_queue_mutex);
 
-	phase = 6;
+	phase = 5;
 
 	if (queue_create(&bricklet_stack->response_queue, sizeof(Packet)) < 0) {
 		log_error("Could not create SPI response queue: %s (%d)",
@@ -842,52 +832,47 @@ BrickletStack *bricklet_stack_init(BrickletStackConfig *config) {
 
 	mutex_create(&bricklet_stack->response_queue_mutex);
 
-	phase = 7;
+	phase = 6;
 
 	if (bricklet_stack_init_spi(bricklet_stack) < 0) {
 		goto cleanup;
 	}
 
-	phase = 8;
+	phase = 7;
 
 cleanup:
 	switch (phase) { // no breaks, all cases fall through intentionally
-	case 7:
+	case 6:
 		mutex_destroy(&bricklet_stack->response_queue_mutex);
 		queue_destroy(&bricklet_stack->response_queue, NULL);
 		// fall through
 
-	case 6:
+	case 5:
 		mutex_destroy(&bricklet_stack->request_queue_mutex);
 		queue_destroy(&bricklet_stack->request_queue, NULL);
-
-		// fall through
-
-	case 5:
-		event_remove_source(bricklet_stack->notification_event, EVENT_SOURCE_TYPE_GENERIC);
 		// fall through
 
 	case 4:
-		robust_close(bricklet_stack->notification_event);
+		event_remove_source(bricklet_stack->notification_event, EVENT_SOURCE_TYPE_GENERIC);
 		// fall through
 
 	case 3:
-		hardware_remove_stack(&bricklet_stack->base);
+		robust_close(bricklet_stack->notification_event);
 		// fall through
 
 	case 2:
-		stack_destroy(&bricklet_stack->base);
+		hardware_remove_stack(&bricklet_stack->base);
 		// fall through
 
 	case 1:
-		free(bricklet_stack);
+		stack_destroy(&bricklet_stack->base);
 		// fall through
 
 	default:
 		break;
 	}
 
-	return phase == 8 ? bricklet_stack : NULL;
+	return phase == 7 ? 0 : -1;
 }
 
 void bricklet_stack_exit(BrickletStack *bricklet_stack) {
@@ -914,8 +899,4 @@ void bricklet_stack_exit(BrickletStack *bricklet_stack) {
 	// Close file descriptors
 	robust_close(bricklet_stack->notification_event);
 	robust_close(bricklet_stack->spi_fd);
-
-	// Everything is closed and the threads are destroyed. We can
-	// now free the Bricklet Stack memory. It will not be accessed anymore.
-	free(bricklet_stack);
 }

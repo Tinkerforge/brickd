@@ -117,7 +117,7 @@ typedef struct {
 	uint32_t first_message_tries;
 } BrickletStack;
 
-BrickletStack* bricklet_stack_init(BrickletStackConfig *config);
+int bricklet_stack_init(BrickletStack *bricklet_stack, BrickletStackConfig *config);
 void bricklet_stack_exit(BrickletStack *bricklet_stack);
 
 #endif // BRICKD_BRICKLET_STACK_H
