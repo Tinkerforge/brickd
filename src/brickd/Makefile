@@ -418,7 +418,7 @@ ifeq ($(PLATFORM),Darwin)
 	LIBUSB_STATUS := 1.0.23 (fork)
 	LIBUSB_CFLAGS := -I../build_data/macos/libusb
 	LIBUSB_LDFLAGS := -L../build_data/macos/libusb
-	LIBUSB_LIBS := -lusb-1.0
+	LIBUSB_LIBS := -lusb-1.0-brickd
 endif
 
 CFLAGS += $(LIBUSB_CFLAGS)

@@ -114,16 +114,16 @@ def build_macos_pkg():
     specialize_template(plist_path, plist_path, {'<<VERSION>>': version})
 
     print('copying and patching libusb')
-    libusb_path = os.path.join(root_path, 'build_data', 'macos', 'libusb', 'libusb-1.0.dylib')
+    libusb_path = os.path.join(root_path, 'build_data', 'macos', 'libusb', 'libusb-1.0-brickd.dylib')
     shutil.copy(libusb_path, macos_path)
-    system('install_name_tool -id @executable_path/libusb-1.0.dylib {0}'.format(os.path.join(macos_path, 'libusb-1.0.dylib')))
-    system('install_name_tool -change @executable_path/../build_data/macos/libusb/libusb-1.0.dylib @executable_path/libusb-1.0.dylib {0}'.format(os.path.join(macos_path, 'brickd')))
+    system('install_name_tool -id @executable_path/libusb-1.0-brickd.dylib {0}'.format(os.path.join(macos_path, 'libusb-1.0-brickd.dylib')))
+    system('install_name_tool -change @executable_path/../build_data/macos/libusb/libusb-1.0-brickd.dylib @executable_path/libusb-1.0-brickd.dylib {0}'.format(os.path.join(macos_path, 'brickd')))
 
     print('signing libusb and brickd binaries')
     system('security unlock-keychain /Users/$USER/Library/Keychains/login.keychain')
     # NOTE: codesign_application_identity contains "Developer ID Application: ..."
     codesign_command = 'codesign --force --verify --verbose --sign "`cat codesign_application_identity`" {0}'
-    system(codesign_command.format(os.path.join(macos_path, 'libusb-1.0.dylib')))
+    system(codesign_command.format(os.path.join(macos_path, 'libusb-1.0-brickd.dylib')))
     system(codesign_command.format(brickd_app_path))
 
     print('building pkg')
