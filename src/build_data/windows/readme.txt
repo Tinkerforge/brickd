@@ -50,9 +50,9 @@ the installer register and start brickd.exe as a Windows Service.
 --log-to-file    writes log messages to a file
 
 If brickd.exe is running as a service you can use the Services section in the
-Computer Management to pass the commandline option --debug and --log-to-file
-via the Start Parameters option. The other options are only valid if brickd.exe
-is started from a command prompt.
+Computer Management to pass the commandline option --debug via the Start
+Parameters option. The other options are only valid if brickd.exe is started
+from a command prompt.
 
 To start brickd.exe from a command prompt you should stop it running as Windows
 Service first, because there can only be one brickd.exe running at the same
@@ -62,21 +62,17 @@ Daemon detects this and does the right thing automatically.
 Debugging
 ---------
 
-By default Brick Daemon writes error and warning messages to the Windows Event
-Log. You can use the logviewer.exe tool to browse and save them. It shows the
-Windows Event Log filtered for Brick Daemon log entires.
+By default Brick Daemon writes error, warning and info messages to a log file.
+You can use the logviewer.exe tool to browse and save them.
 
-The Windows Event Log stores messages permanently, you can view past error and
-warning messages. In addition the logviewer.exe tool also has a Live Debug Log
-view that connects to the currently running Brick Daemon and shows a full debug
+The log file stores messages permanently, you can view past error, warning and
+info messages. In addition the logviewer.exe tool also has a Live Log view
+that connects to the currently running Brick Daemon and can show a full debug
 log that can be used for detailed debugging.
 
-You can also use the --log-to-file option, then Brick Daemon will write a log
-file named brickd.log in the folder where brickd.exe is located. In this mode
-error, warning and information messages are written to the log by default. The
-Brick Daemon config file allows to fine-tune which log messages are included.
-You can use the --debug option to override the config file settings and to
-output a full debug log.
+The Brick Daemon config file allows to fine-tune which log messages are written
+to the log file. You can use the --debug option to override the config file
+settings and to output a full debug log.
 
 If started from a command prompt and without the --log-to-file option log
 messages are written to the command prompt window.

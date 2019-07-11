@@ -91,7 +91,7 @@ source code::
 Windows 10 IoT (Universal Windows Platform)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-A Visual Studio 2017 project file to compile the source code::
+A Visual Studio 2019 project file to compile the source code::
 
  src\build_data\windows\msvc_uwp\brickd_uwp.sln
 
