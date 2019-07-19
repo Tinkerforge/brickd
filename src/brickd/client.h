@@ -73,6 +73,7 @@ struct _Client {
 	bool request_header_checked;
 	Node pending_request_sentinel;
 	int pending_request_count;
+	uint32_t dropped_pending_requests;
 	Writer response_writer;
 	ClientAuthenticationState authentication_state;
 	uint32_t authentication_nonce; // server

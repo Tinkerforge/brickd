@@ -388,6 +388,7 @@ int client_create(Client *client, const char *name, IO *io,
 	client->request_buffer_used = 0;
 	client->request_header_checked = false;
 	client->pending_request_count = 0;
+	client->dropped_pending_requests = 0;
 	client->authentication_state = CLIENT_AUTHENTICATION_STATE_DISABLED;
 	client->authentication_nonce = authentication_nonce;
 	client->destroy_done = destroy_done;

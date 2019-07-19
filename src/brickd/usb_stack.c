@@ -225,7 +225,7 @@ static int usb_stack_dispatch_request(Stack *stack, Packet *request,
 	}
 
 	// no free write transfer available, push request to write queue
-	log_packet_debug("Could not find a free write transfer for %s, pushing request to write queue (count: %d +1)",
+	log_packet_debug("Could not find a free write transfer for %s, pushing request to write queue (count: %d + 1)",
 	                 usb_stack->base.name, usb_stack->write_queue.count);
 
 	if (usb_stack->write_queue.count >= MAX_QUEUED_WRITES) {

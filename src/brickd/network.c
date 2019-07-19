@@ -362,13 +362,18 @@ void network_cleanup_clients_and_zombies(void) {
 }
 
 void network_client_expects_response(Client *client, Packet *request) {
+	uint32_t pending_requests_to_drop;
 	PendingRequest *pending_request;
 	char packet_signature[PACKET_MAX_SIGNATURE_LENGTH];
 
 	if (client->pending_request_count >= CLIENT_MAX_PENDING_REQUESTS) {
-		log_warn("Pending requests list for client ("CLIENT_SIGNATURE_FORMAT") is full, dropping %d pending request(s)",
-		         client_expand_signature(client),
-		         client->pending_request_count - CLIENT_MAX_PENDING_REQUESTS + 1);
+		pending_requests_to_drop = client->pending_request_count - CLIENT_MAX_PENDING_REQUESTS + 1;
+
+		log_warn("Pending requests list for client ("CLIENT_SIGNATURE_FORMAT") is full, dropping %d pending request(s), %u +%u dropped in total",
+		         client_expand_signature(client), pending_requests_to_drop,
+		         client->dropped_pending_requests, pending_requests_to_drop);
+
+		client->dropped_pending_requests += pending_requests_to_drop;
 
 		while (client->pending_request_count >= CLIENT_MAX_PENDING_REQUESTS) {
 			pending_request = containerof(client->pending_request_sentinel.next,
