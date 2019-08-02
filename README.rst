@@ -123,9 +123,8 @@ Run::
 
  python build_pkg.py
 
-On Linux this has to be executed as ``root`` and on Windows this has to be
-executed from a MSVC or WDK command prompt because it invokes the platform
-specific commands to compile the source code.
+On Windows this has to be executed from a MSVC or WDK command prompt because it
+invokes the platform specific commands to compile the source code.
 
 The installer/package is created in ``src``.
 
