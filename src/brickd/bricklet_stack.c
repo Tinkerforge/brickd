@@ -569,8 +569,8 @@ static void bricklet_stack_transceive(BrickletStack *bricklet_stack) {
 		// room before we start polling again.
 
 		// If we have nothing to send and we are currently not awaiting data from the Bricklet, we will
-		// poll every 200 us.
-		uint32_t sleep_us = 200;
+		// poll every Xus (default is 200us).
+		uint32_t sleep_us = config_get_option_value("bricklet.sleep_between_reads")->integer;
 
 		if(!bricklet_stack->data_seen) {
 			// If we have never seen any data, we will first poll every 1ms with the StackEnumerate message

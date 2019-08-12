@@ -89,6 +89,8 @@ ConfigOption config_options[] = {
 	CONFIG_OPTION_INTEGER_INITIALIZER("poll_delay.rs485", 50, INT32_MAX, 4000), // microseconds
 #endif
 #ifdef BRICKD_WITH_BRICKLET
+	CONFIG_OPTION_INTEGER_INITIALIZER("bricklet.sleep_between_reads", 100, 1000000, 200),
+
 	CONFIG_OPTION_STRING_INITIALIZER("bricklet.group0.spidev", 0, 64, ""),
 	CONFIG_OPTION_STRING_INITIALIZER("bricklet.group1.spidev", 0, 64, ""),
 
