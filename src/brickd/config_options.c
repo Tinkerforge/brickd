@@ -89,7 +89,17 @@ ConfigOption config_options[] = {
 	CONFIG_OPTION_INTEGER_INITIALIZER("poll_delay.rs485", 50, INT32_MAX, 4000), // microseconds
 #endif
 #ifdef BRICKD_WITH_BRICKLET
-	CONFIG_OPTION_INTEGER_INITIALIZER("bricklet.sleep_between_reads", 100, 1000000, 200),
+	CONFIG_OPTION_INTEGER_INITIALIZER("bricklet.portA.sleep_between_reads", 100, 1000000, 200),
+	CONFIG_OPTION_INTEGER_INITIALIZER("bricklet.portB.sleep_between_reads", 100, 1000000, 200),
+	CONFIG_OPTION_INTEGER_INITIALIZER("bricklet.portC.sleep_between_reads", 100, 1000000, 200),
+	CONFIG_OPTION_INTEGER_INITIALIZER("bricklet.portD.sleep_between_reads", 100, 1000000, 200),
+	CONFIG_OPTION_INTEGER_INITIALIZER("bricklet.portE.sleep_between_reads", 100, 1000000, 200),
+	CONFIG_OPTION_INTEGER_INITIALIZER("bricklet.portF.sleep_between_reads", 100, 1000000, 200),
+	CONFIG_OPTION_INTEGER_INITIALIZER("bricklet.portG.sleep_between_reads", 100, 1000000, 200),
+	CONFIG_OPTION_INTEGER_INITIALIZER("bricklet.portH.sleep_between_reads", 100, 1000000, 200),
+	CONFIG_OPTION_INTEGER_INITIALIZER("bricklet.portI.sleep_between_reads", 100, 1000000, 200),
+	CONFIG_OPTION_INTEGER_INITIALIZER("bricklet.portJ.sleep_between_reads", 100, 1000000, 200),
+	CONFIG_OPTION_INTEGER_INITIALIZER("bricklet.portHAT.sleep_between_reads", 100, 1000000, 2000),
 
 	CONFIG_OPTION_STRING_INITIALIZER("bricklet.group0.spidev", 0, 64, ""),
 	CONFIG_OPTION_STRING_INITIALIZER("bricklet.group1.spidev", 0, 64, ""),

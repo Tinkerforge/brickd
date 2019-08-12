@@ -62,6 +62,7 @@ typedef struct {
 
 	// Unused in case of hardware or WiringPi CS
 	GPIOSYSFS chip_select_gpio_sysfs;
+	int chip_select_gpio_fd;
 
 	// TODO: Add WiringPi structure
 
@@ -72,6 +73,7 @@ typedef struct {
 	uint32_t *connected_uid;
 	uint8_t num;
 	uint32_t startup_wait_time; // in milliseconds
+	uint32_t sleep_between_reads; // in microseconds
 } BrickletStackConfig;
 
 typedef struct {

@@ -532,7 +532,7 @@ static void bricklet_stack_check_message(BrickletStack *bricklet_stack) {
 	}
 }
 
-static void bricklet_stack_transceive(BrickletStack *bricklet_stack, uint32_t sleep_between_reads) {
+static void bricklet_stack_transceive(BrickletStack *bricklet_stack) {
 	// If we have not seen any data from the Bricklet we increase a counter.
 	// If the counter reaches BRICKLET_STACK_FIRST_MESSAGE_TRIES we assume that
 	// there is no Bricklet and we stop trying to send to initial message (if a
@@ -568,9 +568,7 @@ static void bricklet_stack_transceive(BrickletStack *bricklet_stack, uint32_t sl
 		// If there is nothing to read or to write, we give the Bricklet some breathing
 		// room before we start polling again.
 
-		// If we have nothing to send and we are currently not awaiting data from the Bricklet, we will
-		// poll every Xus (default is 200us).
-		uint32_t sleep_us = sleep_between_reads;
+		uint32_t sleep_us = 0;
 
 		if(!bricklet_stack->data_seen) {
 			// If we have never seen any data, we will first poll every 1ms with the StackEnumerate message
@@ -584,6 +582,9 @@ static void bricklet_stack_transceive(BrickletStack *bricklet_stack, uint32_t sl
 			}
 		}
 
+		// If we have nothing to send and we are currently not awaiting data from the Bricklet, we will
+		// poll every Xus (default is 200us).
+		sleep_us = MAX(bricklet_stack->config.sleep_between_reads, sleep_us);
 		microsleep(sleep_us);
 	}
 
@@ -600,7 +601,8 @@ static void bricklet_stack_transceive(BrickletStack *bricklet_stack, uint32_t sl
 
 	// Do chip select by hand if necessary
 	if(bricklet_stack->config.chip_select_driver == CHIP_SELECT_GPIO) {
-		if(gpio_sysfs_set_output(&bricklet_stack->config.chip_select_gpio_sysfs, GPIO_SYSFS_VALUE_LOW) < 0) {
+		// Use direct write call on buffered fd to save some CPU time
+		if(write(bricklet_stack->config.chip_select_gpio_fd, "0", 1) < 0) {
 			log_error("Could not enable chip select");
 			return;
 		}
@@ -633,7 +635,8 @@ static void bricklet_stack_transceive(BrickletStack *bricklet_stack, uint32_t sl
 
 	// Do chip deselect by hand if necessary
 	if(bricklet_stack->config.chip_select_driver == CHIP_SELECT_GPIO) {
-		if(gpio_sysfs_set_output(&bricklet_stack->config.chip_select_gpio_sysfs, GPIO_SYSFS_VALUE_HIGH) < 0) {
+		// Use direct write call on buffered fd to save some CPU time
+		if(write(bricklet_stack->config.chip_select_gpio_fd, "1", 1) < 0) {
 			log_error("Could not disable chip select");
 			return;
 		}
@@ -688,10 +691,8 @@ static void bricklet_stack_spi_thread(void *opaque) {
 
 	bricklet_stack_send_ack_and_message(bricklet_stack, (uint8_t*)&header, sizeof(PacketHeader));
 
-	uint32_t sleep_between_reads = config_get_option_value("bricklet.sleep_between_reads")->integer;
-
 	while (bricklet_stack->spi_thread_running) {
-		bricklet_stack_transceive(bricklet_stack, sleep_between_reads);
+		bricklet_stack_transceive(bricklet_stack);
 		bricklet_stack_check_message(bricklet_stack);
 	}
 }
@@ -744,6 +745,7 @@ static int bricklet_stack_init_spi(BrickletStack *bricklet_stack) {
 int bricklet_stack_init(BrickletStack *bricklet_stack, BrickletStackConfig *config) {
 	int phase = 0;
 	char bricklet_stack_name[128];
+	char buffer[256];
 
 	log_debug("Initializing Bricklet stack subsystem for '%s' (num %d)", config->spi_device, config->chip_select_gpio_sysfs.num);
 
@@ -757,6 +759,12 @@ int bricklet_stack_init(BrickletStack *bricklet_stack, BrickletStackConfig *conf
 		}
 
 		if(gpio_sysfs_set_output(&config->chip_select_gpio_sysfs, GPIO_SYSFS_VALUE_HIGH) < 0) {
+			goto cleanup;
+		}
+
+		snprintf(buffer, sizeof(buffer), "/sys/class/gpio/%s/value", config->chip_select_gpio_sysfs.name);
+		config->chip_select_gpio_fd = open(buffer, O_WRONLY);
+		if(config->chip_select_gpio_fd < 0) {
 			goto cleanup;
 		}
 	}
@@ -901,4 +909,5 @@ void bricklet_stack_exit(BrickletStack *bricklet_stack) {
 	// Close file descriptors
 	robust_close(bricklet_stack->notification_event);
 	robust_close(bricklet_stack->spi_fd);
+	robust_close(bricklet_stack->config.chip_select_gpio_fd);
 }

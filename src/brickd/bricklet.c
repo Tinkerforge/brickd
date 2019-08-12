@@ -153,6 +153,8 @@ int bricklet_init_rpi_hat(const char *product_id_test, const char *spidev,
 	int rc;
 	char product_id[BRICKLET_RPI_PRODUCT_ID_LENGTH+1] = "\0";
 	BrickletStackConfig config;
+	char str_sleep_between_reads_bricklet[] = "bricklet.portX.sleep_between_reads";
+	char str_sleep_between_reads_hat[]      = "bricklet.portHAT.sleep_between_reads";
 
 	fd = open("/proc/device-tree/hat/product_id", O_RDONLY);
 
@@ -196,6 +198,13 @@ int bricklet_init_rpi_hat(const char *product_id_test, const char *spidev,
 		config.num = _bricklet_stack_num;
 		config.chip_select_driver = BRICKLET_CHIP_SELECT_DRIVER_GPIO;
 		config.chip_select_gpio_sysfs.num = gpios[cs];
+
+		if(cs == gpios_num - 1) { // Last CS is the HAT itself
+			config.sleep_between_reads = config_get_option_value(str_sleep_between_reads_hat)->integer;
+		} else {
+			str_sleep_between_reads_bricklet[13] = 'A' + cs;
+			config.sleep_between_reads = config_get_option_value(str_sleep_between_reads_bricklet)->integer;
+		}
 
 		sprintf(config.chip_select_gpio_sysfs.name, "gpio%d", config.chip_select_gpio_sysfs.num);
 
@@ -251,10 +260,11 @@ int bricklet_init_hctosys(void) {
 int bricklet_init(void) {
 	int rc;
 	int length = 0;
-	char str_spidev[]    = "bricklet.groupX.spidev";
-	char str_cs_driver[] = "bricklet.groupX.csY.driver";
-	char str_cs_name[]   = "bricklet.groupX.csY.name";
-	char str_cs_num[]    = "bricklet.groupX.csY.num";
+	char str_spidev[]              = "bricklet.groupX.spidev";
+	char str_cs_driver[]           = "bricklet.groupX.csY.driver";
+	char str_cs_name[]             = "bricklet.groupX.csY.name";
+	char str_cs_num[]              = "bricklet.groupX.csY.num";
+	char str_sleep_between_reads[] = "bricklet.portX.sleep_between_reads";
 	BrickletStackConfig config;
 
 	mutex_create(&_bricklet_spi_mutex[0]);
@@ -319,6 +329,9 @@ int bricklet_init(void) {
 			str_cs_driver[BRICKLET_CONFIG_STR_GROUP_POS] = '0' + i;
 			str_cs_driver[BRICKLET_CONFIG_STR_CS_POS]    = '0' + cs;
 			config.chip_select_driver = config_get_option_value(str_cs_driver)->symbol;
+
+			str_sleep_between_reads[13] = 'A' + cs;
+			config.sleep_between_reads = config_get_option_value(str_sleep_between_reads)->integer;
 
 			if(config.chip_select_driver == CHIP_SELECT_GPIO) {
 				str_cs_num[BRICKLET_CONFIG_STR_GROUP_POS] = '0' + i;
