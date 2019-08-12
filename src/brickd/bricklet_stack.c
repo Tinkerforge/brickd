@@ -532,7 +532,7 @@ static void bricklet_stack_check_message(BrickletStack *bricklet_stack) {
 	}
 }
 
-static void bricklet_stack_transceive(BrickletStack *bricklet_stack) {
+static void bricklet_stack_transceive(BrickletStack *bricklet_stack, uint32_t sleep_between_reads) {
 	// If we have not seen any data from the Bricklet we increase a counter.
 	// If the counter reaches BRICKLET_STACK_FIRST_MESSAGE_TRIES we assume that
 	// there is no Bricklet and we stop trying to send to initial message (if a
@@ -570,7 +570,7 @@ static void bricklet_stack_transceive(BrickletStack *bricklet_stack) {
 
 		// If we have nothing to send and we are currently not awaiting data from the Bricklet, we will
 		// poll every Xus (default is 200us).
-		uint32_t sleep_us = config_get_option_value("bricklet.sleep_between_reads")->integer;
+		uint32_t sleep_us = sleep_between_reads;
 
 		if(!bricklet_stack->data_seen) {
 			// If we have never seen any data, we will first poll every 1ms with the StackEnumerate message
@@ -688,8 +688,10 @@ static void bricklet_stack_spi_thread(void *opaque) {
 
 	bricklet_stack_send_ack_and_message(bricklet_stack, (uint8_t*)&header, sizeof(PacketHeader));
 
+	uint32_t sleep_between_reads = config_get_option_value("bricklet.sleep_between_reads")->integer;
+
 	while (bricklet_stack->spi_thread_running) {
-		bricklet_stack_transceive(bricklet_stack);
+		bricklet_stack_transceive(bricklet_stack, sleep_between_reads);
 		bricklet_stack_check_message(bricklet_stack);
 	}
 }
