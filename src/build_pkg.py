@@ -232,9 +232,9 @@ def build_linux_pkg():
     system('cd brickd; make clean')
 
     if architecture == 'i386':
-        system('cd brickd; env CC=gcc WITH_LIBUDEV=yes WITH_LIBUDEV_DLOPEN=yes WITH_PM_UTILS=yes CFLAGS=-march=i386 make')
+        system('cd brickd; env CC=gcc WITH_LIBUDEV=yes WITH_LIBUDEV_DLOPEN=yes WITH_PM_UTILS=yes WITH_UNKNOWN_LIBUSB_API_VERSION=yes CFLAGS=-march=i386 make')
     else:
-        system('cd brickd; env CC=gcc WITH_LIBUDEV=yes WITH_LIBUDEV_DLOPEN=yes WITH_PM_UTILS=yes make')
+        system('cd brickd; env CC=gcc WITH_LIBUDEV=yes WITH_LIBUDEV_DLOPEN=yes WITH_PM_UTILS=yes WITH_UNKNOWN_LIBUSB_API_VERSION=yes make')
 
     print('copying build data')
     installer_path = os.path.join(root_path, 'build_data', 'linux', 'installer')

@@ -236,6 +236,22 @@ static void LIBUSB_CALL usb_remove_pollfd(int fd, void *opaque) {
 	event_remove_source(fd, EVENT_SOURCE_TYPE_USB);
 }
 
+static void usb_set_debug(libusb_context *context, int level) {
+#if !defined BRICKD_UNKNOWN_LIBUSB_API_VERSION && defined LIBUSB_API_VERSION && LIBUSB_API_VERSION >= 0x01000106 // libusb 1.0.22
+	libusb_set_option(context, LIBUSB_OPTION_LOG_LEVEL, level);
+#else
+	libusb_set_debug(context, level);
+#endif
+}
+
+static void usb_free_pollfds(const struct libusb_pollfd **pollfds) {
+#if defined _WIN32 || (!defined BRICKD_UNKNOWN_LIBUSB_API_VERSION && defined LIBUSB_API_VERSION && LIBUSB_API_VERSION >= 0x01000104) // libusb 1.0.20
+	libusb_free_pollfds(pollfds); // avoids possible heap-mismatch on Windows
+#else
+	free(pollfds);
+#endif
+}
+
 int usb_init(void) {
 	int phase = 0;
 
@@ -478,23 +494,23 @@ int usb_create_context(libusb_context **context) {
 
 	switch (log_get_effective_level()) {
 	case LOG_LEVEL_ERROR:
-		libusb_set_debug(*context, 1);
+		usb_set_debug(*context, 1);
 		break;
 
 	case LOG_LEVEL_WARN:
-		libusb_set_debug(*context, 2);
+		usb_set_debug(*context, 2);
 		break;
 
 	case LOG_LEVEL_INFO:
-		libusb_set_debug(*context, 3);
+		usb_set_debug(*context, 3);
 		break;
 
 	case LOG_LEVEL_DEBUG:
 		if (log_is_included(LOG_LEVEL_DEBUG, &_libusb_log_source,
 		                    LOG_DEBUG_GROUP_LIBUSB)) {
-			libusb_set_debug(*context, 4);
+			usb_set_debug(*context, 4);
 		} else {
-			libusb_set_debug(*context, 3);
+			usb_set_debug(*context, 3);
 		}
 
 		break;
@@ -548,11 +564,7 @@ cleanup:
 		break;
 	}
 
-#ifdef _WIN32
-	libusb_free_pollfds(pollfds); // avoids possible heap-mismatch on Windows
-#else
-	free(pollfds); // use free() elsewhere, because libusb_free_pollfds() was added in libusb 1.0.20
-#endif
+	usb_free_pollfds(pollfds);
 
 	return phase == 3 ? 0 : -1;
 }
@@ -572,11 +584,7 @@ void usb_destroy_context(libusb_context *context) {
 			event_remove_source((*pollfd)->fd, EVENT_SOURCE_TYPE_USB);
 		}
 
-#ifdef _WIN32
-		libusb_free_pollfds(pollfds); // avoids possible heap-mismatch on Windows
-#else
-		free(pollfds); // use free() elsewhere, because libusb_free_pollfds() was added in libusb 1.0.20
-#endif
+		usb_free_pollfds(pollfds);
 	}
 
 	libusb_exit(context);

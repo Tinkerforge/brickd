@@ -31,6 +31,7 @@ WITH_SYSTEMD ?= check
 WITH_RED_BRICK ?= check
 WITH_BRICKLET ?= check
 WITH_MESH_SINGLE_ROOT_NODE ?= no
+WITH_UNKNOWN_LIBUSB_API_VERSION ?= no
 
 ## RULES ######################################################################
 
@@ -528,26 +529,31 @@ ifeq ($(WITH_MESH_SINGLE_ROOT_NODE),yes)
 	CFLAGS += -DBRICKD_WITH_MESH_SINGLE_ROOT_NODE
 endif
 
+ifeq ($(WITH_UNKNOWN_LIBUSB_API_VERSION),yes)
+	CFLAGS += -DBRICKD_UNKNOWN_LIBUSB_API_VERSION
+endif
+
 ifneq ($(MAKECMDGOALS),clean)
 $(info libraries/tools:)
-$(info - libusb:                $(LIBUSB_STATUS))
-$(info - libudev:               $(LIBUDEV_STATUS))
-$(info - pm-utils:              $(PM_UTILS_STATUS))
-$(info - systemd:               $(SYSTEMD_STATUS))
+$(info - libusb:                     $(LIBUSB_STATUS))
+$(info - libudev:                    $(LIBUDEV_STATUS))
+$(info - pm-utils:                   $(PM_UTILS_STATUS))
+$(info - systemd:                    $(SYSTEMD_STATUS))
 $(info features:)
-$(info - logging:               $(WITH_LOGGING))
-$(info - epoll:                 $(WITH_EPOLL))
-$(info - packet-trace:          $(WITH_PACKET_TRACE))
-$(info - debug:                 $(WITH_DEBUG))
-$(info - gprof:                 $(WITH_GPROF))
-$(info - red-brick:             $(WITH_RED_BRICK))
-$(info - bricklet:              $(WITH_BRICKLET))
-$(info - mesh-single-root-node: $(WITH_MESH_SINGLE_ROOT_NODE))
-$(info - hotplug:               $(HOTPLUG))
+$(info - logging:                    $(WITH_LOGGING))
+$(info - epoll:                      $(WITH_EPOLL))
+$(info - packet-trace:               $(WITH_PACKET_TRACE))
+$(info - debug:                      $(WITH_DEBUG))
+$(info - gprof:                      $(WITH_GPROF))
+$(info - red-brick:                  $(WITH_RED_BRICK))
+$(info - bricklet:                   $(WITH_BRICKLET))
+$(info - unknown-libusb-api-version: $(WITH_UNKNOWN_LIBUSB_API_VERSION))
+$(info - mesh-single-root-node:      $(WITH_MESH_SINGLE_ROOT_NODE))
+$(info - hotplug:                    $(HOTPLUG))
 $(info options:)
-$(info - CFLAGS:                $(CFLAGS))
-$(info - LDFLAGS:               $(LDFLAGS))
-$(info - LIBS:                  $(LIBS))
+$(info - CFLAGS:                     $(CFLAGS))
+$(info - LDFLAGS:                    $(LDFLAGS))
+$(info - LIBS:                       $(LIBS))
 endif
 
 .PHONY: all clean
