@@ -343,15 +343,19 @@ else
 	DIST :=
 endif
 
+ifdef RPM_OPT_FLAGS
+	CFLAGS = $(RPM_OPT_FLAGS)
+else
+ifeq ($(WITH_DEBUG),yes)
+	CFLAGS = -O0 -g -ggdb
+else
+	CFLAGS = -O2
+endif
+endif
+
 # tell GCC to use C99, but actually write C89 code plus stdint.h and stdbool.h
 # to be able to compile it with MSVC/WDK which supports C89 only
 CFLAGS += -std=gnu99 -Wall -Wextra -I..
-
-ifeq ($(WITH_DEBUG),yes)
-	CFLAGS += -O0 -g -ggdb
-else
-	CFLAGS += -O2
-endif
 
 ifeq ($(WITH_GPROF),yes)
 	CFLAGS += -pg -no-pie
