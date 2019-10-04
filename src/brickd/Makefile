@@ -74,14 +74,6 @@ ifndef datadir
 endif
 endif
 
-ifndef syslibdir
-ifeq ($(prefix),/usr)
-	syslibdir := /lib
-else
-	syslibdir := $(prefix)/lib
-endif
-endif
-
 ifndef libdir
 	libdir := $(prefix)/lib
 endif
@@ -212,7 +204,7 @@ else
 endif
 
 ifeq ($(PLATFORM),Linux)
-	SYSTEMD_EXISTS := $(shell systemctl --version >/dev/null 2>&1 && echo yes || echo no)
+	SYSTEMD_EXISTS := $(shell pkg-config --exists systemd && echo yes || echo no)
 
 ifeq ($(WITH_SYSTEMD),check)
 ifeq ($(SYSTEMD_EXISTS),yes)
@@ -225,6 +217,11 @@ else
 	# not Linux, no systemd
 	WITH_SYSTEMD := no
 endif
+
+ifeq ($(WITH_SYSTEMD),yes)
+	systemdsystemunitdir=$(shell pkg-config --variable=systemdsystemunitdir systemd)
+endif
+
 
 SOURCES_DAEMONLIB := $(call FIX_PATH,../daemonlib/array.c) \
                      $(call FIX_PATH,../daemonlib/base58.c) \
@@ -476,8 +473,6 @@ endif
 endif
 
 ifeq ($(WITH_SYSTEMD),yes)
-	SYSTEMD_EXISTS := $(shell systemctl --version >/dev/null 2>&1 && echo yes || echo no)
-
 ifeq ($(SYSTEMD_EXISTS),yes)
 	SYSTEMD_STATUS := $(shell systemctl --version | head -n1 | awk '{{ print $$2 }}')
 else
@@ -618,8 +613,8 @@ ifeq ($(WITH_PM_UTILS),yes)
 endif
 
 ifeq ($(WITH_SYSTEMD),yes)
-	@echo MD $(syslibdir)/systemd/system
-	$(E)$(INSTALL) -d -m 755 $(DESTDIR)$(syslibdir)/systemd/system
+	@echo MD $(systemdsystemunitdir)
+	$(E)$(INSTALL) -d -m 755 $(DESTDIR)$(systemdsystemunitdir)
 endif
 
 	@echo CP brickd
@@ -637,7 +632,7 @@ ifeq ($(WITH_SYSTEMD),no)
 	$(E)$(INSTALL) -m 755 ../build_data/linux/installer/usr/share/brickd/brickd-sysv-init $(DESTDIR)$(sysconfdir)/init.d/brickd
 else
 	@echo CP brickd.service [systemd service]
-	$(E)$(INSTALL) -m 644 ../build_data/linux/installer/lib/systemd/system/brickd.service $(DESTDIR)$(syslibdir)/systemd/system
+	$(E)$(INSTALL) -m 644 ../build_data/linux/installer/lib/systemd/system/brickd.service $(DESTDIR)$(systemdsystemunitdir)
 endif
 
 	@echo CP brickd [logrotate.d script]
@@ -660,7 +655,7 @@ endif
 
 ifeq ($(WITH_SYSTEMD),yes)
 	@echo CP brickd-resume.service [systemd service]
-	$(E)$(INSTALL) -m 644 ../build_data/linux/installer/lib/systemd/system/brickd-resume.service $(DESTDIR)$(syslibdir)/systemd/system
+	$(E)$(INSTALL) -m 644 ../build_data/linux/installer/lib/systemd/system/brickd-resume.service $(DESTDIR)$(systemdsystemunitdir)
 endif
 
 %.o: %.c Makefile
