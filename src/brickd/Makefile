@@ -219,9 +219,8 @@ else
 endif
 
 ifeq ($(WITH_SYSTEMD),yes)
-	systemdsystemunitdir=$(shell pkg-config --variable=systemdsystemunitdir systemd)
+	SYSTEMD_SYSTEM_UNIT_DIR := $(shell pkg-config --variable=systemdsystemunitdir systemd)
 endif
-
 
 SOURCES_DAEMONLIB := $(call FIX_PATH,../daemonlib/array.c) \
                      $(call FIX_PATH,../daemonlib/base58.c) \
@@ -613,8 +612,8 @@ ifeq ($(WITH_PM_UTILS),yes)
 endif
 
 ifeq ($(WITH_SYSTEMD),yes)
-	@echo MD $(systemdsystemunitdir)
-	$(E)$(INSTALL) -d -m 755 $(DESTDIR)$(systemdsystemunitdir)
+	@echo MD $(SYSTEMD_SYSTEM_UNIT_DIR)
+	$(E)$(INSTALL) -d -m 755 $(DESTDIR)$(SYSTEMD_SYSTEM_UNIT_DIR)
 endif
 
 	@echo CP brickd
@@ -632,7 +631,7 @@ ifeq ($(WITH_SYSTEMD),no)
 	$(E)$(INSTALL) -m 755 ../build_data/linux/installer/usr/share/brickd/brickd-sysv-init $(DESTDIR)$(sysconfdir)/init.d/brickd
 else
 	@echo CP brickd.service [systemd service]
-	$(E)$(INSTALL) -m 644 ../build_data/linux/installer/lib/systemd/system/brickd.service $(DESTDIR)$(systemdsystemunitdir)
+	$(E)$(INSTALL) -m 644 ../build_data/linux/installer/lib/systemd/system/brickd.service $(DESTDIR)$(SYSTEMD_SYSTEM_UNIT_DIR)
 endif
 
 	@echo CP brickd [logrotate.d script]
@@ -655,7 +654,7 @@ endif
 
 ifeq ($(WITH_SYSTEMD),yes)
 	@echo CP brickd-resume.service [systemd service]
-	$(E)$(INSTALL) -m 644 ../build_data/linux/installer/lib/systemd/system/brickd-resume.service $(DESTDIR)$(systemdsystemunitdir)
+	$(E)$(INSTALL) -m 644 ../build_data/linux/installer/lib/systemd/system/brickd-resume.service $(DESTDIR)$(SYSTEMD_SYSTEM_UNIT_DIR)
 endif
 
 %.o: %.c Makefile
