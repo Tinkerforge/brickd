@@ -340,13 +340,17 @@ else
 endif
 
 ifdef RPM_OPT_FLAGS
-	CFLAGS = $(RPM_OPT_FLAGS)
+	CFLAGS += $(RPM_OPT_FLAGS)
 else
 ifeq ($(WITH_DEBUG),yes)
-	CFLAGS = -O0 -g -ggdb
+	CFLAGS += -O0
 else
-	CFLAGS = -O2
+	CFLAGS += -O2
 endif
+endif
+
+ifeq ($(WITH_DEBUG),yes)
+	CFLAGS += -g -ggdb
 endif
 
 # tell GCC to use C99, but actually write C89 code plus stdint.h and stdbool.h
