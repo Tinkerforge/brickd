@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2014, 2017-2018 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2014, 2017-2019 Matthias Bolte <matthias@tinkerforge.com>
  * Copyright (C) 2016 Ishraq Ibne Ashraf <ishraq@tinkerforge.com>
  * Copyright (C) 2018 Olaf Lüke <olaf@tinkerforge.com>
  *
@@ -26,11 +26,9 @@
 #ifdef BRICKD_WITH_RED_BRICK
 	#include <daemonlib/red_led.h>
 #endif
-
 #ifdef BRICKD_WITH_BRICKLET
-	#include "bricklet.h"
+	#include "bricklet_stack.h"
 #endif
-
 
 #ifdef BRICKD_WITH_RED_BRICK
 

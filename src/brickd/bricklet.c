@@ -333,7 +333,7 @@ int bricklet_init(void) {
 			str_sleep_between_reads[13] = 'A' + cs;
 			config.sleep_between_reads = config_get_option_value(str_sleep_between_reads)->integer;
 
-			if(config.chip_select_driver == CHIP_SELECT_GPIO) {
+			if(config.chip_select_driver == BRICKLET_CHIP_SELECT_DRIVER_GPIO) {
 				str_cs_num[BRICKLET_CONFIG_STR_GROUP_POS] = '0' + i;
 				str_cs_num[BRICKLET_CONFIG_STR_CS_POS]    = '0' + cs;
 				config.chip_select_gpio_sysfs.num = config_get_option_value(str_cs_num)->integer;
@@ -348,7 +348,7 @@ int bricklet_init(void) {
 
 				memset(config.chip_select_gpio_sysfs.name, 0, sizeof(config.chip_select_gpio_sysfs.name));
 				memcpy(config.chip_select_gpio_sysfs.name, config_get_option_value(str_cs_name)->string, length);
-			} else if(config.chip_select_driver != CHIP_SELECT_HARDWARE) {
+			} else if(config.chip_select_driver != BRICKLET_CHIP_SELECT_DRIVER_HARDWARE) {
 				continue;
 			}
 

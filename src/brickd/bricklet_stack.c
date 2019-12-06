@@ -601,7 +601,7 @@ static void bricklet_stack_transceive(BrickletStack *bricklet_stack) {
 	mutex_lock(bricklet_stack->config.mutex);
 
 	// Do chip select by hand if necessary
-	if(bricklet_stack->config.chip_select_driver == CHIP_SELECT_GPIO) {
+	if(bricklet_stack->config.chip_select_driver == BRICKLET_CHIP_SELECT_DRIVER_GPIO) {
 		// Use direct write call on buffered fd to save some CPU time
 		if(write(bricklet_stack->config.chip_select_gpio_fd, "0", 1) < 0) {
 			log_error("Could not enable chip select");
@@ -635,7 +635,7 @@ static void bricklet_stack_transceive(BrickletStack *bricklet_stack) {
 	}
 
 	// Do chip deselect by hand if necessary
-	if(bricklet_stack->config.chip_select_driver == CHIP_SELECT_GPIO) {
+	if(bricklet_stack->config.chip_select_driver == BRICKLET_CHIP_SELECT_DRIVER_GPIO) {
 		// Use direct write call on buffered fd to save some CPU time
 		if(write(bricklet_stack->config.chip_select_gpio_fd, "1", 1) < 0) {
 			log_error("Could not disable chip select");
@@ -701,7 +701,7 @@ static void bricklet_stack_spi_thread(void *opaque) {
 
 static int bricklet_stack_init_spi(BrickletStack *bricklet_stack) {
 	// Use hw chip select if it is done by SPI hardware unit, otherwise set SPI_NO_CS flag.
-	const int mode          = BRICKLET_STACK_SPI_CONFIG_MODE | (bricklet_stack->config.chip_select_driver == CHIP_SELECT_HARDWARE ? 0 : SPI_NO_CS);
+	const int mode          = BRICKLET_STACK_SPI_CONFIG_MODE | (bricklet_stack->config.chip_select_driver == BRICKLET_CHIP_SELECT_DRIVER_HARDWARE ? 0 : SPI_NO_CS);
 	const int lsb_first     = BRICKLET_STACK_SPI_CONFIG_LSB_FIRST;
 	const int bits_per_word = BRICKLET_STACK_SPI_CONFIG_BITS_PER_WORD;
 	const int max_speed_hz  = BRICKLET_STACK_SPI_CONFIG_MAX_SPEED_HZ;
@@ -751,7 +751,7 @@ int bricklet_stack_create(BrickletStack *bricklet_stack, BrickletStackConfig *co
 
 	log_debug("Initializing Bricklet stack subsystem for '%s' (num %d)", config->spidev, config->chip_select_gpio_sysfs.num);
 
-	if(config->chip_select_driver == CHIP_SELECT_GPIO) {
+	if(config->chip_select_driver == BRICKLET_CHIP_SELECT_DRIVER_GPIO) {
 		if(gpio_sysfs_export(&config->chip_select_gpio_sysfs) < 0) {
 			goto cleanup;
 		}

@@ -1,7 +1,7 @@
 /*
  * brickd
  * Copyright (C) 2018 Olaf Lüke <olaf@tinkerforge.com>
- * Copyright (C) 2018 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2018-2019 Matthias Bolte <matthias@tinkerforge.com>
  *
  * bricklet.c: Bricklet support
  *
@@ -22,12 +22,6 @@
 
 #ifndef BRICKD_BRICKLET_H
 #define BRICKD_BRICKLET_H
-
-typedef enum {
-	BRICKLET_CHIP_SELECT_DRIVER_HARDWARE = 0,
-	BRICKLET_CHIP_SELECT_DRIVER_GPIO,
-	BRICKLET_CHIP_SELECT_DRIVER_WIRINGPI,
-} BrickletChipSelectDriver;
 
 int bricklet_init(void);
 void bricklet_exit(void);

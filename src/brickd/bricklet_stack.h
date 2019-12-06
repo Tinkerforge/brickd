@@ -50,14 +50,14 @@
 #define SPITFP_TIMEOUT 5 // in ms
 
 typedef enum {
-	CHIP_SELECT_HARDWARE,
-	CHIP_SELECT_GPIO,
-	CHIP_SELECT_WIRINGPI // TODO
-} BrickletStackChipSelectDriver;
+	BRICKLET_CHIP_SELECT_DRIVER_HARDWARE = 0,
+	BRICKLET_CHIP_SELECT_DRIVER_GPIO,
+	BRICKLET_CHIP_SELECT_DRIVER_WIRINGPI // TODO
+} BrickletChipSelectDriver;
 
 typedef struct {
 	char spidev[64]; // e.g. "/dev/spidev0.0";
-	BrickletStackChipSelectDriver chip_select_driver;
+	BrickletChipSelectDriver chip_select_driver;
 
 	// Unused in case of hardware or WiringPi CS
 	GPIOSYSFS chip_select_gpio_sysfs;
