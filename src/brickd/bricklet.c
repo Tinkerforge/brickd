@@ -56,16 +56,16 @@ static LogSource _log_source = LOG_SOURCE_INITIALIZER;
 
 // We support up to two parallel SPI hardware units, each one of those needs a mutex.
 static Mutex _bricklet_spi_mutex[BRICKLET_SPI_MAX_NUM];
-static int _bricklet_stack_num = 0;
-static BrickletStack _bricklet_stack[BRICKLET_SPI_MAX_NUM*BRICKLET_CS_MAX_NUM];
+static int _bricklet_stack_count = 0;
+static BrickletStack _bricklet_stack[BRICKLET_SPI_MAX_NUM * BRICKLET_CS_MAX_NUM];
 
 // The "connected to uid" can be overwritten if the UID of the HAT itself is known.
 // In this case the Bricklets will be shown as connected to the HAT in Brick Viewer.
 static uint32_t bricklet_connected_uid = 0;
 
 // GPIOs configuration for HAT Brick.
-static const uint8_t bricklet_stack_rpi_hat_gpios[] = {23, 22, 25, 26, 27, 24, 7, 6, 5};
-static const uint8_t bricklet_stack_rpi_hat_zero_gpios[] = {27, 23, 24, 22, 25};
+static const uint8_t bricklet_stack_rpi_hat_gpio_cs[] = {23, 22, 25, 26, 27, 24, 7, 6, 5};
+static const uint8_t bricklet_stack_rpi_hat_zero_gpio_cs[] = {27, 23, 24, 22, 25};
 
 // The equivalent configuration in brickd.conf looks as follows:
 /**************************************
@@ -146,8 +146,8 @@ bricklet.group0.cs4.num = 25
 // so we can't intermix hardware CS with gpio CS pins. Because
 // of this the HAT can only use pins for CS that are not HW CS pins...
 int bricklet_init_rpi_hat(const char *product_id_test, const char *spidev,
-                          const int spidev_num, const uint8_t *gpios,
-                          const int gpios_num, const int master_cs,
+                          const int spidev_num, const uint8_t *gpio_cs,
+                          const int gpio_cs_num, const int master_cs,
                           const char *name, const bool last) {
 	int fd;
 	int rc;
@@ -185,21 +185,21 @@ int bricklet_init_rpi_hat(const char *product_id_test, const char *spidev,
 	memset(&config, 0, sizeof(config));
 
 	config.mutex = &_bricklet_spi_mutex[spidev_num];
-	strcpy(config.spi_device, spidev);
+	strcpy(config.spidev, spidev);
 	config.connected_uid = &bricklet_connected_uid;
 
-	for(uint8_t cs = 0; cs < gpios_num; cs++) {
+	for(uint8_t cs = 0; cs < gpio_cs_num; cs++) {
 		if(cs == master_cs) {
 			config.startup_wait_time = 0;
 		} else {
 			config.startup_wait_time = 1000;
 		}
 
-		config.num = _bricklet_stack_num;
+		config.index = _bricklet_stack_count;
 		config.chip_select_driver = BRICKLET_CHIP_SELECT_DRIVER_GPIO;
-		config.chip_select_gpio_sysfs.num = gpios[cs];
+		config.chip_select_gpio_sysfs.num = gpio_cs[cs];
 
-		if(cs == gpios_num - 1) { // Last CS is the HAT itself
+		if(cs == gpio_cs_num - 1) { // Last CS is the HAT itself
 			config.sleep_between_reads = config_get_option_value(str_sleep_between_reads_hat)->integer;
 		} else {
 			str_sleep_between_reads_bricklet[13] = 'A' + cs;
@@ -209,16 +209,16 @@ int bricklet_init_rpi_hat(const char *product_id_test, const char *spidev,
 		sprintf(config.chip_select_gpio_sysfs.name, "gpio%d", config.chip_select_gpio_sysfs.num);
 
 		log_debug("Bricklet found: spidev %s, driver %d, name %s (num %d)",
-		          config.spi_device,
+		          config.spidev,
 		          config.chip_select_driver,
 		          config.chip_select_gpio_sysfs.name,
 		          config.chip_select_gpio_sysfs.num);
 
-		if(bricklet_stack_init(&_bricklet_stack[_bricklet_stack_num], &config) < 0) {
+		if(bricklet_stack_create(&_bricklet_stack[_bricklet_stack_count], &config) < 0) {
 			return -1;
 		}
 
-		_bricklet_stack_num++;
+		_bricklet_stack_count++;
 	}
 
 	return 0;
@@ -275,8 +275,8 @@ int bricklet_init(void) {
 	rc = bricklet_init_rpi_hat(BRICKLET_RPI_HAT_PRODUCT_ID,
 	                           BRICKLET_RPI_HAT_SPIDEV,
 	                           BRICKLET_RPI_HAT_SPIDEV_NUM,
-	                           bricklet_stack_rpi_hat_gpios,
-	                           sizeof(bricklet_stack_rpi_hat_gpios),
+	                           bricklet_stack_rpi_hat_gpio_cs,
+	                           sizeof(bricklet_stack_rpi_hat_gpio_cs),
 	                           BRICKLET_RPI_HAT_MASTER_CS,
 	                           "HAT",
 	                           false);
@@ -294,8 +294,8 @@ int bricklet_init(void) {
 	rc = bricklet_init_rpi_hat(BRICKLET_RPI_HAT_ZERO_PRODUCT_ID,
 	                           BRICKLET_RPI_HAT_ZERO_SPIDEV,
 	                           BRICKLET_RPI_HAT_ZERO_SPIDEV_NUM,
-	                           bricklet_stack_rpi_hat_zero_gpios,
-	                           sizeof(bricklet_stack_rpi_hat_zero_gpios),
+	                           bricklet_stack_rpi_hat_zero_gpio_cs,
+	                           sizeof(bricklet_stack_rpi_hat_zero_gpio_cs),
 	                           BRICKLET_RPI_HAT_ZERO_MASTER_CS,
 	                           "HAT Zero",
 	                           true);
@@ -321,10 +321,10 @@ int bricklet_init(void) {
 			continue;
 		}
 
-		memcpy(config.spi_device, config_get_option_value(str_spidev)->string, length);
+		memcpy(config.spidev, config_get_option_value(str_spidev)->string, length);
 
 		for(uint8_t cs = 0; cs < BRICKLET_CS_MAX_NUM; cs++) {
-			config.num = _bricklet_stack_num;
+			config.index = _bricklet_stack_count;
 
 			str_cs_driver[BRICKLET_CONFIG_STR_GROUP_POS] = '0' + i;
 			str_cs_driver[BRICKLET_CONFIG_STR_CS_POS]    = '0' + cs;
@@ -353,16 +353,16 @@ int bricklet_init(void) {
 			}
 
 			log_debug("Bricklet found: spidev %s, driver %d, name %s (num %d)",
-			          config.spi_device,
+			          config.spidev,
 			          config.chip_select_driver,
 			          config.chip_select_gpio_sysfs.name,
 			          config.chip_select_gpio_sysfs.num);
 
-			if(bricklet_stack_init(&_bricklet_stack[_bricklet_stack_num], &config) < 0) {
+			if(bricklet_stack_create(&_bricklet_stack[_bricklet_stack_count], &config) < 0) {
 				return -1;
 			}
 
-			_bricklet_stack_num++;
+			_bricklet_stack_count++;
 		}
 	}
 
@@ -370,8 +370,8 @@ int bricklet_init(void) {
 }
 
 void bricklet_exit(void) {
-	for(int i = 0; i < _bricklet_stack_num; i++) {
-		bricklet_stack_exit(&_bricklet_stack[i]);
+	for(int i = 0; i < _bricklet_stack_count; i++) {
+		bricklet_stack_destroy(&_bricklet_stack[i]);
 	}
 
 	mutex_destroy(&_bricklet_spi_mutex[0]);

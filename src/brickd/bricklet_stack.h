@@ -56,8 +56,7 @@ typedef enum {
 } BrickletStackChipSelectDriver;
 
 typedef struct {
-    char spi_device[64]; // e.g. "/dev/spidev0.0";
-	int mode;
+	char spidev[64]; // e.g. "/dev/spidev0.0";
 	BrickletStackChipSelectDriver chip_select_driver;
 
 	// Unused in case of hardware or WiringPi CS
@@ -71,7 +70,7 @@ typedef struct {
 	Mutex *mutex;
 
 	uint32_t *connected_uid;
-	uint8_t num;
+	int index;
 	uint32_t startup_wait_time; // in milliseconds
 	uint32_t sleep_between_reads; // in microseconds
 } BrickletStackConfig;
@@ -119,7 +118,7 @@ typedef struct {
 	uint32_t first_message_tries;
 } BrickletStack;
 
-int bricklet_stack_init(BrickletStack *bricklet_stack, BrickletStackConfig *config);
-void bricklet_stack_exit(BrickletStack *bricklet_stack);
+int bricklet_stack_create(BrickletStack *bricklet_stack, BrickletStackConfig *config);
+void bricklet_stack_destroy(BrickletStack *bricklet_stack);
 
 #endif // BRICKD_BRICKLET_STACK_H

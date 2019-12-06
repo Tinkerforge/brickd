@@ -76,7 +76,7 @@ static char packet_signature[PACKET_MAX_SIGNATURE_LENGTH];
 
 // New packet from brickd event loop is queued to be written to BrickletStack via SPI
 static int bricklet_stack_dispatch_to_spi(Stack *stack, Packet *request, Recipient *recipient) {
-	BrickletStack *bricklet_stack = (BrickletStack*)stack;
+	BrickletStack *bricklet_stack = (BrickletStack *)stack;
 	Packet *queued_request;
 
 	if((request->header.uid != 0) && (recipient == NULL)) {
@@ -156,7 +156,7 @@ static void bricklet_stack_dispatch_from_spi(void *opaque) {
 					strncpy(ec->connected_uid, base58, BASE58_MAX_LENGTH);
 				}
 
-				ec->position = 'a' + bricklet_stack->config.num;
+				ec->position = 'a' + bricklet_stack->config.index;
 			}
 		}
 
@@ -206,6 +206,7 @@ static uint16_t bricklet_stack_check_missing_length(BrickletStack *bricklet_stac
 static uint8_t bricklet_stack_get_sequence_byte(BrickletStack *bricklet_stack, const bool increase) {
 	if(increase) {
 		bricklet_stack->current_sequence_number++;
+
 		if(bricklet_stack->current_sequence_number > 0xF) {
 			bricklet_stack->current_sequence_number = 2;
 		}
@@ -645,12 +646,12 @@ static void bricklet_stack_transceive(BrickletStack *bricklet_stack) {
 	mutex_unlock(bricklet_stack->config.mutex);
 
 	if (rc < 0) {
-		log_error("ioctl failed: %s (%d)", get_errno_name(errno), errno);
+		log_error("SPI transceive failed: %s (%d)", get_errno_name(errno), errno);
 		return;
 	}
 
 	if (rc != length) {
-		log_error("ioctl has unexpected result (actual: %d != expected: %d)", rc, length);
+		log_error("SPI transceive has unexpected result (actual: %d != expected: %d)", rc, length);
 		return;
 	}
 
@@ -669,7 +670,8 @@ static void bricklet_stack_transceive(BrickletStack *bricklet_stack) {
 }
 
 static void bricklet_stack_spi_thread(void *opaque) {
-	BrickletStack *bricklet_stack = (BrickletStack*)opaque;
+	BrickletStack *bricklet_stack = opaque;
+
 	bricklet_stack->spi_thread_running = true;
 
 	// Depending on the configuration we wait on startup for
@@ -705,11 +707,11 @@ static int bricklet_stack_init_spi(BrickletStack *bricklet_stack) {
 	const int max_speed_hz  = BRICKLET_STACK_SPI_CONFIG_MAX_SPEED_HZ;
 
 	// Open spidev
-	bricklet_stack->spi_fd = open(bricklet_stack->config.spi_device, O_RDWR);
+	bricklet_stack->spi_fd = open(bricklet_stack->config.spidev, O_RDWR);
 
 	if (bricklet_stack->spi_fd < 0) {
 		log_error("Could not open %s: : %s (%d)",
-		          bricklet_stack->config.spi_device, get_errno_name(errno), errno);
+		          bricklet_stack->config.spidev, get_errno_name(errno), errno);
 		return -1;
 	}
 
@@ -742,12 +744,12 @@ static int bricklet_stack_init_spi(BrickletStack *bricklet_stack) {
 	return 0;
 }
 
-int bricklet_stack_init(BrickletStack *bricklet_stack, BrickletStackConfig *config) {
+int bricklet_stack_create(BrickletStack *bricklet_stack, BrickletStackConfig *config) {
 	int phase = 0;
 	char bricklet_stack_name[128];
 	char buffer[256];
 
-	log_debug("Initializing Bricklet stack subsystem for '%s' (num %d)", config->spi_device, config->chip_select_gpio_sysfs.num);
+	log_debug("Initializing Bricklet stack subsystem for '%s' (num %d)", config->spidev, config->chip_select_gpio_sysfs.num);
 
 	if(config->chip_select_driver == CHIP_SELECT_GPIO) {
 		if(gpio_sysfs_export(&config->chip_select_gpio_sysfs) < 0) {
@@ -780,7 +782,7 @@ int bricklet_stack_init(BrickletStack *bricklet_stack, BrickletStackConfig *conf
 	                bricklet_stack->buffer_recv);
 
 	// create base stack
-	if (snprintf(bricklet_stack_name, sizeof(bricklet_stack_name), "Bricklet-%s", bricklet_stack->config.spi_device) < 0) {
+	if (snprintf(bricklet_stack_name, sizeof(bricklet_stack_name), "Bricklet-%s", bricklet_stack->config.spidev) < 0) {
 		goto cleanup;
 	}
 
@@ -885,7 +887,7 @@ cleanup:
 	return phase == 7 ? 0 : -1;
 }
 
-void bricklet_stack_exit(BrickletStack *bricklet_stack) {
+void bricklet_stack_destroy(BrickletStack *bricklet_stack) {
 	// Remove event as possible poll source
 	event_remove_source(bricklet_stack->notification_event, EVENT_SOURCE_TYPE_GENERIC);
 
