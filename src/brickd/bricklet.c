@@ -22,17 +22,17 @@
 
 #include "bricklet.h"
 
-#include "bricklet_stack.h"
-
-#include <daemonlib/config.h>
-#include <daemonlib/log.h>
-#include <daemonlib/threads.h>
-
 #include <stdio.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <string.h>
+
+#include <daemonlib/config.h>
+#include <daemonlib/log.h>
+#include <daemonlib/threads.h>
+
+#include "bricklet_stack.h"
 
 #define BRICKLET_SPI_MAX_NUM              2
 #define BRICKLET_CS_MAX_NUM               10
