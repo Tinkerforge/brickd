@@ -539,7 +539,7 @@ static int usbi_get_config_descriptor(libusb_context *ctx, UsbDevice ^device,
 
 // getting the descriptors requires to open the device, but an already open
 // device cannot be opened a second time. therefore, the descriptors of open
-// devices are cached while the device is open. this allows to shared
+// devices are cached while the device is open. this allows to share
 // descriptors between multiple libusb contexts without having to open the
 // device twice at the same time. we could theoretically run into problems
 // if other applications have devices open, but we're intentionally only
