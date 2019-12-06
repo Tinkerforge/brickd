@@ -27,10 +27,18 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <daemonlib/threads.h>
 #include <daemonlib/queue.h>
 #include <daemonlib/ringbuffer.h>
-#include <daemonlib/gpio_sysfs.h>
+#ifdef BRICKD_UWP_BUILD
+	#include <daemonlib/pipe.h>
+#else
+	#include <daemonlib/gpio_sysfs.h>
+#endif
 
 #include "stack.h"
 
@@ -60,8 +68,15 @@ typedef struct {
 	BrickletChipSelectDriver chip_select_driver;
 
 	// Unused in case of hardware or WiringPi CS
-	GPIOSYSFS chip_select_gpio_sysfs;
-	int chip_select_gpio_fd;
+	union {
+		struct {
+			char chip_select_gpio_name[32];
+			int chip_select_gpio_num;
+		};
+#ifdef __linux__
+		GPIOSYSFS chip_select_gpio_sysfs;
+#endif
+	};
 
 	// TODO: Add WiringPi structure
 
@@ -75,6 +90,8 @@ typedef struct {
 	uint32_t sleep_between_reads; // in microseconds
 } BrickletStackConfig;
 
+typedef struct _BrickletStackPlatform BrickletStackPlatform;
+
 typedef struct {
 	Stack base;
 
@@ -85,7 +102,11 @@ typedef struct {
 	Mutex response_queue_mutex;
 
 	int notification_event;
-	int spi_fd;
+#ifdef BRICKD_UWP_BUILD
+	Pipe notification_pipe;
+#endif
+
+	BrickletStackPlatform *platform;
 	bool spi_thread_running;
 	Thread spi_thread;
 
@@ -120,5 +141,9 @@ typedef struct {
 
 int bricklet_stack_create(BrickletStack *bricklet_stack, BrickletStackConfig *config);
 void bricklet_stack_destroy(BrickletStack *bricklet_stack);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif // BRICKD_BRICKLET_STACK_H

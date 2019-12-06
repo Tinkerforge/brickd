@@ -41,6 +41,9 @@ extern "C" {
 #include "usb.h"
 #include "mesh.h"
 #include "version.h"
+#ifdef BRICKD_WITH_BRICKLET
+	#include "bricklet.h"
+#endif
 
 }
 
@@ -450,6 +453,14 @@ void brickd_uwp::MainTask::Run(IBackgroundTaskInstance ^taskInstance) {
 
 	phase = 13;
 
+#ifdef BRICKD_WITH_BRICKLET
+	if (bricklet_init() < 0) {
+		goto cleanup;
+	}
+
+	phase = 14;
+#endif
+
 	accept_app_service(taskInstance);
 
 	if (event_run(handle_event_cleanup) < 0) {
@@ -458,6 +469,12 @@ void brickd_uwp::MainTask::Run(IBackgroundTaskInstance ^taskInstance) {
 
 cleanup:
 	switch (phase) { // no breaks, all cases fall through intentionally
+#ifdef BRICKD_WITH_BRICKLET
+	case 14:
+		bricklet_exit();
+#endif
+		// fall through
+
 	case 13:
 		event_remove_source(_app_service_accept_pipe.base.read_handle, EVENT_SOURCE_TYPE_GENERIC);
 		// fall through

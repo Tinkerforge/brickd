@@ -26,23 +26,15 @@
 #include <errno.h>
 #include <stdbool.h>
 #include <stdint.h>
-#include <unistd.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <fcntl.h>
-#include <sys/ioctl.h>
-#include <linux/types.h>
-#include <linux/spi/spidev.h>
-#include <sys/eventfd.h>
-#include <math.h>
-#include <time.h>
-#include <inttypes.h>
+#ifdef __linux__
+	#include <sys/eventfd.h>
+#endif
 
 #include <daemonlib/base58.h>
 #include <daemonlib/config.h>
 #include <daemonlib/event.h>
-#include <daemonlib/gpio_sysfs.h>
 #include <daemonlib/io.h>
 #include <daemonlib/log.h>
 #include <daemonlib/packet.h>
@@ -51,15 +43,6 @@
 
 #include "hardware.h"
 #include "network.h"
-
-#define BRICKLET_STACK_SPI_CONFIG_MODE           SPI_MODE_3
-#define BRICKLET_STACK_SPI_CONFIG_LSB_FIRST      0
-#define BRICKLET_STACK_SPI_CONFIG_BITS_PER_WORD  8
-
-// On RPi 3 make sure to set "core_freq=250" in /boot/config.txt.
-// The SPI clock is scaled with the variable core_freq otherwise
-// and the SPI clock is not stable...
-#define BRICKLET_STACK_SPI_CONFIG_MAX_SPEED_HZ   1400000
 
 typedef enum {
 	SPITFP_STATE_START,
@@ -73,6 +56,14 @@ typedef enum {
 static LogSource _log_source = LOG_SOURCE_INITIALIZER;
 
 static char packet_signature[PACKET_MAX_SIGNATURE_LENGTH];
+
+extern int bricklet_stack_create_platform(BrickletStack *bricklet_stack);
+extern int bricklet_stack_destroy_platform(BrickletStack *bricklet_stack);
+extern int bricklet_stack_chip_select_gpio(BrickletStack *bricklet_stack, bool enable);
+extern int bricklet_stack_notify(BrickletStack *bricklet_stack);
+extern int bricklet_stack_wait(BrickletStack *bricklet_stack);
+extern int bricklet_stack_spi_transceive(BrickletStack *bricklet_stack, uint8_t *write_buffer,
+                                         uint8_t *read_buffer, int length);
 
 // New packet from brickd event loop is queued to be written to BrickletStack via SPI
 static int bricklet_stack_dispatch_to_spi(Stack *stack, Packet *request, Recipient *recipient) {
@@ -102,20 +93,12 @@ static int bricklet_stack_dispatch_to_spi(Stack *stack, Packet *request, Recipie
 static void bricklet_stack_dispatch_from_spi(void *opaque) {
 	BrickletStack *bricklet_stack = opaque;
 	int i;
-	eventfd_t ev;
 	Packet *packet;
 
 	// handle at most 5 queued responses at once to avoid blocking the event
 	// loop for too long
 	for (i = 0; i < 5; ++i) {
-		if (eventfd_read(bricklet_stack->notification_event, &ev) < 0) {
-			if (errno_would_block()) {
-				return; // no queue responses left
-			}
-
-			log_error("Could not read from SPI notification event: %s (%d)",
-			          get_errno_name(errno), errno);
-
+		if (bricklet_stack_wait(bricklet_stack) < 0) {
 			return;
 		}
 
@@ -123,7 +106,7 @@ static void bricklet_stack_dispatch_from_spi(void *opaque) {
 		packet = queue_peek(&bricklet_stack->response_queue);
 		mutex_unlock(&bricklet_stack->response_queue_mutex);
 
-		if (packet == NULL) { // eventfd indicates a response but queue is empty
+		if (packet == NULL) { // response indicated but queue is empty
 			log_error("Response queue and notification event are out-of-sync");
 
 			return;
@@ -293,17 +276,13 @@ static void bricklet_stack_handle_protocol_error(BrickletStack *bricklet_stack) 
 
 static bool bricklet_stack_handle_message_from_bricklet(BrickletStack *bricklet_stack, uint8_t *data, const uint8_t length) {
 	Packet *queued_response;
-	eventfd_t ev = 1;
 
 	mutex_lock(&bricklet_stack->response_queue_mutex);
 	queued_response = queue_push(&bricklet_stack->response_queue);
 	memcpy(queued_response, data, length);
 	mutex_unlock(&bricklet_stack->response_queue_mutex);
 
-	if (eventfd_write(bricklet_stack->notification_event, ev) < 0) {
-		log_error("Could not write to Bricklet stack SPI notification event: %s (%d)",
-		          get_errno_name(errno), errno);
-
+	if (bricklet_stack_notify(bricklet_stack) < 0) {
 		return false;
 	}
 
@@ -591,25 +570,18 @@ static void bricklet_stack_transceive(BrickletStack *bricklet_stack) {
 
 	memcpy(tx, bricklet_stack->buffer_send, length_write);
 
-	struct spi_ioc_transfer spi_transfer = {
-		.tx_buf = (unsigned long)tx,
-		.rx_buf = (unsigned long)rx,
-		.len = length,
-	};
-
 	// Make sure that we only access SPI once at a time
 	mutex_lock(bricklet_stack->config.mutex);
 
 	// Do chip select by hand if necessary
 	if(bricklet_stack->config.chip_select_driver == BRICKLET_CHIP_SELECT_DRIVER_GPIO) {
-		// Use direct write call on buffered fd to save some CPU time
-		if(write(bricklet_stack->config.chip_select_gpio_fd, "0", 1) < 0) {
+		if(bricklet_stack_chip_select_gpio(bricklet_stack, true) < 0) {
 			log_error("Could not enable chip select");
 			return;
 		}
 	}
 
-	int rc = ioctl(bricklet_stack->spi_fd, SPI_IOC_MESSAGE(1), &spi_transfer);
+	int rc = bricklet_stack_spi_transceive(bricklet_stack, tx, rx, length);
 
 	// If the length is 1 (i.e. we wanted to see if the SPI slave has data for us)
 	// and he does have data for us, we will immediately retrieve the data without
@@ -629,15 +601,13 @@ static void bricklet_stack_transceive(BrickletStack *bricklet_stack) {
 			// Set first byte back to 0 and the new length, the rest was not touched
 			// and we don't need to reinizialize it.
 			rx[0] = 0;
-			spi_transfer.len = length;
-			rc = ioctl(bricklet_stack->spi_fd, SPI_IOC_MESSAGE(1), &spi_transfer);
+			rc = bricklet_stack_spi_transceive(bricklet_stack, tx, rx, length);
 		}
 	}
 
 	// Do chip deselect by hand if necessary
 	if(bricklet_stack->config.chip_select_driver == BRICKLET_CHIP_SELECT_DRIVER_GPIO) {
-		// Use direct write call on buffered fd to save some CPU time
-		if(write(bricklet_stack->config.chip_select_gpio_fd, "1", 1) < 0) {
+		if(bricklet_stack_chip_select_gpio(bricklet_stack, false) < 0) {
 			log_error("Could not disable chip select");
 			return;
 		}
@@ -699,80 +669,16 @@ static void bricklet_stack_spi_thread(void *opaque) {
 	}
 }
 
-static int bricklet_stack_init_spi(BrickletStack *bricklet_stack) {
-	// Use hw chip select if it is done by SPI hardware unit, otherwise set SPI_NO_CS flag.
-	const int mode          = BRICKLET_STACK_SPI_CONFIG_MODE | (bricklet_stack->config.chip_select_driver == BRICKLET_CHIP_SELECT_DRIVER_HARDWARE ? 0 : SPI_NO_CS);
-	const int lsb_first     = BRICKLET_STACK_SPI_CONFIG_LSB_FIRST;
-	const int bits_per_word = BRICKLET_STACK_SPI_CONFIG_BITS_PER_WORD;
-	const int max_speed_hz  = BRICKLET_STACK_SPI_CONFIG_MAX_SPEED_HZ;
-
-	// Open spidev
-	bricklet_stack->spi_fd = open(bricklet_stack->config.spidev, O_RDWR);
-
-	if (bricklet_stack->spi_fd < 0) {
-		log_error("Could not open %s: : %s (%d)",
-		          bricklet_stack->config.spidev, get_errno_name(errno), errno);
-		return -1;
-	}
-
-	if (ioctl(bricklet_stack->spi_fd, SPI_IOC_WR_MODE, &mode) < 0) {
-		log_error("Could not configure SPI mode: %s (%d)",
-		          get_errno_name(errno), errno);
-		return -1;
-	}
-
-	if (ioctl(bricklet_stack->spi_fd, SPI_IOC_WR_MAX_SPEED_HZ, &max_speed_hz) < 0) {
-		log_error("Could not configure SPI max speed: %s (%d)",
-		          get_errno_name(errno), errno);
-		return -1;
-	}
-
-	if (ioctl(bricklet_stack->spi_fd, SPI_IOC_WR_BITS_PER_WORD, &bits_per_word) < 0) {
-		log_error("Could not configure SPI bits per word: %s (%d)",
-		          get_errno_name(errno), errno);
-		return -1;
-	}
-
-	if (ioctl(bricklet_stack->spi_fd, SPI_IOC_WR_LSB_FIRST, &lsb_first) < 0) {
-		log_error("Could not configure SPI lsb first: %s (%d)",
-		          get_errno_name(errno), errno);
-		return -1;
-	}
-
-	thread_create(&bricklet_stack->spi_thread, bricklet_stack_spi_thread, bricklet_stack);
-
-	return 0;
-}
-
 int bricklet_stack_create(BrickletStack *bricklet_stack, BrickletStackConfig *config) {
 	int phase = 0;
+	int rc;
 	char bricklet_stack_name[128];
-	char buffer[256];
 
-	log_debug("Initializing Bricklet stack subsystem for '%s' (num %d)", config->spidev, config->chip_select_gpio_sysfs.num);
-
-	if(config->chip_select_driver == BRICKLET_CHIP_SELECT_DRIVER_GPIO) {
-		if(gpio_sysfs_export(&config->chip_select_gpio_sysfs) < 0) {
-			goto cleanup;
-		}
-
-		if(gpio_sysfs_set_direction(&config->chip_select_gpio_sysfs, GPIO_SYSFS_DIRECTION_OUTPUT) < 0) {
-			goto cleanup;
-		}
-
-		if(gpio_sysfs_set_output(&config->chip_select_gpio_sysfs, GPIO_SYSFS_VALUE_HIGH) < 0) {
-			goto cleanup;
-		}
-
-		snprintf(buffer, sizeof(buffer), "/sys/class/gpio/%s/value", config->chip_select_gpio_sysfs.name);
-		config->chip_select_gpio_fd = open(buffer, O_WRONLY);
-		if(config->chip_select_gpio_fd < 0) {
-			goto cleanup;
-		}
-	}
+	log_debug("Initializing Bricklet stack subsystem for '%s' (num %d)",
+	          config->spidev, config->chip_select_gpio_num);
 
 	// create bricklet_stack struct
-	bricklet_stack->spi_fd = -1;
+	bricklet_stack->platform = NULL;
 	bricklet_stack->spi_thread_running = false;
 
 	memcpy(&bricklet_stack->config, config, sizeof(BrickletStackConfig));
@@ -802,8 +708,23 @@ int bricklet_stack_create(BrickletStack *bricklet_stack, BrickletStackConfig *co
 
 	phase = 2;
 
-	if ((bricklet_stack->notification_event = eventfd(0, EFD_NONBLOCK | EFD_SEMAPHORE)) < 0) {
-		log_error("Could not create Bricklet notification event: %s (%d)",
+	// create notification event/pipe
+#ifdef __linux__
+	rc = eventfd(0, EFD_NONBLOCK | EFD_SEMAPHORE);
+
+	if (rc >= 0) {
+		bricklet_stack->notification_event = rc;
+	}
+#else
+	rc = pipe_create(&bricklet_stack->notification_pipe, PIPE_FLAG_NON_BLOCKING_READ);
+
+	if (rc >= 0) {
+		bricklet_stack->notification_event = bricklet_stack->notification_pipe.base.read_handle;
+	}
+#endif
+
+	if (rc < 0) {
+		log_error("Could not create Bricklet notification event/pipe: %s (%d)",
 		          get_errno_name(errno), errno);
 
 		goto cleanup;
@@ -846,9 +767,11 @@ int bricklet_stack_create(BrickletStack *bricklet_stack, BrickletStackConfig *co
 
 	phase = 6;
 
-	if (bricklet_stack_init_spi(bricklet_stack) < 0) {
+	if (bricklet_stack_create_platform(bricklet_stack) < 0) {
 		goto cleanup;
 	}
+
+	thread_create(&bricklet_stack->spi_thread, bricklet_stack_spi_thread, bricklet_stack);
 
 	phase = 7;
 
@@ -869,7 +792,11 @@ cleanup:
 		// fall through
 
 	case 3:
+#ifdef __linux__
 		robust_close(bricklet_stack->notification_event);
+#else
+		pipe_destroy(&bricklet_stack->notification_pipe);
+#endif
 		// fall through
 
 	case 2:
@@ -899,6 +826,8 @@ void bricklet_stack_destroy(BrickletStack *bricklet_stack) {
 		thread_destroy(&bricklet_stack->spi_thread);
 	}
 
+	bricklet_stack_destroy_platform(bricklet_stack);
+
 	hardware_remove_stack(&bricklet_stack->base);
 	stack_destroy(&bricklet_stack->base);
 
@@ -909,7 +838,9 @@ void bricklet_stack_destroy(BrickletStack *bricklet_stack) {
 	mutex_destroy(&bricklet_stack->response_queue_mutex);
 
 	// Close file descriptors
+#ifdef __linux__
 	robust_close(bricklet_stack->notification_event);
-	robust_close(bricklet_stack->spi_fd);
-	robust_close(bricklet_stack->config.chip_select_gpio_fd);
+#else
+	pipe_destroy(&bricklet_stack->notification_pipe);
+#endif
 }

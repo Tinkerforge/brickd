@@ -307,6 +307,10 @@ endif
 ifeq ($(WITH_BRICKLET),yes)
 	SOURCES_BRICKD += bricklet.c \
 	                  bricklet_stack.c
+
+ifeq ($(PLATFORM),Linux)
+	SOURCES_BRICKD += bricklet_stack_linux.c
+endif
 endif
 
 ifneq ($(WITH_RED_BRICK),no)

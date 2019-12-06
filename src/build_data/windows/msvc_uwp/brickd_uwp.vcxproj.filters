@@ -133,6 +133,21 @@
     <ClCompile Include="..\..\..\brickd\mesh_packet.c">
       <Filter>brickd</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\..\brickd\bricklet.c">
+      <Filter>brickd</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\brickd\bricklet_stack.c">
+      <Filter>brickd</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\brickd\bricklet_stack_uwp.cpp">
+      <Filter>brickd</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\daemonlib\ringbuffer.c">
+      <Filter>daemonlib</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\daemonlib\pearson_hash.c">
+      <Filter>daemonlib</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\daemonlib\base58.h">
@@ -260,6 +275,18 @@
     </ClInclude>
     <ClInclude Include="..\..\..\brickd\mesh_packet.h">
       <Filter>brickd</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\brickd\bricklet.h">
+      <Filter>brickd</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\brickd\bricklet_stack.h">
+      <Filter>brickd</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\daemonlib\ringbuffer.h">
+      <Filter>daemonlib</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\daemonlib\pearson_hash.h">
+      <Filter>daemonlib</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

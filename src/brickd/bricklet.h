@@ -23,6 +23,9 @@
 #ifndef BRICKD_BRICKLET_H
 #define BRICKD_BRICKLET_H
 
+#define BRICKLET_SPI_MAX_NUM 2
+#define BRICKLET_CS_MAX_NUM 10
+
 int bricklet_init(void);
 void bricklet_exit(void);
 

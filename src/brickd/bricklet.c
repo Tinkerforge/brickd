@@ -34,9 +34,6 @@
 
 #include "bricklet_stack.h"
 
-#define BRICKLET_SPI_MAX_NUM              2
-#define BRICKLET_CS_MAX_NUM               10
-
 #define BRICKLET_CONFIG_STR_GROUP_POS     14
 #define BRICKLET_CONFIG_STR_CS_POS        (BRICKLET_CONFIG_STR_GROUP_POS + 4)
 
@@ -156,6 +153,7 @@ int bricklet_init_rpi_hat(const char *product_id_test, const char *spidev,
 	char str_sleep_between_reads_bricklet[] = "bricklet.portX.sleep_between_reads";
 	char str_sleep_between_reads_hat[]      = "bricklet.portHAT.sleep_between_reads";
 
+#ifndef BRICKD_UWP_BUILD
 	fd = open("/proc/device-tree/hat/product_id", O_RDONLY);
 
 	if(fd < 0) {
@@ -179,6 +177,7 @@ int bricklet_init_rpi_hat(const char *product_id_test, const char *spidev,
 
 		return 1;
 	}
+#endif
 
 	log_debug("Found product_id \"%s\" in device tree, using pre-configured %s Brick setup", product_id, name);
 
@@ -196,8 +195,14 @@ int bricklet_init_rpi_hat(const char *product_id_test, const char *spidev,
 		}
 
 		config.index = _bricklet_stack_count;
+#ifdef BRICKD_UWP_BUILD
+		// FIXME: UWP in contrast to Linux doesn't allow to control the dedicated
+		//        hardware chip-select pins as GPIO pins while the SPI device is enabled
+		config.chip_select_driver = gpio_cs[cs] == 7 ? BRICKLET_CHIP_SELECT_DRIVER_HARDWARE : BRICKLET_CHIP_SELECT_DRIVER_GPIO;
+#else
 		config.chip_select_driver = BRICKLET_CHIP_SELECT_DRIVER_GPIO;
-		config.chip_select_gpio_sysfs.num = gpio_cs[cs];
+#endif
+		config.chip_select_gpio_num = gpio_cs[cs];
 
 		if(cs == gpio_cs_num - 1) { // Last CS is the HAT itself
 			config.sleep_between_reads = config_get_option_value(str_sleep_between_reads_hat)->integer;
@@ -206,13 +211,13 @@ int bricklet_init_rpi_hat(const char *product_id_test, const char *spidev,
 			config.sleep_between_reads = config_get_option_value(str_sleep_between_reads_bricklet)->integer;
 		}
 
-		sprintf(config.chip_select_gpio_sysfs.name, "gpio%d", config.chip_select_gpio_sysfs.num);
+		sprintf(config.chip_select_gpio_name, "gpio%d", config.chip_select_gpio_num);
 
 		log_debug("Bricklet found: spidev %s, driver %d, name %s (num %d)",
 		          config.spidev,
 		          config.chip_select_driver,
-		          config.chip_select_gpio_sysfs.name,
-		          config.chip_select_gpio_sysfs.num);
+		          config.chip_select_gpio_name,
+		          config.chip_select_gpio_num);
 
 		if(bricklet_stack_create(&_bricklet_stack[_bricklet_stack_count], &config) < 0) {
 			return -1;
@@ -225,6 +230,10 @@ int bricklet_init_rpi_hat(const char *product_id_test, const char *spidev,
 }
 
 int bricklet_init_hctosys(void) {
+#ifdef BRICKD_UWP_BUILD
+	// FIXME: how to use RTC chip on UWP?
+	return 0;
+#else
 	FILE *fp;
 	char buffer[256];
 	int rc;
@@ -254,7 +263,9 @@ int bricklet_init_hctosys(void) {
 
 	rc = pclose(fp);
 	log_debug("Unexpected return from /sbin/hwclock call (exit code %d): %s", rc, buffer);
+
 	return -1;
+#endif
 }
 
 int bricklet_init(void) {
@@ -279,7 +290,11 @@ int bricklet_init(void) {
 	                           sizeof(bricklet_stack_rpi_hat_gpio_cs),
 	                           BRICKLET_RPI_HAT_MASTER_CS,
 	                           "HAT",
+#ifndef BRICKD_UWP_BUILD
 	                           false);
+#else
+	                           true);
+#endif
 
 	if(rc < 0) {
 		return -1;
@@ -290,6 +305,7 @@ int bricklet_init(void) {
 		return 0;
 	}
 
+#ifndef BRICKD_UWP_BUILD
 	// or a Tinkerforge HAT Zero Brick is on top
 	rc = bricklet_init_rpi_hat(BRICKLET_RPI_HAT_ZERO_PRODUCT_ID,
 	                           BRICKLET_RPI_HAT_ZERO_SPIDEV,
@@ -305,6 +321,7 @@ int bricklet_init(void) {
 	} else if(rc == 0) {
 		return 0;
 	}
+#endif
 
 	// If there is no HAT we try to read the SPI configuration from the config
 	for(uint8_t i = 0; i < BRICKLET_SPI_MAX_NUM; i++) {
@@ -336,7 +353,7 @@ int bricklet_init(void) {
 			if(config.chip_select_driver == BRICKLET_CHIP_SELECT_DRIVER_GPIO) {
 				str_cs_num[BRICKLET_CONFIG_STR_GROUP_POS] = '0' + i;
 				str_cs_num[BRICKLET_CONFIG_STR_CS_POS]    = '0' + cs;
-				config.chip_select_gpio_sysfs.num = config_get_option_value(str_cs_num)->integer;
+				config.chip_select_gpio_num = config_get_option_value(str_cs_num)->integer;
 
 				str_cs_name[BRICKLET_CONFIG_STR_GROUP_POS] = '0' + i;
 				str_cs_name[BRICKLET_CONFIG_STR_CS_POS]    = '0' + cs;
@@ -346,8 +363,8 @@ int bricklet_init(void) {
 					continue;
 				}
 
-				memset(config.chip_select_gpio_sysfs.name, 0, sizeof(config.chip_select_gpio_sysfs.name));
-				memcpy(config.chip_select_gpio_sysfs.name, config_get_option_value(str_cs_name)->string, length);
+				memset(config.chip_select_gpio_name, 0, sizeof(config.chip_select_gpio_name));
+				memcpy(config.chip_select_gpio_name, config_get_option_value(str_cs_name)->string, length);
 			} else if(config.chip_select_driver != BRICKLET_CHIP_SELECT_DRIVER_HARDWARE) {
 				continue;
 			}
@@ -355,8 +372,8 @@ int bricklet_init(void) {
 			log_debug("Bricklet found: spidev %s, driver %d, name %s (num %d)",
 			          config.spidev,
 			          config.chip_select_driver,
-			          config.chip_select_gpio_sysfs.name,
-			          config.chip_select_gpio_sysfs.num);
+			          config.chip_select_gpio_name,
+			          config.chip_select_gpio_num);
 
 			if(bricklet_stack_create(&_bricklet_stack[_bricklet_stack_count], &config) < 0) {
 				return -1;
