@@ -83,21 +83,45 @@ For the MinGW compiler there is a Makefile to compile the source code::
 
 The ``brickd.exe`` binary is created in ``src\dist\``.
 
-Alternatively, there is a Visual Studio 2017 project file to compile the
+Alternatively, there is a Visual Studio 2019 project file to compile the
 source code::
 
  src\build_data\windows\msvc\brickd.sln
 
-Windows 10 IoT (Universal Windows Platform)
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Windows 10 IoT Core (Universal Windows Platform)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-A Visual Studio 2019 project file to compile the source code::
+There is a Visual Studio 2019 project file to compile the source code::
 
  src\build_data\windows\msvc_uwp\brickd_uwp.sln
 
-There is a currently unsolved problem with USB hotplug detection::
+The project file build a UWP app that has been successfully tested on a
+Raspberry Pi running Windows 10 IoT Core with Bricks connected to USB. But
+there is a currently unsolved problem with USB device detection::
 
- https://www.tinkerforge.com/en/blog/brick-daemon-beta-for-windows-10-iot-core-part-12/
+ https://www.tinkerforge.com/en/blog/2016/7/12/brick-daemon-beta-fuer-windows-10-iot-core-teil-1-2/
+
+TL;DR: There seems to be a bug in Windows 10 IoT Core that stops Bricks from
+being properly detected as USB devices. Because of this Brick Daemon cannot
+access them out-of-the-box.
+
+You have to run the following command on your Raspberry Pi, while replacing the
+placeholder ``<UID>`` in the command with the UID of the Brick you want to
+connect::
+
+ reg add "HKLM\System\CurrentControlSet\Enum\USB\VID_16D0&PID_063D\<UID>\Device Parameters" /v DeviceInterfaceGUIDs /t REG_MULTI_SZ /d "{870013DD-FB1D-4BD7-A96C-1F0B7D31AF41}"
+
+This has to be done for every Brick that you want to connect to the Raspberry Pi.
+
+There is also experimental support for the HAT (Zero) Brick for the Raspberry Pi.
+It's experimental because Windows 10 IoT Core doesn't provide HAT detection for
+the Raspberry Pi and it also doesn't allow to access the I2C interface used for
+HAT detection on Raspbian to solve this in Brick Daemon itself.
+
+This means that Brick Daemon cannot detect if a HAT is connected and which kind
+of HAT is connected. Therefore, HAT (Zero) Brick support cannot be enabled by
+default and the define BRICKD_WITH_BRICKLET has to be defined manually in the
+Visual Studio project file to enable HAT (Zero) Brick support.
 
 macOS
 ^^^^^
