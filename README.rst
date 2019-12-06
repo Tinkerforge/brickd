@@ -102,7 +102,7 @@ there is a currently unsolved problem with USB device detection::
  https://www.tinkerforge.com/en/blog/2016/7/12/brick-daemon-beta-fuer-windows-10-iot-core-teil-1-2/
 
 TL;DR: There seems to be a bug in Windows 10 IoT Core that stops Bricks from
-being properly detected as USB devices. Because of this Brick Daemon cannot
+being properly detected as USB devices. Because of this bug Brick Daemon cannot
 access them out-of-the-box.
 
 You have to run the following command on your Raspberry Pi, while replacing the
@@ -118,10 +118,10 @@ It's experimental because Windows 10 IoT Core doesn't provide HAT detection for
 the Raspberry Pi and it also doesn't allow to access the I2C interface used for
 HAT detection on Raspbian to solve this in Brick Daemon itself.
 
-This means that Brick Daemon cannot detect if a HAT is connected and which kind
+This means that Brick Daemon cannot detect if a HAT is connected or which kind
 of HAT is connected. Therefore, HAT (Zero) Brick support cannot be enabled by
-default and the define BRICKD_WITH_BRICKLET has to be defined manually in the
-Visual Studio project file to enable HAT (Zero) Brick support.
+default and the preprocessor define ``BRICKD_WITH_BRICKLET`` has to be defined
+manually in the Visual Studio project file to enable HAT (Zero) Brick support.
 
 macOS
 ^^^^^
