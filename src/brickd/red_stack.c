@@ -478,7 +478,7 @@ static void red_stack_spi_create_routing_table(void) {
 				FUNCTION_STACK_ENUMERATE,
 				0x08, // Return expected
 				0
-			}, {0}, {0}},
+			}, {0}, {{0}}},
 			RED_STACK_REQUEST_STATUS_ADDED,
 		};
 
