@@ -178,7 +178,7 @@
 - Properly quote path to brickd.exe for service registration on Windows
 - Switch to .pkg based installer for macOS
 - Fix crash in RS485 Extension code for RED Brick
-- Add initial Windows 10 IoT Core (Universal Windows Platform) support, no
+- Add experimental Windows 10 IoT Core (Universal Windows Platform) support, no
   precompiled app available yet, brickd for Windows 10 IoT Core has to be
   compiled from source
 
@@ -211,10 +211,10 @@
   reports on Windows
 - Add MSVC project on Windows
 - Use systemd instead of init.d on Linux, if available
-- Add initial Android support, no precompiled app available yet, brickd for
+- Add experimental Android support, no precompiled app available yet, brickd for
   Android has to be compiled from source
 
-2019-07-02: 2.4.0 (<unknown>)
+2019-07-02: 2.4.0 (d3d7482)
 - Add support for HAT (Zero) Brick (SPI connected Bricklets)
 - Install Log Viewer start menu link for all users on Windows
 - Add commandline options to override config, log and PID file location on Linux
@@ -229,3 +229,11 @@
   with ROOT/SYSTEM/0001 USB hubs on Windows
 - Bind to all IP addresses resolved from the listen.address config option,
   instead of just the first one
+
+2019-12-11: 2.4.1 (<unknown>)
+- Rename bundled libusb to avoid potential collision with system libusb on macOS
+- Add missing network dependency to systemd service on Linux
+- Make sleep time between SPI reads for HAT (Zero) Brick configurable
+- Add experimental support for HAT (Zero) Brick (SPI connected Bricklets) on
+  Windows 10 IoT Core, disabled by default due to missing HAT detection
+- Notarize Brick Daemon app to make it ready for macOS 10.15
