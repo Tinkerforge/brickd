@@ -230,7 +230,7 @@
 - Bind to all IP addresses resolved from the listen.address config option,
   instead of just the first one
 
-2019-12-11: 2.4.1 (<unknown>)
+2019-12-11: 2.4.1 (431b1a2)
 - Rename bundled libusb to avoid potential collision with system libusb on macOS
 - Add missing network dependency to systemd service on Linux
 - Make sleep time between SPI reads for HAT (Zero) Brick configurable
