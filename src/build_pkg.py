@@ -24,10 +24,6 @@ Boston, MA 02111-1307, USA.
 """
 
 import sys
-if (sys.hexversion & 0xFF000000) != 0x03000000:
-    print('Python 3.x required')
-    sys.exit(1)
-
 import os
 import shutil
 import subprocess
@@ -88,6 +84,10 @@ def specialize_template(template_filename, destination_filename, replacements):
 
 
 def build_macos_pkg():
+    if (sys.hexversion & 0xFF000000) != 0x03000000:
+        print('Python 3.x required')
+        sys.exit(1)
+
     print('building brickd disk image')
     root_path = os.getcwd()
 
