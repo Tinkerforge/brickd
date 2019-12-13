@@ -81,7 +81,7 @@ index 6eba4ff..62363b7 100644
 +  usbi_close
 +  usbi_close@4 = usbi_close
 diff --git a/libusb/libusb-1.0.rc b/libusb/libusb-1.0.rc
-index 3dce6d5..3092bfa 100644
+index 3dce6d5..eccfb40 100644
 --- a/libusb/libusb-1.0.rc
 +++ b/libusb/libusb-1.0.rc
 @@ -49,7 +49,7 @@ BEGIN
@@ -89,7 +89,7 @@ index 3dce6d5..3092bfa 100644
  			VALUE "OriginalFilename", "libusb-1.0.dll\0"
  			VALUE "PrivateBuild", "\0"
 -			VALUE "ProductName", "libusb-1.0\0"
-+			VALUE "ProductName", "libusb-1.0-f1e385390213aab96d2a40e4858ff0d019a1b0b7-tf-21\0"
++			VALUE "ProductName", "libusb-1.0-f1e385390213aab96d2a40e4858ff0d019a1b0b7-tf-22\0"
  			VALUE "ProductVersion", LIBUSB_VERSIONSTRING
  			VALUE "SpecialBuild", "\0"
  		END
@@ -365,10 +365,19 @@ index 980870d..19e0e1b 100644
  /*
   * Timeval operations
 diff --git a/libusb/os/windows_nt_common.c b/libusb/os/windows_nt_common.c
-index 7ead83d..912b400 100644
+index 7ead83d..96ff108 100644
 --- a/libusb/os/windows_nt_common.c
 +++ b/libusb/os/windows_nt_common.c
-@@ -897,8 +897,8 @@ static int windows_handle_events(struct libusb_context *ctx, struct pollfd *fds,
+@@ -562,6 +562,8 @@ static void windows_transfer_callback(const struct windows_backend *backend,
+ 		status = LIBUSB_TRANSFER_CANCELLED;
+ 		break;
+ 	case ERROR_FILE_NOT_FOUND:
++	case ERROR_DEVICE_NOT_CONNECTED:
++	case 433: // Windows 10 "Ein nicht vorhandenes Gerät wurde angegeben."
+ 		usbi_dbg("detected device removed");
+ 		status = LIBUSB_TRANSFER_NO_DEVICE;
+ 		break;
+@@ -897,8 +899,8 @@ static int windows_handle_events(struct libusb_context *ctx, struct pollfd *fds,
  			windows_handle_callback(priv->backend, itransfer, io_result, io_size);
  		} else {
  			usbi_err(ctx, "could not find a matching transfer for fd %d", fds[i].fd);
