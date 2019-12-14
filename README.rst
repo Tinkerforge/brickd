@@ -95,7 +95,7 @@ There is a Visual Studio 2019 project file to compile the source code::
 
  src\build_data\windows\msvc_uwp\brickd_uwp.sln
 
-The project file build a UWP app that has been successfully tested on a
+The project file builds a UWP app that has been successfully tested on a
 Raspberry Pi running Windows 10 IoT Core with Bricks connected to USB. But
 there is a currently unsolved problem with USB device detection::
 
