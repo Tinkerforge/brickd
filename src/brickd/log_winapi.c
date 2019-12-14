@@ -2,7 +2,7 @@
  * brickd
  * Copyright (C) 2012-2019 Matthias Bolte <matthias@tinkerforge.com>
  *
- * log_winapi.c: Windows Event Log and log viewer handling
+ * log_winapi.c: Windows log file, live log view and debugger output handling
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -65,6 +65,7 @@ typedef struct {
 #define FOREGROUND_YELLOW (FOREGROUND_RED | FOREGROUND_GREEN)
 #define FOREGROUND_WHITE (FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE)
 
+static bool _debugger_present = false;
 static IO *_output = NULL;
 static HANDLE _console = NULL;
 static WORD _default_attributes = 0;
@@ -255,6 +256,8 @@ void log_init_platform(IO *output) {
 	int rc;
 	int i;
 
+	_debugger_present = IsDebuggerPresent();
+
 	log_set_output_platform(output);
 
 	// initialize pipes
@@ -430,6 +433,10 @@ bool log_is_included_platform(LogLevel level, LogSource *source,
 	(void)source;
 	(void)debug_group;
 
+	if (_debugger_present) {
+		return true;
+	}
+
 	switch (level) {
 	case LOG_LEVEL_DUMMY: // ignore this to avoid compiler warning
 		return false;
@@ -458,6 +465,7 @@ void log_write_platform(struct timeval *timestamp, LogLevel level,
 	int i;
 	LogPipe *pipe = NULL;
 	LogPipeMessage message;
+	char buffer[1024] = "<unknown>\n";
 	OVERLAPPED overlapped;
 	DWORD bytes_written;
 
@@ -470,7 +478,7 @@ void log_write_platform(struct timeval *timestamp, LogLevel level,
 		}
 	}
 
-	if (pipe == NULL) {
+	if (pipe == NULL && !_debugger_present) {
 		return;
 	}
 
@@ -485,13 +493,22 @@ void log_write_platform(struct timeval *timestamp, LogLevel level,
 	string_copy(message.source, sizeof(message.source),
 	            source->libusb ? function : source->name, -1);
 
-	memset(&overlapped, 0, sizeof(overlapped));
-	overlapped.hEvent = _pipes_write_event;
+	if (_debugger_present) {
+		log_format(buffer, sizeof(buffer), timestamp, level, source, debug_group,
+		           function, line, message.message, "", arguments);
 
-	if (!WriteFile(pipe->handle, &message, sizeof(message), NULL, &overlapped) &&
-	    GetLastError() == ERROR_IO_PENDING) {
-		// wait for result of overlapped I/O to avoid a race condition with
-		// the next WriteFile call that will reuse the same event handle
-		GetOverlappedResult(pipe->handle, &overlapped, &bytes_written, TRUE);
+		OutputDebugStringA(buffer);
+	}
+
+	if (pipe != NULL) {
+		memset(&overlapped, 0, sizeof(overlapped));
+		overlapped.hEvent = _pipes_write_event;
+
+		if (!WriteFile(pipe->handle, &message, sizeof(message), NULL, &overlapped) &&
+			GetLastError() == ERROR_IO_PENDING) {
+			// wait for result of overlapped I/O to avoid a race condition with
+			// the next WriteFile call that will reuse the same event handle
+			GetOverlappedResult(pipe->handle, &overlapped, &bytes_written, TRUE);
+		}
 	}
 }

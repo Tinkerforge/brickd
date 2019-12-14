@@ -58,7 +58,7 @@ void log_write_platform(struct timeval *timestamp, LogLevel level,
 	char buffer[1024] = "<unknown>";
 
 	log_format(buffer, sizeof(buffer), timestamp, level, source, debug_group,
-	           function, line, format, arguments);
+	           function, line, NULL, format, arguments);
 
 	OutputDebugStringA(buffer);
 }
