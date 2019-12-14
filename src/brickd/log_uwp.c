@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2016 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2016, 2019 Matthias Bolte <matthias@tinkerforge.com>
  *
  * log_uwp.c: Univeral Windows Platform debugger output handling
  *
@@ -21,8 +21,12 @@
 
 #include <daemonlib\log.h>
 
+static bool _debugger_present = false;
+
 void log_init_platform(IO *output) {
 	(void)output;
+
+	_debugger_present = IsDebuggerPresent();
 }
 
 void log_exit_platform(void) {
@@ -43,7 +47,7 @@ bool log_is_included_platform(LogLevel level, LogSource *source,
 	(void)source;
 	(void)debug_group;
 
-	return IsDebuggerPresent();
+	return _debugger_present;
 }
 
 // NOTE: assumes that _mutex (in log.c) is locked
