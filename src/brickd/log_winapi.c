@@ -124,7 +124,7 @@ static void log_connect_pipe(void *opaque) {
 	if (overlapped_event == NULL) {
 		rc = ERRNO_WINAPI_OFFSET + GetLastError();
 
-		log_error("Could not create overlapped connect/read event for %s pipe: %s (%d)",
+		log_error("Could not create overlapped connect/read event for %s log pipe: %s (%d)",
 		          pipe->name, get_errno_name(rc), rc);
 
 		// need to release the handshake in all cases, otherwise
@@ -138,7 +138,7 @@ static void log_connect_pipe(void *opaque) {
 	pipe->running = true;
 	semaphore_release(&pipe->handshake);
 
-	log_debug("Started pipe connect thread");
+	log_debug("Started pipe connect thread for %s log pipe", pipe->name);
 
 	while (pipe->running) {
 		// connect pipe
@@ -148,8 +148,8 @@ static void log_connect_pipe(void *opaque) {
 		if (ConnectNamedPipe(pipe->handle, &overlapped)) {
 			rc = ERRNO_WINAPI_OFFSET + GetLastError();
 
-			log_error("Could not connect named pipe: %s (%d)",
-			          get_errno_name(rc), rc);
+			log_error("Could not connect named pipe for %s log pipe: %s (%d)",
+			          pipe->name, get_errno_name(rc), rc);
 
 			goto cleanup;
 		}
@@ -170,11 +170,11 @@ static void log_connect_pipe(void *opaque) {
 			} else if (rc == WAIT_OBJECT_0 + 1) {
 				pipe->connected = true;
 
-				log_info("Log Viewer connected to %s pipe", pipe->name);
+				log_info("Log Viewer connected to %s log pipe", pipe->name);
 			} else {
 				rc = ERRNO_WINAPI_OFFSET + GetLastError();
 
-				log_error("Could not wait for connect/stop event of %s pipe: %s (%d)",
+				log_error("Could not wait for connect/stop event of %s log pipe: %s (%d)",
 				          pipe->name, get_errno_name(rc), rc);
 
 				goto cleanup;
@@ -191,7 +191,7 @@ static void log_connect_pipe(void *opaque) {
 		default:
 			rc += ERRNO_WINAPI_OFFSET;
 
-			log_error("Could not connect %s pipe: %s (%d)",
+			log_error("Could not connect %s log pipe: %s (%d)",
 			          pipe->name, get_errno_name(rc), rc);
 
 			goto cleanup;
@@ -211,7 +211,7 @@ static void log_connect_pipe(void *opaque) {
 			if (GetLastError() != ERROR_IO_PENDING) {
 				DisconnectNamedPipe(pipe->handle);
 
-				log_info("Log Viewer disconnected from %s pipe", pipe->name);
+				log_info("Log Viewer disconnected from %s log pipe", pipe->name);
 
 				pipe->connected = false;
 
@@ -229,7 +229,7 @@ static void log_connect_pipe(void *opaque) {
 			} else if (rc == WAIT_OBJECT_0 + 1) {
 				DisconnectNamedPipe(pipe->handle);
 
-				log_info("Log Viewer disconnected from %s pipe", pipe->name);
+				log_info("Log Viewer disconnected from %s log pipe", pipe->name);
 
 				pipe->connected = false;
 
@@ -237,7 +237,7 @@ static void log_connect_pipe(void *opaque) {
 			} else {
 				rc = ERRNO_WINAPI_OFFSET + GetLastError();
 
-				log_error("Could not wait for connect/stop event of %s pipe: %s (%d)",
+				log_error("Could not wait for connect/stop event of %s log pipe: %s (%d)",
 				          pipe->name, get_errno_name(rc), rc);
 
 				goto cleanup;
