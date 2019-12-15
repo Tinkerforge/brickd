@@ -81,7 +81,7 @@ index 6eba4ff..62363b7 100644
 +  usbi_close
 +  usbi_close@4 = usbi_close
 diff --git a/libusb/libusb-1.0.rc b/libusb/libusb-1.0.rc
-index 3dce6d5..772d2c8 100644
+index 3dce6d5..c71553c 100644
 --- a/libusb/libusb-1.0.rc
 +++ b/libusb/libusb-1.0.rc
 @@ -49,7 +49,7 @@ BEGIN
@@ -89,7 +89,7 @@ index 3dce6d5..772d2c8 100644
  			VALUE "OriginalFilename", "libusb-1.0.dll\0"
  			VALUE "PrivateBuild", "\0"
 -			VALUE "ProductName", "libusb-1.0\0"
-+			VALUE "ProductName", "libusb-1.0-f1e385390213aab96d2a40e4858ff0d019a1b0b7-tf-23\0"
++			VALUE "ProductName", "libusb-1.0-f1e385390213aab96d2a40e4858ff0d019a1b0b7-tf-24\0"
  			VALUE "ProductVersion", LIBUSB_VERSIONSTRING
  			VALUE "SpecialBuild", "\0"
  		END
@@ -479,3 +479,15 @@ index 651d7c4..438ca49 100644
  
  #define MAX_CTRL_BUFFER_LENGTH	4096
  #define MAX_USB_STRING_LENGTH	128
+diff --git a/msvc/libusb_sources b/msvc/libusb_sources
+index fcb1f77..17cf553 100644
+--- a/msvc/libusb_sources
++++ b/msvc/libusb_sources
+@@ -25,6 +25,7 @@ C_DEFINES=$(C_DEFINES) $(LIBUSB_DEFINES) /DDDKBUILD
+ # "fatal error C1047: The object or library file 'libusb-1.0.lib' was created with
+ #  an older compiler than other objects; rebuild old objects and libraries"
+ USER_C_FLAGS=/GL-
++LINKER_FLAGS=/pdbpath:none
+ 
+ TARGETLIBS=$(SDK_LIB_PATH)\advapi32.lib \
+            $(SDK_LIB_PATH)\kernel32.lib

@@ -32,7 +32,7 @@
 
 %RC% /fologviewer.res logviewer.rc
 
-%LD% /out:logviewer.exe *.obj *.res advapi32.lib comctl32.lib comdlg32.lib user32.lib shell32.lib
+%LD% /pdbpath:none /out:logviewer.exe *.obj *.res advapi32.lib comctl32.lib comdlg32.lib user32.lib shell32.lib
 
 @del *.obj *.res *.bin *.exp
 

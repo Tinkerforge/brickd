@@ -89,7 +89,7 @@
 
 %RC% /fobrickd.res brickd.rc
 
-%LD% /out:brickd.exe *.obj *.res libusb-1.0.lib advapi32.lib user32.lib ws2_32.lib shell32.lib
+%LD% /pdbpath:none /out:brickd.exe *.obj *.res libusb-1.0.lib advapi32.lib user32.lib ws2_32.lib shell32.lib
 
 @if exist brickd.exe.manifest^
  %MT% /manifest brickd.exe.manifest -outputresource:brickd.exe
