@@ -481,7 +481,7 @@ static int usbi_get_config_descriptor(libusb_context *ctx, UsbDevice ^device,
 	struct libusb_endpoint_descriptor *endpoint;
 	UsbBulkOutEndpointDescriptor ^endpoint_out;
 
-	config->bNumInterfaces = device->Configuration->UsbInterfaces->Size;
+	config->bNumInterfaces = (uint8_t)device->Configuration->UsbInterfaces->Size;
 	config->interface = (struct libusb_interface *)calloc(config->bNumInterfaces,
 	                                                      sizeof(struct libusb_interface));
 
@@ -512,7 +512,7 @@ static int usbi_get_config_descriptor(libusb_context *ctx, UsbDevice ^device,
 
 			desc = (struct libusb_interface_descriptor *)&iface->altsetting[s];
 			desc->bInterfaceNumber = setting->InterfaceDescriptor->InterfaceNumber;
-			desc->bNumEndpoints = setting->BulkInEndpoints->Size + setting->BulkOutEndpoints->Size;
+			desc->bNumEndpoints = (uint8_t)(setting->BulkInEndpoints->Size + setting->BulkOutEndpoints->Size);
 			desc->endpoint = (struct libusb_endpoint_descriptor *)calloc(desc->bNumEndpoints,
 			                                                             sizeof(struct libusb_interface_descriptor));
 
@@ -597,9 +597,9 @@ static int usbi_get_descriptor(libusb_context *ctx, String ^id, const char *id_a
 			}
 
 			descriptor->ref_count = 1;
-			descriptor->device.idVendor = device->DeviceDescriptor->VendorId;
-			descriptor->device.idProduct = device->DeviceDescriptor->ProductId;
-			descriptor->device.bcdDevice = device->DeviceDescriptor->BcdDeviceRevision;
+			descriptor->device.idVendor = (uint16_t)device->DeviceDescriptor->VendorId;
+			descriptor->device.idProduct = (uint16_t)device->DeviceDescriptor->ProductId;
+			descriptor->device.bcdDevice = (uint16_t)device->DeviceDescriptor->BcdDeviceRevision;
 			descriptor->device.iManufacturer = USBI_STRING_MANUFACTURER;
 			descriptor->device.iProduct = USBI_STRING_PRODUCT;
 			descriptor->device.iSerialNumber = USBI_STRING_SERIAL_NUMBER;
