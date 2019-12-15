@@ -75,6 +75,8 @@ static char _program_data_directory[MAX_PATH];
 static char _config_filename[1024];
 static bool _run_as_service = true;
 static bool _pause_before_exit = false;
+static bool _running = false;
+static bool _console_ctrl_handler_active = false;
 
 typedef BOOL (WINAPI *QUERYFULLPROCESSIMAGENAMEA)(HANDLE, DWORD, char *, DWORD *);
 
@@ -229,12 +231,12 @@ static BOOL WINAPI console_ctrl_handler(DWORD ctrl_type) {
 		log_info("Received CTRL_C_EVENT");
 		break;
 
-	case CTRL_CLOSE_EVENT:
-		log_info("Received CTRL_CLOSE_EVENT");
-		break;
-
 	case CTRL_BREAK_EVENT:
 		log_info("Received CTRL_BREAK_EVENT");
+		break;
+
+	case CTRL_CLOSE_EVENT:
+		log_info("Received CTRL_CLOSE_EVENT");
 		break;
 
 	case CTRL_LOGOFF_EVENT:
@@ -248,14 +250,22 @@ static BOOL WINAPI console_ctrl_handler(DWORD ctrl_type) {
 	default:
 		log_warn("Received unknown event %u", (uint32_t)ctrl_type);
 
-		return FALSE;
+		return FALSE; // unknown event, let default handler end the process
 	}
 
 	_pause_before_exit = false;
+	_console_ctrl_handler_active = true;
 
 	event_stop();
 
-	return TRUE;
+	// wait for brickd to fully stop. this handler is called from a new thread so it
+	// can block here until the main event loop stops and the generic_main function
+	// sets _running to false
+	while (_running) {
+		Sleep(10);
+	}
+
+	return FALSE; // brickd is fully stopped now, let default handler end the process
 }
 
 static void handle_event_cleanup(void) {
@@ -277,6 +287,8 @@ static int generic_main(bool log_to_file, const char *debug_filter) {
 	char log_filename[1024];
 	File log_file;
 	WSADATA wsa_data;
+
+	_running = true;
 
 	mutex_handle = OpenMutexA(SYNCHRONIZE, FALSE, mutex_name);
 
@@ -489,13 +501,18 @@ cleanup:
 	log_info("Brick Daemon %s stopped", VERSION_STRING);
 
 exit:
-	if (!_run_as_service) {
+	if (!_run_as_service && !_console_ctrl_handler_active) {
 		// unregister the console handler before exiting the log. otherwise a
 		// control event might be send to the control handler after the log
 		// is not available anymore and the control handler tries to write a
 		// log messages triggering a crash. this situation could easily be
 		// created by clicking the close button of the command prompt window
-		// while the getch call is waiting for the user to press a key.
+		// while the getch call is waiting for the user to press a key. but
+		// only unregister the console handler if it is not currenty active,
+		// because unregistering while it's active seems to abort the thread
+		// running it. this results either in not exiting at all on CTRL_C and
+		// CTRL_BREAK events, or exiting after a timeout between 0.5 and 20
+		// seconds depeding on the event and the circumstances.
 		SetConsoleCtrlHandler(console_ctrl_handler, FALSE);
 	}
 
@@ -524,6 +541,8 @@ exit:
 			CloseHandle(mutex_handle);
 		}
 	}
+
+	_running = false;
 
 	return exit_code;
 }
