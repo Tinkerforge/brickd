@@ -23,6 +23,7 @@
 #include <ppltasks.h>
 #include <unordered_map>
 #include <stdbool.h>
+#include <assert.h>
 
 extern "C" {
 
@@ -44,7 +45,18 @@ using namespace Windows::Storage::Streams;
 
 #include "libusb.h"
 
-#define USBI_MAX_FAKE_FDS 4096
+// the fake FDs are only used to form fake pipes backed by a semaphore each.
+// the fake poll function uses the WaitForMultipleObjects function, that can
+// wait for up to MAXIMUM_WAIT_OBJECTS (64) semaphores at once. each context
+// object will have a single fake pipe for event notification. currently,
+// brickd uses a dedicated context for each device, has one dedicated context
+// for device enumeration and uses another fake pipe to interrupt the dedicated
+// libusb event handling thread. under normal conditions the fake poll function
+// will be called with all existing fake pipes each time, because all fake
+// pipes are potentially active all the time, leaving no inactive fake pipes.
+// therefore, setting the limit for fake FDs to 128 = 64 * 2 for a maximum of
+// 64 fake pipes. this allows for 62 USB device to be handled at the same time.
+#define USBI_MAX_FAKE_FDS (MAXIMUM_WAIT_OBJECTS * 2)
 
 #define USBI_POLLIN 0x0001
 #define USBI_POLLOUT 0x0004
@@ -343,11 +355,13 @@ extern "C" ssize_t usbi_write(int fd, const void *buf, size_t count) {
 
 // sets errno on error
 extern "C" int usbi_poll(struct usbi_pollfd *fds, unsigned int nfds, int timeout) {
-	HANDLE *handles;
+	HANDLE handles[MAXIMUM_WAIT_OBJECTS];
 	usbi_fake_fd *fake_fd;
 	int ready = 0;
 	unsigned int i;
 	DWORD rc;
+
+	assert(nfds <= USBI_MAX_FAKE_FDS);
 
 	if (nfds < 1) {
 		return 0;
@@ -355,14 +369,6 @@ extern "C" int usbi_poll(struct usbi_pollfd *fds, unsigned int nfds, int timeout
 
 	if (timeout >= 0) {
 		errno = EINVAL;
-
-		return -1;
-	}
-
-	handles = (HANDLE *)calloc(nfds, sizeof(HANDLE));
-
-	if (handles == nullptr) {
-		errno = ENOMEM;
 
 		return -1;
 	}
@@ -388,6 +394,8 @@ extern "C" int usbi_poll(struct usbi_pollfd *fds, unsigned int nfds, int timeout
 		}
 
 		if (fds[i].events == USBI_POLLIN) {
+			assert(i < MAXIMUM_WAIT_OBJECTS);
+
 			handles[i] = fake_fd->fake_pipe->semaphore;
 		} else { // USBI_POLLOUT
 			++ready;
@@ -396,11 +404,11 @@ extern "C" int usbi_poll(struct usbi_pollfd *fds, unsigned int nfds, int timeout
 	}
 
 	if (ready == 0) {
+		assert(nfds <= MAXIMUM_WAIT_OBJECTS);
+
 		rc = WaitForMultipleObjects(nfds, handles, FALSE, INFINITE);
 
 		if (rc < WAIT_OBJECT_0 || rc >= WAIT_OBJECT_0 + nfds) {
-			free(handles);
-
 			errno = EINTR;
 
 			return -1;
@@ -415,8 +423,6 @@ extern "C" int usbi_poll(struct usbi_pollfd *fds, unsigned int nfds, int timeout
 		fds[i].revents = USBI_POLLIN;
 		ready = 1;
 	}
-
-	free(handles);
 
 	return ready;
 }
