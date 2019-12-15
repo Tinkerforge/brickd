@@ -21,8 +21,8 @@
  */
 
 #include <errno.h>
-#include <string.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include <daemonlib/array.h>
 #include <daemonlib/log.h>

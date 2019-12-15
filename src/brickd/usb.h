@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2012-2014, 2016-2018 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2012-2014, 2016-2019 Matthias Bolte <matthias@tinkerforge.com>
  *
  * usb.h: USB specific functions
  *
@@ -22,8 +22,8 @@
 #ifndef BRICKD_USB_H
 #define BRICKD_USB_H
 
-#include <stdbool.h>
 #include <libusb.h>
+#include <stdbool.h>
 
 #include "usb_stack.h"
 

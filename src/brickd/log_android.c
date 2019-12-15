@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2018 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2018-2019 Matthias Bolte <matthias@tinkerforge.com>
  *
  * log_android.c: Android log handling
  *
@@ -20,7 +20,6 @@
  */
 
 #include <string.h>
-
 #include <android/log.h>
 
 #include <daemonlib/log.h>

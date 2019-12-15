@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2018 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2018-2019 Matthias Bolte <matthias@tinkerforge.com>
  *
  * main_android.c: Brick Daemon starting point for Android
  *
@@ -21,7 +21,6 @@
 
 #include <jni.h>
 #include <unistd.h>
-
 #include <android/log.h>
 
 #include <daemonlib/config.h>

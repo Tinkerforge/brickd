@@ -37,13 +37,13 @@
 #include <daemonlib/base58.h>
 #include <daemonlib/config.h>
 #include <daemonlib/event.h>
+#include <daemonlib/gpio_red.h>
 #include <daemonlib/gpio_sysfs.h>
 #include <daemonlib/io.h>
 #include <daemonlib/log.h>
 #include <daemonlib/packet.h>
 #include <daemonlib/pearson_hash.h>
 #include <daemonlib/pipe.h>
-#include <daemonlib/gpio_red.h>
 #include <daemonlib/threads.h>
 
 #include "red_stack.h"

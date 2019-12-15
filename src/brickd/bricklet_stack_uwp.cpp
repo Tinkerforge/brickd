@@ -22,8 +22,6 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-#include "bricklet_stack.h"
-
 #include <errno.h>
 #include <stdbool.h>
 #include <collection.h>
@@ -33,6 +31,12 @@ extern "C" {
 
 #include <daemonlib/log.h>
 #include <daemonlib/utils.h>
+
+}
+
+#include "bricklet_stack.h"
+
+extern "C" {
 
 #include "bricklet.h"
 

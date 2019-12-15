@@ -26,6 +26,7 @@
 #ifdef BRICKD_WITH_RED_BRICK
 	#include <daemonlib/red_led.h>
 #endif
+
 #ifdef BRICKD_WITH_BRICKLET
 	#include "bricklet_stack.h"
 #endif

@@ -1,7 +1,7 @@
 /*
  * brickd
  * Copyright (C) 2014, 2018 Olaf Lüke <olaf@tinkerforge.com>
- * Copyright (C) 2014-2018 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2014-2019 Matthias Bolte <matthias@tinkerforge.com>
  * Copyright (C) 2017 Ishraq Ibne Ashraf <ishraq@tinkerforge.com>
  *
  * red_ethernet_extension.c: Ethernet extension support for RED Brick
@@ -26,8 +26,8 @@
 #include <sys/utsname.h>
 
 #include <daemonlib/log.h>
-#include <daemonlib/red_i2c_eeprom.h>
 #include <daemonlib/gpio_red.h>
+#include <daemonlib/red_i2c_eeprom.h>
 #include <daemonlib/utils.h>
 
 #include "red_ethernet_extension.h"
