@@ -1450,6 +1450,10 @@ int libusb_submit_transfer(struct libusb_transfer *transfer) {
 int libusb_cancel_transfer(struct libusb_transfer *transfer) {
 	usbi_transfer *itransfer = (usbi_transfer *)transfer;
 
+	if (!itransfer->submitted) {
+		return LIBUSB_ERROR_NOT_FOUND;
+	}
+
 	if (itransfer->load_operation != nullptr) {
 		itransfer->load_operation->Cancel();
 	}
