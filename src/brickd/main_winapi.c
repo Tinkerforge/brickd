@@ -696,7 +696,7 @@ int main(int argc, char **argv) {
 	hrc = SHGetFolderPathA(NULL, CSIDL_COMMON_APPDATA, NULL, 0, _program_data_directory);
 
 	if (!SUCCEEDED(hrc)) {
-		fprintf(stderr, "Could not get program data directory: %08x\n", hrc);
+		fprintf(stderr, "Could not get program data directory: %08x\n", (uint32_t)hrc);
 
 		return EXIT_FAILURE;
 	}

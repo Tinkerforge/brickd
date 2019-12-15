@@ -180,7 +180,7 @@ static uint16_t bricklet_stack_check_missing_length(BrickletStack *bricklet_stac
 			return 0;
 		}
 
-		return ret;
+		return (uint16_t)ret;
 	}
 
 	return 0;
