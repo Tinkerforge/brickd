@@ -79,7 +79,7 @@ typedef unsigned __int32  uint32_t;
 #undef interface
 #endif
 #if !defined(__CYGWIN__)
-#include <winsock.h>
+#include <winsock2.h>
 #endif
 #endif
 
