@@ -152,7 +152,7 @@
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|ARM'">
     <ClCompile>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
-      <PreprocessorDefinitions>_WINRT_DLL;_CRT_SECURE_NO_WARNINGS;WIN32_LEAN_AND_MEAN;DAEMONLIB_UWP_BUILD;DAEMONLIB_WITH_LOGGING;BRICKD_UWP_BUILD;BRICKD_WITH_LOGGING;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_WINRT_DLL;_CRT_SECURE_NO_WARNINGS;WIN32_LEAN_AND_MEAN;DAEMONLIB_UWP_BUILD;DAEMONLIB_WITH_LOGGING;BRICKD_UWP_BUILD;BRICKD_WITH_LOGGING;BRICKD_WITH_BRICKLET;BRICKD_WITH_UWP_HAT_BRICK_disabled;BRICKD_WITH_UWP_HAT_ZERO_BRICK_disabled;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
       <PrecompiledHeaderOutputFile>$(IntDir)pch.pch</PrecompiledHeaderOutputFile>
       <AdditionalUsingDirectories>$(WindowsSDK_WindowsMetadata);$(AdditionalUsingDirectories)</AdditionalUsingDirectories>
@@ -171,7 +171,7 @@
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|ARM'">
     <ClCompile>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
-      <PreprocessorDefinitions>_WINRT_DLL;_CRT_SECURE_NO_WARNINGS;NDEBUG;WIN32_LEAN_AND_MEAN;DAEMONLIB_UWP_BUILD;DAEMONLIB_WITH_LOGGING;BRICKD_UWP_BUILD;BRICKD_WITH_LOGGING;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_WINRT_DLL;_CRT_SECURE_NO_WARNINGS;NDEBUG;WIN32_LEAN_AND_MEAN;DAEMONLIB_UWP_BUILD;DAEMONLIB_WITH_LOGGING;BRICKD_UWP_BUILD;BRICKD_WITH_LOGGING;BRICKD_WITH_BRICKLET;BRICKD_WITH_UWP_HAT_BRICK_disabled;BRICKD_WITH_UWP_HAT_ZERO_BRICK_disabled;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
       <PrecompiledHeaderOutputFile>$(IntDir)pch.pch</PrecompiledHeaderOutputFile>
       <AdditionalUsingDirectories>$(WindowsSDK_WindowsMetadata);$(AdditionalUsingDirectories)</AdditionalUsingDirectories>

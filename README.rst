@@ -121,8 +121,9 @@ HAT detection on Raspbian to solve this in Brick Daemon itself.
 
 This means that Brick Daemon cannot detect if a HAT is connected or which kind
 of HAT is connected. Therefore, HAT (Zero) Brick support cannot be enabled by
-default and the preprocessor define ``BRICKD_WITH_BRICKLET`` has to be defined
-manually in the Visual Studio project file to enable HAT (Zero) Brick support.
+default and one of the preprocessor define ``BRICKD_WITH_UWP_HAT_BRICK`` or
+``BRICKD_WITH_UWP_HAT_ZERO_BRICK`` has to be defined in the Visual Studio 2019
+project file to enable HAT (Zero) Brick support.
 
 macOS
 ^^^^^

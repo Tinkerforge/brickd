@@ -20,6 +20,10 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
+#if defined BRICKD_WITH_BRICKLET && !defined _M_ARM
+	#error SPI connected Brickets are only support on ARM platform
+#endif
+
 #include <fcntl.h>
 #include <winsock2.h>
 #include <ppltasks.h>

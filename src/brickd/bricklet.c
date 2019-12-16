@@ -146,15 +146,22 @@ int bricklet_init_rpi_hat(const char *product_id_test, const char *spidev,
                           const int spidev_num, const uint8_t *gpio_cs,
                           const int gpio_cs_num, const int master_cs,
                           const char *name, const bool last) {
-	int fd;
-	int rc;
 	char product_id[BRICKLET_RPI_PRODUCT_ID_LENGTH+1] = "\0";
 	BrickletStackConfig config;
 	char str_sleep_between_reads_bricklet[] = "bricklet.portX.sleep_between_reads";
 	char str_sleep_between_reads_hat[]      = "bricklet.portHAT.sleep_between_reads";
 
-#ifndef BRICKD_UWP_BUILD
-	fd = open("/proc/device-tree/hat/product_id", O_RDONLY);
+#ifdef BRICKD_UWP_BUILD
+	#if defined BRICKD_WITH_UWP_HAT_BRICK && defined BRICKD_WITH_UWP_HAT_ZERO_BRICK
+		#error HAT Brick and HAT Zero Brick support cannot be enabled at the same time
+	#elif defined BRICKD_WITH_UWP_HAT_BRICK
+	strcpy(product_id, BRICKLET_RPI_HAT_PRODUCT_ID);
+	#elif defined BRICKD_WITH_UWP_HAT_ZERO_BRICK
+	strcpy(product_id, BRICKLET_RPI_HAT_ZERO_PRODUCT_ID);
+	#endif
+#else
+	int fd = open("/proc/device-tree/hat/product_id", O_RDONLY);
+	int rc;
 
 	if(fd < 0) {
 		log_debug("Could not open HAT product_id in device tree, not using pre-configured %s Brick setup", name);
@@ -169,6 +176,7 @@ int bricklet_init_rpi_hat(const char *product_id_test, const char *spidev,
 		log_debug("Could not read HAT product_id in device tree, not using pre-configured %s Brick setup", name);
 		return 1;
 	}
+#endif
 
 	if(strncmp(product_id_test, product_id, BRICKLET_RPI_PRODUCT_ID_LENGTH) != 0) {
 		if(last) {
@@ -177,9 +185,8 @@ int bricklet_init_rpi_hat(const char *product_id_test, const char *spidev,
 
 		return 1;
 	}
-#endif
 
-	log_debug("Found product_id \"%s\" in device tree, using pre-configured %s Brick setup", product_id, name);
+	log_info("Found product_id \"%s\" in device tree, using pre-configured %s Brick setup", product_id, name);
 
 	memset(&config, 0, sizeof(config));
 
@@ -290,11 +297,7 @@ int bricklet_init(void) {
 	                           sizeof(bricklet_stack_rpi_hat_gpio_cs),
 	                           BRICKLET_RPI_HAT_MASTER_CS,
 	                           "HAT",
-#ifndef BRICKD_UWP_BUILD
 	                           false);
-#else
-	                           true);
-#endif
 
 	if(rc < 0) {
 		return -1;
@@ -305,7 +308,6 @@ int bricklet_init(void) {
 		return 0;
 	}
 
-#ifndef BRICKD_UWP_BUILD
 	// or a Tinkerforge HAT Zero Brick is on top
 	rc = bricklet_init_rpi_hat(BRICKLET_RPI_HAT_ZERO_PRODUCT_ID,
 	                           BRICKLET_RPI_HAT_ZERO_SPIDEV,
@@ -321,7 +323,6 @@ int bricklet_init(void) {
 	} else if(rc == 0) {
 		return 0;
 	}
-#endif
 
 	// If there is no HAT we try to read the SPI configuration from the config
 	for(uint8_t i = 0; i < BRICKLET_SPI_MAX_NUM; i++) {
