@@ -12,7 +12,8 @@ UMLIBS=..\build_data\windows\libusb\libusb-1.0.lib
 C_DEFINES=$(C_DEFINES) /DWIN32_LEAN_AND_MEAN /DNDEBUG /DBRICKD_WDK_BUILD /DDAEMONLIB_WITH_LOGGING
 USER_C_FLAGS=$(USER_C_FLAGS) /O2 /wd4200 /wd4214 /FIfixes_msvc.h
 LINKER_FLAGS=/pdbpath:none
-TARGETLIBS=$(SDK_LIB_PATH)\advapi32.lib $(SDK_LIB_PATH)\user32.lib $(SDK_LIB_PATH)\ws2_32.lib
+TARGETLIBS=$(SDK_LIB_PATH)\advapi32.lib $(SDK_LIB_PATH)\user32.lib \
+	$(SDK_LIB_PATH)\ws2_32.lib $(SDK_LIB_PATH)\shell32.lib
 SOURCES=array.c \
 	base58.c \
 	config.c \
@@ -52,5 +53,6 @@ SOURCES=array.c \
 	usb_stack.c \
 	usb_transfer.c \
 	usb_winapi.c \
+	usb_windows.c \
 	websocket.c \
 	zombie.c
