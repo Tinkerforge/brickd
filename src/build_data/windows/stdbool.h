@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2014, 2016 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2014, 2016, 2019 Matthias Bolte <matthias@tinkerforge.com>
  *
  * stdbool.h: ISO C99 bool type for MSVC/WDK
  *
@@ -22,7 +22,7 @@
 #ifndef BRICKD_STDBOOL_H
 #define BRICKD_STDBOOL_H
 
-#if _MSC_VER >= 1600
+#if _MSC_VER >= 1800
 
 #include <../include/stdbool.h>
 
