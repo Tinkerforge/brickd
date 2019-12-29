@@ -773,7 +773,7 @@ static void usbi_set_transfer_status(struct libusb_transfer *transfer,
 		hresult = operation->ErrorCode.Value;
 
 		if (HRESULT_CODE(hresult) == ERROR_DEVICE_NOT_CONNECTED ||
-			HRESULT_CODE(hresult) == ERROR_DEV_NOT_EXIST) {
+		    HRESULT_CODE(hresult) == ERROR_DEV_NOT_EXIST) {
 			transfer->actual_length = 0;
 			transfer->status = LIBUSB_TRANSFER_NO_DEVICE;
 		} else {
