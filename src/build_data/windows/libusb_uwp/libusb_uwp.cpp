@@ -774,11 +774,14 @@ static void usbi_set_transfer_status(struct libusb_transfer *transfer,
 
 		if (HRESULT_CODE(hresult) == ERROR_DEVICE_NOT_CONNECTED ||
 			HRESULT_CODE(hresult) == ERROR_DEV_NOT_EXIST) {
+			transfer->actual_length = 0;
 			transfer->status = LIBUSB_TRANSFER_NO_DEVICE;
 		} else {
+			transfer->actual_length = 0;
 			transfer->status = LIBUSB_TRANSFER_ERROR; // FIXME
 		}
 	} else if (status == AsyncStatus::Canceled) {
+		transfer->actual_length = 0;
 		transfer->status = LIBUSB_TRANSFER_CANCELLED;
 	} else if (status == AsyncStatus::Completed) {
 		try {
@@ -789,6 +792,7 @@ static void usbi_set_transfer_status(struct libusb_transfer *transfer,
 			transfer->status = LIBUSB_TRANSFER_ERROR; // FIXME
 		}
 	} else {
+		transfer->actual_length = 0;
 		transfer->status = LIBUSB_TRANSFER_ERROR; // FIXME
 	}
 }
