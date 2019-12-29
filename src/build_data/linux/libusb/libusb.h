@@ -215,7 +215,6 @@ typedef void (*libusb_free_transfer_t)(struct libusb_transfer *transfer);
 typedef int (*libusb_get_string_descriptor_ascii_t)(libusb_device_handle *dev_handle, uint8_t desc_index, unsigned char *data, int length);
 
 typedef int (*libusb_handle_events_timeout_t)(libusb_context *ctx, struct timeval *tv);
-typedef int (*libusb_pollfds_handle_timeouts_t)(libusb_context *ctx);
 
 typedef const struct libusb_pollfd **(*libusb_get_pollfds_t)(libusb_context *ctx);
 typedef void (*libusb_set_pollfd_notifiers_t)(libusb_context *ctx, libusb_pollfd_added_callback added_callback, libusb_pollfd_removed_callback removed_callback, void *user_data);
@@ -268,7 +267,6 @@ static inline void libusb_fill_bulk_transfer(struct libusb_transfer *transfer,
 extern libusb_get_string_descriptor_ascii_t libusb_get_string_descriptor_ascii;
 
 extern libusb_handle_events_timeout_t libusb_handle_events_timeout;
-extern libusb_pollfds_handle_timeouts_t libusb_pollfds_handle_timeouts;
 
 extern libusb_get_pollfds_t libusb_get_pollfds;
 extern libusb_set_pollfd_notifiers_t libusb_set_pollfd_notifiers;

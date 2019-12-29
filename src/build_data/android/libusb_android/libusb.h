@@ -183,7 +183,6 @@ int libusb_get_string_descriptor_ascii(libusb_device_handle *dev_handle,
                                        int length);
 
 int libusb_handle_events_timeout(libusb_context *ctx, struct timeval *tv);
-int libusb_pollfds_handle_timeouts(libusb_context *ctx);
 
 const struct libusb_pollfd **libusb_get_pollfds(libusb_context *ctx);
 void libusb_set_pollfd_notifiers(libusb_context *ctx,

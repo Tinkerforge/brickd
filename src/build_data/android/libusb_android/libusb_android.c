@@ -466,12 +466,6 @@ void libusb_set_debug(libusb_context *ctx, int level) {
 	(void)level;
 }
 
-int libusb_pollfds_handle_timeouts(libusb_context *ctx) {
-	(void)ctx;
-
-	return 1;
-}
-
 const struct libusb_pollfd **libusb_get_pollfds(libusb_context *ctx) {
 	const struct libusb_pollfd **pollfds;
 	Node *dev_handle_node;

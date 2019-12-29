@@ -305,12 +305,6 @@ int usb_init(void) {
 
 	phase = 2;
 
-	if (!libusb_pollfds_handle_timeouts(_context)) {
-		log_debug("libusb requires special timeout handling"); // FIXME
-	} else {
-		log_debug("libusb can handle timeouts on its own");
-	}
-
 	// create USB stack array. the USBStack struct is not relocatable, because
 	// its USB transfers keep a pointer to it
 	if (array_create(&_usb_stacks, 32, sizeof(USBStack), false) < 0) {
