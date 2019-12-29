@@ -354,8 +354,8 @@ static int generic_main(bool log_to_file, const char *debug_filter) {
 		string_append(log_filename, sizeof(log_filename), "brickd.log");
 
 		if (file_create(&log_file, log_filename,
-		                _O_CREAT | _O_WRONLY | _O_APPEND | _O_BINARY,
-		                _S_IREAD | _S_IWRITE) < 0) {
+		                O_CREAT | O_WRONLY | O_APPEND | O_BINARY,
+		                S_IREAD | S_IWRITE) < 0) {
 			log_warn("Could not open log file '%s': %s (%d)",
 			         log_filename, get_errno_name(errno), errno);
 		} else {
