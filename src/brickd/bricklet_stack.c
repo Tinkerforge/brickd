@@ -58,7 +58,7 @@ static LogSource _log_source = LOG_SOURCE_INITIALIZER;
 static char packet_signature[PACKET_MAX_SIGNATURE_LENGTH];
 
 extern int bricklet_stack_create_platform(BrickletStack *bricklet_stack);
-extern int bricklet_stack_destroy_platform(BrickletStack *bricklet_stack);
+extern void bricklet_stack_destroy_platform(BrickletStack *bricklet_stack);
 extern int bricklet_stack_chip_select_gpio(BrickletStack *bricklet_stack, bool enable);
 extern int bricklet_stack_notify(BrickletStack *bricklet_stack);
 extern int bricklet_stack_wait(BrickletStack *bricklet_stack);
