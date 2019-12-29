@@ -98,7 +98,7 @@ typedef struct {
 	Node node;
 	bool submitted;
 	bool triggered;
-	bool completed;
+	bool finished;
 	uint32_t sequence_number;
 	DataReader ^reader;
 	DataReaderLoadOperation ^load_operation;
@@ -911,7 +911,7 @@ int libusb_handle_events_timeout(libusb_context *ctx, struct timeval *tv) {
 			itransfer = containerof(itransfer_node, usbi_transfer, node);
 			transfer = &itransfer->transfer;
 
-			if (!itransfer->completed) {
+			if (!itransfer->finished) {
 				sparse = true;
 			} else {
 				if (itransfer->triggered) {
@@ -926,16 +926,16 @@ int libusb_handle_events_timeout(libusb_context *ctx, struct timeval *tv) {
 				}
 
 				if (!sparse || transfer->status != LIBUSB_TRANSFER_COMPLETED) {
-					usbi_log_debug(ctx, "Read transfer %p [%u] completed (length: %d, status: %d)",
-					               transfer, itransfer->sequence_number,
-					               transfer->actual_length, transfer->status);
+					usbi_log_debug(ctx, "Read transfer %p [%u] finished (step: 2/2, status: %d, length: %d, actual-length: %d)",
+					               transfer, itransfer->sequence_number, transfer->status,
+					               transfer->length, transfer->actual_length);
 
 					node_remove(&itransfer->node);
 
 					itransfer->load_operation->Close();
 
 					itransfer->submitted = false;
-					itransfer->completed = false;
+					itransfer->finished = false;
 					itransfer->reader = nullptr;
 					itransfer->load_operation = nullptr;
 
@@ -960,7 +960,7 @@ int libusb_handle_events_timeout(libusb_context *ctx, struct timeval *tv) {
 			itransfer = containerof(itransfer_node, usbi_transfer, node);
 			transfer = &itransfer->transfer;
 
-			if (itransfer->completed) {
+			if (itransfer->finished) {
 				if (itransfer->triggered) {
 					usbi_log_debug(ctx, "Reading from event pipe for write transfer %p [%u]",
 					               transfer, itransfer->sequence_number);
@@ -972,12 +972,16 @@ int libusb_handle_events_timeout(libusb_context *ctx, struct timeval *tv) {
 					}
 				}
 
+				usbi_log_debug(ctx, "Write transfer %p [%u] finished (step: 2/2, status: %d, length: %d, actual-length: %d)",
+				               transfer, itransfer->sequence_number, transfer->status,
+				               transfer->length, transfer->actual_length);
+
 				node_remove(&itransfer->node);
 
 				itransfer->store_operation->Close();
 
 				itransfer->submitted = false;
-				itransfer->completed = false;
+				itransfer->finished = false;
 				itransfer->writer = nullptr;
 				itransfer->store_operation = nullptr;
 
@@ -1294,7 +1298,7 @@ struct libusb_transfer *libusb_alloc_transfer(int iso_packets) {
 	}
 
 	itransfer->submitted = false;
-	itransfer->completed = false;
+	itransfer->finished = false;
 	itransfer->sequence_number = 0;
 	itransfer->reader = nullptr;
 	itransfer->load_operation = nullptr;
@@ -1364,11 +1368,11 @@ int libusb_submit_transfer(struct libusb_transfer *transfer) {
 					}
 
 					itransfer->triggered = true;
-					itransfer->completed = true;
+					itransfer->finished = true;
 
-					usbi_log_debug(ctx, "Read transfer %p [%u] completed (length: %d, status: %d)",
-					               transfer, itransfer->sequence_number,
-					               transfer->actual_length, transfer->status);
+					usbi_log_debug(ctx, "Read transfer %p [%u] finished (step: 1/2, status: %d, length: %d, actual-length: %d)",
+					               transfer, itransfer->sequence_number, transfer->status,
+					               transfer->length, transfer->actual_length);
 
 					if (usbi_write(ctx->event_pipe[1], nullptr, 1) != 1) {
 						usbi_log_error(ctx, "usbi_write failed: %d", errno); // FIXME
@@ -1419,11 +1423,11 @@ int libusb_submit_transfer(struct libusb_transfer *transfer) {
 					usbi_set_transfer_status(transfer, operation, status);
 
 					itransfer->triggered = true;
-					itransfer->completed = true;
+					itransfer->finished = true;
 
-					usbi_log_debug(ctx, "Write transfer %p [%u] completed (length: %d, status: %d)",
-					               transfer, itransfer->sequence_number,
-					               transfer->actual_length, transfer->status);
+					usbi_log_debug(ctx, "Write transfer %p [%u] finished (step: 1/2, status: %d, length: %d, actual-length: %d)",
+					               transfer, itransfer->sequence_number, transfer->status,
+					               transfer->length, transfer->actual_length);
 
 					if (usbi_write(ctx->event_pipe[1], nullptr, 1) != 1) {
 						usbi_log_error(ctx, "usbi_write failed: %d", errno); // FIXME
