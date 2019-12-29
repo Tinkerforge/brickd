@@ -1,7 +1,7 @@
 /*
  * brickd
  * Copyright (C) 2014, 2017-2018 Olaf Lüke <olaf@tinkerforge.com>
- * Copyright (C) 2014-2018 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2014-2019 Matthias Bolte <matthias@tinkerforge.com>
  *
  * red_extension.c: Extension initialization for RED Brick
  *
@@ -536,7 +536,7 @@ int red_extension_init(void) {
 	// to make sure that there isn't a collision between SPI select and I2C select.
 	red_ethernet_extension_rmmod();
 
-	// Then we deselect all EEPROMS
+	// Then we deselect all EEPROMs
 	for (i = 0; i < EXTENSION_NUM_MAX; i++) {
 		for (j = 0; j < extension_startup.num_configs; j++) {
 			red_extension_configure_pin(&extension_startup.config[j], i);

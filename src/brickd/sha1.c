@@ -22,7 +22,7 @@
 
 #define rol(value, bits) (((value) << (bits)) | ((value) >> (32 - (bits))))
 
-// blk0() and blk() perform the initial expand. blk0() deals with host endianess
+// blk0() and blk() perform the initial expand. blk0() deals with host endianness
 #define blk0(i) (block[i] = htonl(block[i]))
 #define blk(i) (block[i&15] = rol(block[(i+13)&15]^block[(i+8)&15]^block[(i+2)&15]^block[i&15],1))
 

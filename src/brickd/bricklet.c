@@ -288,7 +288,7 @@ int bricklet_init(void) {
 	mutex_create(&_bricklet_spi_mutex[0]);
 	mutex_create(&_bricklet_spi_mutex[1]);
 
-	// First we try to find out if this brickd is installed on a RPi with raspbian
+	// First we try to find out if this brickd is installed on a RPi with Raspbian
 	// and a Tinkerforge HAT Brick is on top
 	rc = bricklet_init_rpi_hat(BRICKLET_RPI_HAT_PRODUCT_ID,
 	                           BRICKLET_RPI_HAT_SPIDEV,

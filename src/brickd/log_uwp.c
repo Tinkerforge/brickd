@@ -2,7 +2,7 @@
  * brickd
  * Copyright (C) 2016, 2019 Matthias Bolte <matthias@tinkerforge.com>
  *
- * log_uwp.c: Univeral Windows Platform debugger output handling
+ * log_uwp.c: Universal Windows Platform debugger output handling
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by

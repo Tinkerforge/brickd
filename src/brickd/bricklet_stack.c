@@ -553,7 +553,7 @@ static void bricklet_stack_transceive(BrickletStack *bricklet_stack) {
 		if(!bricklet_stack->data_seen) {
 			// If we have never seen any data, we will first poll every 1ms with the StackEnumerate message
 			// and switch to polling every 500ms after we tried BRICKLET_STACK_FIRST_MESSAGE_TRIES times.
-			// In this case there is likely no Bricklet connected. If a Bricklet is hotpluged "data_seen"
+			// In this case there is likely no Bricklet connected. If a Bricklet is hotplugged "data_seen"
 			// will be true and we will switch to polling every 200us immediately.
 			if(bricklet_stack->first_message_tries < BRICKLET_STACK_FIRST_MESSAGE_TRIES) {
 				sleep_us = 1000;
@@ -599,7 +599,7 @@ static void bricklet_stack_transceive(BrickletStack *bricklet_stack) {
 
 		if(length != 0) {
 			// Set first byte back to 0 and the new length, the rest was not touched
-			// and we don't need to reinizialize it.
+			// and we don't need to reinitialize it.
 			rx[0] = 0;
 			rc = bricklet_stack_spi_transceive(bricklet_stack, tx, rx, length);
 		}

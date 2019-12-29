@@ -114,7 +114,7 @@ static Thread _red_stack_spi_thread;
 
 // We use a proper condition variable with mutex and helper variable (as is suggested
 // by kernel documentation) to synchronize after a reset. If someone else needs
-// this we may want to add the mechanism to daemonlibs thread implementation.
+// this we may want to add the mechanism to daemonlib's thread implementation.
 static pthread_cond_t _red_stack_wait_for_reset_cond = PTHREAD_COND_INITIALIZER;
 static pthread_mutex_t _red_stack_wait_for_reset_mutex = PTHREAD_MUTEX_INITIALIZER;
 static int _red_stack_wait_for_reset_helper = 0;
@@ -348,7 +348,7 @@ static int red_stack_spi_transceive_message(REDStackRequest *packet_send, REDSta
 	}
 
 	if (rx[RED_STACK_SPI_PREAMBLE] != RED_STACK_SPI_PREAMBLE_VALUE) {
-		// Do not log by default, an "unproper preamble" is part of the protocol
+		// Do not log by default, an "improper preamble" is part of the protocol
 		// if the slave is too busy to fill the DMA buffers fast enough
 		// log_error("Received packet without proper preamble (actual: %d != expected: %d)",
 		//          rx[RED_STACK_SPI_PREAMBLE], RED_STACK_SPI_PREAMBLE_VALUE);
@@ -810,7 +810,7 @@ static void red_stack_dispatch_from_spi(void *opaque) {
 		response = queue_peek(&_red_stack.response_queue);
 		mutex_unlock(&_red_stack.response_queue_mutex);
 
-		if (response == NULL) { // eventfd indicates a reponsed but queue is empty
+		if (response == NULL) { // eventfd indicates a response but queue is empty
 			log_error("Response queue and notification event are out-of-sync");
 
 			return;

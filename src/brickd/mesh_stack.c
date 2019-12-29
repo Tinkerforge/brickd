@@ -185,7 +185,7 @@ static void timer_wait_hello_handler(void *opaque) {
 	log_warn("Wait hello timed out, destroying mesh stack (N: %s)",
 	         mesh_stack->name);
 
-	// FIXME: dont send reset, just close the connection and destroy the stack immediatly
+	// FIXME: don't send reset, just close the connection and destroy the stack immediately
 
 	broadcast_reset_packet(mesh_stack);
 

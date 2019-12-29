@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2012-2018 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2012-2019 Matthias Bolte <matthias@tinkerforge.com>
  *
  * event_winapi.c: Select based event loop
  *
@@ -345,7 +345,7 @@ int event_init_platform(void) {
 
 	phase = 3;
 
-	// create USB poll thread
+	// prepare USB poll thread
 	_usb_poll_running = false;
 	_usb_poll_stuck = false;
 

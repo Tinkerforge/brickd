@@ -508,11 +508,11 @@ exit:
 		// log messages triggering a crash. this situation could easily be
 		// created by clicking the close button of the command prompt window
 		// while the getch call is waiting for the user to press a key. but
-		// only unregister the console handler if it is not currenty active,
+		// only unregister the console handler if it is not currently active,
 		// because unregistering while it's active seems to abort the thread
 		// running it. this results either in not exiting at all on CTRL_C and
 		// CTRL_BREAK events, or exiting after a timeout between 0.5 and 20
-		// seconds depeding on the event and the circumstances.
+		// seconds depending on the event and the circumstances.
 		SetConsoleCtrlHandler(console_ctrl_handler, FALSE);
 	}
 

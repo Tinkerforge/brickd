@@ -3,7 +3,7 @@
  * Copyright (C) 2016-2017 Ishraq Ibne Ashraf <ishraq@tinkerforge.com>
  * Copyright (C) 2017-2019 Matthias Bolte <matthias@tinkerforge.com>
  *
- * mesh_packet.c: Mesh packet definiton
+ * mesh_packet.c: Mesh packet definition
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
