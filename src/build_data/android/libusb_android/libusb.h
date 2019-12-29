@@ -85,7 +85,7 @@ enum libusb_error {
 	LIBUSB_ERROR_INTERRUPTED = -10,
 	LIBUSB_ERROR_NO_MEM = -11,
 	LIBUSB_ERROR_NOT_SUPPORTED = -12,
-	LIBUSB_ERROR_OTHER = -99,
+	LIBUSB_ERROR_OTHER = -99
 };
 
 enum libusb_transfer_status {
@@ -95,7 +95,7 @@ enum libusb_transfer_status {
 	LIBUSB_TRANSFER_CANCELLED,
 	LIBUSB_TRANSFER_STALL,
 	LIBUSB_TRANSFER_NO_DEVICE,
-	LIBUSB_TRANSFER_OVERFLOW,
+	LIBUSB_TRANSFER_OVERFLOW
 };
 
 enum libusb_transfer_type {
@@ -128,7 +128,7 @@ enum libusb_log_level {
 	LIBUSB_LOG_LEVEL_ERROR,
 	LIBUSB_LOG_LEVEL_WARNING,
 	LIBUSB_LOG_LEVEL_INFO,
-	LIBUSB_LOG_LEVEL_DEBUG,
+	LIBUSB_LOG_LEVEL_DEBUG
 };
 
 struct libusb_pollfd {
