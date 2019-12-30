@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2017-2018 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2017-2019 Matthias Bolte <matthias@tinkerforge.com>
  *
  * app_service.h: AppService based I/O device for Universal Windows Platform
  *
@@ -130,13 +130,13 @@ extern "C" int app_service_create(AppService_ *app_service, const char *caller,
 		goto error;
 	}
 
-	if (pipe_create(&app_service->read_pipe, 0) < 0) {
+	if (pipe_create(&app_service->read_pipe, PIPE_FLAG_NON_BLOCKING_READ) < 0) {
 		goto error;
 	}
 
 	phase = 1;
 
-	if (pipe_create(&app_service->write_pipe, 0) < 0) {
+	if (pipe_create(&app_service->write_pipe, PIPE_FLAG_NON_BLOCKING_READ) < 0) {
 		goto error;
 	}
 
@@ -150,7 +150,7 @@ extern "C" int app_service_create(AppService_ *app_service, const char *caller,
 
 	phase = 3;
 
-	if (pipe_create(&app_service->close_pipe, 0) < 0) {
+	if (pipe_create(&app_service->close_pipe, PIPE_FLAG_NON_BLOCKING_READ) < 0) {
 		goto error;
 	}
 

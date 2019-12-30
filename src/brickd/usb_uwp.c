@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2016-2018 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2016-2019 Matthias Bolte <matthias@tinkerforge.com>
  *
  * usb_uwp.c: Universal Windows Platform USB hotplug implementation
  *
@@ -342,7 +342,7 @@ int usb_init_hotplug(libusb_context *context) {
 	(void)context;
 
 	// create notification pipe
-	if (pipe_create(&_notification_pipe, 0) < 0) {
+	if (pipe_create(&_notification_pipe, PIPE_FLAG_NON_BLOCKING_READ) < 0) {
 		log_error("Could not create hotplug pipe: %s (%d)",
 		          get_errno_name(errno), errno);
 

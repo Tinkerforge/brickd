@@ -357,7 +357,7 @@ int event_init_platform(void) {
 
 	phase = 4;
 
-	if (pipe_create(&_usb_poll_ready_pipe, 0) < 0) {
+	if (pipe_create(&_usb_poll_ready_pipe, PIPE_FLAG_NON_BLOCKING_READ) < 0) {
 		log_error("Could not create USB ready pipe: %s (%d)",
 		          get_errno_name(errno), errno);
 

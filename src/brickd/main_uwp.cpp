@@ -402,7 +402,7 @@ void brickd_uwp::MainTask::Run(IBackgroundTaskInstance ^taskInstance) {
 
 	phase = 7;
 
-	if (pipe_create(&_cancellation_pipe, 0) < 0) {
+	if (pipe_create(&_cancellation_pipe, PIPE_FLAG_NON_BLOCKING_READ) < 0) {
 		log_error("Could not create cancellation pipe: %s (%d)",
 		          get_errno_name(errno), errno);
 
@@ -440,7 +440,7 @@ void brickd_uwp::MainTask::Run(IBackgroundTaskInstance ^taskInstance) {
 
 	phase = 11;
 
-	if (pipe_create(&_app_service_accept_pipe, 0) < 0) {
+	if (pipe_create(&_app_service_accept_pipe, PIPE_FLAG_NON_BLOCKING_READ) < 0) {
 		log_error("Could not create AppService accept pipe: %s (%d)",
 		          get_errno_name(errno), errno);
 
