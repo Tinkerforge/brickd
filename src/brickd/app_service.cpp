@@ -2,7 +2,7 @@
  * brickd
  * Copyright (C) 2017-2019 Matthias Bolte <matthias@tinkerforge.com>
  *
- * app_service.h: AppService based I/O device for Universal Windows Platform
+ * app_service.cpp: AppService based I/O device for Universal Windows Platform
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
