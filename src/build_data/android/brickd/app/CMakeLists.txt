@@ -49,6 +49,7 @@ add_library( brickd-android
              ../../../../brickd/main_android.c
              ../../../../brickd/mesh.c
              ../../../../brickd/mesh_stack.c
+             ../../../../brickd/mesh_packet.c
              ../../../../brickd/network.c
              ../../../../brickd/sha1.c
              ../../../../brickd/stack.c
