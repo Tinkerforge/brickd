@@ -71,8 +71,13 @@ BOOL WINAPI Process32Next(HANDLE hSnapshot, PROCESSENTRY32 *lppe);
 
 static LogSource _log_source = LOG_SOURCE_INITIALIZER;
 
+#define LOG_MAX_ROTATE_COUNT 5
+#define LOG_OPEN_FLAGS (O_CREAT | O_WRONLY | O_APPEND | O_BINARY)
+#define LOG_OPEN_MODE (S_IREAD | S_IWRITE)
+
 static char _program_data_directory[MAX_PATH];
-static char _config_filename[1024];
+static char _log_filename[MAX_PATH];
+static char _config_filename[MAX_PATH];
 static bool _run_as_service = true;
 static bool _pause_before_exit = false;
 static bool _running = false;
@@ -268,6 +273,81 @@ static BOOL WINAPI console_ctrl_handler(DWORD ctrl_type) {
 	return FALSE; // brickd is fully stopped now, let default handler end the process
 }
 
+static int rename_log_file(const char *old_format, int old_index, const char *new_format, int new_index,
+                           char *message, int message_length) {
+	char old_filename[MAX_PATH];
+	char new_filename[MAX_PATH];
+	int rc;
+
+	snprintf(old_filename, sizeof(old_filename), old_format, _program_data_directory, old_index);
+	snprintf(new_filename, sizeof(new_filename), new_format, _program_data_directory, new_index);
+
+	if (new_index >= LOG_MAX_ROTATE_COUNT) {
+		rc = remove(old_filename);
+
+		if (rc < 0) {
+			snprintf(message, message_length, "Could not remove log file '%s': %s (%d)",
+			         old_filename, get_errno_name(errno), errno);
+		}
+
+		return rc;
+	}
+
+	if (rename(old_filename, new_filename) >= 0) {
+		return 0;
+	}
+
+	if (errno != EEXIST) {
+		snprintf(message, message_length, "Could not rename log file '%s' to '%s': %s (%d)",
+		         old_filename, new_filename, get_errno_name(errno), errno);
+
+		return -1;
+	}
+
+	if (rename_log_file(new_format, new_index, new_format, new_index + 1, message, message_length) < 0) {
+		return -1;
+	}
+
+	rc = rename(old_filename, new_filename);
+
+	if (rc < 0) {
+		snprintf(message, message_length, "Could not rename log file '%s' to '%s': %s (%d)",
+		         old_filename, new_filename, get_errno_name(errno), errno);
+	}
+
+	return rc;
+}
+
+static int rotate_log_file(IO *output, LogLevel *level, char *message, int message_length) {
+	File *log_file = containerof(output, File, base);
+	int rc;
+
+	file_destroy(log_file);
+
+	if (rename_log_file("%sbrickd.log", 0, "%sbrickd_%d.log", 1, message, message_length) < 0) {
+		*level = LOG_LEVEL_ERROR;
+	} else {
+		*level = LOG_LEVEL_INFO;
+
+		snprintf(message, message_length, "Rotated log file '%s'", _log_filename);
+	}
+
+	rc = file_create(log_file, _log_filename, LOG_OPEN_FLAGS, LOG_OPEN_MODE);
+
+	if (rc < 0) {
+		*level = LOG_LEVEL_ERROR;
+
+		snprintf(message, message_length, "Could not reopen log file '%s': %s (%d)",
+		         _log_filename, get_errno_name(errno), errno);
+	}
+
+	if (*level != LOG_LEVEL_DUMMY) {
+		fprintf(*level <= LOG_LEVEL_WARN ? stderr : stdout, "%s\n", message);
+	}
+
+	return rc;
+}
+
 static void handle_event_cleanup(void) {
 	network_cleanup_clients_and_zombies();
 	mesh_cleanup_stacks();
@@ -284,7 +364,6 @@ static int generic_main(bool log_to_file, const char *debug_filter) {
 	bool fatal_error = false;
 	DWORD service_exit_code = NO_ERROR;
 	int rc;
-	char log_filename[1024];
 	File log_file;
 	WSADATA wsa_data;
 
@@ -350,16 +429,14 @@ static int generic_main(bool log_to_file, const char *debug_filter) {
 	}
 
 	if (log_to_file) {
-		string_copy(log_filename, sizeof(log_filename), _program_data_directory, -1);
-		string_append(log_filename, sizeof(log_filename), "brickd.log");
+		string_copy(_log_filename, sizeof(_log_filename), _program_data_directory, -1);
+		string_append(_log_filename, sizeof(_log_filename), "brickd.log");
 
-		if (file_create(&log_file, log_filename,
-		                O_CREAT | O_WRONLY | O_APPEND | O_BINARY,
-		                S_IREAD | S_IWRITE) < 0) {
+		if (file_create(&log_file, _log_filename, LOG_OPEN_FLAGS, LOG_OPEN_MODE) < 0) {
 			log_warn("Could not open log file '%s': %s (%d)",
-			         log_filename, get_errno_name(errno), errno);
+			         _log_filename, get_errno_name(errno), errno);
 		} else {
-			printf("Logging to '%s'\n", log_filename);
+			printf("Logging to '%s'\n", _log_filename);
 
 			log_set_output(&log_file.base, NULL);
 		}
