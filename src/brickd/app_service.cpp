@@ -126,7 +126,8 @@ extern "C" int app_service_create(AppService_ *app_service, const char *caller,
 	if (io_create(&app_service->base, "AppService",
 	              (IODestroyFunction)app_service_destroy,
 	              (IOReadFunction)app_service_read,
-	              (IOWriteFunction)app_service_write) < 0) {
+	              (IOWriteFunction)app_service_write,
+	              NULL) < 0) {
 		goto error;
 	}
 
