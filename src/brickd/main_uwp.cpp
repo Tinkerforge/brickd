@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2016-2018 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2016-2019 Matthias Bolte <matthias@tinkerforge.com>
  * Copyright (C) 2016-2017 Ishraq Ibne Ashraf <ishraq@tinkerforge.com>
  *
  * main_uwp.cpp: Brick Daemon starting point for Universal Windows Platform
@@ -369,7 +369,7 @@ void brickd_uwp::MainTask::Run(IBackgroundTaskInstance ^taskInstance) {
 	}
 
 	log_init();
-	log_set_output(&log_socket.base);
+	log_set_output(&log_socket.base, NULL);
 #else
 	log_init();
 #endif

@@ -177,11 +177,15 @@ static void print_usage(void) {
 }
 
 static void handle_sighup(void) {
-	if (log_get_output() != &_log_file.base) {
+	IO *output;
+
+	log_get_output(&output, NULL);
+
+	if (output != &_log_file.base) {
 		return;
 	}
 
-	log_set_output(&log_stderr_output);
+	log_set_output(&log_stderr_output, NULL);
 
 	file_destroy(&_log_file);
 
@@ -193,7 +197,7 @@ static void handle_sighup(void) {
 		return;
 	}
 
-	log_set_output(&_log_file.base);
+	log_set_output(&_log_file.base, NULL);
 
 	log_info("Reopened log file '%s'", _log_filename);
 }
