@@ -369,6 +369,7 @@ void log_set_output_platform(IO *output) {
 
 	_output = output;
 	_console = NULL;
+	_default_attributes = 0;
 
 	if (_output != &log_stderr_output) {
 		return;
