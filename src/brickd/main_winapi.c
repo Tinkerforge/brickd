@@ -438,7 +438,7 @@ static int generic_main(bool log_to_file, const char *debug_filter) {
 		} else {
 			printf("Logging to '%s'\n", _log_filename);
 
-			log_set_output(&log_file.base, NULL);
+			log_set_output(&log_file.base, rotate_log_file);
 		}
 	} else if (_run_as_service) {
 		log_set_output(NULL, NULL);
