@@ -189,7 +189,7 @@ int service_install(const char *debug_filter) {
 	service = CreateServiceA(service_control_manager, _service_name, _service_name,
 	                         SERVICE_ALL_ACCESS, SERVICE_WIN32_OWN_PROCESS,
 	                         SERVICE_AUTO_START, SERVICE_ERROR_NORMAL, quoted_filename,
-	                         NULL, NULL, "tcpip\0", NULL, NULL);
+	                         NULL, NULL, NULL, NULL, NULL);
 
 	if (service == NULL) {
 		rc = GetLastError();
