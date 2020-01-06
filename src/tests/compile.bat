@@ -142,7 +142,7 @@ rem @set LD=link /nologo /debug
  ..\daemonlib\base58.c^
  ..\daemonlib\utils.c
 
-%LD% /out:string_test.exe *.obj
+%LD% /out:string_test.exe *.obj ws2_32.lib
 
 @if exist string_test.exe.manifest^
  %MT% /manifest string_test.exe.manifest -outputresource:string_test.exe

@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2013 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2013, 2020 Matthias Bolte <matthias@tinkerforge.com>
  *
  * throughput_test.c: A probably meaningless throughput test
  *
@@ -58,7 +58,7 @@ int main(void) {
 		return EXIT_FAILURE;
 	}
 
-	start = microseconds();
+	start = microtime();
 
 	for (i = 0; i < repeats; ++i) {
 		if (master_get_usb_voltage(&master, &voltage) < 0) {
@@ -67,7 +67,7 @@ int main(void) {
 		//printf("%u\n", voltage);
 	}
 
-	stop = microseconds();
+	stop = microtime();
 
 	printf("%.10f msec\n", ((stop - start) / 1000.0) / repeats);
 
