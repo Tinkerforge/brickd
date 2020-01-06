@@ -99,7 +99,7 @@ static void usb_forward_notifications(void *opaque) {
 		                        -1, buffer, sizeof(buffer), NULL, NULL) == 0) {
 			rc = ERRNO_WINAPI_OFFSET + GetLastError();
 
-			log_error("Could not convert device name: %s (%d)",
+			log_error("Could not convert device name to UTF-8: %s (%d)",
 			          get_errno_name(rc), rc);
 
 			return;
