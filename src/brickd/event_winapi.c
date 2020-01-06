@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2012-2019 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2012-2020 Matthias Bolte <matthias@tinkerforge.com>
  *
  * event_winapi.c: Select based event loop
  *
@@ -253,8 +253,6 @@ static void event_forward_usb_events(void *opaque) {
 	int k;
 	EventSource *event_source;
 	struct usbi_pollfd *pollfd;
-
-	(void)opaque;
 
 	if (pipe_read(&_usb_poll_ready_pipe, &byte, sizeof(byte)) < 0) {
 		log_error("Could not read from USB ready pipe: %s (%d)",
