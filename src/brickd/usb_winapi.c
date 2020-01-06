@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2013-2014, 2017-2019 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2013-2014, 2017-2020 Matthias Bolte <matthias@tinkerforge.com>
  *
  * usb_winapi.c: WinAPI based USB specific functions
  *
@@ -120,9 +120,7 @@ static void usb_forward_notifications(void *opaque) {
 	}
 }
 
-static LRESULT CALLBACK usb_message_pump_window_proc(HWND hwnd, UINT msg,
-                                                     WPARAM wparam,
-                                                     LPARAM lparam) {
+static LRESULT CALLBACK usb_window_proc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
 	int rc;
 
 	switch (msg) {
@@ -154,7 +152,7 @@ static LRESULT CALLBACK usb_message_pump_window_proc(HWND hwnd, UINT msg,
 	return DefWindowProc(hwnd, msg, wparam, lparam);
 }
 
-static void usb_message_pump_thread_proc(void *opaque) {
+static void usb_pump_messages(void *opaque) {
 	const char *class_name = "tinkerforge-brick-daemon-message-pump";
 	Semaphore *handshake = opaque;
 	WNDCLASSEXA wc;
@@ -167,7 +165,7 @@ static void usb_message_pump_thread_proc(void *opaque) {
 
 	wc.cbSize = sizeof(wc);
 	wc.style = CS_HREDRAW | CS_VREDRAW;
-	wc.lpfnWndProc = (WNDPROC)usb_message_pump_window_proc;
+	wc.lpfnWndProc = (WNDPROC)usb_window_proc;
 	wc.cbClsExtra = 0;
 	wc.cbWndExtra = 0;
 	wc.hInstance = NULL;
@@ -234,14 +232,14 @@ cleanup:
 	_message_pump_running = false;
 }
 
-static int usb_message_pump_start(void) {
+static int usb_start_message_pump(void) {
 	Semaphore handshake;
 
 	log_debug("Starting message pump thread");
 
 	semaphore_create(&handshake);
 
-	thread_create(&_message_pump_thread, usb_message_pump_thread_proc, &handshake);
+	thread_create(&_message_pump_thread, usb_pump_messages, &handshake);
 
 	semaphore_acquire(&handshake);
 	semaphore_destroy(&handshake);
@@ -257,7 +255,7 @@ static int usb_message_pump_start(void) {
 	return 0;
 }
 
-static void usb_message_pump_stop(void) {
+static void usb_stop_message_pump(void) {
 	int rc;
 
 	log_debug("Stopping message pump");
@@ -312,7 +310,7 @@ int usb_init_hotplug(libusb_context *context) {
 	service_status_handle = service_get_status_handle();
 
 	if (service_status_handle == NULL) {
-		if (usb_message_pump_start() < 0) {
+		if (usb_start_message_pump() < 0) {
 			goto cleanup;
 		}
 	}
@@ -352,7 +350,7 @@ cleanup:
 	switch (phase) { // no breaks, all cases fall through intentionally
 	case 3:
 		if (_message_pump_running) {
-			usb_message_pump_stop();
+			usb_stop_message_pump();
 		}
 
 		// fall through
@@ -379,7 +377,7 @@ void usb_exit_hotplug(libusb_context *context) {
 	UnregisterDeviceNotification(_notification_handle);
 
 	if (_message_pump_running) {
-		usb_message_pump_stop();
+		usb_stop_message_pump();
 	}
 
 	event_remove_source(_notification_pipe.base.read_handle, EVENT_SOURCE_TYPE_GENERIC);
