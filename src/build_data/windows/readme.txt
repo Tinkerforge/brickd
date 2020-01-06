@@ -40,14 +40,15 @@ The Brick Daemon understands several commandline options, they are mostly for
 debugging. You should not have to fiddle with them in the common case. Just let
 the installer register and start brickd.exe as a Windows Service.
 
---help           shows help and exits
---version        shows version number and exits
---check-config   checks config file for errors
---debug          sets all log levels to debug
---install        registers Brick Daemon as service and starts it
---uninstall      stops service and unregister it
---console        forces start as console application
---log-to-file    writes log messages to a file
+--help                       Show this help and exit
+--version                    Show version number and exit
+--check-config               Check config file for errors and exit
+--install                    Register as a service and start it
+--uninstall                  Stop service and unregister it
+--console                    Force start as console application
+--log-to-file [<log-file>]   Write log messages to overridable location
+--debug [<filter>]           Set log level to debug and apply optional filter
+--config-file <config-file>  Read <config-file> instead of default location
 
 If brickd.exe is running as a service you can use the Services section in the
 Computer Management to pass the commandline option --debug via the Start

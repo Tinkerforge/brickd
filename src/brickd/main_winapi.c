@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2012-2014, 2016-2019 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2012-2014, 2016-2020 Matthias Bolte <matthias@tinkerforge.com>
  * Copyright (C) 2012 Olaf Lüke <olaf@tinkerforge.com>
  * Copyright (C) 2016-2017 Ishraq Ibne Ashraf <ishraq@tinkerforge.com>
  *
@@ -76,8 +76,10 @@ static LogSource _log_source = LOG_SOURCE_INITIALIZER;
 #define LOG_OPEN_MODE (S_IREAD | S_IWRITE)
 
 static char _program_data_directory[MAX_PATH];
-static char _log_filename[MAX_PATH];
-static char _config_filename[MAX_PATH];
+static char _log_filename_default[MAX_PATH];
+static const char *_log_filename = NULL;
+static char _config_filename_default[MAX_PATH];
+static const char *_config_filename = NULL;
 static bool _run_as_service = true;
 static bool _pause_before_exit = false;
 static bool _running = false;
@@ -429,9 +431,6 @@ static int generic_main(bool log_to_file, const char *debug_filter) {
 	}
 
 	if (log_to_file) {
-		string_copy(_log_filename, sizeof(_log_filename), _program_data_directory, -1);
-		string_append(_log_filename, sizeof(_log_filename), "brickd.log");
-
 		if (file_create(&log_file, _log_filename, LOG_OPEN_FLAGS, LOG_OPEN_MODE) < 0) {
 			log_warn("Could not open log file '%s': %s (%d)",
 			         _log_filename, get_errno_name(errno), errno);
@@ -685,17 +684,19 @@ static int service_run(bool log_to_file, const char *debug_filter) {
 static void print_usage(void) {
 	printf("Usage:\n"
 	       "  brickd [--help|--version|--check-config|--install|--uninstall|--console]\n"
-	       "         [--log-to-file] [--debug [<filter>]]\n"
+	       "         [--log-to-file [<log-file>]] [--debug [<filter>]]\n"
+	       "         [--config-file <config-file>]\n"
 	       "\n"
 	       "Options:\n"
-	       "  --help              Show this help and exit\n"
-	       "  --version           Show version number and exit\n"
-	       "  --check-config      Check config file for errors and exit\n"
-	       "  --install           Register as a service and start it\n"
-	       "  --uninstall         Stop service and unregister it\n"
-	       "  --console           Force start as console application\n"
-	       "  --log-to-file       Write log messages to file\n"
-	       "  --debug [<filter>]  Set log level to debug and apply optional filter\n");
+	       "  --help                       Show this help and exit\n"
+	       "  --version                    Show version number and exit\n"
+	       "  --check-config               Check config file for errors and exit\n"
+	       "  --install                    Register as a service and start it\n"
+	       "  --uninstall                  Stop service and unregister it\n"
+	       "  --console                    Force start as console application\n"
+	       "  --log-to-file [<log-file>]   Write log messages to overridable location\n"
+	       "  --debug [<filter>]           Set log level to debug and apply optional filter\n"
+	       "  --config-file <config-file>  Read <config-file> instead of default location\n");
 
 	if (started_by_explorer(false)) {
 		printf("\nPress any key to exit...\n");
@@ -744,11 +745,24 @@ int main(int argc, char **argv) {
 			console = true;
 		} else if (strcmp(argv[i], "--log-to-file") == 0) {
 			log_to_file = true;
+
+			if (i + 1 < argc && strncmp(argv[i + 1], "--", 2) != 0) {
+				_log_filename = argv[++i];
+			}
 		} else if (strcmp(argv[i], "--debug") == 0) {
 			if (i + 1 < argc && strncmp(argv[i + 1], "--", 2) != 0) {
 				debug_filter = argv[++i];
 			} else {
 				debug_filter = "";
+			}
+		} else if (strcmp(argv[i], "--config-file") == 0) {
+			if (i + 1 < argc && strncmp(argv[i + 1], "--", 2) != 0) {
+				_config_filename = argv[++i];
+			} else {
+				fprintf(stderr, "Option --config-file requires <config-file>\n\n");
+				print_usage();
+
+				return EXIT_FAILURE;
 			}
 		} else {
 			fprintf(stderr, "Unknown option '%s'\n\n", argv[i]);
@@ -784,8 +798,19 @@ int main(int argc, char **argv) {
 
 	string_append(_program_data_directory, sizeof(_program_data_directory), "Tinkerforge\\Brickd\\");
 
-	string_copy(_config_filename, sizeof(_config_filename), _program_data_directory, -1);
-	string_append(_config_filename, sizeof(_config_filename), "brickd.ini");
+	string_copy(_log_filename_default, sizeof(_log_filename_default), _program_data_directory, -1);
+	string_append(_log_filename_default, sizeof(_log_filename_default), "brickd.log");
+
+	if (_log_filename == NULL) {
+		_log_filename = _log_filename_default;
+	}
+
+	string_copy(_config_filename_default, sizeof(_config_filename_default), _program_data_directory, -1);
+	string_append(_config_filename_default, sizeof(_config_filename_default), "brickd.ini");
+
+	if (_config_filename == NULL) {
+		_config_filename = _config_filename_default;
+	}
 
 	if (check_config) {
 		rc = config_check(_config_filename);
