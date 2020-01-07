@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2012-2014, 2016 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2012-2014, 2016, 2020 Matthias Bolte <matthias@tinkerforge.com>
  *
  * fixes_msvc.c: Fixes for problems with the MSVC/WDK headers and libs
  *
@@ -157,7 +157,7 @@ static int fixed_putenv_a(char *string) {
 			return -1;
 		}
 
-		value = strchr(buffer, '=');
+		value = buffer + (value - string);
 		*value++ = '\0';
 
 		rc = ptr_putenv_s(buffer, value);
