@@ -89,24 +89,24 @@ typedef BOOL (WINAPI *QUERYFULLPROCESSIMAGENAMEA)(HANDLE, DWORD, char *, DWORD *
 
 extern void usb_handle_device_event(DWORD event_type, DEV_BROADCAST_HDR *event_data);
 
-static int get_process_image_name(PROCESSENTRY32 entry, char *buffer, DWORD length) {
+static int get_process_image_name(PROCESSENTRY32 *entry, char *buffer, DWORD length) {
 	int rc;
 	HANDLE handle = NULL;
 	QUERYFULLPROCESSIMAGENAMEA ptr_QueryFullProcessImageNameA = NULL;
 
 	handle = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE,
-	                     entry.th32ProcessID);
+	                     entry->th32ProcessID);
 
 	if (handle == NULL && GetLastError() == ERROR_ACCESS_DENIED) {
 		handle = OpenProcess(PROCESS_QUERY_INFORMATION, FALSE,
-		                     entry.th32ProcessID);
+		                     entry->th32ProcessID);
 	}
 
 	if (handle == NULL) {
 		rc = ERRNO_WINAPI_OFFSET + GetLastError();
 
 		log_warn("Could not open process with ID %u: %s (%d)",
-		         (uint32_t)entry.th32ProcessID, get_errno_name(rc), rc);
+		         (uint32_t)entry->th32ProcessID, get_errno_name(rc), rc);
 
 		return -1;
 	}
@@ -120,12 +120,12 @@ static int get_process_image_name(PROCESSENTRY32 entry, char *buffer, DWORD leng
 			rc = ERRNO_WINAPI_OFFSET + GetLastError();
 
 			log_warn("Could not get image name of process with ID %u: %s (%d)",
-			         (uint32_t)entry.th32ProcessID, get_errno_name(rc), rc);
+			         (uint32_t)entry->th32ProcessID, get_errno_name(rc), rc);
 
 			return -1;
 		}
 	} else {
-		memcpy(buffer, entry.szExeFile, length);
+		memcpy(buffer, entry->szExeFile, length);
 		buffer[length - 1] = '\0';
 	}
 
@@ -169,7 +169,7 @@ static bool started_by_explorer(bool log_available) {
 				if (Process32First(handle, &entry)) {
 					do {
 						if (entry.th32ProcessID == process_id) {
-							if (get_process_image_name(entry, buffer,
+							if (get_process_image_name(&entry, buffer,
 							                           sizeof(buffer)) < 0) {
 								break;
 							}
