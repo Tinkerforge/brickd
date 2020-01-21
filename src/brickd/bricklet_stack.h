@@ -1,7 +1,7 @@
 /*
  * brickd
  * Copyright (C) 2018 Olaf Lüke <olaf@tinkerforge.com>
- * Copyright (C) 2019 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2019-2020 Matthias Bolte <matthias@tinkerforge.com>
  *
  * bricklet_stack.h: SPI Tinkerforge Protocol (SPITFP) implementation for direct
  *                   communication between brickd and Bricklets with co-processor
@@ -133,6 +133,7 @@ typedef struct {
 
 	uint32_t error_count_ack_checksum;
 	uint32_t error_count_message_checksum;
+	uint32_t error_count_message_packet;
 	uint32_t error_count_frame;
 	uint32_t error_count_overflow;
 

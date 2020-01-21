@@ -1,7 +1,7 @@
 /*
  * brickd
  * Copyright (C) 2018 Olaf Lüke <olaf@tinkerforge.com>
- * Copyright (C) 2018-2019 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2018-2020 Matthias Bolte <matthias@tinkerforge.com>
  *
  * bricklet_stack.c: SPI Tinkerforge Protocol (SPITFP) implementation for direct
  *                   communication between brickd and Bricklet with co-processor
@@ -347,6 +347,7 @@ static void bricklet_stack_check_message(BrickletStack *bricklet_stack) {
 	SPITFPState state = SPITFP_STATE_START;
 	uint16_t used = ringbuffer_get_used(&bricklet_stack->ringbuffer_recv);
 	uint16_t start = bricklet_stack->ringbuffer_recv.start;
+	const char *packet_error;
 
 	for(uint16_t i = start; i < start+used; i++) {
 		const uint16_t index = i & BRICKLET_STACK_SPI_RECEIVE_BUFFER_MASK;
@@ -458,7 +459,32 @@ static void bricklet_stack_check_message(BrickletStack *bricklet_stack) {
 				if(checksum != data) {
 					bricklet_stack->error_count_message_checksum++;
 					bricklet_stack_handle_protocol_error(bricklet_stack);
-					log_debug("Message checksum error (count=%u)", bricklet_stack->error_count_message_checksum);
+					log_debug("Message checksum error (count=%u)",
+					          bricklet_stack->error_count_message_checksum);
+					return;
+				}
+
+				if(message_position < sizeof(PacketHeader)) {
+					bricklet_stack->error_count_message_packet++;
+					bricklet_stack_handle_protocol_error(bricklet_stack);
+					log_debug("Message packet error (count=%u), too short: %d < %d",
+					          bricklet_stack->error_count_message_packet, message_position, (int)sizeof(PacketHeader));
+					return;
+				}
+
+				if(message[4] != message_position) {
+					bricklet_stack->error_count_message_packet++;
+					bricklet_stack_handle_protocol_error(bricklet_stack);
+					log_debug("Message packet error (count=%u), length mismatch: actual %d != expected %d",
+					          bricklet_stack->error_count_message_packet, message[4], message_position);
+					return;
+				}
+
+				if(!packet_header_is_valid_response((PacketHeader *)message, &packet_error)) {
+					bricklet_stack->error_count_message_packet++;
+					bricklet_stack_handle_protocol_error(bricklet_stack);
+					log_debug("Message packet error (count=%u), invalid response: %s",
+					          bricklet_stack->error_count_message_packet, packet_error);
 					return;
 				}
 
