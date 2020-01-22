@@ -506,7 +506,7 @@ void log_write_platform(struct timeval *timestamp, LogLevel level,
 		overlapped.hEvent = _pipes_write_event;
 
 		if (!WriteFile(pipe->handle, &message, sizeof(message), NULL, &overlapped) &&
-			GetLastError() == ERROR_IO_PENDING) {
+		    GetLastError() == ERROR_IO_PENDING) {
 			// wait for result of overlapped I/O to avoid a race condition with
 			// the next WriteFile call that will reuse the same event handle
 			GetOverlappedResult(pipe->handle, &overlapped, &bytes_written, TRUE);

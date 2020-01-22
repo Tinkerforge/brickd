@@ -213,19 +213,19 @@ void timer_hb_do_ping_handler(void *opaque) {
 
 	memset(&pkt_mesh_hb, 0, sizeof(MeshHeartBeatPacket));
 	mesh_packet_header_create(&pkt_mesh_hb.header,
-	                             // Direction.
-	                             MESH_PACKET_DIRECTION_DOWNWARD,
-	                             // P2P.
-	                             false,
-	                             // ESP mesh payload protocol.
-	                             MESH_PACKET_PROTOCOL_BINARY,
-	                             // Length of the mesh packet.
-	                             sizeof(MeshHeartBeatPacket),
-	                             // Destination address.
-	                             mesh_stack->root_node_addr,
-	                             // Source address.
-	                             mesh_stack->gw_addr,
-	                             MESH_PACKET_TYPE_HEART_BEAT_PING);
+	                          // Direction.
+	                          MESH_PACKET_DIRECTION_DOWNWARD,
+	                          // P2P.
+	                          false,
+	                          // ESP mesh payload protocol.
+	                          MESH_PACKET_PROTOCOL_BINARY,
+	                          // Length of the mesh packet.
+	                          sizeof(MeshHeartBeatPacket),
+	                          // Destination address.
+	                          mesh_stack->root_node_addr,
+	                          // Source address.
+	                          mesh_stack->gw_addr,
+	                          MESH_PACKET_TYPE_HEART_BEAT_PING);
 
 	log_debug("Sending ping (packet: %s) to mesh root node of mesh stack (N: %s)",
 	          mesh_packet_get_dump(mesh_packet_dump, (uint8_t *)&pkt_mesh_hb, pkt_mesh_hb.header.length),
@@ -597,19 +597,19 @@ void broadcast_reset_packet(MeshStack *mesh_stack) {
 	memset(&addr, 0, sizeof(addr));
 	memset(&pkt_mesh_reset, 0, sizeof(MeshResetPacket));
 	mesh_packet_header_create(&pkt_mesh_reset.header,
-	                             // Direction.
-	                             MESH_PACKET_DIRECTION_DOWNWARD,
-	                             // P2P.
-	                             false,
-	                             // ESP mesh payload protocol.
-	                             MESH_PACKET_PROTOCOL_BINARY,
-	                             // Length of the mesh packet.
-	                             sizeof(MeshResetPacket),
-	                             // Destination address.
-	                             addr,
-	                             // Source address.
-	                             addr,
-	                             MESH_PACKET_TYPE_RESET);
+	                          // Direction.
+	                          MESH_PACKET_DIRECTION_DOWNWARD,
+	                          // P2P.
+	                          false,
+	                          // ESP mesh payload protocol.
+	                          MESH_PACKET_PROTOCOL_BINARY,
+	                          // Length of the mesh packet.
+	                          sizeof(MeshResetPacket),
+	                          // Destination address.
+	                          addr,
+	                          // Source address.
+	                          addr,
+	                          MESH_PACKET_TYPE_RESET);
 
 	// TODO: Integrate buffered IO write.
 	if (socket_send(mesh_stack->sock, &pkt_mesh_reset, pkt_mesh_reset.header.length) < 0) {
@@ -666,19 +666,19 @@ bool hello_root_recv_handler(MeshStack *mesh_stack) {
 			// Reset the mesh stack that was found on the list.
 			memset(&pkt_mesh_reset, 0, sizeof(MeshResetPacket));
 			mesh_packet_header_create(&pkt_mesh_reset.header,
-			                             // Direction.
-			                             MESH_PACKET_DIRECTION_DOWNWARD,
-			                             // P2P.
-			                             false,
-			                             // ESP mesh payload protocol.
-			                             MESH_PACKET_PROTOCOL_BINARY,
-			                             // Length of the payload of the mesh packet.
-			                             sizeof(MeshResetPacket),
-			                             // Destination address.
-			                             mesh_stack_from_list->root_node_addr,
-			                             // Source address.
-			                             hello_mesh_pkt->header.dst_addr,
-			                             MESH_PACKET_TYPE_RESET);
+			                          // Direction.
+			                          MESH_PACKET_DIRECTION_DOWNWARD,
+			                          // P2P.
+			                          false,
+			                          // ESP mesh payload protocol.
+			                          MESH_PACKET_PROTOCOL_BINARY,
+			                          // Length of the payload of the mesh packet.
+			                          sizeof(MeshResetPacket),
+			                          // Destination address.
+			                          mesh_stack_from_list->root_node_addr,
+			                          // Source address.
+			                          hello_mesh_pkt->header.dst_addr,
+			                          MESH_PACKET_TYPE_RESET);
 
 			// TODO: Integrate buffered IO write.
 			if (socket_send(mesh_stack_from_list->sock, &pkt_mesh_reset, pkt_mesh_reset.header.length) < 0) {
@@ -702,19 +702,19 @@ bool hello_root_recv_handler(MeshStack *mesh_stack) {
 			// Reset the mesh stack from which we just received.
 			memset(&pkt_mesh_reset, 0, sizeof(MeshResetPacket));
 			mesh_packet_header_create(&pkt_mesh_reset.header,
-			                             // Direction.
-			                             MESH_PACKET_DIRECTION_DOWNWARD,
-			                             // P2P.
-			                             false,
-			                             // ESP mesh payload protocol.
-			                             MESH_PACKET_PROTOCOL_BINARY,
-			                             // Length of the mesh packet.
-			                             sizeof(MeshResetPacket),
-			                             // Destination address.
-			                             hello_mesh_pkt->header.src_addr,
-			                             // Source address.
-			                             hello_mesh_pkt->header.dst_addr,
-			                             MESH_PACKET_TYPE_RESET);
+			                          // Direction.
+			                          MESH_PACKET_DIRECTION_DOWNWARD,
+			                          // P2P.
+			                          false,
+			                          // ESP mesh payload protocol.
+			                          MESH_PACKET_PROTOCOL_BINARY,
+			                          // Length of the mesh packet.
+			                          sizeof(MeshResetPacket),
+			                          // Destination address.
+			                          hello_mesh_pkt->header.src_addr,
+			                          // Source address.
+			                          hello_mesh_pkt->header.dst_addr,
+			                          MESH_PACKET_TYPE_RESET);
 
 			// TODO: Integrate buffered IO write.
 			if (socket_send(mesh_stack->sock, &pkt_mesh_reset, pkt_mesh_reset.header.length) < 0) {
@@ -804,19 +804,19 @@ bool hello_root_recv_handler(MeshStack *mesh_stack) {
 	// Prepare the olleh packet.
 	memset(&olleh_mesh_pkt, 0, sizeof(MeshOllehPacket));
 	mesh_packet_header_create(&olleh_mesh_pkt.header,
-	                             // Direction.
-	                             MESH_PACKET_DIRECTION_DOWNWARD,
-	                             // P2P.
-	                             false,
-	                             // ESP mesh payload protocol.
-	                             MESH_PACKET_PROTOCOL_BINARY,
-	                             // Length of the mesh packet.
-	                             sizeof(MeshOllehPacket),
-	                             // Destination address.
-	                             hello_mesh_pkt->header.src_addr,
-	                             // Source address.
-	                             hello_mesh_pkt->header.dst_addr,
-	                             MESH_PACKET_TYPE_OLLEH);
+	                          // Direction.
+	                          MESH_PACKET_DIRECTION_DOWNWARD,
+	                          // P2P.
+	                          false,
+	                          // ESP mesh payload protocol.
+	                          MESH_PACKET_PROTOCOL_BINARY,
+	                          // Length of the mesh packet.
+	                          sizeof(MeshOllehPacket),
+	                          // Destination address.
+	                          hello_mesh_pkt->header.src_addr,
+	                          // Source address.
+	                          hello_mesh_pkt->header.dst_addr,
+	                          MESH_PACKET_TYPE_OLLEH);
 
 	// TODO: Integrate buffered IO write.
 	if (socket_send(mesh_stack->sock, &olleh_mesh_pkt, olleh_mesh_pkt.header.length) < 0) {
@@ -900,19 +900,19 @@ int mesh_stack_dispatch_request(Stack *stack, Packet *request, Recipient *recipi
 
 	memset(&tfp_mesh_pkt, 0, sizeof(MeshPayloadPacket));
 	mesh_packet_header_create(&tfp_mesh_pkt.header,
-	                             // Direction.
-	                             MESH_PACKET_DIRECTION_DOWNWARD,
-	                             // P2P.
-	                             false,
-	                             // ESP mesh payload protocol.
-	                             MESH_PACKET_PROTOCOL_BINARY,
-	                             // Length of the mesh packet.
-	                             sizeof(MeshPacketHeader) + request->header.length,
-	                             // Destination address.
-	                             dst_addr,
-	                             // Source address.
-	                             mesh_stack->gw_addr,
-	                             MESH_PACKET_TYPE_PAYLOAD);
+	                          // Direction.
+	                          MESH_PACKET_DIRECTION_DOWNWARD,
+	                          // P2P.
+	                          false,
+	                          // ESP mesh payload protocol.
+	                          MESH_PACKET_PROTOCOL_BINARY,
+	                          // Length of the mesh packet.
+	                          sizeof(MeshPacketHeader) + request->header.length,
+	                          // Destination address.
+	                          dst_addr,
+	                          // Source address.
+	                          mesh_stack->gw_addr,
+	                          MESH_PACKET_TYPE_PAYLOAD);
 
 	memcpy(&tfp_mesh_pkt.payload, request, request->header.length);
 
@@ -996,19 +996,19 @@ bool hello_non_root_recv_handler(MeshStack *mesh_stack) {
 	// Prepare the olleh packet.
 	memset(&olleh_mesh_pkt, 0, sizeof(MeshOllehPacket));
 	mesh_packet_header_create(&olleh_mesh_pkt.header,
-	                             // Direction.
-	                             MESH_PACKET_DIRECTION_DOWNWARD,
-	                             // P2P.
-	                             false,
-	                             // ESP mesh payload protocol.
-	                             MESH_PACKET_PROTOCOL_BINARY,
-	                             // Length of the mesh packet.
-	                             sizeof(MeshOllehPacket),
-	                             // Destination address.
-	                             hello_mesh_pkt->header.src_addr,
-	                             // Source address.
-	                             mesh_stack->gw_addr,
-	                             MESH_PACKET_TYPE_OLLEH);
+	                          // Direction.
+	                          MESH_PACKET_DIRECTION_DOWNWARD,
+	                          // P2P.
+	                          false,
+	                          // ESP mesh payload protocol.
+	                          MESH_PACKET_PROTOCOL_BINARY,
+	                          // Length of the mesh packet.
+	                          sizeof(MeshOllehPacket),
+	                          // Destination address.
+	                          hello_mesh_pkt->header.src_addr,
+	                          // Source address.
+	                          mesh_stack->gw_addr,
+	                          MESH_PACKET_TYPE_OLLEH);
 
 	// TODO: Integrate buffered IO write.
 	if (socket_send(mesh_stack->sock, &olleh_mesh_pkt, olleh_mesh_pkt.header.length) < 0) {

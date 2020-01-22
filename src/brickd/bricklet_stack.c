@@ -310,7 +310,7 @@ static void bricklet_stack_send_ack(BrickletStack *bricklet_stack) {
 }
 
 static bool bricklet_stack_is_send_possible(BrickletStack *bricklet_stack) {
-	 return bricklet_stack->buffer_send_length == 0;
+	return bricklet_stack->buffer_send_length == 0;
 }
 
 static void bricklet_stack_check_message(BrickletStack *bricklet_stack) {

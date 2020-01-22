@@ -71,7 +71,7 @@ int usb_init_hotplug(libusb_context *context) {
 	if (event_add_source(_notification_pipe.base.read_handle, EVENT_SOURCE_TYPE_GENERIC,
 	                     "hotplug", EVENT_READ, usb_forward_notifications, NULL) < 0) {
 		pipe_destroy(&_notification_pipe);
-		
+
 		return -1;
 	}
 
