@@ -393,9 +393,7 @@ static int generic_main(bool log_to_file, const char *debug_filter) {
 
 				goto init;
 			}
-		}
-
-		if (rc != ERROR_FILE_NOT_FOUND) {
+		} else if (rc != ERROR_FILE_NOT_FOUND) {
 			fatal_error = true;
 			// FIXME: set service_exit_code
 			rc += ERRNO_WINAPI_OFFSET;
