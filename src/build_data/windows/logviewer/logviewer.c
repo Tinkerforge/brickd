@@ -1,6 +1,6 @@
 /*
  * log viewer for brickd
- * Copyright (C) 2013-2015, 2019 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2013-2015, 2019-2020 Matthias Bolte <matthias@tinkerforge.com>
  *
  * logviewer.c: Shows brickd log file
  *
@@ -42,7 +42,8 @@ typedef enum {
 	LOG_LEVEL_ERROR = 0,
 	LOG_LEVEL_WARN,
 	LOG_LEVEL_INFO,
-	LOG_LEVEL_DEBUG
+	LOG_LEVEL_DEBUG,
+	LOG_LEVEL_META
 } LogLevel;
 
 enum {
@@ -54,6 +55,7 @@ enum {
 	ID_LIVE_LOG_INFO_LEVEL,
 	ID_LIVE_LOG_DEBUG_LEVEL,
 	ID_LIVE_LOG_PAUSE,
+	ID_LIVE_LOG_COLORIZE,
 	ID_LIVE_LOG_SAVE,
 	ID_LOG_FILE_VIEW_FILE,
 	ID_LOG_FILE_VIEW_DIRECTORY,
@@ -64,12 +66,13 @@ enum {
 };
 
 enum {
-	IDC_STATUSBAR = 1
+	IDC_STATUS_BAR = 1,
+	IDC_LIVE_LOG_VIEW
 };
 
 typedef struct {
 	char timestamp[MAX_TIMESTAMP_LENGTH];
-	char level[16];
+	LogLevel level;
 	char source[192];
 	char message[1024];
 } LiveLogItem;
@@ -111,6 +114,7 @@ static HWND _status_bar = NULL;
 static HWND _live_log_view = NULL;
 static LogLevel _live_log_level = LOG_LEVEL_INFO;
 static int _live_log_paused = 0;
+static int _live_log_colorized = 1;
 static int _live_log_saving = 0;
 static CRITICAL_SECTION _live_log_dropped_lock;
 static unsigned int _live_log_dropped = 0; // protected by _live_log_dropped_lock
@@ -244,6 +248,7 @@ static void create_menu() {
 	AppendMenu(_live_log_menu, MF_STRING, ID_LIVE_LOG_DEBUG_LEVEL, "&Debug Level");
 	AppendMenu(_live_log_menu, MF_SEPARATOR, 0, "");
 	AppendMenu(_live_log_menu, MF_STRING, ID_LIVE_LOG_PAUSE, "&Pause");
+	AppendMenu(_live_log_menu, MF_STRING | MF_CHECKED, ID_LIVE_LOG_COLORIZE, "&Colorize");
 	AppendMenu(_live_log_menu, MF_SEPARATOR, 0, "");
 	AppendMenu(_live_log_menu, MF_STRING, ID_LIVE_LOG_SAVE, "&Save...");
 
@@ -334,6 +339,15 @@ static void set_live_log_paused(int paused) {
 	update_status_bar();
 }
 
+static void set_live_log_colorized(int colorized) {
+	_live_log_colorized = colorized;
+
+	set_live_log_menu_item_state(ID_LIVE_LOG_COLORIZE, _live_log_colorized ? MFS_CHECKED : MFS_UNCHECKED);
+
+	ListView_RedrawItems(_live_log_view, 0, ListView_GetItemCount(_live_log_view));
+	UpdateWindow(_live_log_view);
+}
+
 static int init_common_controls(void) {
 	INITCOMMONCONTROLSEX icex;
 
@@ -379,7 +393,7 @@ static int create_status_bar() {
 	                             WS_CHILD | WS_VISIBLE | SBARS_SIZEGRIP,
 	                             0, 0, 0, 0,
 	                             _hwnd,
-	                             (HMENU)IDC_STATUSBAR,
+	                             (HMENU)IDC_STATUS_BAR,
 	                             _hinstance,
 	                             NULL);
 
@@ -412,7 +426,7 @@ static int create_live_log_view() {
 	                              client_rect.right - client_rect.left,
 	                              client_rect.bottom - client_rect.top,
 	                              _hwnd,
-	                              NULL,
+	                              (HMENU)IDC_LIVE_LOG_VIEW,
 	                              _hinstance,
 	                              NULL);
 
@@ -439,7 +453,7 @@ static int create_live_log_view() {
 	return 0;
 }
 
-static void queue_live_log_item(const char *timestamp, const char *level,
+static void queue_live_log_item(const char *timestamp, LogLevel level,
                                 const char *source, const char *message) {
 	LiveLogItem *item;
 	int dropped = 0;
@@ -450,7 +464,7 @@ static void queue_live_log_item(const char *timestamp, const char *level,
 		item = &_live_log_queue_items[0][_live_log_queue_used[0]++];
 
 		string_copy(item->timestamp, sizeof(item->timestamp), timestamp, -1);
-		string_copy(item->level, sizeof(item->level), level, -1);
+		item->level = level;
 		string_copy(item->source, sizeof(item->source), source, -1);
 		string_copy(item->message, sizeof(item->message), message, -1);
 	} else {
@@ -508,24 +522,16 @@ static void queue_live_log_meta_message(const char *format, ...) {
 	_vsnprintf_s(message, sizeof(message), sizeof(message) - 1, format, arguments);
 	va_end(arguments);
 
-	queue_live_log_item(timestamp, "Meta", "Log Viewer", message);
+	queue_live_log_item(timestamp, LOG_LEVEL_META, "Log Viewer", message);
 }
 
 static void queue_live_log_pipe_message(LogPipeMessage *message) {
 	char timestamp[MAX_TIMESTAMP_LENGTH];
 	uint64_t seconds = message->timestamp / 1000000;
 	int microseconds = message->timestamp % 1000000;
-	const char *level = "Unknown";
 	char source[192];
 
 	format_timestamp(seconds, microseconds, timestamp, sizeof(timestamp), "-", " ", ":");
-
-	switch (message->level) {
-	case LOG_LEVEL_ERROR: level = "Error"; break;
-	case LOG_LEVEL_WARN:  level = "Warn";  break;
-	case LOG_LEVEL_INFO:  level = "Info";  break;
-	case LOG_LEVEL_DEBUG: level = "Debug"; break;
-	}
 
 	if ((message->flags & LOG_PIPE_MESSAGE_FLAG_LIBUSB) != 0) {
 		_snprintf(source, sizeof(source), "libusb:%s", message->source);
@@ -533,7 +539,7 @@ static void queue_live_log_pipe_message(LogPipeMessage *message) {
 		_snprintf(source, sizeof(source), "%s:%d", message->source, message->line);
 	}
 
-	queue_live_log_item(timestamp, level, source, message->message);
+	queue_live_log_item(timestamp, message->level, source, message->message);
 }
 
 // this thread works in a fire-and-forget fashion, it's started and then just runs
@@ -723,8 +729,6 @@ static void update_live_log_view(void) {
 	si.cbSize = sizeof(si);
 	si.fMask = SIF_RANGE | SIF_POS | SIF_PAGE;
 
-	lvi.mask = LVIF_TEXT;
-
 	GetScrollInfo(_live_log_view, SB_VERT, &si);
 	SendMessage(_live_log_view, WM_SETREDRAW, (WPARAM)FALSE, 0);
 
@@ -758,19 +762,33 @@ static void update_live_log_view(void) {
 	for (i = offset; i < _live_log_queue_used[1]; ++i) {
 		item = &_live_log_queue_items[1][i];
 
+		lvi.mask = LVIF_TEXT | LVIF_PARAM;
 		lvi.iItem = ListView_GetItemCount(_live_log_view);
 		lvi.iSubItem = 0;
 		lvi.pszText = (char *)item->timestamp;
+		lvi.lParam = (LPARAM)item->level;
 		ListView_InsertItem(_live_log_view, &lvi);
 
+		lvi.mask = LVIF_TEXT;
 		lvi.iSubItem = 1;
-		lvi.pszText = (char *)item->level;
+
+		switch (item->level) {
+		case LOG_LEVEL_ERROR: lvi.pszText = (char *)"Error";   break;
+		case LOG_LEVEL_WARN:  lvi.pszText = (char *)"Warn";    break;
+		case LOG_LEVEL_INFO:  lvi.pszText = (char *)"Info";    break;
+		case LOG_LEVEL_DEBUG: lvi.pszText = (char *)"Debug";   break;
+		case LOG_LEVEL_META:  lvi.pszText = (char *)"Meta";    break;
+		default:              lvi.pszText = (char *)"Unknown"; break;
+		}
+
 		ListView_SetItem(_live_log_view, &lvi);
 
+		lvi.mask = LVIF_TEXT;
 		lvi.iSubItem = 2;
 		lvi.pszText = (char *)item->source;
 		ListView_SetItem(_live_log_view, &lvi);
 
+		lvi.mask = LVIF_TEXT;
 		lvi.iSubItem = 3;
 		lvi.pszText = (char *)item->message;
 		ListView_SetItem(_live_log_view, &lvi);
@@ -900,6 +918,7 @@ static LRESULT CALLBACK window_proc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM l
 	RECT client_rect;
 	RECT status_bar_rect;
 	MINMAXINFO *info;
+	NMLVCUSTOMDRAW *draw;
 
 	switch(msg) {
 	case WM_CLOSE:
@@ -969,6 +988,10 @@ static LRESULT CALLBACK window_proc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM l
 			set_live_log_paused(!_live_log_paused);
 			break;
 
+		case ID_LIVE_LOG_COLORIZE:
+			set_live_log_colorized(!_live_log_colorized);
+			break;
+
 		case ID_LIVE_LOG_SAVE:
 			save_live_log();
 			break;
@@ -999,6 +1022,32 @@ static LRESULT CALLBACK window_proc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM l
 		}
 
 		break;
+
+	case WM_NOTIFY:
+		if (wparam == IDC_LIVE_LOG_VIEW && ((NMHDR *)lparam)->code == NM_CUSTOMDRAW) {
+			draw = (NMLVCUSTOMDRAW *)lparam;
+
+			switch (draw->nmcd.dwDrawStage)  {
+			case CDDS_PREPAINT:
+				return _live_log_colorized ? CDRF_NOTIFYITEMDRAW : CDRF_DODEFAULT;
+
+			case CDDS_ITEMPREPAINT:
+			case CDDS_SUBITEM | CDDS_ITEMPREPAINT:
+				switch ((LogLevel)draw->nmcd.lItemlParam) {
+				case LOG_LEVEL_ERROR: draw->clrText = RGB(255, 0, 0);     return CDRF_NEWFONT;
+				case LOG_LEVEL_WARN:  draw->clrText = RGB(0, 0, 255);     return CDRF_NEWFONT;
+				case LOG_LEVEL_INFO:  draw->clrText = RGB(0, 0, 0);       return CDRF_NEWFONT;
+				case LOG_LEVEL_DEBUG: draw->clrText = RGB(100, 100, 100); return CDRF_NEWFONT;
+				case LOG_LEVEL_META:  draw->clrText = RGB(0, 128, 0);     return CDRF_NEWFONT;
+				default:              draw->clrText = RGB(255, 0, 255);   return CDRF_NEWFONT;
+				}
+
+				break;
+
+			default:
+				return CDRF_DODEFAULT;
+			}
+		}
 
 	default:
 		return DefWindowProc(hwnd, msg, wparam, lparam);
