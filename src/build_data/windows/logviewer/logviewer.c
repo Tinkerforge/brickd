@@ -298,7 +298,7 @@ static void update_status_bar() {
 	_snprintf(buffer, sizeof(buffer), _live_log_saving ? "%s [Saving]" : (_live_log_paused ? "%s [Paused]" : "%s"), log_name);
 	SendMessage(_status_bar, SB_SETTEXT, 0, (LPARAM)buffer);
 
-	SendMessage(_status_bar, SB_SETTEXT, 1, (LPARAM)(_live_log_connected ? "Connected" : "Connecting..."));
+	SendMessage(_status_bar, SB_SETTEXT, 1, (LPARAM)(_live_log_connected ? "Connected" : "Disconnected"));
 
 	EnterCriticalSection(&_live_log_dropped_lock);
 	dropped = _live_log_dropped;
@@ -546,6 +546,7 @@ static void queue_live_log_pipe_message(LogPipeMessage *message) {
 static DWORD WINAPI read_live_log(void *opaque) {
 	HANDLE overlapped_event;
 	HANDLE hpipe;
+	int first_connection = 1;
 	LogLevel current_live_log_level;
 	DWORD current_error;
 	DWORD last_error;
@@ -568,8 +569,6 @@ static DWORD WINAPI read_live_log(void *opaque) {
 		return 0;
 	}
 
-	queue_live_log_meta_message("Connecting to Brick Daemon...");
-
 	for (;;) {
 		_live_log_connected = 0;
 		live_log_level_changed = 0;
@@ -589,9 +588,13 @@ static DWORD WINAPI read_live_log(void *opaque) {
 
 			current_error = GetLastError();
 
-			if (current_error != last_error && current_error != ERROR_FILE_NOT_FOUND) {
-				queue_live_log_meta_message("Error while connecting to Brick Daemon, trying again: %s (%d)",
-				                            get_error_name(current_error), current_error);
+			if (current_error != last_error) {
+				if (current_error == ERROR_FILE_NOT_FOUND) {
+					queue_live_log_meta_message("Brick Daemon is not running");
+				} else {
+					queue_live_log_meta_message("Error while connecting to Brick Daemon: %s (%d)",
+					                            get_error_name(current_error), current_error);
+				}
 			}
 
 			last_error = current_error;
@@ -602,7 +605,9 @@ static DWORD WINAPI read_live_log(void *opaque) {
 		_live_log_connected = 1;
 
 		update_status_bar();
-		queue_live_log_meta_message("Connected to Brick Daemon");
+		queue_live_log_meta_message("%sonnected to Brick Daemon", first_connection ? "C" : "Rec");
+
+		first_connection = 0;
 
 		for (;;) {
 			memset(&overlapped, 0, sizeof(overlapped));
@@ -613,9 +618,9 @@ static DWORD WINAPI read_live_log(void *opaque) {
 
 				if (current_error != ERROR_IO_PENDING) {
 					if (current_error == ERROR_BROKEN_PIPE) {
-						queue_live_log_meta_message("Disconnected from Brick Daemon, reconnecting...");
+						queue_live_log_meta_message("Disconnected from Brick Daemon");
 					} else {
-						queue_live_log_meta_message("Disconnected from Brick Daemon, reconnecting: %s (%d)",
+						queue_live_log_meta_message("Disconnected from Brick Daemon: %s (%d)",
 						                            get_error_name(current_error), current_error);
 					}
 
@@ -632,7 +637,7 @@ static DWORD WINAPI read_live_log(void *opaque) {
 					current_live_log_level = _live_log_level;
 					live_log_level_changed = 1;
 
-					queue_live_log_meta_message("Live Log Level changed, reconnecting...");
+					queue_live_log_meta_message("Live Log Level changed");
 
 					CancelIo(hpipe);
 				}
@@ -658,9 +663,9 @@ static DWORD WINAPI read_live_log(void *opaque) {
 
 			if (current_error != ERROR_SUCCESS) {
 				if (current_error == ERROR_BROKEN_PIPE) {
-					queue_live_log_meta_message("Disconnected from Brick Daemon, reconnecting...");
+					queue_live_log_meta_message("Disconnected from Brick Daemon");
 				} else if (current_error != ERROR_OPERATION_ABORTED) {
-					queue_live_log_meta_message("Error while reading from Brick Daemon, reconnecting: %s (%d)",
+					queue_live_log_meta_message("Error while reading from Brick Daemon: %s (%d)",
 					                            get_error_name(current_error), current_error);
 				}
 
