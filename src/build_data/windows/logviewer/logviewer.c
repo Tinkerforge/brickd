@@ -1018,6 +1018,8 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
 
 	(void)hPrevInstance;
 
+	CoInitializeEx(NULL, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
+
 	if (strcmp(lpCmdLine, "brickd-restart") == 0) {
 		rc = (int)ShellExecuteA(NULL, "runas", "cmd.exe", "/c sc stop \"Brick Daemon\"", NULL, SW_HIDE);
 
