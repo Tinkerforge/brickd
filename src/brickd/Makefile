@@ -349,7 +349,9 @@ else
 ifeq ($(WITH_DEBUG),yes)
 	CFLAGS += -O0
 else
+ifeq ($(findstring -Os,$(CFLAGS)),)
 	CFLAGS += -O2
+endif
 endif
 endif
 
