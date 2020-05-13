@@ -1,0 +1,32 @@
+# Maintainer: Matthias Bolte <matthias@tinkerforge.com>
+pkgname="brickd"
+pkgver="2.4.1"
+pkgrel=0
+pkgdesc="Tinkerforge Brick Daemon"
+options="!check"
+url="https://www.tinkerforge.com/"
+arch="all"
+license="GPL-2.0-or-later"
+depends="libusb"
+makedepends="libusb-dev linux-headers"
+subpackages="$pkgname-openrc"
+source="$pkgname-$pkgver.zip::https://github.com/Tinkerforge/$pkgname/archive/v$pkgver.zip
+	daemonlib-$pkgname-$pkgver.zip::https://github.com/Tinkerforge/daemonlib/archive/$pkgname-$pkgver.zip
+	brickd.initd
+	"
+
+build() {
+	cd "$srcdir"
+	mv daemonlib-$pkgname-$pkgver $pkgname-$pkgver/src/daemonlib
+	cd $pkgname-$pkgver/src/brickd
+	make
+}
+
+package() {
+	install -m755 -D "$srcdir"/$pkgname-$pkgver/src/brickd/brickd "$pkgdir"/usr/sbin/brickd
+	install -m755 -D "$srcdir"/$pkgname.initd "$pkgdir"/etc/init.d/$pkgname
+}
+
+sha512sums="6e258a5818ec4096dc033a796af9f20ebd49d92228bfd44166d5d2a06bc79b24713e54a1b6b066ad7bb54b412cafebef13fede4ce51c4505d71b17be695b8e68  brickd-2.4.1.zip
+b766839aa19a2ec4e92f0a57305927720a0174fde53d25d3956f2f84a76133b24a9a675c65cb53fc875ca11c4c180c5f622f047c09fe347827b0dd5d74b3fbd8  daemonlib-brickd-2.4.1.zip
+d6295fbf434b17f3f01cbe838bc6ceca7917144414ba67cc4102c6cfc9fea3a7b96c8cf2d18dba14f492edbfad55486301a8af56de7ec79c90b21fbaca3f9e75  brickd.initd"

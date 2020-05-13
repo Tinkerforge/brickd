@@ -1,0 +1,11 @@
+#!/sbin/openrc-run
+
+command="/usr/sbin/brickd"
+command_args="--daemon"
+pidfile="/var/run/brickd.pid"
+
+depend() {
+	need localmount
+	need net
+	after bootmisc
+}
