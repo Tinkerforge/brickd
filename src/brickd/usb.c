@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2012-2019 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2012-2020 Matthias Bolte <matthias@tinkerforge.com>
  * Copyright (C) 2014 Olaf Lüke <olaf@tinkerforge.com>
  *
  * usb.c: USB specific functions
@@ -237,7 +237,7 @@ static void LIBUSB_CALL usb_remove_pollfd(int fd, void *opaque) {
 }
 
 static void usb_set_debug(libusb_context *context, int level) {
-#if !defined BRICKD_UNKNOWN_LIBUSB_API_VERSION && defined LIBUSB_API_VERSION && LIBUSB_API_VERSION >= 0x01000106 // libusb 1.0.22
+#if !defined BRICKD_WITH_UNKNOWN_LIBUSB_API_VERSION && defined LIBUSB_API_VERSION && LIBUSB_API_VERSION >= 0x01000106 // libusb 1.0.22
 	libusb_set_option(context, LIBUSB_OPTION_LOG_LEVEL, level);
 #else
 	libusb_set_debug(context, level);
@@ -245,7 +245,7 @@ static void usb_set_debug(libusb_context *context, int level) {
 }
 
 static void usb_free_pollfds(const struct libusb_pollfd **pollfds) {
-#if defined _WIN32 || (!defined BRICKD_UNKNOWN_LIBUSB_API_VERSION && defined LIBUSB_API_VERSION && LIBUSB_API_VERSION >= 0x01000104) // libusb 1.0.20
+#if defined _WIN32 || (!defined BRICKD_WITH_UNKNOWN_LIBUSB_API_VERSION && defined LIBUSB_API_VERSION && LIBUSB_API_VERSION >= 0x01000104) // libusb 1.0.20
 	libusb_free_pollfds(pollfds); // avoids possible heap-mismatch on Windows
 #else
 	free(pollfds);
