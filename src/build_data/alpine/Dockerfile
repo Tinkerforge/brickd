@@ -1,5 +1,4 @@
 FROM alpine:3.11.6
-LABEL version="1.0.0"
 
 RUN printf "foobar1234\nfoobar1234\n" | adduser user
 RUN addgroup user abuild
@@ -9,4 +8,4 @@ RUN chmod a+w /var/cache/distfiles
 RUN su user -c "abuild-keygen -a -i"
 COPY brickd /brickd
 RUN chown user:user /brickd
-RUN su user -c "cd /brickd; abuild -r"
+RUN su user -c "cd /brickd && abuild fetch && abuild checksum && abuild -r"

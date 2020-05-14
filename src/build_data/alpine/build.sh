@@ -11,6 +11,7 @@ docker ${docker_host} build -t tinkerforge/build_brickd_alpine .
 
 container=$(docker ${docker_host} create tinkerforge/build_brickd_alpine)
 docker ${docker_host} cp ${container}:/home/user/packages .
+docker ${docker_host} cp ${container}:/brickd/APKBUILD brickd/APKBUILD.updated
 
 docker ${docker_host} rm -v $container
 docker ${docker_host} image rm -f tinkerforge/build_brickd_alpine

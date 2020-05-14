@@ -5,6 +5,7 @@ src/brickd/brickd
 src/brickd/brickd.exe
 src/brickd/brickd.pdb
 src/brickd/objfre_wxp_x86
+src/build_data/alpine/brickd/APKBUILD.updated
 src/build_data/alpine/packages
 src/build_data/android/brickd/.gradle
 src/build_data/android/brickd/.idea
