@@ -72,6 +72,10 @@ static char _log_filename_default[1024] = LOCALSTATEDIR"/log/brickd.log";
 static const char *_log_filename = _log_filename_default;
 static File _log_file;
 
+#ifdef BRICKD_WITH_LIBUSB_HOTPLUG_MKNOD
+extern bool usb_hotplug_mknod;
+#endif
+
 static int prepare_paths(bool daemon) {
 	char *home;
 	struct passwd *pw;
@@ -164,7 +168,11 @@ static int prepare_paths(bool daemon) {
 static void print_usage(void) {
 	printf("Usage:\n"
 	       "  brickd [--help|--version|--check-config|--daemon [<log-file>]] [--debug [<filter>]]\n"
-	       "         [--config-file <config-file>] [--pid-file <pid-file>]\n"
+	       "         [--config-file <config-file>] [--pid-file <pid-file>]"
+#ifdef BRICKD_WITH_LIBUSB_HOTPLUG_MKNOD
+	       " [--libusb-hotplug-mknod]"
+#endif
+	       "\n"
 	       "\n"
 	       "Options:\n"
 	       "  --help                       Show this help and exit\n"
@@ -173,7 +181,11 @@ static void print_usage(void) {
 	       "  --daemon [<log-file>]        Run as daemon and write log file to overridable location\n"
 	       "  --debug [<filter>]           Set log level to debug and apply optional <filter>\n"
 	       "  --config-file <config-file>  Read config from <config-file> instead of default location\n"
-	       "  --pid-file <pid-file>        Write PID to <pid-file> instead of default location\n");
+	       "  --pid-file <pid-file>        Write PID to <pid-file> instead of default location\n"
+#ifdef BRICKD_WITH_LIBUSB_HOTPLUG_MKNOD
+	       "  --libusb-hotplug-mknod       Enable mknod handling on libusb hotplug events\n"
+#endif
+	       );
 }
 
 static void handle_sighup(void) {
@@ -277,6 +289,10 @@ int main(int argc, char **argv) {
 
 				return EXIT_FAILURE;
 			}
+#ifdef BRICKD_WITH_LIBUSB_HOTPLUG_MKNOD
+		} else if (strcmp(argv[i], "--libusb-hotplug-mknod") == 0) {
+			usb_hotplug_mknod = true;
+#endif
 		} else {
 			fprintf(stderr, "Unknown option '%s'\n\n", argv[i]);
 			print_usage();

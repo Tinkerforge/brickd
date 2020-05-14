@@ -121,6 +121,10 @@ static const char *_libusb = NULL;
 
 static void *_libusb_handle = NULL;
 
+#ifdef BRICKD_WITH_LIBUSB_HOTPLUG_MKNOD
+bool usb_hotplug_mknod = false;
+#endif
+
 #if defined __clang__ || !defined __GNUC__ || __GNUC_PREREQ(4, 6)
 
 // according to dlopen manpage casting from "void *" to a function pointer
@@ -191,15 +195,17 @@ static int LIBUSB_CALL usb_handle_hotplug(libusb_context *context, libusb_device
 		          bus_number, device_address);
 
 #ifdef BRICKD_WITH_LIBUSB_HOTPLUG_MKNOD
-		snprintf(buffer, sizeof(buffer), "mkdir -p /dev/bus/usb/%03u/ && mknod -m 664 /dev/bus/usb/%03u/%03u c 189 %u",
-		         bus_number, bus_number, device_address, device_address - 1);
+		if (usb_hotplug_mknod) {
+			snprintf(buffer, sizeof(buffer), "mkdir -p /dev/bus/usb/%03u/ && mknod -m 664 /dev/bus/usb/%03u/%03u c 189 %u",
+			         bus_number, bus_number, device_address, device_address - 1);
 
-		rc = system(buffer);
+			rc = system(buffer);
 
-		if (rc == 0) {
-			log_debug("Successfully created device file /dev/bus/usb/%03u/%03u", bus_number, device_address);
-		} else {
-			log_warn("Could not create device file /dev/bus/usb/%03u/%03u: %d", bus_number, device_address, rc);
+			if (rc == 0) {
+				log_debug("Successfully created device file /dev/bus/usb/%03u/%03u", bus_number, device_address);
+			} else {
+				log_warn("Could not create device file /dev/bus/usb/%03u/%03u: %d", bus_number, device_address, rc);
+			}
 		}
 #endif
 
@@ -212,14 +218,16 @@ static int LIBUSB_CALL usb_handle_hotplug(libusb_context *context, libusb_device
 		          bus_number, device_address);
 
 #ifdef BRICKD_WITH_LIBUSB_HOTPLUG_MKNOD
-		snprintf(buffer, sizeof(buffer), "rm -f /dev/bus/usb/%03u/%03u", bus_number, device_address);
+		if (usb_hotplug_mknod) {
+			snprintf(buffer, sizeof(buffer), "rm -f /dev/bus/usb/%03u/%03u", bus_number, device_address);
 
-		rc = system(buffer);
+			rc = system(buffer);
 
-		if (rc == 0) {
-			log_debug("Successfully removed device file /dev/bus/usb/%03u/%03u", bus_number, device_address);
-		} else {
-			log_warn("Could not remove device file /dev/bus/usb/%03u/%03u: %d", bus_number, device_address, rc);
+			if (rc == 0) {
+				log_debug("Successfully removed device file /dev/bus/usb/%03u/%03u", bus_number, device_address);
+			} else {
+				log_warn("Could not remove device file /dev/bus/usb/%03u/%03u: %d", bus_number, device_address, rc);
+			}
 		}
 #endif
 
