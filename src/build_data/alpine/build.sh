@@ -1,13 +1,18 @@
-#!/bin/sh
+#!/bin/sh -ex
 
-rm -r packages
-mkdir packages
+if [ -z "$1" ]; then
+    docker_host=""
+else
+    docker_host="-H tcp://$1"
+fi
 
-docker image rm tinkerforge/build_brickd_alpine
-docker build -t tinkerforge/build_brickd_alpine .
+rm -r packages || true
 
-docker run --rm -v ${PWD}/brickd:/brickd -v ${PWD}/packages:/packages \
-  tinkerforge/build_brickd_alpine /bin/sh -c \
-  'chown user:user /brickd /packages; su user -c "cd /brickd; abuild -r; cp -r /home/user/packages/* /packages"'
+docker ${docker_host} image rm -f tinkerforge/build_brickd_alpine || true
+docker ${docker_host} build -t tinkerforge/build_brickd_alpine .
 
-docker image rm tinkerforge/build_brickd_alpine
+container=$(docker ${docker_host} create tinkerforge/build_brickd_alpine)
+docker ${docker_host} cp ${container}:/home/user/packages packages
+
+docker ${docker_host} rm -v $container
+docker ${docker_host} image rm -f tinkerforge/build_brickd_alpine
