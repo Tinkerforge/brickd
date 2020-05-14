@@ -19,7 +19,7 @@ build() {
 	cd "$srcdir"
 	mv daemonlib-$pkgname-$pkgver $pkgname-$pkgver/src/daemonlib
 	cd $pkgname-$pkgver/src/brickd
-	make
+	make WITH_LIBUSB_HOTPLUG_MKNOD=yes
 }
 
 package() {

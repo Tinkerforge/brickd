@@ -32,6 +32,7 @@ WITH_RED_BRICK ?= check
 WITH_BRICKLET ?= check
 WITH_MESH_SINGLE_ROOT_NODE ?= no
 WITH_UNKNOWN_LIBUSB_API_VERSION ?= no
+WITH_LIBUSB_HOTPLUG_MKNOD ?= no
 
 ## RULES ######################################################################
 
@@ -541,6 +542,10 @@ ifeq ($(WITH_UNKNOWN_LIBUSB_API_VERSION),yes)
 	CFLAGS += -DBRICKD_WITH_UNKNOWN_LIBUSB_API_VERSION
 endif
 
+ifeq ($(WITH_LIBUSB_HOTPLUG_MKNOD),yes)
+	CFLAGS += -DBRICKD_WITH_LIBUSB_HOTPLUG_MKNOD
+endif
+
 ifneq ($(MAKECMDGOALS),clean)
 $(info libraries/tools:)
 $(info - libusb:                     $(LIBUSB_STATUS))
@@ -557,6 +562,7 @@ $(info - red-brick:                  $(WITH_RED_BRICK))
 $(info - bricklet:                   $(WITH_BRICKLET))
 $(info - unknown-libusb-api-version: $(WITH_UNKNOWN_LIBUSB_API_VERSION))
 $(info - mesh-single-root-node:      $(WITH_MESH_SINGLE_ROOT_NODE))
+$(info - libusb-hotplug-mknod:       $(WITH_LIBUSB_HOTPLUG_MKNOD))
 $(info - hotplug:                    $(HOTPLUG))
 $(info options:)
 $(info - CFLAGS:                     $(CFLAGS))

@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2013-2014, 2017-2019 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2013-2014, 2017-2020 Matthias Bolte <matthias@tinkerforge.com>
  *
  * usb_posix.c: POSIX based USB specific functions
  *
@@ -65,6 +65,13 @@
  * because the new hotplug functions are not available in all libusb versions
  * that brickd supports (1.0.6 and newer) they have to be resolved at runtime.
  * this allows to compile one binary that supports multiple libusb versions.
+ *
+ * related to hotplug handling is the management of device files in /dev/bus/usb.
+ * typically there is some service such as udevd that takes care of this, but in
+ * minimal container systems brickd might be the only process running. libusb
+ * can still receive uevents but there is no service to manage device files that
+ * libusb expects to exist. to make libusb work in this case brickd can create
+ * the necessary device files itself based on libusb hotplug events.
  */
 
 #include <dlfcn.h>
@@ -170,6 +177,10 @@ static int LIBUSB_CALL usb_handle_hotplug(libusb_context *context, libusb_device
                                           libusbz_hotplug_event event, void *user_data) {
 	uint8_t bus_number = libusb_get_bus_number(device);
 	uint8_t device_address = libusb_get_device_address(device);
+#ifdef BRICKD_WITH_LIBUSB_HOTPLUG_MKNOD
+	char buffer[256];
+	int rc;
+#endif
 
 	(void)context;
 	(void)user_data;
@@ -179,6 +190,19 @@ static int LIBUSB_CALL usb_handle_hotplug(libusb_context *context, libusb_device
 		log_debug("Received libusb hotplug event (event: arrived, bus: %u, device: %u)",
 		          bus_number, device_address);
 
+#ifdef BRICKD_WITH_LIBUSB_HOTPLUG_MKNOD
+		snprintf(buffer, sizeof(buffer), "mkdir -p /dev/bus/usb/%03u/ && mknod -m 664 /dev/bus/usb/%03u/%03u c 189 %u",
+		         bus_number, bus_number, device_address, device_address - 1);
+
+		rc = system(buffer);
+
+		if (rc == 0) {
+			log_debug("Successfully created device file /dev/bus/usb/%03u/%03u", bus_number, device_address);
+		} else {
+			log_warn("Could not create device file /dev/bus/usb/%03u/%03u: %d", bus_number, device_address, rc);
+		}
+#endif
+
 		usb_rescan();
 
 		break;
@@ -186,6 +210,18 @@ static int LIBUSB_CALL usb_handle_hotplug(libusb_context *context, libusb_device
 	case LIBUSBZ_HOTPLUG_EVENT_DEVICE_LEFT:
 		log_debug("Received libusb hotplug event (event: left, bus: %u, device: %u)",
 		          bus_number, device_address);
+
+#ifdef BRICKD_WITH_LIBUSB_HOTPLUG_MKNOD
+		snprintf(buffer, sizeof(buffer), "rm -f /dev/bus/usb/%03u/%03u", bus_number, device_address);
+
+		rc = system(buffer);
+
+		if (rc == 0) {
+			log_debug("Successfully removed device file /dev/bus/usb/%03u/%03u", bus_number, device_address);
+		} else {
+			log_warn("Could not remove device file /dev/bus/usb/%03u/%03u: %d", bus_number, device_address, rc);
+		}
+#endif
 
 		usb_rescan();
 
