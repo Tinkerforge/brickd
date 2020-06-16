@@ -6,10 +6,40 @@ installers/packages for various platforms are provided here::
 
  https://www.tinkerforge.com/en/doc/Downloads.html
 
-Compiling the Source Code
--------------------------
+Supported Platforms
+-------------------
 
-Instead of using the prebuild installers/packages, Brick Daemon can also be
+* Linux with libusb 1.0.6 or newer
+* Windows XP or newer
+* macOS 10.8 (Mountain Lion) or newer
+
+Using the Tinkerforge APT Repository
+------------------------------------
+
+We provide prebuild `.deb` packages for Debian based Linux distributions.
+
+Follow the steps in the readme for your distribution to set up the repository:
+
+* Debian::
+
+   https://download.tinkerforge.com/apt/debian/readme.txt
+
+* Ubuntu::
+
+   https://download.tinkerforge.com/apt/ubuntu/readme.txt
+
+* Raspberry Pi OS (Raspbian)::
+
+   https://download.tinkerforge.com/apt/raspbian/readme.txt
+
+Install Brick Daemon package::
+
+ sudo apt install brickd
+
+Compiling the Source Code (instead of using prebuild installer/package)
+-----------------------------------------------------------------------
+
+Instead of using the prebuild installer/package, Brick Daemon can also be
 compiled from source code for various platforms.
 
 Brick Daemon uses the Tinkerforge daemonlib::
