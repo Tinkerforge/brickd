@@ -81,7 +81,7 @@ index 6eba4ff..62363b7 100644
 +  usbi_close
 +  usbi_close@4 = usbi_close
 diff --git a/libusb/libusb-1.0.rc b/libusb/libusb-1.0.rc
-index 3dce6d5..c71553c 100644
+index 3dce6d5..f7ddc64 100644
 --- a/libusb/libusb-1.0.rc
 +++ b/libusb/libusb-1.0.rc
 @@ -49,7 +49,7 @@ BEGIN
@@ -89,7 +89,7 @@ index 3dce6d5..c71553c 100644
  			VALUE "OriginalFilename", "libusb-1.0.dll\0"
  			VALUE "PrivateBuild", "\0"
 -			VALUE "ProductName", "libusb-1.0\0"
-+			VALUE "ProductName", "libusb-1.0-f1e385390213aab96d2a40e4858ff0d019a1b0b7-tf-24\0"
++			VALUE "ProductName", "libusb-1.0-f1e385390213aab96d2a40e4858ff0d019a1b0b7-tf-25\0"
  			VALUE "ProductVersion", LIBUSB_VERSIONSTRING
  			VALUE "SpecialBuild", "\0"
  		END
@@ -137,7 +137,7 @@ index 8a6b0bf..406a182 100644
  }
  #endif
 diff --git a/libusb/os/poll_windows.c b/libusb/os/poll_windows.c
-index 208953b..f35ea9b 100644
+index 208953b..d713b04 100644
 --- a/libusb/os/poll_windows.c
 +++ b/libusb/os/poll_windows.c
 @@ -119,9 +119,38 @@ struct winfd usbi_create_fd(void)
@@ -193,6 +193,15 @@ index 208953b..f35ea9b 100644
  	struct file_descriptor *fd;
  
  	usbi_mutex_static_lock(&fd_table_lock);
+@@ -193,7 +222,7 @@ static int check_pollfds(struct pollfd *fds, unsigned int nfds,
+ 			fds[n].revents = fds[n].events;
+ 			nready++;
+ 		} else if (wait_handles != NULL) {
+-			if (*nb_wait_handles == MAXIMUM_WAIT_OBJECTS) {
++			if (*nb_wait_handles == MAX_FDS) {
+ 				usbi_warn(NULL, "too many HANDLEs to wait on");
+ 				continue;
+ 			}
 @@ -206,29 +235,103 @@ static int check_pollfds(struct pollfd *fds, unsigned int nfds,
  
  	return nready;
