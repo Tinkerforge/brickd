@@ -33,6 +33,7 @@ WITH_BRICKLET ?= check
 WITH_MESH_SINGLE_ROOT_NODE ?= no
 WITH_UNKNOWN_LIBUSB_API_VERSION ?= no
 WITH_LIBUSB_HOTPLUG_MKNOD ?= no
+WITH_BCM2835 ?= no
 
 ## RULES ######################################################################
 
@@ -310,7 +311,12 @@ ifeq ($(WITH_BRICKLET),yes)
 	                  bricklet_stack.c
 
 ifeq ($(PLATFORM),Linux)
+ifeq ($(WITH_BCM2835),yes)
+	SOURCES_BRICKD += bcm2835.c \
+	                  bricklet_stack_bcm2835.c
+else
 	SOURCES_BRICKD += bricklet_stack_linux.c
+endif
 endif
 endif
 

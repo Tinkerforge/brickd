@@ -35,3 +35,4 @@ src/tests/conf_file_test*_output.conf
 .project
 .pydevproject
 .vscode
+src/brickd/Makefile.indent
