@@ -62,44 +62,45 @@ int bricklet_stack_create_platform(BrickletStack *bricklet_stack) {
 
 	bricklet_stack->platform = platform;
 
-    if (platform_init_counter == 0) {
-        // Open spidev
-        if(!bcm2835_init()) {
-            log_error("Could not init bcm2835");
-            return -1;
-        }
+	if (platform_init_counter == 0) {
+		// Open spidev
+		if(!bcm2835_init()) {
+			log_error("Could not init bcm2835");
+			return -1;
+		}
 
 
-        if(!bcm2835_spi_begin()) {
-            log_error("Could not begin bcm2835 spi");
-            return -1;
-        }
+		if(!bcm2835_spi_begin()) {
+			log_error("Could not begin bcm2835 spi");
+			return -1;
+		}
 
-        bcm2835_spi_setBitOrder(BRICKLET_STACK_SPI_CONFIG_BIT_ORDER);
-        bcm2835_spi_setDataMode(BRICKLET_STACK_SPI_CONFIG_MODE);
-        bcm2835_spi_set_speed_hz(BRICKLET_STACK_SPI_CONFIG_MAX_SPEED_HZ);
-        bcm2835_spi_chipSelect(BRICKLET_STACK_SPI_CONFIG_HARDWARE_CS_PINS);
-    }
+		bcm2835_spi_setBitOrder(BRICKLET_STACK_SPI_CONFIG_BIT_ORDER);
+		bcm2835_spi_setDataMode(BRICKLET_STACK_SPI_CONFIG_MODE);
+		bcm2835_spi_set_speed_hz(BRICKLET_STACK_SPI_CONFIG_MAX_SPEED_HZ);
+		bcm2835_spi_chipSelect(BRICKLET_STACK_SPI_CONFIG_HARDWARE_CS_PINS);
+	}
 
-    // configure GPIO chip select
-    bcm2835_gpio_fsel(bricklet_stack->config.chip_select_gpio_num, BCM2835_GPIO_FSEL_OUTP);
-    bcm2835_gpio_write(bricklet_stack->config.chip_select_gpio_num, HIGH);
-    bricklet_stack->platform->chip_select_pin = bricklet_stack->config.chip_select_gpio_num;
-    ++platform_init_counter;
+	// configure GPIO chip select
+	bcm2835_gpio_fsel(bricklet_stack->config.chip_select_gpio_num, BCM2835_GPIO_FSEL_OUTP);
+	bcm2835_gpio_write(bricklet_stack->config.chip_select_gpio_num, HIGH);
+	bricklet_stack->platform->chip_select_pin = bricklet_stack->config.chip_select_gpio_num;
+	++platform_init_counter;
 	return 0;
 }
 
 void bricklet_stack_destroy_platform(BrickletStack *bricklet_stack) {
 	(void) bricklet_stack;
-    --platform_init_counter;
-    if (platform_init_counter == 0) {
-        bcm2835_spi_end();
-        bcm2835_close();
-    }
+
+	--platform_init_counter;
+	if (platform_init_counter == 0) {
+		bcm2835_spi_end();
+		bcm2835_close();
+	}
 }
 
 int bricklet_stack_chip_select_gpio(BrickletStack *bricklet_stack, bool enable) {
-    bcm2835_gpio_write(bricklet_stack->platform->chip_select_pin, enable ? LOW : HIGH);
+	bcm2835_gpio_write(bricklet_stack->platform->chip_select_pin, enable ? LOW : HIGH);
 	return 0;
 }
 
