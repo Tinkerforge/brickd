@@ -144,7 +144,7 @@ bricklet.group0.cs4.num = 25
 // of this the HAT can only use pins for CS that are not HW CS pins...
 int bricklet_init_rpi_hat(const char *product_id_test, const char *spidev,
                           const int spidev_num, const uint8_t *gpio_cs,
-                          const int gpio_cs_num, const int master_cs,
+                          const int gpio_cs_length, const int master_cs,
                           const char *name, const bool last) {
 	char product_id[BRICKLET_RPI_PRODUCT_ID_LENGTH+1] = "\0";
 	BrickletStackConfig config;
@@ -194,7 +194,7 @@ int bricklet_init_rpi_hat(const char *product_id_test, const char *spidev,
 	strcpy(config.spidev, spidev);
 	config.connected_uid = &bricklet_connected_uid;
 
-	for(uint8_t cs = 0; cs < gpio_cs_num; cs++) {
+	for(uint8_t cs = 0; cs < gpio_cs_length; cs++) {
 		if(cs == master_cs) {
 			config.startup_wait_time = 0;
 		} else {
@@ -210,9 +210,16 @@ int bricklet_init_rpi_hat(const char *product_id_test, const char *spidev,
 #else
 		config.chip_select_driver = BRICKLET_CHIP_SELECT_DRIVER_GPIO;
 #endif
-		config.chip_select_gpio_num = gpio_cs[cs];
 
-		if(cs == gpio_cs_num - 1) { // Last CS is the HAT itself
+		if(config.chip_select_driver == BRICKLET_CHIP_SELECT_DRIVER_GPIO) {
+			snprintf(config.chip_select_gpio_name, sizeof(config.chip_select_gpio_name), "gpio%d", gpio_cs[cs]);
+			config.chip_select_gpio_num = gpio_cs[cs];
+		} else {
+			memset(config.chip_select_gpio_name, 0, sizeof(config.chip_select_gpio_name));
+			config.chip_select_gpio_num = -1;
+		}
+
+		if(cs == gpio_cs_length - 1) { // Last CS is the HAT itself
 			config.sleep_between_reads = config_get_option_value(str_sleep_between_reads_hat)->integer;
 		} else {
 			str_sleep_between_reads_bricklet[13] = config.position;
@@ -352,10 +359,6 @@ int bricklet_init(void) {
 			config.sleep_between_reads = config_get_option_value(str_sleep_between_reads)->integer;
 
 			if(config.chip_select_driver == BRICKLET_CHIP_SELECT_DRIVER_GPIO) {
-				str_cs_num[BRICKLET_CONFIG_STR_GROUP_POS] = '0' + i;
-				str_cs_num[BRICKLET_CONFIG_STR_CS_POS]    = '0' + cs;
-				config.chip_select_gpio_num = config_get_option_value(str_cs_num)->integer;
-
 				str_cs_name[BRICKLET_CONFIG_STR_GROUP_POS] = '0' + i;
 				str_cs_name[BRICKLET_CONFIG_STR_CS_POS]    = '0' + cs;
 
@@ -364,8 +367,15 @@ int bricklet_init(void) {
 				}
 
 				memcpy(config.chip_select_gpio_name, config_get_option_value(str_cs_name)->string, BRICKLET_GPIO_NAME_MAX_LENGTH);
-			} else if(config.chip_select_driver != BRICKLET_CHIP_SELECT_DRIVER_HARDWARE) {
-				continue;
+
+				str_cs_num[BRICKLET_CONFIG_STR_GROUP_POS] = '0' + i;
+				str_cs_num[BRICKLET_CONFIG_STR_CS_POS]    = '0' + cs;
+				config.chip_select_gpio_num = config_get_option_value(str_cs_num)->integer;
+			} else if(config.chip_select_driver == BRICKLET_CHIP_SELECT_DRIVER_HARDWARE) {
+				memset(config.chip_select_gpio_name, 0, sizeof(config.chip_select_gpio_name));
+				config.chip_select_gpio_num = -1;
+			} else {
+				continue; // FIXME: WiringPi
 			}
 
 			log_info("Bricklet port found: spidev %s, driver %d, name %s (num %d)",
