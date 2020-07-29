@@ -82,9 +82,9 @@ int bricklet_stack_create_platform(BrickletStack *bricklet_stack) {
 	}
 
 	// configure GPIO chip select
-	bcm2835_gpio_fsel(bricklet_stack->config.chip_select_gpio_num, BCM2835_GPIO_FSEL_OUTP);
-	bcm2835_gpio_write(bricklet_stack->config.chip_select_gpio_num, HIGH);
-	bricklet_stack->platform->chip_select_pin = bricklet_stack->config.chip_select_gpio_num;
+	bcm2835_gpio_fsel(bricklet_stack->config.chip_select_num, BCM2835_GPIO_FSEL_OUTP);
+	bcm2835_gpio_write(bricklet_stack->config.chip_select_num, HIGH);
+	bricklet_stack->platform->chip_select_pin = bricklet_stack->config.chip_select_num;
 	++platform_init_counter;
 	return 0;
 }

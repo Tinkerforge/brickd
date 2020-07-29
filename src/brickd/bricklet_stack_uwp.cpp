@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2019 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2019-2020 Matthias Bolte <matthias@tinkerforge.com>
  *
  * bricklet_stack_uwp.cpp: Universal Windows Platform specific parts of SPI
  *                         Tinkerforge Protocol (SPITFP) implementation for
@@ -79,16 +79,16 @@ extern "C" int bricklet_stack_create_platform(BrickletStack *bricklet_stack) {
 		}
 
 		try {
-			platform->chip_select = controller->OpenPin(bricklet_stack->config.chip_select_gpio_num);
+			platform->chip_select = controller->OpenPin(bricklet_stack->config.chip_select_num);
 		} catch (...) { // FIXME: too generic
-			log_error("Could not open GPIO pin %d: <exception>", bricklet_stack->config.chip_select_gpio_num); // FIXME
+			log_error("Could not open GPIO pin %d: <exception>", bricklet_stack->config.chip_select_num); // FIXME
 			return -1;
 		}
 
 		try {
 			platform->chip_select->Write(GpioPinValue::High);
 		} catch (...) { // FIXME: too generic
-			log_error("Could not set GPIO pin %d to high: <exception>", bricklet_stack->config.chip_select_gpio_num); // FIXME
+			log_error("Could not set GPIO pin %d to high: <exception>", bricklet_stack->config.chip_select_num); // FIXME
 
 			delete platform->chip_select;
 			platform->chip_select = nullptr;
@@ -99,7 +99,7 @@ extern "C" int bricklet_stack_create_platform(BrickletStack *bricklet_stack) {
 		try {
 			platform->chip_select->SetDriveMode(GpioPinDriveMode::Output);
 		} catch (...) { // FIXME: too generic
-			log_error("Could not set GPIO pin %d to output: <exception>", bricklet_stack->config.chip_select_gpio_num); // FIXME
+			log_error("Could not set GPIO pin %d to output: <exception>", bricklet_stack->config.chip_select_num); // FIXME
 
 			delete platform->chip_select;
 			platform->chip_select = nullptr;
@@ -108,12 +108,18 @@ extern "C" int bricklet_stack_create_platform(BrickletStack *bricklet_stack) {
 		}
 	}
 
-	String ^selector = SpiDevice::GetDeviceSelector("SPI0");
+	String ^selector = SpiDevice::GetDeviceSelector(bricklet_stack->config.spidev);
 
 	create_task(DeviceInformation::FindAllAsync(selector))
 	.then([bricklet_stack](DeviceInformationCollection^ devices)
 	{
-		SpiConnectionSettings^ settings = ref new SpiConnectionSettings(bricklet_stack->config.chip_select_driver == BRICKLET_CHIP_SELECT_DRIVER_GPIO ? 0 : 1);
+		int chip_select_line = 0;
+
+		if (bricklet_stack->config.chip_select_driver == BRICKLET_CHIP_SELECT_DRIVER_HARDWARE) {
+			chip_select_line = bricklet_stack->config.chip_select_num;
+		}
+
+		SpiConnectionSettings^ settings = ref new SpiConnectionSettings(chip_select_line);
 
 		settings->ClockFrequency = BRICKLET_STACK_SPI_CONFIG_MAX_SPEED_HZ;
 		settings->Mode = BRICKLET_STACK_SPI_CONFIG_MODE;
@@ -136,7 +142,7 @@ extern "C" int bricklet_stack_chip_select_gpio(BrickletStack *bricklet_stack, bo
 		bricklet_stack->platform->chip_select->Write(enable ? GpioPinValue::Low : GpioPinValue::High);
 	} catch (...) { // FIXME: too generic
 		log_error("Could not set GPIO pin %d to %s: <exception>",
-		          bricklet_stack->config.chip_select_gpio_num, enable ? "low" : "high"); // FIXME
+		          bricklet_stack->config.chip_select_num, enable ? "low" : "high"); // FIXME
 
 		return -1;
 	}

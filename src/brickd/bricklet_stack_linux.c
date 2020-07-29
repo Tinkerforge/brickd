@@ -93,7 +93,7 @@ int bricklet_stack_create_platform(BrickletStack *bricklet_stack) {
 			return -1; // FIXME: unexport gpio cs pin
 		}
 
-		snprintf(buffer, sizeof(buffer), "/sys/class/gpio/%s/value", bricklet_stack->config.chip_select_gpio_name);
+		snprintf(buffer, sizeof(buffer), "/sys/class/gpio/%s/value", bricklet_stack->config.chip_select_name);
 		bricklet_stack->platform->chip_select_gpio_fd = open(buffer, O_WRONLY);
 
 		if (bricklet_stack->platform->chip_select_gpio_fd < 0) {
