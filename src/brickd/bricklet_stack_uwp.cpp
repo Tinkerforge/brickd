@@ -135,7 +135,7 @@ extern "C" int bricklet_stack_chip_select_gpio(BrickletStack *bricklet_stack, bo
 	try {
 		bricklet_stack->platform->chip_select->Write(enable ? GpioPinValue::Low : GpioPinValue::High);
 	} catch (...) { // FIXME: too generic
-		log_error("Could not set GPIO pin %d to %s: <exception>", 
+		log_error("Could not set GPIO pin %d to %s: <exception>",
 		          bricklet_stack->config.chip_select_gpio_num, enable ? "low" : "high"); // FIXME
 
 		return -1;
@@ -180,13 +180,13 @@ extern "C" int bricklet_stack_spi_transceive(BrickletStack *bricklet_stack, uint
 	Platform::Array<unsigned char>^ read_array = ref new Platform::Array<unsigned char>(length);
 
 	memcpy(write_array->Data, write_buffer, length);
-	
+
 	bricklet_stack->platform->spi_device->TransferFullDuplex(write_array, read_array);
 
 	memcpy(read_buffer, read_array->Data, length);
 
 	delete write_array;
 	delete read_array;
-	
+
 	return length;
 }
