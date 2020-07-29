@@ -32,6 +32,8 @@
 
 #include <daemonlib/log.h>
 
+static LogSource _log_source = LOG_SOURCE_INITIALIZER;
+
 /* This define enables a little test program (by default a blinking output on pin RPI_GPIO_PIN_11)
 // You can do some safe, non-destructive testing on any platform with:
 // gcc bcm2835.c -D BCM2835_TEST
