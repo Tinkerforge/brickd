@@ -148,7 +148,10 @@ int bricklet_stack_create_platform(BrickletStack *bricklet_stack) {
 void bricklet_stack_destroy_platform(BrickletStack *bricklet_stack) {
 	robust_close(bricklet_stack->platform->spi_fd);
 	robust_close(bricklet_stack->platform->chip_select_gpio_fd);
-	// FIXME: unexport gpio cs pin
+
+	if (bricklet_stack->config.chip_select_driver == BRICKLET_CHIP_SELECT_DRIVER_GPIO) {
+		gpio_sysfs_unexport(&bricklet_stack->config.chip_select_gpio_sysfs);
+	}
 }
 
 int bricklet_stack_chip_select_gpio(BrickletStack *bricklet_stack, bool enable) {
