@@ -219,7 +219,7 @@ int bricklet_init_rpi_hat(const char *product_id_test, const char *spidev,
 			config.sleep_between_reads = config_get_option_value(str_sleep_between_reads_bricklet)->integer;
 		}
 
-		sprintf(config.chip_select_gpio_name, "gpio%d", config.chip_select_gpio_num);
+		snprintf(config.chip_select_gpio_name, sizeof(config.chip_select_gpio_name), "gpio%d", gpio_cs[cs]);
 
 		log_info("Bricklet port found: spidev %s, driver %d, name %s (num %d)",
 		         config.spidev,
