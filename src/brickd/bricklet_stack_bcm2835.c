@@ -90,6 +90,7 @@ int bricklet_stack_create_platform(BrickletStack *bricklet_stack) {
 }
 
 void bricklet_stack_destroy_platform(BrickletStack *bricklet_stack) {
+	(void) bricklet_stack;
     --platform_init_counter;
     if (platform_init_counter == 0) {
         bcm2835_spi_end();
@@ -134,7 +135,8 @@ int bricklet_stack_wait(BrickletStack *bricklet_stack) {
 
 int bricklet_stack_spi_transceive(BrickletStack *bricklet_stack, uint8_t *write_buffer,
                                   uint8_t *read_buffer, int length) {
+	(void) bricklet_stack;
 
-    bcm2835_spi_transfernb(write_buffer, read_buffer, length);
-    return length;
+	bcm2835_spi_transfernb((char *)write_buffer, (char *)read_buffer, length);
+	return length;
 }
