@@ -73,14 +73,23 @@ int bricklet_stack_create_platform(BrickletStack *bricklet_stack) {
 	// configure GPIO chip select
 	if (bricklet_stack->config.chip_select_driver == BRICKLET_CHIP_SELECT_DRIVER_GPIO) {
 		if (gpio_sysfs_export(&bricklet_stack->config.chip_select_gpio_sysfs) < 0) {
+			log_error("Could not export %s: %s (%d)",
+			          bricklet_stack->config.chip_select_gpio_sysfs.name, get_errno_name(errno), errno);
+
 			return -1;
 		}
 
 		if (gpio_sysfs_set_direction(&bricklet_stack->config.chip_select_gpio_sysfs, GPIO_SYSFS_DIRECTION_OUTPUT) < 0) {
+			log_error("Could not set direction for %s: %s (%d)",
+			          bricklet_stack->config.chip_select_gpio_sysfs.name, get_errno_name(errno), errno);
+
 			return -1; // FIXME: unexport gpio cs pin
 		}
 
 		if (gpio_sysfs_set_output(&bricklet_stack->config.chip_select_gpio_sysfs, GPIO_SYSFS_VALUE_HIGH) < 0) {
+			log_error("Could not set output for %s: %s (%d)",
+			          bricklet_stack->config.chip_select_gpio_sysfs.name, get_errno_name(errno), errno);
+
 			return -1; // FIXME: unexport gpio cs pin
 		}
 
@@ -88,6 +97,9 @@ int bricklet_stack_create_platform(BrickletStack *bricklet_stack) {
 		bricklet_stack->platform->chip_select_gpio_fd = open(buffer, O_WRONLY);
 
 		if (bricklet_stack->platform->chip_select_gpio_fd < 0) {
+			log_error("Could not open %s: %s (%d)",
+			          buffer, get_errno_name(errno), errno);
+
 			return -1; // FIXME: unexport gpio cs pin
 		}
 	}
@@ -98,30 +110,35 @@ int bricklet_stack_create_platform(BrickletStack *bricklet_stack) {
 	if (bricklet_stack->platform->spi_fd < 0) {
 		log_error("Could not open %s: %s (%d)",
 		          bricklet_stack->config.spidev, get_errno_name(errno), errno);
+
 		return -1; // FIXME: close gpio_fd and unexport gpio cs pin
 	}
 
 	if (ioctl(bricklet_stack->platform->spi_fd, SPI_IOC_WR_MODE, &mode) < 0) {
 		log_error("Could not configure SPI mode: %s (%d)",
 		          get_errno_name(errno), errno);
+
 		return -1; // FIXME: close spi_fd, close gpio_fd and unexport gpio cs pin
 	}
 
 	if (ioctl(bricklet_stack->platform->spi_fd, SPI_IOC_WR_MAX_SPEED_HZ, &max_speed_hz) < 0) {
 		log_error("Could not configure SPI max speed: %s (%d)",
 		          get_errno_name(errno), errno);
+
 		return -1; // FIXME: close spi_fd, close gpio_fd and unexport gpio cs pin
 	}
 
 	if (ioctl(bricklet_stack->platform->spi_fd, SPI_IOC_WR_BITS_PER_WORD, &bits_per_word) < 0) {
 		log_error("Could not configure SPI bits per word: %s (%d)",
 		          get_errno_name(errno), errno);
+
 		return -1; // FIXME: close spi_fd, close gpio_fd and unexport gpio cs pin
 	}
 
 	if (ioctl(bricklet_stack->platform->spi_fd, SPI_IOC_WR_LSB_FIRST, &lsb_first) < 0) {
-		log_error("Could not configure SPI lsb first: %s (%d)",
+		log_error("Could not configure SPI LSB first: %s (%d)",
 		          get_errno_name(errno), errno);
+
 		return -1; // FIXME: close spi_fd, close gpio_fd and unexport gpio cs pin
 	}
 
