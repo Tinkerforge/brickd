@@ -89,6 +89,7 @@ typedef struct {
 
 	uint32_t *connected_uid;
 	int index;
+	char position; // [A-J]
 	uint32_t startup_wait_time; // in milliseconds
 	uint32_t sleep_between_reads; // in microseconds
 } BrickletStackConfig;

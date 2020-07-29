@@ -202,6 +202,7 @@ int bricklet_init_rpi_hat(const char *product_id_test, const char *spidev,
 		}
 
 		config.index = _bricklet_stack_count;
+		config.position = 'A' + cs;
 #ifdef BRICKD_UWP_BUILD
 		// FIXME: UWP in contrast to Linux doesn't allow to control the dedicated
 		//        hardware chip-select pins as GPIO pins while the SPI device is enabled
@@ -214,7 +215,7 @@ int bricklet_init_rpi_hat(const char *product_id_test, const char *spidev,
 		if(cs == gpio_cs_num - 1) { // Last CS is the HAT itself
 			config.sleep_between_reads = config_get_option_value(str_sleep_between_reads_hat)->integer;
 		} else {
-			str_sleep_between_reads_bricklet[13] = 'A' + cs;
+			str_sleep_between_reads_bricklet[13] = config.position;
 			config.sleep_between_reads = config_get_option_value(str_sleep_between_reads_bricklet)->integer;
 		}
 
@@ -341,12 +342,13 @@ int bricklet_init(void) {
 
 		for(uint8_t cs = 0; cs < BRICKLET_CS_MAX_NUM; cs++) {
 			config.index = _bricklet_stack_count;
+			config.position = 'A' + cs;
 
 			str_cs_driver[BRICKLET_CONFIG_STR_GROUP_POS] = '0' + i;
 			str_cs_driver[BRICKLET_CONFIG_STR_CS_POS]    = '0' + cs;
 			config.chip_select_driver = config_get_option_value(str_cs_driver)->symbol;
 
-			str_sleep_between_reads[13] = 'A' + cs;
+			str_sleep_between_reads[13] = config.position;
 			config.sleep_between_reads = config_get_option_value(str_sleep_between_reads)->integer;
 
 			if(config.chip_select_driver == BRICKLET_CHIP_SELECT_DRIVER_GPIO) {

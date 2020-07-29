@@ -26,6 +26,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+#include <ctype.h>
 #ifdef __linux__
 	#include <sys/eventfd.h>
 #endif
@@ -139,7 +140,7 @@ static void bricklet_stack_dispatch_from_spi(void *opaque) {
 					strncpy(ec->connected_uid, base58, BASE58_MAX_LENGTH);
 				}
 
-				ec->position = 'a' + (char)bricklet_stack->config.index;
+				ec->position = tolower(bricklet_stack->config.position);
 			}
 		}
 
