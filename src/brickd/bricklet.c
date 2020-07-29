@@ -220,7 +220,7 @@ int bricklet_init_rpi_hat(const char *product_id_test, const char *spidev,
 
 		sprintf(config.chip_select_gpio_name, "gpio%d", config.chip_select_gpio_num);
 
-		log_info("Bricklet found: spidev %s, driver %d, name %s (num %d)",
+		log_info("Bricklet port found: spidev %s, driver %d, name %s (num %d)",
 		         config.spidev,
 		         config.chip_select_driver,
 		         config.chip_select_gpio_name,
@@ -370,11 +370,11 @@ int bricklet_init(void) {
 				continue;
 			}
 
-			log_debug("Bricklet found: spidev %s, driver %d, name %s (num %d)",
-			          config.spidev,
-			          config.chip_select_driver,
-			          config.chip_select_gpio_name,
-			          config.chip_select_gpio_num);
+			log_info("Bricklet port found: spidev %s, driver %d, name %s (num %d)",
+			         config.spidev,
+			         config.chip_select_driver,
+			         config.chip_select_gpio_name,
+			         config.chip_select_gpio_num);
 
 			if(bricklet_stack_create(&_bricklet_stack[_bricklet_stack_count], &config) < 0) {
 				return -1;
