@@ -241,6 +241,10 @@ int bricklet_init_rpi_hat(const char *product_id_test, const char *spidev,
 		         config.chip_select_gpio_num);
 
 		if(bricklet_stack_create(&_bricklet_stack[_bricklet_stack_count], &config) < 0) {
+			for(int i = 0; i < _bricklet_stack_count; i++) {
+				bricklet_stack_destroy(&_bricklet_stack[i]);
+			}
+
 			return -1;
 		}
 
@@ -391,6 +395,10 @@ int bricklet_init(void) {
 			         config.chip_select_gpio_num);
 
 			if(bricklet_stack_create(&_bricklet_stack[_bricklet_stack_count], &config) < 0) {
+				for(int i = 0; i < _bricklet_stack_count; i++) {
+					bricklet_stack_destroy(&_bricklet_stack[i]);
+				}
+
 				return -1;
 			}
 
