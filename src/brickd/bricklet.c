@@ -164,7 +164,7 @@ int bricklet_init_rpi_hat(const char *product_id_test, const char *spidev,
 	int rc;
 
 	if(fd < 0) {
-		log_debug("Could not open HAT product_id in device tree, not using pre-configured %s Brick setup", name);
+		log_info("Could not open HAT product_id in device tree, not using pre-configured %s Brick setup", name);
 		return 1;
 	}
 
@@ -173,14 +173,14 @@ int bricklet_init_rpi_hat(const char *product_id_test, const char *spidev,
 	robust_close(fd);
 
 	if(rc != BRICKLET_RPI_PRODUCT_ID_LENGTH) {
-		log_debug("Could not read HAT product_id in device tree, not using pre-configured %s Brick setup", name);
+		log_warn("Could not read HAT product_id in device tree, not using pre-configured %s Brick setup", name);
 		return 1;
 	}
 #endif
 
 	if(strncmp(product_id_test, product_id, BRICKLET_RPI_PRODUCT_ID_LENGTH) != 0) {
 		if(last) {
-			log_debug("The product_id of the connected HAT (%s) is not supported, not using pre-configured %s Brick setup", product_id, name);
+			log_warn("The product_id of the connected HAT (%s) is not supported, not using pre-configured %s Brick setup", product_id, name);
 		}
 
 		return 1;
@@ -220,11 +220,11 @@ int bricklet_init_rpi_hat(const char *product_id_test, const char *spidev,
 
 		sprintf(config.chip_select_gpio_name, "gpio%d", config.chip_select_gpio_num);
 
-		log_debug("Bricklet found: spidev %s, driver %d, name %s (num %d)",
-		          config.spidev,
-		          config.chip_select_driver,
-		          config.chip_select_gpio_name,
-		          config.chip_select_gpio_num);
+		log_info("Bricklet found: spidev %s, driver %d, name %s (num %d)",
+		         config.spidev,
+		         config.chip_select_driver,
+		         config.chip_select_gpio_name,
+		         config.chip_select_gpio_num);
 
 		if(bricklet_stack_create(&_bricklet_stack[_bricklet_stack_count], &config) < 0) {
 			return -1;
@@ -250,7 +250,7 @@ int bricklet_init_hctosys(void) {
 	fp = popen("/sbin/hwclock --hctosys", "r");
 
 	if(fp == NULL) {
-		log_debug("Could not popen /sbin/hwclock, time will not be updated");
+		log_warn("Could not popen /sbin/hwclock, time will not be updated");
 		return -1;
 	}
 
@@ -263,13 +263,13 @@ int bricklet_init_hctosys(void) {
 			log_debug("Updated system time to RTC time with \"hwclock --hctosys\"");
 			return 0;
 		} else {
-			log_debug("Unexpected exit code of \"hwclock --hctosys\"-call: %d", rc);
+			log_warn("Unexpected exit code of \"hwclock --hctosys\"-call: %d", rc);
 			return -1;
 		}
 	}
 
 	rc = pclose(fp);
-	log_debug("Unexpected return from /sbin/hwclock call (exit code %d): %s", rc, buffer);
+	log_warn("Unexpected return from /sbin/hwclock call (exit code %d): %s", rc, buffer);
 
 	return -1;
 #endif

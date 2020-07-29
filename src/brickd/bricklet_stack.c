@@ -381,7 +381,7 @@ static void bricklet_stack_check_message(BrickletStack *bricklet_stack) {
 					// or 0, something has gone wrong!
 					bricklet_stack->error_count_frame++;
 					bricklet_stack_handle_protocol_error(bricklet_stack);
-					log_debug("Frame error (count=%u)", bricklet_stack->error_count_frame);
+					log_error("Frame error (count=%u)", bricklet_stack->error_count_frame);
 					return;
 				}
 
@@ -414,7 +414,7 @@ static void bricklet_stack_check_message(BrickletStack *bricklet_stack) {
 				if(checksum != data) {
 					bricklet_stack->error_count_ack_checksum++;
 					bricklet_stack_handle_protocol_error(bricklet_stack);
-					log_debug("ACK checksum error (count=%u)", bricklet_stack->error_count_ack_checksum);
+					log_error("ACK checksum error (count=%u)", bricklet_stack->error_count_ack_checksum);
 					return;
 				}
 
@@ -459,7 +459,7 @@ static void bricklet_stack_check_message(BrickletStack *bricklet_stack) {
 				if(checksum != data) {
 					bricklet_stack->error_count_message_checksum++;
 					bricklet_stack_handle_protocol_error(bricklet_stack);
-					log_debug("Message checksum error (count=%u)",
+					log_error("Message checksum error (count=%u)",
 					          bricklet_stack->error_count_message_checksum);
 					return;
 				}
@@ -467,7 +467,7 @@ static void bricklet_stack_check_message(BrickletStack *bricklet_stack) {
 				if(message_position < sizeof(PacketHeader)) {
 					bricklet_stack->error_count_message_packet++;
 					bricklet_stack_handle_protocol_error(bricklet_stack);
-					log_debug("Message packet error (count=%u), too short: %d < %d",
+					log_error("Message packet error (count=%u), too short: %d < %d",
 					          bricklet_stack->error_count_message_packet, message_position, (int)sizeof(PacketHeader));
 					return;
 				}
@@ -475,7 +475,7 @@ static void bricklet_stack_check_message(BrickletStack *bricklet_stack) {
 				if(message[4] != message_position) {
 					bricklet_stack->error_count_message_packet++;
 					bricklet_stack_handle_protocol_error(bricklet_stack);
-					log_debug("Message packet error (count=%u), length mismatch: actual %d != expected %d",
+					log_error("Message packet error (count=%u), length mismatch: actual %d != expected %d",
 					          bricklet_stack->error_count_message_packet, message[4], message_position);
 					return;
 				}
@@ -483,7 +483,7 @@ static void bricklet_stack_check_message(BrickletStack *bricklet_stack) {
 				if(!packet_header_is_valid_response((PacketHeader *)message, &packet_error)) {
 					bricklet_stack->error_count_message_packet++;
 					bricklet_stack_handle_protocol_error(bricklet_stack);
-					log_debug("Message packet error (count=%u), invalid response: %s",
+					log_error("Message packet error (count=%u), invalid response: %s",
 					          bricklet_stack->error_count_message_packet, packet_error);
 					return;
 				}
