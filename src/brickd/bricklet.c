@@ -328,9 +328,9 @@ int bricklet_init(void) {
 	for(uint8_t i = 0; i < BRICKLET_SPI_MAX_NUM; i++) {
 		memset(&config, 0, sizeof(config));
 
-		config.mutex = &_bricklet_spi_mutex[i],
-		config.connected_uid = &bricklet_connected_uid,
-		config.startup_wait_time = 0,
+		config.mutex = &_bricklet_spi_mutex[i];
+		config.connected_uid = &bricklet_connected_uid;
+		config.startup_wait_time = 0;
 
 		str_spidev[BRICKLET_CONFIG_STR_GROUP_POS] = '0' + i;
 		length = strlen(config_get_option_value(str_spidev)->string);
