@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2014, 2017-2019 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2014, 2017-2020 Matthias Bolte <matthias@tinkerforge.com>
  * Copyright (C) 2016 Ishraq Ibne Ashraf <ishraq@tinkerforge.com>
  * Copyright (C) 2018 Olaf Lüke <olaf@tinkerforge.com>
  *
@@ -100,8 +100,8 @@ ConfigOption config_options[] = {
 	CONFIG_OPTION_INTEGER_INITIALIZER("bricklet.portJ.sleep_between_reads", 100, 1000000, 200),
 	CONFIG_OPTION_INTEGER_INITIALIZER("bricklet.portHAT.sleep_between_reads", 100, 1000000, 2000),
 
-	CONFIG_OPTION_STRING_INITIALIZER("bricklet.group0.spidev", 0, 64, ""),
-	CONFIG_OPTION_STRING_INITIALIZER("bricklet.group1.spidev", 0, 64, ""),
+	CONFIG_OPTION_STRING_INITIALIZER("bricklet.group0.spidev", 0, BRICKLET_SPIDEV_MAX_LENGTH, NULL),
+	CONFIG_OPTION_STRING_INITIALIZER("bricklet.group1.spidev", 0, BRICKLET_SPIDEV_MAX_LENGTH, NULL),
 
 	CONFIG_OPTION_SYMBOL_INITIALIZER("bricklet.group0.cs0.driver", config_parse_bricklet_chip_select_driver, config_format_bricklet_chip_select_driver, -1),
 	CONFIG_OPTION_SYMBOL_INITIALIZER("bricklet.group0.cs1.driver", config_parse_bricklet_chip_select_driver, config_format_bricklet_chip_select_driver, -1),
@@ -145,26 +145,26 @@ ConfigOption config_options[] = {
 	CONFIG_OPTION_INTEGER_INITIALIZER("bricklet.group1.cs8.num", 0, UINT16_MAX, -1),
 	CONFIG_OPTION_INTEGER_INITIALIZER("bricklet.group1.cs9.num", 0, UINT16_MAX, -1),
 
-	CONFIG_OPTION_STRING_INITIALIZER("bricklet.group0.cs0.name", 0, 32, ""),
-	CONFIG_OPTION_STRING_INITIALIZER("bricklet.group0.cs1.name", 0, 32, ""),
-	CONFIG_OPTION_STRING_INITIALIZER("bricklet.group0.cs2.name", 0, 32, ""),
-	CONFIG_OPTION_STRING_INITIALIZER("bricklet.group0.cs3.name", 0, 32, ""),
-	CONFIG_OPTION_STRING_INITIALIZER("bricklet.group0.cs4.name", 0, 32, ""),
-	CONFIG_OPTION_STRING_INITIALIZER("bricklet.group0.cs5.name", 0, 32, ""),
-	CONFIG_OPTION_STRING_INITIALIZER("bricklet.group0.cs6.name", 0, 32, ""),
-	CONFIG_OPTION_STRING_INITIALIZER("bricklet.group0.cs7.name", 0, 32, ""),
-	CONFIG_OPTION_STRING_INITIALIZER("bricklet.group0.cs8.name", 0, 32, ""),
-	CONFIG_OPTION_STRING_INITIALIZER("bricklet.group0.cs9.name", 0, 32, ""),
-	CONFIG_OPTION_STRING_INITIALIZER("bricklet.group1.cs0.name", 0, 32, ""),
-	CONFIG_OPTION_STRING_INITIALIZER("bricklet.group1.cs1.name", 0, 32, ""),
-	CONFIG_OPTION_STRING_INITIALIZER("bricklet.group1.cs2.name", 0, 32, ""),
-	CONFIG_OPTION_STRING_INITIALIZER("bricklet.group1.cs3.name", 0, 32, ""),
-	CONFIG_OPTION_STRING_INITIALIZER("bricklet.group1.cs4.name", 0, 32, ""),
-	CONFIG_OPTION_STRING_INITIALIZER("bricklet.group1.cs5.name", 0, 32, ""),
-	CONFIG_OPTION_STRING_INITIALIZER("bricklet.group1.cs6.name", 0, 32, ""),
-	CONFIG_OPTION_STRING_INITIALIZER("bricklet.group1.cs7.name", 0, 32, ""),
-	CONFIG_OPTION_STRING_INITIALIZER("bricklet.group1.cs8.name", 0, 32, ""),
-	CONFIG_OPTION_STRING_INITIALIZER("bricklet.group1.cs9.name", 0, 32, ""),
+	CONFIG_OPTION_STRING_INITIALIZER("bricklet.group0.cs0.name", 0, BRICKLET_GPIO_NAME_MAX_LENGTH, NULL),
+	CONFIG_OPTION_STRING_INITIALIZER("bricklet.group0.cs1.name", 0, BRICKLET_GPIO_NAME_MAX_LENGTH, NULL),
+	CONFIG_OPTION_STRING_INITIALIZER("bricklet.group0.cs2.name", 0, BRICKLET_GPIO_NAME_MAX_LENGTH, NULL),
+	CONFIG_OPTION_STRING_INITIALIZER("bricklet.group0.cs3.name", 0, BRICKLET_GPIO_NAME_MAX_LENGTH, NULL),
+	CONFIG_OPTION_STRING_INITIALIZER("bricklet.group0.cs4.name", 0, BRICKLET_GPIO_NAME_MAX_LENGTH, NULL),
+	CONFIG_OPTION_STRING_INITIALIZER("bricklet.group0.cs5.name", 0, BRICKLET_GPIO_NAME_MAX_LENGTH, NULL),
+	CONFIG_OPTION_STRING_INITIALIZER("bricklet.group0.cs6.name", 0, BRICKLET_GPIO_NAME_MAX_LENGTH, NULL),
+	CONFIG_OPTION_STRING_INITIALIZER("bricklet.group0.cs7.name", 0, BRICKLET_GPIO_NAME_MAX_LENGTH, NULL),
+	CONFIG_OPTION_STRING_INITIALIZER("bricklet.group0.cs8.name", 0, BRICKLET_GPIO_NAME_MAX_LENGTH, NULL),
+	CONFIG_OPTION_STRING_INITIALIZER("bricklet.group0.cs9.name", 0, BRICKLET_GPIO_NAME_MAX_LENGTH, NULL),
+	CONFIG_OPTION_STRING_INITIALIZER("bricklet.group1.cs0.name", 0, BRICKLET_GPIO_NAME_MAX_LENGTH, NULL),
+	CONFIG_OPTION_STRING_INITIALIZER("bricklet.group1.cs1.name", 0, BRICKLET_GPIO_NAME_MAX_LENGTH, NULL),
+	CONFIG_OPTION_STRING_INITIALIZER("bricklet.group1.cs2.name", 0, BRICKLET_GPIO_NAME_MAX_LENGTH, NULL),
+	CONFIG_OPTION_STRING_INITIALIZER("bricklet.group1.cs3.name", 0, BRICKLET_GPIO_NAME_MAX_LENGTH, NULL),
+	CONFIG_OPTION_STRING_INITIALIZER("bricklet.group1.cs4.name", 0, BRICKLET_GPIO_NAME_MAX_LENGTH, NULL),
+	CONFIG_OPTION_STRING_INITIALIZER("bricklet.group1.cs5.name", 0, BRICKLET_GPIO_NAME_MAX_LENGTH, NULL),
+	CONFIG_OPTION_STRING_INITIALIZER("bricklet.group1.cs6.name", 0, BRICKLET_GPIO_NAME_MAX_LENGTH, NULL),
+	CONFIG_OPTION_STRING_INITIALIZER("bricklet.group1.cs7.name", 0, BRICKLET_GPIO_NAME_MAX_LENGTH, NULL),
+	CONFIG_OPTION_STRING_INITIALIZER("bricklet.group1.cs8.name", 0, BRICKLET_GPIO_NAME_MAX_LENGTH, NULL),
+	CONFIG_OPTION_STRING_INITIALIZER("bricklet.group1.cs9.name", 0, BRICKLET_GPIO_NAME_MAX_LENGTH, NULL),
 #endif
 	CONFIG_OPTION_NULL_INITIALIZER // end of list
 };

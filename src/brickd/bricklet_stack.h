@@ -42,6 +42,9 @@ extern "C" {
 
 #include "stack.h"
 
+#define BRICKLET_SPIDEV_MAX_LENGTH 63
+#define BRICKLET_GPIO_NAME_MAX_LENGTH 31 // must match sizeof(GPIOSYSFS.name) - 1
+
 #define BRICKLET_STACK_SPI_RECEIVE_BUFFER_LENGTH 1024 // keep as power of 2
 #define BRICKLET_STACK_SPI_RECEIVE_BUFFER_MASK   (BRICKLET_STACK_SPI_RECEIVE_BUFFER_LENGTH-1)
 
@@ -64,13 +67,13 @@ typedef enum {
 } BrickletChipSelectDriver;
 
 typedef struct {
-	char spidev[64]; // e.g. "/dev/spidev0.0";
+	char spidev[BRICKLET_SPIDEV_MAX_LENGTH + 1]; // e.g. "/dev/spidev0.0";
 	BrickletChipSelectDriver chip_select_driver;
 
 	// Unused in case of hardware or WiringPi CS
 	union {
 		struct {
-			char chip_select_gpio_name[32];
+			char chip_select_gpio_name[BRICKLET_GPIO_NAME_MAX_LENGTH + 1];
 			int chip_select_gpio_num;
 		};
 #ifdef __linux__

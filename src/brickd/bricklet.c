@@ -277,7 +277,6 @@ int bricklet_init_hctosys(void) {
 
 int bricklet_init(void) {
 	int rc;
-	int length = 0;
 	char str_spidev[]              = "bricklet.groupX.spidev";
 	char str_cs_driver[]           = "bricklet.groupX.csY.driver";
 	char str_cs_name[]             = "bricklet.groupX.csY.name";
@@ -333,13 +332,12 @@ int bricklet_init(void) {
 		config.startup_wait_time = 0;
 
 		str_spidev[BRICKLET_CONFIG_STR_GROUP_POS] = '0' + i;
-		length = strlen(config_get_option_value(str_spidev)->string);
 
-		if(length == 0) {
+		if(config_get_option_value(str_spidev)->string == NULL) {
 			continue;
 		}
 
-		memcpy(config.spidev, config_get_option_value(str_spidev)->string, length);
+		memcpy(config.spidev, config_get_option_value(str_spidev)->string, BRICKLET_SPIDEV_MAX_LENGTH);
 
 		for(uint8_t cs = 0; cs < BRICKLET_CS_MAX_NUM; cs++) {
 			config.index = _bricklet_stack_count;
@@ -358,14 +356,12 @@ int bricklet_init(void) {
 
 				str_cs_name[BRICKLET_CONFIG_STR_GROUP_POS] = '0' + i;
 				str_cs_name[BRICKLET_CONFIG_STR_CS_POS]    = '0' + cs;
-				length = strlen(config_get_option_value(str_cs_name)->string);
 
-				if(length == 0) {
+				if(config_get_option_value(str_cs_name)->string == NULL) {
 					continue;
 				}
 
-				memset(config.chip_select_gpio_name, 0, sizeof(config.chip_select_gpio_name));
-				memcpy(config.chip_select_gpio_name, config_get_option_value(str_cs_name)->string, length);
+				memcpy(config.chip_select_gpio_name, config_get_option_value(str_cs_name)->string, BRICKLET_GPIO_NAME_MAX_LENGTH);
 			} else if(config.chip_select_driver != BRICKLET_CHIP_SELECT_DRIVER_HARDWARE) {
 				continue;
 			}
