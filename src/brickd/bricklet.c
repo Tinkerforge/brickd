@@ -64,6 +64,12 @@ static uint32_t bricklet_connected_uid = 0;
 static const uint8_t bricklet_stack_rpi_hat_gpio_cs[] = {23, 22, 25, 26, 27, 24, 7, 6, 5};
 static const uint8_t bricklet_stack_rpi_hat_zero_gpio_cs[] = {27, 23, 24, 22, 25};
 
+static const char *_chip_select_driver_names[] = {
+	"hardware",
+	"gpio",
+	"wiringpi"
+};
+
 // The equivalent configuration in brickd.conf looks as follows:
 /**************************************
 
@@ -228,10 +234,10 @@ int bricklet_init_rpi_hat(const char *product_id_test, const char *spidev,
 
 		snprintf(config.chip_select_gpio_name, sizeof(config.chip_select_gpio_name), "gpio%d", gpio_cs[cs]);
 
-		log_info("Bricklet port found: spidev %s, driver %d, name %s (num %d)",
-		         config.spidev,
-		         config.chip_select_driver,
-		         config.chip_select_gpio_name,
+		log_info("Found Bricklet port %c (spidev: %s, driver: %s, gpio-name: %s, gpio-num: %d)",
+		         config.position, config.spidev,
+		         _chip_select_driver_names[config.chip_select_driver],
+		         config.chip_select_gpio_name[0] == '\0' ? "<unused>" : config.chip_select_gpio_name,
 		         config.chip_select_gpio_num);
 
 		if(bricklet_stack_create(&_bricklet_stack[_bricklet_stack_count], &config) < 0) {
@@ -378,10 +384,10 @@ int bricklet_init(void) {
 				continue; // FIXME: WiringPi
 			}
 
-			log_info("Bricklet port found: spidev %s, driver %d, name %s (num %d)",
-			         config.spidev,
-			         config.chip_select_driver,
-			         config.chip_select_gpio_name,
+			log_info("Found Bricklet port %c (spidev: %s, driver: %s, gpio-name: %s, gpio-num: %d)",
+			         config.position, config.spidev,
+			         _chip_select_driver_names[config.chip_select_driver],
+			         config.chip_select_gpio_name[0] == '\0' ? "<unused>" : config.chip_select_gpio_name,
 			         config.chip_select_gpio_num);
 
 			if(bricklet_stack_create(&_bricklet_stack[_bricklet_stack_count], &config) < 0) {

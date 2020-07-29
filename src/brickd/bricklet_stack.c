@@ -701,8 +701,8 @@ int bricklet_stack_create(BrickletStack *bricklet_stack, BrickletStackConfig *co
 	int rc;
 	char bricklet_stack_name[128];
 
-	log_debug("Initializing Bricklet stack subsystem for '%s' (num %d)",
-	          config->spidev, config->chip_select_gpio_num);
+	log_debug("Initializing Bricklet stack subsystem for port %c",
+	          config->position);
 
 	// create bricklet_stack struct
 	bricklet_stack->platform = NULL;
