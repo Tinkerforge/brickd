@@ -71,6 +71,7 @@ int bricklet_stack_create_platform(BrickletStack *bricklet_stack) {
 
 		if (!bcm2835_spi_begin()) {
 			log_error("Could not begin bcm2835 spi");
+			bcm2835_close();
 			return -1;
 		}
 
