@@ -31,6 +31,7 @@ extern "C" {
 
 #include <daemonlib/log.h>
 #include <daemonlib/utils.h>
+#include <daemonlib/utils_uwp.h>
 
 }
 
@@ -108,7 +109,7 @@ extern "C" int bricklet_stack_create_platform(BrickletStack *bricklet_stack) {
 		}
 	}
 
-	String ^selector = SpiDevice::GetDeviceSelector(bricklet_stack->config.spidev);
+	String ^selector = SpiDevice::GetDeviceSelector(ascii_convert_string(bricklet_stack->config.spidev));
 
 	create_task(DeviceInformation::FindAllAsync(selector))
 	.then([bricklet_stack](DeviceInformationCollection^ devices)
