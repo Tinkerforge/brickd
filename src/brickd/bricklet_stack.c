@@ -140,7 +140,7 @@ static void bricklet_stack_dispatch_from_spi(void *opaque) {
 					strncpy(ec->connected_uid, base58, BASE58_MAX_LENGTH);
 				}
 
-				ec->position = tolower(bricklet_stack->config.position);
+				ec->position = (char)tolower(bricklet_stack->config.position);
 			}
 		}
 

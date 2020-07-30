@@ -448,8 +448,8 @@ int bricklet_init(void) {
 			         config.chip_select_num);
 
 			if(bricklet_stack_create(&_bricklet_stack[_bricklet_stack_count], &config) < 0) {
-				for(int i = 0; i < _bricklet_stack_count; i++) {
-					bricklet_stack_destroy(&_bricklet_stack[i]);
+				for(int k = 0; k < _bricklet_stack_count; k++) {
+					bricklet_stack_destroy(&_bricklet_stack[k]);
 				}
 
 				return -1;
