@@ -64,13 +64,12 @@ int bricklet_stack_create_platform(BrickletStack *bricklet_stack) {
 
 	if (platform_init_counter == 0) {
 		// Open spidev
-		if(!bcm2835_init()) {
+		if (!bcm2835_init()) {
 			log_error("Could not init bcm2835");
 			return -1;
 		}
 
-
-		if(!bcm2835_spi_begin()) {
+		if (!bcm2835_spi_begin()) {
 			log_error("Could not begin bcm2835 spi");
 			return -1;
 		}
@@ -84,15 +83,19 @@ int bricklet_stack_create_platform(BrickletStack *bricklet_stack) {
 	// configure GPIO chip select
 	bcm2835_gpio_fsel(bricklet_stack->config.chip_select_num, BCM2835_GPIO_FSEL_OUTP);
 	bcm2835_gpio_write(bricklet_stack->config.chip_select_num, HIGH);
+
 	bricklet_stack->platform->chip_select_pin = bricklet_stack->config.chip_select_num;
+
 	++platform_init_counter;
+
 	return 0;
 }
 
 void bricklet_stack_destroy_platform(BrickletStack *bricklet_stack) {
-	(void) bricklet_stack;
+	(void)bricklet_stack;
 
 	--platform_init_counter;
+
 	if (platform_init_counter == 0) {
 		bcm2835_spi_end();
 		bcm2835_close();
@@ -136,8 +139,9 @@ int bricklet_stack_wait(BrickletStack *bricklet_stack) {
 
 int bricklet_stack_spi_transceive(BrickletStack *bricklet_stack, uint8_t *write_buffer,
                                   uint8_t *read_buffer, int length) {
-	(void) bricklet_stack;
+	(void)bricklet_stack;
 
 	bcm2835_spi_transfernb((char *)write_buffer, (char *)read_buffer, length);
+
 	return length;
 }
