@@ -62,6 +62,16 @@ int bricklet_stack_create_platform(BrickletStack *bricklet_stack) {
 
 	bricklet_stack->platform = platform;
 
+	if (strcmp(bricklet_stack->config.spidev, "/dev/spidev0.0") != 0) {
+		log_error("Only /dev/spidev0.0 is supported");
+		return -1;
+	}
+
+	if (bricklet_stack->config.chip_select_driver != BRICKLET_CHIP_SELECT_DRIVER_GPIO) {
+		log_error("Only chip-select-driver gpio is supported");
+		return -1;
+	}
+
 	if (platform_init_counter == 0) {
 		// Open spidev
 		if (!bcm2835_init()) {
