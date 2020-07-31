@@ -334,7 +334,7 @@ ifneq ($(WITH_RED_BRICK),no)
 endif
 
 ifeq ($(WITH_LIBUSB_DLOPEN),yes)
-	SOURCES_BRICKD += ../build_data/linux/libusb/libusb.c
+	SOURCES_BRICKD += ../build_data/linux/libusb_dlopen/libusb.c
 endif
 
 SOURCES := $(SOURCES_DAEMONLIB) $(SOURCES_BRICKD)
@@ -403,7 +403,7 @@ LIBUDEV_LINK := no
 ifeq ($(PLATFORM),Linux)
 ifeq ($(WITH_LIBUSB_DLOPEN),yes)
 	LIBUSB_STATUS := dlopen
-	LIBUSB_CFLAGS := -I../build_data/linux/libusb
+	LIBUSB_CFLAGS := -I../build_data/linux/libusb_dlopen
 	LIBUSB_LDFLAGS :=
 	LIBUSB_LIBS :=
 else
