@@ -197,7 +197,7 @@ static int LIBUSB_CALL usb_handle_hotplug(libusb_context *context, libusb_device
 #ifdef BRICKD_WITH_LIBUSB_HOTPLUG_MKNOD
 		if (usb_hotplug_mknod) {
 			snprintf(buffer, sizeof(buffer), "mkdir -p /dev/bus/usb/%03u/ && mknod -m 664 /dev/bus/usb/%03u/%03u c 189 %u",
-			         bus_number, bus_number, device_address, device_address - 1);
+			         bus_number, bus_number, device_address, ((bus_number - 1) << 7) | (device_address - 1));
 
 			rc = system(buffer);
 
