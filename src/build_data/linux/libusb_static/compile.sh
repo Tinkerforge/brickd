@@ -1,4 +1,4 @@
-#/bin/bash -ex
+#!/bin/bash -ex
 
 version=1.0.23
 
