@@ -217,6 +217,8 @@ int bricklet_init_rpi_hat(const char *product_id_test, const char *spidev,
 	strcpy(product_id, BRICKLET_RPI_HAT_PRODUCT_ID);
 	#elif defined BRICKD_WITH_UWP_HAT_ZERO_BRICK
 	strcpy(product_id, BRICKLET_RPI_HAT_ZERO_PRODUCT_ID);
+	#else
+	return 1;
 	#endif
 #else
 	int fd = open("/proc/device-tree/hat/product_id", O_RDONLY);
