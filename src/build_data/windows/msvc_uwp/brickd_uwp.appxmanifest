@@ -1,6 +1,6 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Package xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10" xmlns:mp="http://schemas.microsoft.com/appx/2014/phone/manifest" xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10" xmlns:iot="http://schemas.microsoft.com/appx/manifest/iot/windows10" IgnorableNamespaces="uap mp iot">
-  <Identity Name="brickd" Publisher="CN=olaf" Version="2.3.2.0" />
+  <Identity Name="brickd" Publisher="CN=olaf" Version="2.4.1.0" />
   <mp:PhoneIdentity PhoneProductId="8cac8924-c70c-41ad-a8c4-959745e72bef" PhonePublisherId="00000000-0000-0000-0000-000000000000" />
   <Properties>
     <DisplayName>Brick Daemon</DisplayName>
