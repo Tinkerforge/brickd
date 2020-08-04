@@ -159,6 +159,9 @@ ifeq ($(PLATFORM),Windows)
 endif
 
 ifeq ($(PLATFORM),Linux)
+ifeq ($(WITH_STATIC),yes)
+	HOTPLUG := libusb
+else
 ifeq ($(WITH_LIBUSB_DLOPEN),yes)
 ifeq ($(WITH_LIBUSB_STATIC),yes)
 $(error Cannot use dlopen and static linking for libusb)
@@ -167,6 +170,7 @@ endif
 	HOTPLUG := libusb (if supported)
 else
 	HOTPLUG := $(shell pkg-config --exists 'libusb-1.0 >= 1.0.16' && echo libusb || echo libusb \(if supported\))
+endif
 endif
 
 ifeq ($(WITH_LIBUDEV),check)
@@ -412,6 +416,12 @@ endif
 LIBUDEV_LINK := no
 
 ifeq ($(PLATFORM),Linux)
+ifeq ($(WITH_STATIC),yes)
+	LIBUSB_STATUS := 1.0.23
+	LIBUSB_CFLAGS := -I../build_data/linux/libusb_static
+	LIBUSB_LDFLAGS := -L../build_data/linux/libusb_static
+	LIBUSB_LIBS := -lusb-1.0
+else
 ifeq ($(WITH_LIBUSB_DLOPEN),yes)
 	LIBUSB_STATUS := dlopen
 	LIBUSB_CFLAGS := -I../build_data/linux/libusb_dlopen
@@ -442,19 +452,13 @@ endif
 endif
 endif
 endif
+endif
 
 ifeq ($(PLATFORM),Darwin)
 	LIBUSB_STATUS := 1.0.23 (fork)
 	LIBUSB_CFLAGS := -I../build_data/macos/libusb
 	LIBUSB_LDFLAGS := -L../build_data/macos/libusb
 	LIBUSB_LIBS := -lusb-1.0-brickd
-endif
-
-ifeq ($(WITH_STATIC),yes)
-	LIBUSB_STATUS := 1.0.23
-	LIBUSB_CFLAGS := -I../build_data/linux/libusb_static
-	LIBUSB_LDFLAGS := -L../build_data/linux/libusb_static
-	LIBUSB_LIBS := -lusb-1.0
 endif
 
 CFLAGS += $(LIBUSB_CFLAGS)
