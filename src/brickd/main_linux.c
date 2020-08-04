@@ -77,6 +77,15 @@ extern bool usb_hotplug_mknod;
 #endif
 
 static int prepare_paths(bool daemon) {
+#ifdef DAEMONLIB_WITH_STATIC
+	(void)daemon;
+
+	if (getuid() != 0) {
+		fprintf(stderr, "Cannot run static linked brickd as user, has to run as root\n");
+
+		return -1;
+	}
+#else
 	char *home;
 	struct passwd *pw;
 	char brickd_dirname[1024];
@@ -161,6 +170,7 @@ static int prepare_paths(bool daemon) {
 			return -1;
 		}
 	}
+#endif
 
 	return 0;
 }

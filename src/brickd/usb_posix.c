@@ -74,7 +74,9 @@
  * the necessary device files itself based on libusb hotplug events.
  */
 
-#include <dlfcn.h>
+#ifndef DAEMONLIB_WITH_STATIC
+	#include <dlfcn.h>
+#endif
 #include <errno.h>
 #include <libusb.h>
 #include <stdlib.h>
@@ -90,6 +92,27 @@
 #include "usb.h"
 
 static LogSource _log_source = LOG_SOURCE_INITIALIZER;
+
+#ifdef BRICKD_WITH_LIBUSB_HOTPLUG_MKNOD
+bool usb_hotplug_mknod = false;
+#endif
+
+#ifdef DAEMONLIB_WITH_STATIC
+
+#define LIBUSBZ_HOTPLUG_MATCH_ANY LIBUSB_HOTPLUG_MATCH_ANY
+#define libusbz_capability libusb_capability
+#define LIBUSBZ_CAP_HAS_CAPABILITY LIBUSB_CAP_HAS_CAPABILITY
+#define LIBUSBZ_CAP_HAS_HOTPLUG LIBUSB_CAP_HAS_HOTPLUG
+#define libusbz_hotplug_flag libusb_hotplug_flag
+#define libusbz_hotplug_event libusb_hotplug_event
+#define LIBUSBZ_HOTPLUG_EVENT_DEVICE_ARRIVED LIBUSB_HOTPLUG_EVENT_DEVICE_ARRIVED
+#define LIBUSBZ_HOTPLUG_EVENT_DEVICE_LEFT LIBUSB_HOTPLUG_EVENT_DEVICE_LEFT
+#define libusbz_hotplug_callback_handle libusb_hotplug_callback_handle
+#define libusbz_has_capability libusb_has_capability
+#define libusbz_hotplug_register_callback libusb_hotplug_register_callback
+#define libusbz_hotplug_deregister_callback libusb_hotplug_deregister_callback
+
+#else
 
 #define LIBUSBZ_HOTPLUG_MATCH_ANY -1
 
@@ -125,10 +148,6 @@ static const char *_libusb = NULL;
 #endif
 
 static void *_libusb_handle = NULL;
-
-#ifdef BRICKD_WITH_LIBUSB_HOTPLUG_MKNOD
-bool usb_hotplug_mknod = false;
-#endif
 
 #if defined __clang__ || !defined __GNUC__ || __GNUC_PREREQ(4, 6)
 
@@ -178,6 +197,8 @@ static void usb_dlclose(void) {
 
 	dlclose(_libusb_handle);
 }
+
+#endif
 
 static libusbz_hotplug_callback_handle _brick_hotplug_handle;
 static libusbz_hotplug_callback_handle _red_brick_hotplug_handle;
@@ -254,15 +275,19 @@ static int LIBUSB_CALL usb_handle_hotplug(libusb_context *context, libusb_device
 }
 
 int usb_init_platform(void) {
+#ifndef DAEMONLIB_WITH_STATIC
 	if (usb_dlopen() < 0) {
 		return -1;
 	}
+#endif
 
 	return 0;
 }
 
 void usb_exit_platform(void) {
+#ifndef DAEMONLIB_WITH_STATIC
 	usb_dlclose();
+#endif
 }
 
 int usb_init_hotplug(libusb_context *context) {
@@ -312,9 +337,12 @@ void usb_exit_hotplug(libusb_context *context) {
 }
 
 bool usb_has_hotplug(void) {
-	return libusbz_has_capability != NULL &&
+	return
+#ifndef DAEMONLIB_WITH_STATIC
+	       libusbz_has_capability != NULL &&
 	       libusbz_hotplug_register_callback != NULL &&
 	       libusbz_hotplug_deregister_callback != NULL &&
+#endif
 	       libusbz_has_capability(LIBUSBZ_CAP_HAS_CAPABILITY) &&
 	       libusbz_has_capability(LIBUSBZ_CAP_HAS_HOTPLUG);
 }

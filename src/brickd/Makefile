@@ -24,6 +24,7 @@ WITH_LOGGING ?= yes
 WITH_EPOLL ?= check
 WITH_PACKET_TRACE ?= no
 WITH_DEBUG ?= no
+WITH_STATIC ?= no
 WITH_GPROF ?= no
 WITH_USB_REOPEN_ON_SIGUSR1 ?= yes
 WITH_PM_UTILS ?= check
@@ -97,6 +98,12 @@ endif
 else
 	# not Linux, no epoll
 	WITH_EPOLL := no
+endif
+
+ifneq ($(PLATFORM),Linux)
+ifeq ($(WITH_STATIC),yes)
+$(error WITH_STATIC not supported on this platform (yet))
+endif
 endif
 
 ifeq ($(PLATFORM),Linux)
@@ -366,6 +373,10 @@ ifeq ($(WITH_DEBUG),yes)
 	CFLAGS += -g -ggdb
 endif
 
+ifeq ($(WITH_STATIC),yes)
+	LDFLAGS += -static
+endif
+
 # tell GCC to use C99, but actually write C89 code plus stdint.h and stdbool.h
 # to be able to compile it with MSVC/WDK which supports C89 only
 CFLAGS += -std=gnu99 -Wall -Wextra -I..
@@ -437,6 +448,13 @@ ifeq ($(PLATFORM),Darwin)
 	LIBUSB_CFLAGS := -I../build_data/macos/libusb
 	LIBUSB_LDFLAGS := -L../build_data/macos/libusb
 	LIBUSB_LIBS := -lusb-1.0-brickd
+endif
+
+ifeq ($(WITH_STATIC),yes)
+	LIBUSB_STATUS := 1.0.23
+	LIBUSB_CFLAGS := -I../build_data/linux/libusb_static
+	LIBUSB_LDFLAGS := -L../build_data/linux/libusb_static
+	LIBUSB_LIBS := -lusb-1.0
 endif
 
 CFLAGS += $(LIBUSB_CFLAGS)
@@ -516,6 +534,10 @@ ifeq ($(WITH_EPOLL),yes)
 	CFLAGS += -DDAEMONLIB_WITH_EPOLL
 endif
 
+ifeq ($(WITH_STATIC),yes)
+	CFLAGS += -DDAEMONLIB_WITH_STATIC
+endif
+
 ifeq ($(WITH_PACKET_TRACE),yes)
 	CFLAGS += -DDAEMONLIB_WITH_PACKET_TRACE
 endif
@@ -563,6 +585,7 @@ $(info - logging:                    $(WITH_LOGGING))
 $(info - epoll:                      $(WITH_EPOLL))
 $(info - packet-trace:               $(WITH_PACKET_TRACE))
 $(info - debug:                      $(WITH_DEBUG))
+$(info - static:                     $(WITH_STATIC))
 $(info - gprof:                      $(WITH_GPROF))
 $(info - red-brick:                  $(WITH_RED_BRICK))
 $(info - bricklet:                   $(WITH_BRICKLET))

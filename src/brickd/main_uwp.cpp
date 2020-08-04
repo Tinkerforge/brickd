@@ -522,7 +522,7 @@ cleanup:
 
 #ifdef LOG_SERVER_ADDRESS
 	case 3:
-		freeaddrinfo(resolved_address);
+		socket_free_address(resolved_address);
 		// fall through
 
 	case 2:

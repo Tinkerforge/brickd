@@ -13,6 +13,7 @@ src/build_data/android/brickd/.idea
 src/build_data/android/brickd/local.properties
 src/build_data/android/brickd/app/.externalNativeBuild
 src/build_data/android/brickd/app/build
+src/build_data/linux/libusb_static/libusb*
 src/build_data/windows/logviewer/logviewer.exe
 src/build_data/windows/logviewer/logviewer.pdb
 src/build_data/windows/msvc/.vs
