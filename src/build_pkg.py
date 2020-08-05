@@ -29,12 +29,11 @@ import shutil
 import subprocess
 import plistlib
 import time
-
+import re
 
 def system(command):
     if os.system(command) != 0:
         sys.exit(1)
-
 
 def check_output(*args, **kwargs):
     if 'stdout' in kwargs:
@@ -53,7 +52,6 @@ def check_output(*args, **kwargs):
         raise subprocess.CalledProcessError(exit_code, command, output=output)
 
     return output.decode('utf-8')
-
 
 def specialize_template(template_filename, destination_filename, replacements):
     lines = []
@@ -81,7 +79,6 @@ def specialize_template(template_filename, destination_filename, replacements):
 
     with open(destination_filename, 'wb') as f:
         f.writelines(lines)
-
 
 def build_macos_pkg():
     if (sys.hexversion & 0xFF000000) != 0x03000000:
@@ -206,7 +203,6 @@ def build_macos_pkg():
 
     system('hdiutil create -fs HFS+ -volname "Brickd-{0}" -srcfolder dist/dmg {1}'.format(version, dmg_name))
 
-
 def build_windows_pkg():
     print('building brickd NSIS installer')
     root_path = os.getcwd()
@@ -275,8 +271,11 @@ def build_windows_pkg():
         print('verifying NSIS installer signature')
         system('signtool.exe verify /v /pa ' + installer)
 
-
 def build_linux_pkg():
+    if (sys.hexversion & 0xFF000000) != 0x03000000:
+        print('Python 3.x required')
+        sys.exit(1)
+
     print('building brickd Debian package')
     root_path = os.getcwd()
 
@@ -295,6 +294,26 @@ def build_linux_pkg():
         system('cd brickd; env CC=gcc WITH_LIBUDEV=yes WITH_LIBUDEV_DLOPEN=yes WITH_PM_UTILS=yes WITH_UNKNOWN_LIBUSB_API_VERSION=yes CFLAGS=-march=i386 make')
     else:
         system('cd brickd; env CC=gcc WITH_LIBUDEV=yes WITH_LIBUDEV_DLOPEN=yes WITH_PM_UTILS=yes WITH_UNKNOWN_LIBUSB_API_VERSION=yes make')
+
+    glibc_version = (0, 0, 0)
+
+    for line in subprocess.check_output(['objdump', '-T', 'brickd/brickd']).decode('utf-8').split('\n'):
+        m = re.search(r'GLIBC_([0-9\.]+)', line)
+
+        if m == None:
+            continue
+
+        version = tuple(int(x) for x in m.group(1).split('.'))
+
+        if version > glibc_version:
+            glibc_version = version
+
+    glibc_version = glibc_version + (0, 0)
+
+    if glibc_version > (2, 9, 0):
+        if input('\033[33mwarning: brickd depends on glibc {0}.{1}.{2} > 2.9.0. continue anyway?\033[0m [y/N] '.format(*glibc_version)).strip() not in ['y', 'Y']:
+            print('aborted')
+            sys.exit(1)
 
     print('copying build data')
     installer_path = os.path.join(root_path, 'build_data', 'linux', 'installer')
@@ -352,7 +371,6 @@ def build_linux_pkg():
 
     print('cleaning up')
     system('cd brickd; make clean')
-
 
 # run 'python build_pkg.py' to build the windows/linux/macos package
 if __name__ == '__main__':
