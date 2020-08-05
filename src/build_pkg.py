@@ -319,7 +319,7 @@ def build_linux_pkg():
     glibc_version = glibc_version + (0, 0)
 
     if glibc_version > (2, 9, 0):
-        if input('\033[33mwarning: brickd depends on glibc {0}.{1}.{2} > 2.9.0. continue anyway?\033[0m [y/N] '.format(*glibc_version)).strip() not in ['y', 'Y']:
+        if input('\033[33mwarning: brickd binary imports glibc {0}.{1}.{2} symbols, but should import symbols from glibc <= 2.9.0 only. continue anyway?\033[0m [y/N] '.format(*glibc_version)).strip() not in ['y', 'Y']:
             print('aborted')
             sys.exit(1)
 
