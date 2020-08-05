@@ -290,10 +290,18 @@ def build_linux_pkg():
     print('compiling for ' + architecture)
     system('cd brickd; make clean')
 
+    config = [
+        'CC=gcc',
+        'WITH_LIBUDEV=yes',
+        'WITH_LIBUDEV_DLOPEN=yes',
+        'WITH_PM_UTILS=yes',
+        'WITH_UNKNOWN_LIBUSB_API_VERSION=yes'
+    ]
+
     if architecture == 'i386':
-        system('cd brickd; env CC=gcc WITH_LIBUDEV=yes WITH_LIBUDEV_DLOPEN=yes WITH_PM_UTILS=yes WITH_UNKNOWN_LIBUSB_API_VERSION=yes CFLAGS=-march=i386 make')
-    else:
-        system('cd brickd; env CC=gcc WITH_LIBUDEV=yes WITH_LIBUDEV_DLOPEN=yes WITH_PM_UTILS=yes WITH_UNKNOWN_LIBUSB_API_VERSION=yes make')
+        config.append('CFLAGS=-march=i386')
+
+    system('cd brickd; env {0} make'.format(' '.join(config)))
 
     glibc_version = (0, 0, 0)
 
