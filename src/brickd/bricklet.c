@@ -209,8 +209,9 @@ int bricklet_init_rpi_hat(const char *product_id_test, const char *spidev,
 	BrickletStackConfig config;
 	char str_sleep_between_reads_bricklet[] = "bricklet.portX.sleep_between_reads";
 	char str_sleep_between_reads_hat[]      = "bricklet.portHAT.sleep_between_reads";
-
 #ifdef BRICKD_UWP_BUILD
+	bool no_hat = false;
+
 	#if defined BRICKD_WITH_UWP_HAT_BRICK && defined BRICKD_WITH_UWP_HAT_ZERO_BRICK
 		#error HAT Brick and HAT Zero Brick support cannot be enabled at the same time
 	#elif defined BRICKD_WITH_UWP_HAT_BRICK
@@ -218,8 +219,12 @@ int bricklet_init_rpi_hat(const char *product_id_test, const char *spidev,
 	#elif defined BRICKD_WITH_UWP_HAT_ZERO_BRICK
 	strcpy(product_id, BRICKLET_RPI_HAT_ZERO_PRODUCT_ID);
 	#else
-	return 1;
+	no_hat = true;
 	#endif
+
+	if (no_hat) {
+		return 1;
+	}
 #else
 	int fd = open("/proc/device-tree/hat/product_id", O_RDONLY);
 	int rc;
