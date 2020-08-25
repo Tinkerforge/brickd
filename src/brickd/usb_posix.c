@@ -80,7 +80,9 @@
 #include <errno.h>
 #include <libusb.h>
 #include <stdlib.h>
-#include <sys/sysmacros.h>
+#ifdef __linux__
+	#include <sys/sysmacros.h>
+#endif
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
