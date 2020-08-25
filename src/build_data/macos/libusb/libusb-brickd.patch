@@ -84,7 +84,7 @@ index 8a6b0bf..a94160a 100644
  }
  #endif
 diff --git a/libusb/os/darwin_usb.c b/libusb/os/darwin_usb.c
-index f6e853b..77d2e62 100644
+index f6e853b..16d4c8b 100644
 --- a/libusb/os/darwin_usb.c
 +++ b/libusb/os/darwin_usb.c
 @@ -766,7 +766,13 @@ static enum libusb_error darwin_cache_device_descriptor (struct libusb_context *
@@ -102,3 +102,21 @@ index f6e853b..77d2e62 100644
  
    do {
      /**** retrieve device descriptor ****/
+@@ -1354,7 +1360,7 @@ static int darwin_claim_interface(struct libusb_device_handle *dev_handle, int i
+ 
+   /* make sure we have an interface */
+   if (!usbInterface && dpriv->first_config != 0) {
+-    usbi_info (HANDLE_CTX (dev_handle), "no interface found; setting configuration: %d", dpriv->first_config);
++    usbi_dbg ("no interface found; setting configuration: %d", dpriv->first_config);
+ 
+     /* set the configuration */
+     ret = darwin_set_configuration (dev_handle, dpriv->first_config);
+@@ -1371,7 +1377,7 @@ static int darwin_claim_interface(struct libusb_device_handle *dev_handle, int i
+   }
+ 
+   if (!usbInterface) {
+-    usbi_err (HANDLE_CTX (dev_handle), "interface not found");
++    //usbi_err (HANDLE_CTX (dev_handle), "interface not found");
+     return LIBUSB_ERROR_NOT_FOUND;
+   }
+ 
