@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2012-2014, 2017-2019 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2012-2014, 2017-2020 Matthias Bolte <matthias@tinkerforge.com>
  *
  * iokit.c: IOKit specific functions
  *
@@ -18,6 +18,8 @@
  * with this program; if not, write to the Free Software Foundation, Inc.,
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
+
+#define OBJC_SILENCE_GC_DEPRECATIONS 1
 
 #include <errno.h>
 #include <stdbool.h>
