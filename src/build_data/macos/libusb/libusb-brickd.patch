@@ -84,7 +84,7 @@ index 8a6b0bf..a94160a 100644
  }
  #endif
 diff --git a/libusb/os/darwin_usb.c b/libusb/os/darwin_usb.c
-index f6e853b..16d4c8b 100644
+index f6e853b..ae5bc3a 100644
 --- a/libusb/os/darwin_usb.c
 +++ b/libusb/os/darwin_usb.c
 @@ -766,7 +766,13 @@ static enum libusb_error darwin_cache_device_descriptor (struct libusb_context *
@@ -102,7 +102,19 @@ index f6e853b..16d4c8b 100644
  
    do {
      /**** retrieve device descriptor ****/
-@@ -1354,7 +1360,7 @@ static int darwin_claim_interface(struct libusb_device_handle *dev_handle, int i
+@@ -1196,7 +1202,10 @@ static void darwin_close (struct libusb_device_handle *dev_handle) {
+       if (kresult != kIOReturnSuccess) {
+         /* Log the fact that we had a problem closing the file, however failing a
+          * close isn't really an error, so return success anyway */
+-        usbi_warn (HANDLE_CTX (dev_handle), "USBDeviceClose: %s", darwin_error_str(kresult));
++        if (kresult != kIOReturnNoDevice)
++          usbi_warn (HANDLE_CTX (dev_handle), "USBDeviceClose: %s", darwin_error_str(kresult));
++        else
++          usbi_dbg ("USBDeviceClose: %s", darwin_error_str(kresult));
+       }
+     }
+   }
+@@ -1354,7 +1363,7 @@ static int darwin_claim_interface(struct libusb_device_handle *dev_handle, int i
  
    /* make sure we have an interface */
    if (!usbInterface && dpriv->first_config != 0) {
@@ -111,7 +123,7 @@ index f6e853b..16d4c8b 100644
  
      /* set the configuration */
      ret = darwin_set_configuration (dev_handle, dpriv->first_config);
-@@ -1371,7 +1377,7 @@ static int darwin_claim_interface(struct libusb_device_handle *dev_handle, int i
+@@ -1371,7 +1380,7 @@ static int darwin_claim_interface(struct libusb_device_handle *dev_handle, int i
    }
  
    if (!usbInterface) {
@@ -120,3 +132,28 @@ index f6e853b..16d4c8b 100644
      return LIBUSB_ERROR_NOT_FOUND;
    }
  
+@@ -1462,8 +1471,12 @@ static int darwin_release_interface(struct libusb_device_handle *dev_handle, int
+   }
+ 
+   kresult = (*(cInterface->interface))->USBInterfaceClose(cInterface->interface);
+-  if (kresult != kIOReturnSuccess)
+-    usbi_warn (HANDLE_CTX (dev_handle), "USBInterfaceClose: %s", darwin_error_str(kresult));
++  if (kresult != kIOReturnSuccess) {
++    if (kresult != kIOReturnNoDevice)
++      usbi_warn (HANDLE_CTX (dev_handle), "USBInterfaceClose: %s", darwin_error_str(kresult));
++    else
++      usbi_dbg ("USBInterfaceClose: %s", darwin_error_str(kresult));
++  }
+ 
+   kresult = (*(cInterface->interface))->Release(cInterface->interface);
+   if (kresult != kIOReturnSuccess)
+@@ -2070,6 +2083,9 @@ static enum libusb_transfer_status darwin_transfer_status (struct usbi_transfer
+     usbi_warn (ITRANSFER_CTX (itransfer), "transfer error: timed out");
+     itransfer->timeout_flags |= USBI_TRANSFER_TIMED_OUT;
+     return LIBUSB_TRANSFER_TIMED_OUT;
++  case kIOReturnNotResponding:
++    usbi_dbg ("transfer error: not responding, faking stall");
++    return LIBUSB_TRANSFER_STALL;
+   default:
+     usbi_warn (ITRANSFER_CTX (itransfer), "transfer error: %s (value = 0x%08x)", darwin_error_str (result), result);
+     return LIBUSB_TRANSFER_ERROR;
