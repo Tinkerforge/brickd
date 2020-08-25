@@ -81,6 +81,9 @@ static int prepare_paths(bool daemon) {
 	(void)daemon;
 
 	if (getuid() != 0) {
+		// FIXME: glibc function getpwuid requires external glibc plugins, this
+		//        breaks the static linking use case for brickd. therefore, just
+		//        don't use getpwuid in a static brickd build.
 		fprintf(stderr, "Cannot run static linked brickd as user, has to run as root\n");
 
 		return -1;
