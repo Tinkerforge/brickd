@@ -316,11 +316,18 @@ def build_linux_pkg():
         if version > glibc_version:
             glibc_version = version
 
-    glibc_version = glibc_version + (0, 0)
+    while len(glibc_version) < 3:
+        glibc_version += (0,)
 
     if glibc_version > (2, 9, 0):
-        if input('\033[33mwarning: brickd binary imports glibc {0}.{1}.{2} symbols, but should import symbols from glibc <= 2.9.0 only. continue anyway?\033[0m [y/N] '.format(*glibc_version)).strip() not in ['y', 'Y']:
-            print('aborted')
+        warning = 'warning: brickd binary imports glibc {0}.{1}.{2} symbols, but should import symbols from glibc <= 2.9.0 only'.format(*glibc_version)
+
+        if sys.stdin.isatty():
+            if input('\033[33m{0}. continue anyway?\033[0m [y/N] '.format(warning)).strip() not in ['y', 'Y']:
+                print('aborted')
+                sys.exit(1)
+        else:
+            print('\033[33m{0}. aborted!\033[0m'.format(warning))
             sys.exit(1)
 
     print('copying build data')
