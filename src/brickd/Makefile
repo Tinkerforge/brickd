@@ -604,7 +604,7 @@ $(info - LDFLAGS:                    $(LDFLAGS))
 $(info - LIBS:                       $(LIBS))
 endif
 
-.PHONY: all clean
+.PHONY: all clean install
 
 all: $(DIST) $(TARGET) Makefile
 
