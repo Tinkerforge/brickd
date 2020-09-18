@@ -53,7 +53,7 @@ def check_output(*args, **kwargs):
 
     return output.decode('utf-8')
 
-def specialize_template(template_filename, destination_filename, replacements):
+def specialize_template(template_filename, destination_filename, replacements, remove_template=False):
     lines = []
     replaced = set()
 
@@ -79,6 +79,9 @@ def specialize_template(template_filename, destination_filename, replacements):
 
     with open(destination_filename, 'wb') as f:
         f.writelines(lines)
+
+    if remove_template:
+        os.remove(template_filename)
 
 def build_macos_pkg():
     if (sys.hexversion & 0xFF000000) != 0x03000000:
@@ -271,41 +274,161 @@ def build_windows_pkg():
         print('verifying NSIS installer signature')
         system('signtool.exe verify /v /pa ' + installer)
 
+def git_ls_files(path):
+    if os.system('cd {0}; git rev-parse --is-inside-work-tree >/dev/null 2>&1'.format(path)) == 0:
+        return check_output(['git', 'ls-files'], cwd=path).strip().split('\n')
+
+    if os.system('git help >/dev/null 2>&1'.format(path)) == 0:
+        warning = 'warning: {0} is not in a git repository, using raw directory listing instead'.format(path)
+    else:
+        warning = 'warning: git is not installed, using raw directory listing instead'
+
+    if sys.stdin.isatty():
+        if input('\033[33m{0}. continue anyway?\033[0m [y/N] '.format(warning)).strip() not in ['y', 'Y']:
+            print('aborted')
+            sys.exit(1)
+    else:
+        print('\033[33m{0}. aborted!\033[0m'.format(warning))
+        sys.exit(1)
+
+    result = []
+
+    for root, dirs, files in os.walk(path):
+        for f in files:
+            p = os.path.join(root, f)
+
+            if os.path.isfile(p):
+                result.append(os.path.relpath(p, path))
+
+    return result
+
+def parse_changelog(path):
+    versions = []
+
+    with open(path, 'r') as f:
+        for i, line in enumerate(f.readlines()):
+            line = line.rstrip()
+
+            if len(line) == 0:
+                continue
+
+            if re.match(r'^(?:- ([A-Z0-9\(]|macOS)|  [A-Za-z0-9\(\"]).*$', line) != None:
+                continue
+
+            m = re.match(r'^(?:<unknown>|20[0-9]{2}-[0-9]{2}-[0-9]{2}): ([1-9][0-9]*)\.([0-9]+)\.([0-9]+) \((?:<unknown>|[a-f0-9]+)\)$', line)
+
+            if m == None:
+                raise Exception('invalid line {0} in changelog {1}: {2}'.format(i + 1, path, line))
+
+            version = (int(m.group(1)), int(m.group(2)), int(m.group(3)))
+
+            if version[0] not in [1, 2]:
+                raise Exception('invalid major version in changelog {0}: {1}'.format(path, version))
+
+            if len(versions) > 0:
+                if versions[-1] >= version:
+                    raise Exception('invalid version order in changelog {0}: {1} -> {2}'.format(path, versions[-1], version))
+
+                if versions[-1][0] == version[0] and versions[-1][1] == version[1] and versions[-1][2] + 1 != version[2]:
+                    raise Exception('invalid version jump in changelog {0}: {1} -> {2}'.format(path, versions[-1], version))
+
+                if versions[-1][0] == version[0] and versions[-1][1] != version[1] and versions[-1][1] + 1 != version[1]:
+                    raise Exception('invalid version jump in changelog {0}: {1} -> {2}'.format(path, versions[-1], version))
+
+                if versions[-1][1] != version[1] and version[2] != 0:
+                    raise Exception('invalid version jump in changelog {0}: {1} -> {2}'.format(path, versions[-1], version))
+
+                if versions[-1][0] != version[0] and (version[1] != 0 or version[2] != 0):
+                    raise Exception('invalid version jump in changelog {0}: {1} -> {2}'.format(path, versions[-1], version))
+
+            versions.append(version)
+
+    if len(versions) == 0:
+        raise Exception('no version found in changelog: ' + path)
+
+    return '{0}.{1}.{2}'.format(versions[-1][0], versions[-1][1], versions[-1][2])
+
 def build_linux_pkg():
     if (sys.hexversion & 0xFF000000) != 0x03000000:
         print('Python 3.x required')
         sys.exit(1)
 
+    changelog_version = parse_changelog('changelog')
+    architecture = check_output(['dpkg', '--print-architecture']).strip()
+
     print('building brickd Debian package')
     root_path = os.getcwd()
 
     print('removing old build directory')
-    dist_path = os.path.join(root_path, 'dist')
+    dist_path = os.path.join(root_path, 'dist', architecture)
 
     if os.path.exists(dist_path):
         shutil.rmtree(dist_path)
 
-    architecture = check_output(['dpkg', '--print-architecture']).replace('\n', '')
+    source_path = os.path.join(dist_path, 'tinkerforge-brickd-{0}'.format(changelog_version))
 
-    print('compiling for ' + architecture)
-    system('cd brickd; make clean')
+    print('collecting brickd source')
+    brickd_files = git_ls_files('brickd')
+    brickd_path = os.path.join(source_path, 'brickd')
 
-    config = [
-        'CC=gcc',
-        'WITH_LIBUDEV=yes',
-        'WITH_LIBUDEV_DLOPEN=yes',
-        'WITH_PM_UTILS=yes',
-        'WITH_UNKNOWN_LIBUSB_API_VERSION=yes'
-    ]
+    os.makedirs(brickd_path)
 
-    if architecture == 'i386':
-        config.append('CFLAGS=-march=i386')
+    for brickd_file in brickd_files:
+        path = os.path.join(brickd_path, brickd_file)
 
-    system('cd brickd; env {0} make'.format(' '.join(config)))
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        shutil.copy(os.path.join('brickd', brickd_file), os.path.join(brickd_path, brickd_file))
+
+    print('collecting daemonlib source')
+    daemonlib_files = git_ls_files('daemonlib')
+    daemonlib_path = os.path.join(source_path, 'daemonlib')
+
+    os.makedirs(daemonlib_path)
+
+    for daemonlib_file in daemonlib_files:
+        path = os.path.join(daemonlib_path, daemonlib_file)
+
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        shutil.copy(os.path.join('daemonlib', daemonlib_file), os.path.join(daemonlib_path, daemonlib_file))
+
+    print('collecting build_data')
+    build_data_files = git_ls_files('build_data/linux/installer')
+    build_data_path = os.path.join(source_path, 'build_data/linux/installer')
+
+    os.makedirs(build_data_path)
+
+    for build_data_file in build_data_files:
+        path = os.path.join(build_data_path, build_data_file)
+
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        shutil.copy(os.path.join('build_data/linux/installer', build_data_file), path)
+
+    shutil.move(os.path.join(build_data_path, 'debian'), os.path.join(source_path, 'debian'))
+
+    print('building Debian package')
+
+    if len(sys.argv) > 1:
+        changelog_data = sys.argv[1]
+    else:
+        changelog_data = check_output(['date', '-R'])
+
+    specialize_template(os.path.join(source_path, 'debian/changelog.template'),
+                        os.path.join(source_path, 'debian/changelog'),
+                        {'<<VERSION>>': changelog_version,
+                         '<<DATE>>': changelog_data},
+                        remove_template=True)
+
+    system('cd {0}; dpkg-buildpackage -us -uc'.format(source_path))
+
+    binary_version = check_output(['{0}/debian/brickd/usr/bin/brickd'.format(source_path), '--version']).strip()
+
+    if changelog_version != binary_version:
+        print('error: version mismatch: {0} != {1}'.format(changelog_version, binary_version))
+        sys.exit(1)
 
     glibc_version = (0, 0, 0)
 
-    for line in subprocess.check_output(['objdump', '-T', 'brickd/brickd']).decode('utf-8').split('\n'):
+    for line in subprocess.check_output(['objdump', '-T', '{0}/debian/brickd/usr/bin/brickd'.format(source_path)]).decode('utf-8').split('\n'):
         m = re.search(r'GLIBC_([0-9\.]+)', line)
 
         if m == None:
@@ -319,8 +442,14 @@ def build_linux_pkg():
     while len(glibc_version) < 3:
         glibc_version += (0,)
 
-    if glibc_version > (2, 9, 0):
-        warning = 'warning: brickd binary imports glibc {0}.{1}.{2} symbols, but should import symbols from glibc <= 2.9.0 only'.format(*glibc_version)
+    if architecture == 'arm64':
+        # arm64 support was added to glibc in version 2.17
+        maximum_glibc_version = (2, 17, 0)
+    else:
+        maximum_glibc_version = (2, 9, 0)
+
+    if glibc_version > maximum_glibc_version:
+        warning = 'warning: brickd binary imports glibc {0}.{1}.{2} symbols, but should import symbols from glibc <= {3}.{4}.{5} only'.format(*glibc_version, *maximum_glibc_version)
 
         if sys.stdin.isatty():
             if input('\033[33m{0}. continue anyway?\033[0m [y/N] '.format(warning)).strip() not in ['y', 'Y']:
@@ -330,62 +459,11 @@ def build_linux_pkg():
             print('\033[33m{0}. aborted!\033[0m'.format(warning))
             sys.exit(1)
 
-    print('copying build data')
-    installer_path = os.path.join(root_path, 'build_data', 'linux', 'installer')
-    shutil.copytree(installer_path, dist_path)
-
-    print('copying brickd binary')
-    bin_path = os.path.join(dist_path, 'usr', 'bin')
-    os.makedirs(bin_path)
-    shutil.copy('brickd/brickd', bin_path)
-
-    print('creating DEBIAN/control from template')
-    version = check_output(['./brickd/brickd', '--version']).replace('\n', '').replace(' ', '-')
-    installed_size = int(check_output(['du', '-s', '--exclude', 'dist/DEBIAN', 'dist']).split('\t')[0])
-    control_path = os.path.join(dist_path, 'DEBIAN', 'control')
-    specialize_template(control_path, control_path,
-                        {'<<VERSION>>': version,
-                         '<<ARCHITECTURE>>': architecture,
-                         '<<INSTALLED_SIZE>>': str(installed_size)})
-
-    print('preparing files')
-    system('objcopy --strip-debug --strip-unneeded dist/usr/bin/brickd')
-    system('cp changelog dist/usr/share/doc/brickd/')
-
-    if version.endswith('+redbrick'):
-        os.rename('dist/etc/brickd-red-brick.conf', 'dist/etc/brickd.conf')
-        os.remove('dist/etc/brickd-default.conf')
-    else:
-        os.rename('dist/etc/brickd-default.conf', 'dist/etc/brickd.conf')
-        os.remove('dist/etc/brickd-red-brick.conf')
-
-    system('gzip -n -9 dist/usr/share/doc/brickd/changelog')
-    system('gzip -n -9 dist/usr/share/man/man8/brickd.8')
-    system('gzip -n -9 dist/usr/share/man/man5/brickd.conf.5')
-
-    system('cd dist; find usr -type f -exec md5sum {} \\; >> DEBIAN/md5sums; find lib -type f -exec md5sum {} \\; >> DEBIAN/md5sums')
-
-    system('find dist -type d -exec chmod 0755 {} \\;')
-    system('find dist -type f -perm 664 -exec chmod 0644 {} \\;')
-    system('find dist -type f -perm 775 -exec chmod 0755 {} \\;')
-
-    print('changing owner to root')
-    system('sudo chown -R root:root dist')
-
-    print('building Debian package')
-    system('dpkg -b dist brickd-{0}_{1}.deb'.format(version, architecture))
-
-    print('changing owner back to original user')
-    system('sudo chown -R ${USER}:${USER} dist')
-
     if os.path.exists('/usr/bin/lintian'):
         print('checking Debian package')
-        system('lintian --pedantic --no-tag-display-limit brickd-{0}_{1}.deb || true'.format(version, architecture))
+        system('lintian --verbose --pedantic --no-tag-display-limit {0}/brickd_{1}_{2}.deb'.format(dist_path, changelog_version, architecture))
     else:
         print('skipping lintian check')
-
-    print('cleaning up')
-    system('cd brickd; make clean')
 
 # run 'python build_pkg.py' to build the windows/linux/macos package
 if __name__ == '__main__':

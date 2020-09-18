@@ -1,0 +1,32 @@
+#!/usr/bin/make -f
+
+CONFIG := CC=gcc \
+          WITH_LIBUDEV=yes \
+          WITH_LIBUDEV_DLOPEN=yes \
+          WITH_EPOLL=yes \
+          WITH_PM_UTILS=no \
+          WITH_SYSTEMD=yes \
+          WITH_RED_BRICK=no \
+          WITH_BRICKLET=yes \
+          WITH_UNKNOWN_LIBUSB_API_VERSION=yes
+
+ifeq ($(shell dpkg --print-architecture),i386)
+	CONFIG += CFLAGS=-march=i386
+endif
+
+%:
+	dh $@ --with systemd --sourcedirectory=brickd
+
+override_dh_auto_build:
+	# run make with predefined configuration
+	$(CONFIG) dh_auto_build
+
+override_dh_auto_install:
+	# run make with predefined configuration
+	$(CONFIG) dh_auto_install
+
+override_dh_systemd_start:
+	# start brickd service normally
+	dh_systemd_start brickd.service
+	# do not start brickd-resume service on install/upgrade
+	dh_systemd_start --no-restart-after-upgrade --no-stop-on-upgrade --no-start brickd-resume.service

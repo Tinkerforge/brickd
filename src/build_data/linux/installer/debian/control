@@ -1,11 +1,14 @@
-Package: brickd
-Version: <<VERSION>>
+Source: tinkerforge-brickd
 Section: electronics
-Maintainer: Olaf Lüke <olaf@tinkerforge.com>
-Architecture: <<ARCHITECTURE>>
 Priority: optional
-Installed-Size: <<INSTALLED_SIZE>>
-Depends: libc6, lsb-base, procps, libusb-1.0-0, libudev1 | libudev0, systemd | pm-utils
+Maintainer: Matthias Bolte <matthias@tinkerforge.com>
+Build-Depends: debhelper (>= 10), dh-systemd, build-essential, pkg-config, libusb-1.0-0-dev, libudev-dev
+Standards-Version: 4.1.3
+Homepage: https://www.tinkerforge.com/
+
+Package: brickd
+Architecture: any
+Depends: libc6, lsb-base, procps, libusb-1.0-0, libudev1, systemd, ${shlibs:Depends}, ${misc:Depends}
 Recommends: logrotate
 Description: Tinkerforge Brick Daemon
  The Brick Daemon program is part of the Tinkerforge software infrastructure.

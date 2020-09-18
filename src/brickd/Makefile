@@ -638,11 +638,13 @@ endif
 	@echo MD $(sysconfdir)/logrotate.d
 	$(E)$(INSTALL) -d -m 755 $(DESTDIR)$(sysconfdir)/logrotate.d
 
+ifneq ($(localstatedir),/var)
 	@echo MD $(localstatedir)/log
 	$(E)$(INSTALL) -d -m 755 $(DESTDIR)$(localstatedir)/log
 
 	@echo MD $(localstatedir)/run
 	$(E)$(INSTALL) -d -m 755 $(DESTDIR)$(localstatedir)/run
+endif
 
 	@echo MD $(datadir)
 	$(E)$(INSTALL) -d -m 755 $(DESTDIR)$(datadir)
@@ -678,7 +680,7 @@ endif
 
 ifeq ($(WITH_SYSTEMD),no)
 	@echo CP brickd [init.d script]
-	$(E)$(INSTALL) -m 755 ../build_data/linux/installer/usr/share/brickd/brickd-sysv-init $(DESTDIR)$(sysconfdir)/init.d/brickd
+	$(E)$(INSTALL) -m 755 ../build_data/linux/installer/etc/init.d/brickd $(DESTDIR)$(sysconfdir)/init.d/brickd
 else
 	@echo CP brickd.service [systemd service]
 	$(E)$(INSTALL) -m 644 ../build_data/linux/installer/lib/systemd/system/brickd.service $(DESTDIR)$(SYSTEMD_SYSTEM_UNIT_DIR)
