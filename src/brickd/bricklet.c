@@ -22,6 +22,7 @@
 
 #include "bricklet.h"
 
+#include <errno.h>
 #include <stdio.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -230,7 +231,13 @@ int bricklet_init_rpi_hat(const char *product_id_test, const char *spidev,
 	int rc;
 
 	if(fd < 0) {
-		log_info("Could not open HAT product_id in device tree, not using pre-configured %s Brick setup", name);
+		if (errno == ENOENT) {
+			log_debug("No HAT product_id in device tree, not using pre-configured %s Brick setup", name);
+		} else {
+			log_warn("Could not open HAT product_id file in device tree, not using pre-configured %s Brick setup: %s (%d)",
+			         name, get_errno_name(errno), errno);
+		}
+
 		return 1;
 	}
 
@@ -239,7 +246,13 @@ int bricklet_init_rpi_hat(const char *product_id_test, const char *spidev,
 	robust_close(fd);
 
 	if(rc != BRICKLET_RPI_PRODUCT_ID_LENGTH) {
-		log_warn("Could not read HAT product_id in device tree, not using pre-configured %s Brick setup", name);
+		if (rc < 0) {
+			log_warn("Could not read HAT product_id in device tree, not using pre-configured %s Brick setup: %s (%d)",
+			         name, get_errno_name(errno), errno);
+		} else {
+			log_warn("HAT product_id in device tree has wrong length, not using pre-configured %s Brick setup", name);
+		}
+
 		return 1;
 	}
 #endif
@@ -252,7 +265,7 @@ int bricklet_init_rpi_hat(const char *product_id_test, const char *spidev,
 		return 1;
 	}
 
-	log_info("Found product_id \"%s\" in device tree, using pre-configured %s Brick setup", product_id, name);
+	log_info("Found product_id '%s' in device tree, using pre-configured %s Brick setup", product_id, name);
 
 	memset(&config, 0, sizeof(config));
 
