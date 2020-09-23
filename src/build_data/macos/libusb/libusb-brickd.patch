@@ -84,7 +84,7 @@ index 8a6b0bf..a94160a 100644
  }
  #endif
 diff --git a/libusb/os/darwin_usb.c b/libusb/os/darwin_usb.c
-index f6e853b..ae5bc3a 100644
+index f6e853b..d914536 100644
 --- a/libusb/os/darwin_usb.c
 +++ b/libusb/os/darwin_usb.c
 @@ -766,7 +766,13 @@ static enum libusb_error darwin_cache_device_descriptor (struct libusb_context *
@@ -147,6 +147,15 @@ index f6e853b..ae5bc3a 100644
  
    kresult = (*(cInterface->interface))->Release(cInterface->interface);
    if (kresult != kIOReturnSuccess)
+@@ -1982,7 +1995,7 @@ static int darwin_abort_transfers (struct usbi_transfer *itransfer) {
+   if (!dpriv->device)
+     return LIBUSB_ERROR_NO_DEVICE;
+ 
+-  usbi_warn (ITRANSFER_CTX (itransfer), "aborting all transactions on interface %d pipe %d", iface, pipeRef);
++  usbi_dbg ("aborting all transactions on interface %d pipe %d", iface, pipeRef);
+ 
+   /* abort transactions */
+ #if InterfaceVersion >= 550
 @@ -2070,6 +2083,9 @@ static enum libusb_transfer_status darwin_transfer_status (struct usbi_transfer
      usbi_warn (ITRANSFER_CTX (itransfer), "transfer error: timed out");
      itransfer->timeout_flags |= USBI_TRANSFER_TIMED_OUT;
