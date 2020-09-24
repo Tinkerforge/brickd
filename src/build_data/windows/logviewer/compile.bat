@@ -1,14 +1,7 @@
 @setlocal
 
-@if "%1" == "oacr" (
- move Makefile Makefile.disabled
- echo WDK build with OACR
- build -bcwgZ
- move Makefile.disabled Makefile
- goto done
-)
-
-@set CC=cl /nologo /c /MD /O2 /W4 /wd4200 /wd4214 /DWIN32_LEAN_AND_MEAN /DNDEBUG
+@set CC=cl /nologo /c /MD /O2 /W4 /wd4200 /wd4214 /DWIN32_LEAN_AND_MEAN /DNDEBUG^
+ /DBRICKD_VERSION_SUFFIX="\"%1\""
 @set LD=link /nologo /subsystem:windows /debug /opt:ref /opt:icf
 @set MC=mc
 @set RC=rc /dWIN32 /r

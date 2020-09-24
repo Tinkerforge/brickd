@@ -1,24 +1,8 @@
 @setlocal
 
-@if "%1" == "oacr" (
- move Makefile Makefile.disabled
- echo WDK build with OACR
- rmdir /s /q ..\oacr_tmp
- mkdir ..\oacr_tmp
- xcopy sources ..\oacr_tmp
- xcopy *.c ..\oacr_tmp
- xcopy *.h ..\oacr_tmp
- xcopy ..\daemonlib\*.c ..\oacr_tmp
- cd ..\oacr_tmp
- build -bcwgZ
- cd ..\brickd
- move Makefile.disabled Makefile
- goto done
-)
-
 @set CC=cl /nologo /c /MD /O2 /W4 /wd4200 /wd4201 /wd4214^
  /DWINVER=0x0501 /D_WIN32_WINNT=0x0501 /DWIN32_LEAN_AND_MEAN /DNDEBUG^
- /DDAEMONLIB_WITH_LOGGING
+ /DDAEMONLIB_WITH_LOGGING /DBRICKD_VERSION_SUFFIX="\"%1\""
 @set MC=mc
 @set RC=rc /dWIN32 /r
 @set LD=link /nologo /debug /opt:ref /opt:icf

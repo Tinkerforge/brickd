@@ -30,6 +30,7 @@ import subprocess
 import plistlib
 import time
 import re
+import argparse
 
 def system(command):
     if os.system(command) != 0:
@@ -83,10 +84,29 @@ def specialize_template(template_filename, destination_filename, replacements, r
     if remove_template:
         os.remove(template_filename)
 
+def git_commit_id():
+    try:
+        commit_id = check_output(['git', 'rev-parse', 'HEAD'])[:7]
+    except Exception:
+        commit_id = 'unknown'
+
+    return commit_id
+
 def build_macos_pkg():
     if (sys.hexversion & 0xFF000000) != 0x03000000:
         print('Python 3.x required')
         sys.exit(1)
+
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument('--snapshot', action='store_true')
+
+    args = parser.parse_args()
+
+    if args.snapshot:
+        version_suffix = 'snapshot~' + git_commit_id()
+    else:
+        version_suffix = 'no'
 
     print('building brickd disk image')
     root_path = os.getcwd()
@@ -98,8 +118,7 @@ def build_macos_pkg():
         shutil.rmtree(dist_path)
 
     print('compiling')
-    system('cd brickd; make clean')
-    system('cd brickd; env CC=gcc make')
+    system('cd brickd; make clean; make CC=gcc WITH_VERSION_SUFFIX={0}'.format(version_suffix))
 
     print('copying installer root')
     installer_root_path = os.path.join(root_path, 'build_data', 'macos', 'installer', 'root')
@@ -114,9 +133,9 @@ def build_macos_pkg():
     shutil.copy('brickd/brickd', macos_path)
 
     print('creating Info.plist from template')
-    version = check_output(['./brickd/brickd', '--version']).replace('\n', '')
+    version = check_output(['./brickd/brickd', '--version']).strip()
     plist_path = os.path.join(contents_path, 'Info.plist')
-    specialize_template(plist_path, plist_path, {'<<VERSION>>': version})
+    specialize_template(plist_path, plist_path, {'<<VERSION>>': version.split('+')[0]}) # macOS only allows for <major>.<minor>.<patch> here
 
     print('copying and patching libusb')
     libusb_path = os.path.join(root_path, 'build_data', 'macos', 'libusb', 'libusb-1.0-brickd.dylib')
@@ -199,7 +218,7 @@ def build_macos_pkg():
     system('xcrun stapler staple "{0}"'.format(pkg_path))
 
     print('building disk image')
-    dmg_name = 'brickd_macos_{0}.dmg'.format(version.replace('.', '_'))
+    dmg_name = 'brickd_macos_{0}.dmg'.format(version.replace('.', '_').replace('+', '_').replace('~', '_'))
 
     if os.path.exists(dmg_name):
         os.remove(dmg_name)
@@ -207,6 +226,18 @@ def build_macos_pkg():
     system('hdiutil create -fs HFS+ -volname "Brickd-{0}" -srcfolder dist/dmg {1}'.format(version, dmg_name))
 
 def build_windows_pkg():
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument('--snapshot', action='store_true')
+    parser.add_argument('--no-sign', action='store_true')
+
+    args = parser.parse_args()
+
+    if args.snapshot:
+        version_suffix = '+snapshot~' + git_commit_id()
+    else:
+        version_suffix = ''
+
     print('building brickd NSIS installer')
     root_path = os.getcwd()
 
@@ -220,9 +251,9 @@ def build_windows_pkg():
     os.makedirs(dist_path)
 
     print('compiling brickd.exe')
-    system('cd brickd && compile.bat')
+    system('cd brickd && compile.bat {0}'.format(version_suffix))
 
-    if '--no-sign' not in sys.argv:
+    if not args.no_sign:
         print('signing brickd.exe')
         system('signtool.exe sign /v /tr http://rfc3161timestamp.globalsign.com/advanced /td sha256 /n "Tinkerforge GmbH" dist\\brickd.exe')
 
@@ -230,9 +261,9 @@ def build_windows_pkg():
         system('signtool.exe verify /v /pa dist\\brickd.exe')
 
     print('compiling logviewer.exe')
-    system('cd build_data\\windows\\logviewer && compile.bat')
+    system('cd build_data\\windows\\logviewer && compile.bat {0}'.format(version_suffix))
 
-    if '--no-sign' not in sys.argv:
+    if not args.no_sign:
         print('signing logviewer.exe')
         system('signtool.exe sign /v /tr http://rfc3161timestamp.globalsign.com/advanced /td sha256 /n "Tinkerforge GmbH" build_data\\windows\\logviewer\\logviewer.exe')
 
@@ -240,14 +271,15 @@ def build_windows_pkg():
         system('signtool.exe verify /v /pa build_data\\windows\\logviewer\\logviewer.exe')
 
     print('creating NSIS script from template')
-    version = check_output(['dist\\brickd.exe', '--version']).replace('\r\n', '')
+    version = check_output(['dist\\brickd.exe', '--version']).strip()
+    underscore_version = version.replace('.', '_').replace('+', '_').replace('~', '_')
     build_data_path = os.path.join(root_path, 'build_data', 'windows')
     installer_template_path = os.path.join(build_data_path, 'installer', 'brickd_installer.nsi.template')
     installer_path = os.path.join(dist_path, 'installer', 'brickd_installer.nsi')
     os.makedirs(os.path.join(dist_path, 'installer'))
     specialize_template(installer_template_path, installer_path,
                         {'<<BRICKD_VERSION>>': version,
-                         '<<BRICKD_UNDERSCORE_VERSION>>': version.replace('.', '_')})
+                         '<<BRICKD_UNDERSCORE_VERSION>>': underscore_version})
 
     print('copying build data')
     drivers_path = os.path.join(build_data_path, 'drivers')
@@ -260,14 +292,14 @@ def build_windows_pkg():
 
     print('building NSIS installer')
     system('"C:\\Program Files (x86)\\NSIS\\makensis.exe" dist\\installer\\brickd_installer.nsi')
-    installer = 'brickd_windows_{0}.exe'.format(version.replace('.', '_'))
+    installer = 'brickd_windows_{0}.exe'.format(underscore_version)
 
     if os.path.exists(installer):
         os.unlink(installer)
 
     shutil.move(os.path.join(dist_path, 'installer', installer), root_path)
 
-    if '--no-sign' not in sys.argv:
+    if not args.no_sign:
         print('signing NSIS installer')
         system('signtool.exe sign /v /tr http://rfc3161timestamp.globalsign.com/advanced /td sha256 /n "Tinkerforge GmbH" ' + installer)
 
@@ -353,7 +385,25 @@ def build_linux_pkg():
         print('Python 3.x required')
         sys.exit(1)
 
-    changelog_version = parse_changelog('changelog')
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument('--snapshot', action='store_true')
+    parser.add_argument('--changelog-date')
+    parser.add_argument('--with-red-brick', action='store_true')
+
+    args = parser.parse_args()
+
+    if args.with_red_brick:
+        version_suffix = '+redbrick'
+    else:
+        version_suffix = ''
+
+    if args.snapshot:
+        version_suffix += '+snapshot~' + git_commit_id()
+    else:
+        version_suffix += ''
+
+    changelog_version = parse_changelog('changelog') + version_suffix
     architecture = check_output(['dpkg', '--print-architecture']).strip()
 
     print('building brickd Debian package')
@@ -361,6 +411,9 @@ def build_linux_pkg():
 
     print('removing old build directory')
     dist_path = os.path.join(root_path, 'dist', architecture)
+
+    if args.with_red_brick:
+        dist_path += '+redbrick'
 
     if os.path.exists(dist_path):
         shutil.rmtree(dist_path)
@@ -407,15 +460,17 @@ def build_linux_pkg():
 
     print('building Debian package')
 
-    if len(sys.argv) > 1:
-        changelog_data = sys.argv[1]
+    if args.changelog_date != None:
+        changelog_date = args.changelog_date
     else:
-        changelog_data = check_output(['date', '-R'])
+        changelog_date = check_output(['date', '-R']).strip()
+
+    print('changelog date:', changelog_date)
 
     specialize_template(os.path.join(source_path, 'debian/changelog.template'),
                         os.path.join(source_path, 'debian/changelog'),
                         {'<<VERSION>>': changelog_version,
-                         '<<DATE>>': changelog_data},
+                         '<<DATE>>': changelog_date},
                         remove_template=True)
 
     system('cd {0}; dpkg-buildpackage -us -uc'.format(source_path))

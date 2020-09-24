@@ -1,14 +1,29 @@
 #!/usr/bin/make -f
 
+VERSION := $(shell dpkg-parsechangelog -S Version)
+
+ifeq ($(findstring +redbrick,$(VERSION)),+redbrick)
+	WITH_RED_BRICK := 10
+else
+	WITH_RED_BRICK := no
+endif
+
+ifeq ($(findstring +,$(subst +redbrick,,$(VERSION))),+)
+	VERSION_SUFFIX := $(lastword $(subst +, ,$(VERSION)))
+else
+	VERSION_SUFFIX := no
+endif
+
 CONFIG := CC=gcc \
           WITH_LIBUDEV=yes \
           WITH_LIBUDEV_DLOPEN=yes \
           WITH_EPOLL=yes \
           WITH_PM_UTILS=no \
           WITH_SYSTEMD=yes \
-          WITH_RED_BRICK=no \
+          WITH_RED_BRICK=$(WITH_RED_BRICK) \
           WITH_BRICKLET=yes \
-          WITH_UNKNOWN_LIBUSB_API_VERSION=yes
+          WITH_UNKNOWN_LIBUSB_API_VERSION=yes \
+          WITH_VERSION_SUFFIX=$(VERSION_SUFFIX)
 
 ifeq ($(shell dpkg --print-architecture),i386)
 	CONFIG += CFLAGS=-march=i386

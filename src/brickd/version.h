@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2012-2019 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2012-2020 Matthias Bolte <matthias@tinkerforge.com>
  * Copyright (C) 2014 Olaf Lüke <olaf@tinkerforge.com>
  * Copyright (C) 2016 Ishraq Ibne Ashraf <ishraq@tinkerforge.com>
  *
@@ -36,16 +36,14 @@
 // this would make Debian interpret the version number wrong. the only allowed
 // characters are [a-zA-Z0-9+.~]. see the Debian manual for more details:
 //
-// https://www.debian.org/doc/debian-policy/ch-controlfields.html#s-f-Version
+// https://www.debian.org/doc/debian-policy/ch-controlfields.html#version
 
 #define VERSION_MAJOR 2
 #define VERSION_MINOR 4
 #define VERSION_RELEASE 1
 
-#ifdef BRICKD_WITH_RED_BRICK
-	#define VERSION_SUFFIX_STRING "+redbrick"
-#else
-	#define VERSION_SUFFIX_STRING ""
+#ifndef BRICKD_VERSION_SUFFIX
+	#define BRICKD_VERSION_SUFFIX ""
 #endif
 
 #define INT_TO_STRING_(x) #x
@@ -55,6 +53,6 @@
 	INT_TO_STRING(VERSION_MAJOR) "." \
 	INT_TO_STRING(VERSION_MINOR) "." \
 	INT_TO_STRING(VERSION_RELEASE) \
-	VERSION_SUFFIX_STRING
+	BRICKD_VERSION_SUFFIX
 
 #endif // BRICKD_VERSION_H

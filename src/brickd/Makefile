@@ -35,6 +35,7 @@ WITH_MESH_SINGLE_ROOT_NODE ?= no
 WITH_UNKNOWN_LIBUSB_API_VERSION ?= no
 WITH_LIBUSB_HOTPLUG_MKNOD ?= no
 WITH_BCM2835 ?= no
+WITH_VERSION_SUFFIX ?= no
 
 ## RULES ######################################################################
 
@@ -124,6 +125,14 @@ endif
 else
 	# not Linux, no RED Brick
 	override WITH_RED_BRICK := no
+endif
+
+ifneq ($(WITH_RED_BRICK),no)
+ifeq ($(WITH_VERSION_SUFFIX),no)
+	override WITH_VERSION_SUFFIX := redbrick
+else
+	override WITH_VERSION_SUFFIX := redbrick+$(WITH_VERSION_SUFFIX)
+endif
 endif
 
 ifeq ($(PLATFORM),Linux)
@@ -580,6 +589,10 @@ ifeq ($(WITH_LIBUSB_HOTPLUG_MKNOD),yes)
 	override CFLAGS += -DBRICKD_WITH_LIBUSB_HOTPLUG_MKNOD
 endif
 
+ifneq ($(WITH_VERSION_SUFFIX),no)
+	override CFLAGS += -DBRICKD_VERSION_SUFFIX="\"+${WITH_VERSION_SUFFIX}\""
+endif
+
 ifneq ($(MAKECMDGOALS),clean)
 $(info libraries/tools:)
 $(info - libusb:                     $(LIBUSB_STATUS))
@@ -599,6 +612,7 @@ $(info - unknown-libusb-api-version: $(WITH_UNKNOWN_LIBUSB_API_VERSION))
 $(info - mesh-single-root-node:      $(WITH_MESH_SINGLE_ROOT_NODE))
 $(info - libusb-hotplug-mknod:       $(WITH_LIBUSB_HOTPLUG_MKNOD))
 $(info - bcm2835:                    $(WITH_BCM2835))
+$(info - version-suffix:             $(WITH_VERSION_SUFFIX))
 $(info - hotplug:                    $(HOTPLUG))
 $(info options:)
 $(info - CFLAGS:                     $(CFLAGS))
