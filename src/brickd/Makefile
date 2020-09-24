@@ -367,7 +367,6 @@ else
 ifeq ($(WITH_DEBUG),yes)
 	override CFLAGS += -O0
 else
-ifeq ($(findstring -Os,$(CFLAGS)),)
 ifeq ($(findstring -O,$(CFLAGS)),)
 	override CFLAGS += -O2
 endif
