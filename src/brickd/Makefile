@@ -93,11 +93,11 @@ endif
 
 ifeq ($(PLATFORM),Linux)
 ifeq ($(WITH_EPOLL),check)
-	WITH_EPOLL := yes
+	override WITH_EPOLL := yes
 endif
 else
 	# not Linux, no epoll
-	WITH_EPOLL := no
+	override WITH_EPOLL := no
 endif
 
 ifneq ($(PLATFORM),Linux)
@@ -110,34 +110,34 @@ ifeq ($(PLATFORM),Linux)
 ifeq ($(WITH_RED_BRICK),check)
 ifneq ($(wildcard /proc/red_brick_uid),)
 	# Linux and RED Brick <= 1.9
-	WITH_RED_BRICK := 9
+	override WITH_RED_BRICK := 9
 else
 ifeq ($(findstring red-brick,$(shell uname -r)),red-brick)
 	# Linux and RED Brick > 1.9
-	WITH_RED_BRICK := 10
+	override WITH_RED_BRICK := 10
 else
 	# Linux, but no RED Brick
-	WITH_RED_BRICK := no
+	override WITH_RED_BRICK := no
 endif
 endif
 endif
 else
 	# not Linux, no RED Brick
-	WITH_RED_BRICK := no
+	override WITH_RED_BRICK := no
 endif
 
 ifeq ($(PLATFORM),Linux)
 ifeq ($(WITH_BRICKLET),check)
 ifeq ($(WITH_RED_BRICK),no)
-	WITH_BRICKLET := yes
+	override WITH_BRICKLET := yes
 else
 	# RED Brick, no Bricklet
-	WITH_BRICKLET := no
+	override WITH_BRICKLET := no
 endif
 endif
 else
 	# not Linux, no Bricklet
-	WITH_BRICKLET := no
+	override WITH_BRICKLET := no
 endif
 
 ifeq ($(PLATFORM),Linux)
@@ -176,16 +176,16 @@ endif
 ifeq ($(WITH_LIBUDEV),check)
 ifeq ($(HOTPLUG),libusb)
 	# libusb hotplug, libudev not required
-	WITH_LIBUDEV := no
+	override WITH_LIBUDEV := no
 	LIBUDEV_STATUS := not required
 else
 	# no libusb hotplug, use libudev instead
-	WITH_LIBUDEV := yes
+	override WITH_LIBUDEV := yes
 endif
 endif
 else
 	# not Linux, no libudev
-	WITH_LIBUDEV := no
+	override WITH_LIBUDEV := no
 endif
 
 ifeq ($(WITH_LIBUDEV),yes)
@@ -206,14 +206,14 @@ ifeq ($(PLATFORM),Linux)
 
 ifeq ($(WITH_PM_UTILS),check)
 ifeq ($(PM_UTILS_EXISTS),yes)
-	WITH_PM_UTILS := yes
+	override WITH_PM_UTILS := yes
 else
-	WITH_PM_UTILS := no
+	override WITH_PM_UTILS := no
 endif
 endif
 else
 	# not Linux, no pm-utils
-	WITH_PM_UTILS := no
+	override WITH_PM_UTILS := no
 endif
 
 ifeq ($(PLATFORM),Linux)
@@ -221,14 +221,14 @@ ifeq ($(PLATFORM),Linux)
 
 ifeq ($(WITH_SYSTEMD),check)
 ifeq ($(SYSTEMD_EXISTS),yes)
-	WITH_SYSTEMD := yes
+	override WITH_SYSTEMD := yes
 else
-	WITH_SYSTEMD := no
+	override WITH_SYSTEMD := no
 endif
 endif
 else
 	# not Linux, no systemd
-	WITH_SYSTEMD := no
+	override WITH_SYSTEMD := no
 endif
 
 ifeq ($(WITH_SYSTEMD),yes)
@@ -362,48 +362,49 @@ else
 endif
 
 ifdef RPM_OPT_FLAGS
-	CFLAGS += $(RPM_OPT_FLAGS)
+	override CFLAGS += $(RPM_OPT_FLAGS)
 else
 ifeq ($(WITH_DEBUG),yes)
-	CFLAGS += -O0
+	override CFLAGS += -O0
 else
 ifeq ($(findstring -Os,$(CFLAGS)),)
-	CFLAGS += -O2
+ifeq ($(findstring -O,$(CFLAGS)),)
+	override CFLAGS += -O2
 endif
 endif
 endif
 
 ifeq ($(WITH_DEBUG),yes)
-	CFLAGS += -g -ggdb
+	override CFLAGS += -g -ggdb
 endif
 
 ifeq ($(WITH_STATIC),yes)
-	LDFLAGS += -static
+	override LDFLAGS += -static
 endif
 
 # tell GCC to use C99, but actually write C89 code plus stdint.h and stdbool.h
 # to be able to compile it with MSVC/WDK which supports C89 only
-CFLAGS += -std=gnu99 -Wall -Wextra -I.. -include symver.h
+override CFLAGS += -std=gnu99 -Wall -Wextra -I.. -include symver.h
 
 ifeq ($(WITH_GPROF),yes)
-	CFLAGS += -pg -no-pie
-	LDFLAGS += -pg -no-pie
+	override CFLAGS += -pg -no-pie
+	override LDFLAGS += -pg -no-pie
 endif
 
 ifeq ($(PLATFORM),Windows)
-	CFLAGS += -DWIN32_LEAN_AND_MEAN -DNDEBUG -DWINVER=0x0501 -D_WIN32_WINNT=0x0501 -mconsole -include fixes_mingw.h
-	LDFLAGS += -Wl,-subsystem,console
-	LIBS += -lws2_32
+	override CFLAGS += -DWIN32_LEAN_AND_MEAN -DNDEBUG -DWINVER=0x0501 -D_WIN32_WINNT=0x0501 -mconsole -include fixes_mingw.h
+	override LDFLAGS += -Wl,-subsystem,console
+	override LIBS += -lws2_32
 else
-	CFLAGS += -DSYSCONFDIR="\"$(sysconfdir)\"" -DLOCALSTATEDIR="\"$(localstatedir)\""
-	LDFLAGS += -pthread
+	override CFLAGS += -DSYSCONFDIR="\"$(sysconfdir)\"" -DLOCALSTATEDIR="\"$(localstatedir)\""
+	override LDFLAGS += -pthread
 endif
 
 ifeq ($(PLATFORM),Linux)
 	# always link to librt for clock_gettime for compatibility with older glibc.
 	# since glibc 2.17 this is not strictly necessary anymore, but detecting glibc
 	# version is difficult and fragile, instead always link to librt.
-	LIBS += -lrt
+	override LIBS += -lrt
 endif
 
 ifeq ($(PLATFORM),Windows)
@@ -461,16 +462,17 @@ ifeq ($(PLATFORM),Darwin)
 	LIBUSB_LIBS := -lusb-1.0-brickd
 endif
 
-CFLAGS += $(LIBUSB_CFLAGS)
-LDFLAGS += $(LIBUSB_LDFLAGS)
-LIBS += $(LIBUSB_LIBS)
+override CFLAGS += $(LIBUSB_CFLAGS)
+override LDFLAGS += $(LIBUSB_LDFLAGS)
+override LIBS += $(LIBUSB_LIBS)
 
 ifeq ($(WITH_LIBUDEV),yes)
-	CFLAGS += -DBRICKD_WITH_LIBUDEV
+	override CFLAGS += -DBRICKD_WITH_LIBUDEV
 
 ifeq ($(WITH_LIBUDEV_DLOPEN),yes)
 	LIBUDEV_STATUS := dlopen
-	CFLAGS += -DBRICKD_WITH_LIBUDEV_DLOPEN
+
+	override CFLAGS += -DBRICKD_WITH_LIBUDEV_DLOPEN
 else
 	LIBUDEV_LINK := yes
 endif
@@ -488,9 +490,10 @@ ifeq ($(LIBUDEV_EXISTS),yes)
 	LIBUDEV_CFLAGS := $(shell pkg-config --cflags libudev)
 	LIBUDEV_LDFLAGS := $(shell pkg-config --libs-only-other --libs-only-L libudev)
 	LIBUDEV_LIBS := $(shell pkg-config --libs-only-l libudev)
-	CFLAGS += $(LIBUDEV_CFLAGS)
-	LDFLAGS += $(LIBUDEV_LDFLAGS)
-	LIBS += $(LIBUDEV_LIBS)
+
+	override CFLAGS += $(LIBUDEV_CFLAGS)
+	override LDFLAGS += $(LIBUDEV_LDFLAGS)
+	override LIBS += $(LIBUDEV_LIBS)
 else
 ifneq ($(MAKECMDGOALS),clean)
 $(error Could not find libudev)
@@ -521,61 +524,61 @@ endif
 endif
 
 ifneq ($(PLATFORM),Windows)
-	LIBS += -ldl
+	override LIBS += -ldl
 endif
 
 ifeq ($(PLATFORM),Darwin)
 	# ensure that there is enough room to rewrite the libusb install name
-	LDFLAGS += -Wl,-headerpad_max_install_names
-	LIBS += -Wl,-framework,IOKit -Wl,-framework,CoreFoundation -lobjc
+	override LDFLAGS += -Wl,-headerpad_max_install_names
+	override LIBS += -Wl,-framework,IOKit -Wl,-framework,CoreFoundation -lobjc
 endif
 
 ifeq ($(WITH_LOGGING),yes)
-	CFLAGS += -DDAEMONLIB_WITH_LOGGING
+	override CFLAGS += -DDAEMONLIB_WITH_LOGGING
 endif
 
 ifeq ($(WITH_EPOLL),yes)
-	CFLAGS += -DDAEMONLIB_WITH_EPOLL
+	override CFLAGS += -DDAEMONLIB_WITH_EPOLL
 endif
 
 ifeq ($(WITH_STATIC),yes)
-	CFLAGS += -DDAEMONLIB_WITH_STATIC
+	override CFLAGS += -DDAEMONLIB_WITH_STATIC
 endif
 
 ifeq ($(WITH_PACKET_TRACE),yes)
-	CFLAGS += -DDAEMONLIB_WITH_PACKET_TRACE
+	override CFLAGS += -DDAEMONLIB_WITH_PACKET_TRACE
 endif
 
 ifneq ($(WITH_RED_BRICK),no)
-	CFLAGS += -DDAEMONLIB_WITH_RED_BRICK=${WITH_RED_BRICK}
+	override CFLAGS += -DDAEMONLIB_WITH_RED_BRICK=${WITH_RED_BRICK}
 endif
 
 ifeq ($(WITH_LIBUSB_DLOPEN),yes)
-	CFLAGS += -DBRICKD_WITH_LIBUSB_DLOPEN
+	override CFLAGS += -DBRICKD_WITH_LIBUSB_DLOPEN
 endif
 
 ifeq ($(WITH_USB_REOPEN_ON_SIGUSR1),yes)
-	CFLAGS += -DBRICKD_WITH_USB_REOPEN_ON_SIGUSR1
+	override CFLAGS += -DBRICKD_WITH_USB_REOPEN_ON_SIGUSR1
 endif
 
 ifneq ($(WITH_RED_BRICK),no)
-	CFLAGS += -DBRICKD_WITH_RED_BRICK=${WITH_RED_BRICK}
+	override CFLAGS += -DBRICKD_WITH_RED_BRICK=${WITH_RED_BRICK}
 endif
 
 ifeq ($(WITH_BRICKLET),yes)
-	CFLAGS += -DBRICKD_WITH_BRICKLET
+	override CFLAGS += -DBRICKD_WITH_BRICKLET
 endif
 
 ifeq ($(WITH_MESH_SINGLE_ROOT_NODE),yes)
-	CFLAGS += -DBRICKD_WITH_MESH_SINGLE_ROOT_NODE
+	override CFLAGS += -DBRICKD_WITH_MESH_SINGLE_ROOT_NODE
 endif
 
 ifeq ($(WITH_UNKNOWN_LIBUSB_API_VERSION),yes)
-	CFLAGS += -DBRICKD_WITH_UNKNOWN_LIBUSB_API_VERSION
+	override CFLAGS += -DBRICKD_WITH_UNKNOWN_LIBUSB_API_VERSION
 endif
 
 ifeq ($(WITH_LIBUSB_HOTPLUG_MKNOD),yes)
-	CFLAGS += -DBRICKD_WITH_LIBUSB_HOTPLUG_MKNOD
+	override CFLAGS += -DBRICKD_WITH_LIBUSB_HOTPLUG_MKNOD
 endif
 
 ifneq ($(MAKECMDGOALS),clean)
