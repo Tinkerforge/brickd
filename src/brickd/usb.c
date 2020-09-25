@@ -421,8 +421,11 @@ int usb_reopen(USBStack *usb_stack) {
 	USBStack *candidate;
 	uint8_t bus_number;
 	uint8_t device_address;
+	bool found = false;
 
-	log_info("Reopening all USB devices");
+	if (usb_stack == NULL) {
+		log_info("Reopening all USB devices");
+	}
 
 	if (array_create(&recipients, 1, sizeof(Recipient), true) < 0) {
 		log_error("Could not create temporary recipient array: %s (%d)",
@@ -440,9 +443,9 @@ int usb_reopen(USBStack *usb_stack) {
 			continue;
 		}
 
-		log_debug("Reopening USB device (bus: %u, device: %u) at index %d: %s",
-		          candidate->bus_number, candidate->device_address, i,
-		          candidate->base.name);
+		log_info("Reopening USB device (bus: %u, device: %u) at index %d: %s",
+		         candidate->bus_number, candidate->device_address, i,
+		         candidate->base.name);
 
 		bus_number = candidate->bus_number;
 		device_address = candidate->device_address;
@@ -461,8 +464,15 @@ int usb_reopen(USBStack *usb_stack) {
 		}
 
 		if (usb_stack != NULL && candidate == usb_stack) {
+			found = true;
+
 			break;
 		}
+	}
+
+	if (usb_stack != NULL && !found) {
+		log_error("Could not find USB device (bus: %u, device: %u) to reopen: %s",
+		          usb_stack->bus_number, usb_stack->device_address, usb_stack->base.name);
 	}
 
 	array_destroy(&recipients, NULL);
