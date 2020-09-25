@@ -100,6 +100,7 @@ def build_macos_pkg():
     parser = argparse.ArgumentParser()
 
     parser.add_argument('--snapshot', action='store_true')
+    parser.add_argument('--no-sign', action='store_true')
 
     args = parser.parse_args()
 
@@ -134,6 +135,7 @@ def build_macos_pkg():
 
     print('creating Info.plist from template')
     version = check_output(['./brickd/brickd', '--version']).strip()
+    underscore_version = version.replace('.', '_').replace('+', '_').replace('~', '_')
     plist_path = os.path.join(contents_path, 'Info.plist')
     specialize_template(plist_path, plist_path, {'<<VERSION>>': version.split('+')[0]}) # macOS only allows for <major>.<minor>.<patch> here
 
@@ -143,82 +145,91 @@ def build_macos_pkg():
     system('install_name_tool -id @executable_path/libusb-1.0-brickd.dylib {0}'.format(os.path.join(macos_path, 'libusb-1.0-brickd.dylib')))
     system('install_name_tool -change @executable_path/../build_data/macos/libusb/libusb-1.0-brickd.dylib @executable_path/libusb-1.0-brickd.dylib {0}'.format(os.path.join(macos_path, 'brickd')))
 
-    print('signing libusb and brickd binaries')
-    system('security unlock-keychain /Users/$USER/Library/Keychains/login.keychain')
-    # NOTE: codesign_application_identity contains "Developer ID Application: ..."
-    codesign_command = 'codesign --force --verify --verbose -o runtime --sign "`cat codesign_application_identity`" {0}'
-    system(codesign_command.format(os.path.join(macos_path, 'libusb-1.0-brickd.dylib')))
-    system(codesign_command.format(app_path))
+    if not args.no_sign:
+        print('signing libusb and brickd binaries')
+        system('security unlock-keychain /Users/$USER/Library/Keychains/login.keychain')
+        # NOTE: codesign_application_identity contains "Developer ID Application: ..."
+        codesign_command = 'codesign --force --verify --verbose -o runtime --sign "`cat codesign_application_identity`" {0}'
+        system(codesign_command.format(os.path.join(macos_path, 'libusb-1.0-brickd.dylib')))
+        system(codesign_command.format(app_path))
 
-    print('notarize app')
-    zip_path = os.path.join(dist_path, 'brickd.app.zip')
-    system('ditto -c -k --keepParent "{0}" "{1}"'.format(app_path, zip_path))
-    output = subprocess.check_output(['xcrun', 'altool', '--notarize-app', '--primary-bundle-id', 'com.tinkerforge.brickd', '--username', 'olaf@tinkerforge.com', '--password', '@keychain:Notarization', '--output-format', 'xml', '--file', zip_path])
-    request_uuid = plistlib.loads(output)['notarization-upload']['RequestUUID']
+        print('notarize app')
+        zip_path = os.path.join(dist_path, 'brickd.app.zip')
+        system('ditto -c -k --keepParent "{0}" "{1}"'.format(app_path, zip_path))
+        output = subprocess.check_output(['xcrun', 'altool', '--notarize-app', '--primary-bundle-id', 'com.tinkerforge.brickd', '--username', 'olaf@tinkerforge.com', '--password', '@keychain:Notarization', '--output-format', 'xml', '--file', zip_path])
+        request_uuid = plistlib.loads(output)['notarization-upload']['RequestUUID']
 
-    print('notarize app request uuid', request_uuid)
-    notarization_info = None
+        print('notarize app request uuid', request_uuid)
+        notarization_info = None
 
-    while True:
-        output = subprocess.check_output(['xcrun', 'altool', '--notarization-info', request_uuid, '--username', 'olaf@tinkerforge.com', '--password', '@keychain:Notarization', '--output-format', 'xml'])
-        notarization_info = plistlib.loads(output)['notarization-info']
+        while True:
+            output = subprocess.check_output(['xcrun', 'altool', '--notarization-info', request_uuid, '--username', 'olaf@tinkerforge.com', '--password', '@keychain:Notarization', '--output-format', 'xml'])
+            notarization_info = plistlib.loads(output)['notarization-info']
 
-        if notarization_info['Status'] != 'in progress':
-            break
+            if notarization_info['Status'] != 'in progress':
+                break
 
-        print('waiting for app notarization to complete ...')
-        time.sleep(10)
+            print('waiting for app notarization to complete ...')
+            time.sleep(10)
 
-    print('notarization app info', notarization_info)
+        print('notarization app info', notarization_info)
 
-    if notarization_info['Status'] != 'success':
-        print('error: notarization app failed')
-        sys.exit(1)
+        if notarization_info['Status'] != 'success':
+            print('error: notarization app failed')
+            sys.exit(1)
 
-    print('staple notarization ticket to app')
-    system('xcrun stapler staple "{0}"'.format(app_path))
+        print('staple notarization ticket to app')
+        system('xcrun stapler staple "{0}"'.format(app_path))
 
     print('building pkg')
     scripts_path = os.path.join(root_path, 'build_data', 'macos', 'installer', 'scripts')
     component_path = os.path.join(root_path, 'build_data', 'macos', 'installer', 'component.plist')
-    # NOTE: codesign_installer_identity contains "Developer ID Installer: ..."
-    system('pkgbuild --sign "`cat codesign_installer_identity`" --root dist/root --identifier com.tinkerforge.brickd --version {0} --scripts {1} --install-location / --component-plist {2} dist/brickd.pkg'.format(version, scripts_path, component_path))
+
+    if not args.no_sign:
+        # NOTE: codesign_installer_identity contains "Developer ID Installer: ..."
+        sign = ' --sign "`cat codesign_installer_identity`"'
+    else:
+        sign = ''
+
+    system('pkgbuild{0} --root dist/root --identifier com.tinkerforge.brickd --version {1} --scripts {2} --install-location / --component-plist {3} dist/brickd.pkg'.format(sign, version, scripts_path, component_path))
+
     distribution_path = os.path.join(root_path, 'build_data', 'macos', 'installer', 'distribution.xml')
     shutil.copy(distribution_path, dist_path)
     distribution_path = os.path.join(dist_path, 'distribution.xml')
     specialize_template(distribution_path, distribution_path, {'<<VERSION>>': version})
     os.makedirs('dist/dmg')
     pkg_path = 'dist/dmg/Brickd-{0}.pkg'.format(version)
-    system('productbuild --sign "`cat codesign_installer_identity`" --distribution {0} --package-path {1} --version {2} {3}'.format(distribution_path, dist_path, version, pkg_path))
+    system('productbuild{0} --distribution {1} --package-path {2} --version {3} {4}'.format(sign, distribution_path, dist_path, version, pkg_path))
 
-    print('notarize pkg')
-    output = subprocess.check_output(['xcrun', 'altool', '--notarize-app', '--primary-bundle-id', 'com.tinkerforge.brickd.pkg', '--username', 'olaf@tinkerforge.com', '--password', '@keychain:Notarization', '--output-format', 'xml', '--file', pkg_path])
-    request_uuid = plistlib.loads(output)['notarization-upload']['RequestUUID']
+    if not args.no_sign:
+        print('notarize pkg')
+        output = subprocess.check_output(['xcrun', 'altool', '--notarize-app', '--primary-bundle-id', 'com.tinkerforge.brickd.pkg', '--username', 'olaf@tinkerforge.com', '--password', '@keychain:Notarization', '--output-format', 'xml', '--file', pkg_path])
+        request_uuid = plistlib.loads(output)['notarization-upload']['RequestUUID']
 
-    print('notarize pkg request uuid', request_uuid)
-    notarization_info = None
+        print('notarize pkg request uuid', request_uuid)
+        notarization_info = None
 
-    while True:
-        output = subprocess.check_output(['xcrun', 'altool', '--notarization-info', request_uuid, '--username', 'olaf@tinkerforge.com', '--password', '@keychain:Notarization', '--output-format', 'xml'])
-        notarization_info = plistlib.loads(output)['notarization-info']
+        while True:
+            output = subprocess.check_output(['xcrun', 'altool', '--notarization-info', request_uuid, '--username', 'olaf@tinkerforge.com', '--password', '@keychain:Notarization', '--output-format', 'xml'])
+            notarization_info = plistlib.loads(output)['notarization-info']
 
-        if notarization_info['Status'] != 'in progress':
-            break
+            if notarization_info['Status'] != 'in progress':
+                break
 
-        print('waiting for pkg notarization to complete ...')
-        time.sleep(10)
+            print('waiting for pkg notarization to complete ...')
+            time.sleep(10)
 
-    print('notarization pkg info', notarization_info)
+        print('notarization pkg info', notarization_info)
 
-    if notarization_info['Status'] != 'success':
-        print('error: notarization pkg failed')
-        sys.exit(1)
+        if notarization_info['Status'] != 'success':
+            print('error: notarization pkg failed')
+            sys.exit(1)
 
-    print('staple notarization ticket to pkg')
-    system('xcrun stapler staple "{0}"'.format(pkg_path))
+        print('staple notarization ticket to pkg')
+        system('xcrun stapler staple "{0}"'.format(pkg_path))
 
     print('building disk image')
-    dmg_name = 'brickd_macos_{0}.dmg'.format(version.replace('.', '_').replace('+', '_').replace('~', '_'))
+    dmg_name = 'brickd_macos_{0}.dmg'.format(underscore_version)
 
     if os.path.exists(dmg_name):
         os.remove(dmg_name)
