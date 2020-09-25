@@ -190,6 +190,11 @@ void usb_transfer_destroy(USBTransfer *usb_transfer) {
 	          usb_transfer->usb_stack->base.name);
 
 	if (usb_transfer->submitted) {
+		log_debug("Cancelling pending %s transfer %p (handle: %p, submission: %u) for %s",
+		          usb_transfer_get_type_name(usb_transfer->type, false), usb_transfer,
+		          usb_transfer->handle, usb_transfer->submission,
+		          usb_transfer->usb_stack->base.name);
+
 		usb_transfer->cancelled = true;
 
 		rc = libusb_cancel_transfer(usb_transfer->handle);
@@ -210,6 +215,11 @@ void usb_transfer_destroy(USBTransfer *usb_transfer) {
 			         usb_transfer->handle, usb_transfer->submission,
 			         usb_transfer->usb_stack->base.name, usb_get_error_name(rc), rc);
 		} else {
+			log_debug("Waiting for cancellation of pending %s transfer %p (handle: %p, submission: %u) for %s to complete",
+			          usb_transfer_get_type_name(usb_transfer->type, false), usb_transfer,
+			          usb_transfer->handle, usb_transfer->submission,
+			          usb_transfer->usb_stack->base.name);
+
 			tv.tv_sec = 0;
 			tv.tv_usec = 0;
 
