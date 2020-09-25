@@ -33,6 +33,8 @@ static LogSource _log_source = LOG_SOURCE_INITIALIZER;
 
 static uint32_t _next_submission = 1;
 
+#define CANCELLATION_TIMEOUT 1000 // 1 second in milliseconds
+
 static const char *usb_transfer_get_type_name(USBTransferType type, bool upper) {
 	switch (type) {
 	case USB_TRANSFER_TYPE_READ:  return upper ? "Read" : "read";
@@ -180,8 +182,8 @@ int usb_transfer_create(USBTransfer *usb_transfer, USBStack *usb_stack,
 
 void usb_transfer_destroy(USBTransfer *usb_transfer) {
 	struct timeval tv;
-	time_t start;
-	time_t now;
+	uint64_t start;
+	uint64_t now;
 	int rc;
 
 	log_debug("Destroying %s transfer %p (handle: %p, submission: %u) for %s",
@@ -223,11 +225,11 @@ void usb_transfer_destroy(USBTransfer *usb_transfer) {
 			tv.tv_sec = 0;
 			tv.tv_usec = 0;
 
-			start = time(NULL);
+			start = millitime();
 			now = start;
 
 			// FIXME: don't wait 1 second per transfer
-			while (usb_transfer->submitted && now >= start && now < start + 1) {
+			while (usb_transfer->submitted && now >= start && now < start + CANCELLATION_TIMEOUT) {
 				rc = libusb_handle_events_timeout(usb_transfer->usb_stack->context, &tv);
 
 				if (rc < 0) {
@@ -237,7 +239,7 @@ void usb_transfer_destroy(USBTransfer *usb_transfer) {
 					          usb_transfer->usb_stack->base.name, usb_get_error_name(rc), rc);
 				}
 
-				now = time(NULL);
+				now = millitime();
 			}
 
 			if (usb_transfer->submitted) {
