@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2012-2019 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2012-2020 Matthias Bolte <matthias@tinkerforge.com>
  *
  * usb_transfer.c: libusb transfer specific functions
  *
@@ -85,12 +85,12 @@ static void LIBUSB_CALL usb_transfer_wrapper(struct libusb_transfer *handle) {
 
 		return;
 	} else if (handle->status == LIBUSB_TRANSFER_NO_DEVICE) {
-		usb_transfer->usb_stack->expecting_disconnect = true;
-
 		log_debug("%s transfer %p (handle: %p, submission: %u) for %s was aborted, device got disconnected",
 		          usb_transfer_get_type_name(usb_transfer->type, true),
 		          usb_transfer, handle, usb_transfer->submission,
 		          usb_transfer->usb_stack->base.name);
+
+		usb_transfer->usb_stack->expecting_disconnect = true;
 
 		return;
 	} else if (handle->status == LIBUSB_TRANSFER_STALL) {
