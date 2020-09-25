@@ -115,6 +115,9 @@ static void LIBUSB_CALL usb_transfer_wrapper(struct libusb_transfer *handle) {
 			          usb_transfer, handle, usb_transfer->submission,
 			          usb_transfer->usb_stack->base.name);
 
+			// in most cases a transfer will stall as a result of unplugging the
+			// USB device. use a 1 second timer to delay the reopening to avoid
+			// trying to reopen an already unplugged USB device.
 			usb_stack_start_stall_timer(usb_transfer->usb_stack);
 		}
 
