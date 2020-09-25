@@ -503,9 +503,9 @@ cleanup:
 	case 17:
 		bricklet_exit();
 #endif
+#ifdef BRICKD_WITH_RED_BRICK
 		// fall through
 
-#ifdef BRICKD_WITH_RED_BRICK
 	case 16:
 		red_usb_gadget_exit();
 		// fall through
