@@ -515,7 +515,7 @@ def build_linux_pkg():
         maximum_glibc_version = (2, 9, 0)
 
     if glibc_version > maximum_glibc_version:
-        warning = 'warning: brickd binary imports glibc {0}.{1}.{2} symbols, but should import symbols from glibc <= {3}.{4}.{5} only'.format(*glibc_version, *maximum_glibc_version)
+        warning = 'warning: brickd binary imports glibc {0}.{1}.{2} symbols, but should import symbols from glibc <= {3}.{4}.{5} only'.format(*(glibc_version + maximum_glibc_version))
 
         if sys.stdin.isatty():
             if input('\033[33m{0}. continue anyway?\033[0m [y/N] '.format(warning)).strip() not in ['y', 'Y']:
