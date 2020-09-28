@@ -960,8 +960,8 @@ int libusb_claim_interface(libusb_device_handle *dev_handle, int interface_numbe
 		} else if (errno == ENODEV) {
 			return LIBUSB_ERROR_NO_DEVICE;
 		} else {
-			usbi_log_error(ctx, "Could not claim interface %d: %s (%d)",
-			               interface_number, get_errno_name(errno), errno);
+			usbi_log_error(ctx, "Could not claim interface %d (context: %p): %s (%d)",
+			               interface_number, ctx, get_errno_name(errno), errno);
 
 			return LIBUSB_ERROR_OTHER;
 		}
@@ -978,8 +978,8 @@ int libusb_release_interface(libusb_device_handle *dev_handle, int interface_num
 		if (errno == ENODEV) {
 			return LIBUSB_ERROR_NO_DEVICE;
 		} else {
-			usbi_log_error(ctx, "Could not release interface %d: %s (%d)",
-			               interface_number, get_errno_name(errno), errno);
+			usbi_log_error(ctx, "Could not release interface %d (context: %p): %s (%d)",
+			               interface_number, ctx, get_errno_name(errno), errno);
 
 			return LIBUSB_ERROR_OTHER;
 		}
