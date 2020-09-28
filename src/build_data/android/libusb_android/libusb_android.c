@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2018-2019 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2018-2020 Matthias Bolte <matthias@tinkerforge.com>
  *
  * libusb_android.c: Emulating libusb API for Android
  *
@@ -129,6 +129,9 @@ static libusb_log_callback _log_callback;
 
 JNIEnv *android_env = NULL;
 jobject android_service = NULL;
+
+static void usbi_log_message(libusb_context *ctx, enum libusb_log_level level,
+                             const char *function, const char *format, ...) ATTRIBUTE_FMT_PRINTF(4, 5);
 
 // NOTE: assumes _log_callback is not nullptr
 static void usbi_log_message(libusb_context *ctx, enum libusb_log_level level,
