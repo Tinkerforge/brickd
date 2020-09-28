@@ -614,7 +614,7 @@ int libusb_handle_events_timeout(libusb_context *ctx, struct timeval *tv) {
 					transfer->actual_length = 0;
 
 					usbi_log_debug(ctx, "USB device for %s transfer %p probably got disconnected",
-					               (LIBUSB_ENDPOINT_IN & transfer->endpoint) != 0 ? "read" : "write");
+					               (LIBUSB_ENDPOINT_IN & transfer->endpoint) != 0 ? "read" : "write", transfer);
 
 					transfer->callback(transfer); // might free or submit transfer
 
