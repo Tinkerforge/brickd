@@ -897,7 +897,6 @@ int libusb_get_string_descriptor_ascii(libusb_device_handle *dev_handle,
 	usbfs_control_transfer control;
 	int rc;
 	unsigned char buffer[255];
-	uint16_t language_id;
 	int d;
 	int s;
 
