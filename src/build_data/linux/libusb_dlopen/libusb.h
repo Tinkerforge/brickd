@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2017, 2019 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2017, 2019-2020 Matthias Bolte <matthias@tinkerforge.com>
  *
  * libusb.h: dlopen wrapper for libusb API
  *
@@ -207,6 +207,8 @@ typedef libusb_device *(*libusb_get_device_t)(libusb_device_handle *dev_handle);
 typedef int (*libusb_claim_interface_t)(libusb_device_handle *dev, int interface_number);
 typedef int (*libusb_release_interface_t)(libusb_device_handle *dev, int interface_number);
 
+typedef int (*libusb_clear_halt_t)(libusb_device_handle *dev_handle, unsigned char endpoint);
+
 typedef struct libusb_transfer *(*libusb_alloc_transfer_t)(int iso_packets);
 typedef int (*libusb_submit_transfer_t)(struct libusb_transfer *transfer);
 typedef int (*libusb_cancel_transfer_t)(struct libusb_transfer *transfer);
@@ -241,6 +243,8 @@ extern libusb_get_device_t libusb_get_device;
 
 extern libusb_claim_interface_t libusb_claim_interface;
 extern libusb_release_interface_t libusb_release_interface;
+
+extern libusb_clear_halt_t libusb_clear_halt;
 
 extern libusb_alloc_transfer_t libusb_alloc_transfer;
 extern libusb_submit_transfer_t libusb_submit_transfer;

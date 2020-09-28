@@ -82,6 +82,7 @@ typedef struct {
 #define IOCTL_USBFS_CONTROL _IOWR('U', 0, usbfs_control_transfer)
 #define IOCTL_USBFS_CLAIMINTF _IOR('U', 15, unsigned int)
 #define IOCTL_USBFS_RELEASEINTF _IOR('U', 16, unsigned int)
+#define IOCTL_USBFS_CLEAR_HALT _IOR('U', 21, unsigned int)
 #define IOCTL_USBFS_SUBMITURB _IOR('U', 10, usbfs_urb)
 #define IOCTL_USBFS_DISCARDURB _IO('U', 11)
 #define IOCTL_USBFS_REAPURBNDELAY _IOW('U', 13, void *)
@@ -979,6 +980,28 @@ int libusb_release_interface(libusb_device_handle *dev_handle, int interface_num
 		} else {
 			usbi_log_error(ctx, "Could not release interface %d (context: %p): %s (%d)",
 			               interface_number, ctx, get_errno_name(errno), errno);
+
+			return LIBUSB_ERROR_OTHER;
+		}
+	}
+
+	return LIBUSB_SUCCESS;
+}
+
+int libusb_clear_halt(libusb_device_handle *dev_handle, unsigned char endpoint) {
+	libusb_context *ctx = dev_handle->dev->ctx;
+	unsigned int tmp = endpoint;
+	int rc = ioctl(dev_handle->pollfd.fd, IOCTL_USBFS_CLEAR_HALT, &tmp);
+
+	if (rc < 0) {
+		if (errno == ENOENT) {
+			return LIBUSB_ERROR_NOT_FOUND;
+		} else if (errno == ENODEV) {
+			return LIBUSB_ERROR_NO_DEVICE;
+		} else {
+			usbi_log_error(ctx, "Could not clear halt for %s endpoint %d (context: %p): %s (%d)",
+			               (LIBUSB_ENDPOINT_IN & endpoint) != 0 ? "read" : "write",
+			               endpoint, ctx, get_errno_name(errno), errno);
 
 			return LIBUSB_ERROR_OTHER;
 		}

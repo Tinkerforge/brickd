@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2017, 2019 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2017, 2019-2020 Matthias Bolte <matthias@tinkerforge.com>
  *
  * libusb.c: dlopen wrapper for libusb API
  *
@@ -55,6 +55,8 @@ libusb_get_device_t libusb_get_device;
 
 libusb_claim_interface_t libusb_claim_interface;
 libusb_release_interface_t libusb_release_interface;
+
+libusb_clear_halt_t libusb_clear_halt;
 
 libusb_alloc_transfer_t libusb_alloc_transfer;
 libusb_submit_transfer_t libusb_submit_transfer;
@@ -124,6 +126,8 @@ int libusb_init_dlopen(void) {
 
 	LIBUSB_DLSYM(libusb_claim_interface);
 	LIBUSB_DLSYM(libusb_release_interface);
+
+	LIBUSB_DLSYM(libusb_clear_halt);
 
 	LIBUSB_DLSYM(libusb_alloc_transfer);
 	LIBUSB_DLSYM(libusb_submit_transfer);

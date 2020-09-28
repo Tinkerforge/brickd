@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2016-2019 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2016-2020 Matthias Bolte <matthias@tinkerforge.com>
  *
  * libusb_uwp.cpp: Emulating libusb API for Universal Windows Platform
  *
@@ -1286,6 +1286,54 @@ int libusb_release_interface(libusb_device_handle *dev_handle, int interface_num
 	}
 
 	return LIBUSB_SUCCESS;
+}
+
+int libusb_clear_halt(libusb_device_handle *dev_handle, unsigned char endpoint) {
+	libusb_context *ctx = dev_handle->dev->ctx;
+	unsigned int i;
+	UsbInterface ^interface = dev_handle->device->DefaultInterface;
+	UsbBulkInPipe ^pipe_in;
+	UsbBulkOutPipe ^pipe_out;
+
+	if ((endpoint & LIBUSB_ENDPOINT_IN) != 0) {
+		for (i = 0; i < interface->BulkInPipes->Size; ++i) {
+			pipe_in = interface->BulkInPipes->GetAt(i);
+
+			if ((LIBUSB_ENDPOINT_IN | pipe_in->EndpointDescriptor->EndpointNumber) == endpoint) {
+				create_task(pipe_in->ClearStallAsync())
+				.then([ctx, endpoint](task<void> previous) {
+					try {
+						previous.get();
+					} catch (...) { // FIXME: too generic
+						usbi_log_error(ctx, "Could not clear halt for read endpoint %d (context: %p): <exception>", // FIXME
+						               endpoint, ctx);
+					}
+				}).wait();
+
+				return LIBUSB_SUCCESS;
+			}
+		}
+	} else {
+		for (i = 0; i < interface->BulkOutPipes->Size; ++i) {
+			pipe_out = interface->BulkOutPipes->GetAt(i);
+
+			if ((LIBUSB_ENDPOINT_OUT | pipe_out->EndpointDescriptor->EndpointNumber) == endpoint) {
+				create_task(pipe_out->ClearStallAsync())
+				.then([ctx, endpoint](task<void> previous) {
+					try {
+						previous.get();
+					} catch (...) { // FIXME: too generic
+						usbi_log_error(ctx, "Could not clear halt for write endpoint %d (context: %p): <exception>", // FIXME
+						               endpoint, ctx);
+					}
+				}).wait();
+
+				return LIBUSB_SUCCESS;
+			}
+		}
+	}
+
+	return LIBUSB_ERROR_NOT_FOUND;
 }
 
 struct libusb_transfer *libusb_alloc_transfer(int iso_packets) {

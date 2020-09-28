@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2018-2019 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2018-2020 Matthias Bolte <matthias@tinkerforge.com>
  *
  * libusb.h: Emulating libusb API for Android
  *
@@ -167,6 +167,8 @@ libusb_device *libusb_get_device(libusb_device_handle *dev_handle);
 
 int libusb_claim_interface(libusb_device_handle *dev, int interface_number);
 int libusb_release_interface(libusb_device_handle *dev, int interface_number);
+
+int libusb_clear_halt(libusb_device_handle *dev_handle, unsigned char endpoint);
 
 struct libusb_transfer *libusb_alloc_transfer(int iso_packets);
 int libusb_submit_transfer(struct libusb_transfer *transfer);

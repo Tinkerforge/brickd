@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2012-2019 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2012-2020 Matthias Bolte <matthias@tinkerforge.com>
  * Copyright (C) 2014 Olaf Lüke <olaf@tinkerforge.com>
  *
  * usb_stack.c: USB stack specific functions
@@ -45,12 +45,79 @@ static LogSource _log_source = LOG_SOURCE_INITIALIZER;
 #define MAX_READ_TRANSFERS 10
 #define MAX_WRITE_TRANSFERS 10
 #define MAX_QUEUED_WRITES 32768
-#define STALL_TIMER_DELAY 1000000 // 1 second in microseconds
+#define PENDING_ERROR_TIMER_DELAY 1000000 // 1 second in microseconds
 
-static void usb_stack_handle_stall(void *opaque) {
+static void usb_stack_handle_pending_error(void *opaque) {
 	USBStack *usb_stack = opaque;
+	int i;
+	USBTransfer *usb_transfer;
+	bool read_stall = false;
+	bool write_stall = false;
+	int rc;
 
-	log_warn("Reopening %s to recover from stalled transfer", usb_stack->base.name);
+	// check read transfers
+	for (i = 0; i < usb_stack->read_transfers.count; ++i) {
+		usb_transfer = array_get(&usb_stack->read_transfers, i);
+
+		if (usb_transfer->pending_error == USB_TRANSFER_PENDING_ERROR_STALL) {
+			read_stall = true;
+		}
+
+		usb_transfer_clear_pending_error(usb_transfer);
+	}
+
+	// check write transfers
+	for (i = 0; i < usb_stack->write_transfers.count; ++i) {
+		usb_transfer = array_get(&usb_stack->write_transfers, i);
+
+		if (usb_transfer->pending_error == USB_TRANSFER_PENDING_ERROR_STALL) {
+			write_stall = true;
+		}
+
+		usb_transfer_clear_pending_error(usb_transfer);
+	}
+
+	// clear read endpoint stall
+	if (read_stall) {
+		rc = libusb_clear_halt(usb_stack->device_handle, usb_transfer->usb_stack->endpoint_in);
+
+		if (rc < 0) {
+			log_warn("Could not clear read endpoint stall for %s: %s (%d)",
+			         usb_stack->base.name, usb_get_error_name(rc), rc);
+
+			goto reopen;
+		}
+
+		log_info("Cleared read endpoint stall for %s", usb_stack->base.name);
+	}
+
+	// clear write endpoint stall
+	if (write_stall) {
+		rc = libusb_clear_halt(usb_stack->device_handle, usb_transfer->usb_stack->endpoint_out);
+
+		if (rc < 0) {
+			log_warn("Could not clear write endpoint stall for %s: %s (%d)",
+			         usb_stack->base.name, usb_get_error_name(rc), rc);
+
+			goto reopen;
+		}
+
+		log_info("Cleared write endpoint stall for %s", usb_stack->base.name);
+	}
+
+	// submit stalled read transfers
+	for (i = 0; i < usb_stack->read_transfers.count; ++i) {
+		usb_transfer = array_get(&usb_stack->read_transfers, i);
+
+		if (usb_transfer_is_submittable(usb_transfer)) {
+			usb_transfer_submit(usb_transfer);
+		}
+	}
+
+	return;
+
+reopen:
+	log_warn("Reopening %s to recover from stalled transfer(s)", usb_stack->base.name);
 
 	usb_reopen(usb_stack);
 }
@@ -209,7 +276,7 @@ static int usb_stack_dispatch_request(Stack *stack, Packet *request,
 	for (i = 0; i < usb_stack->write_transfers.count; ++i) {
 		usb_transfer = array_get(&usb_stack->write_transfers, i);
 
-		if (usb_transfer->submitted) {
+		if (!usb_transfer_is_submittable(usb_transfer)) {
 			continue;
 		}
 
@@ -477,9 +544,9 @@ int usb_stack_create(USBStack *usb_stack, uint8_t bus_number, uint8_t device_add
 	log_debug("Got display name for %s: %s",
 	          preliminary_name, usb_stack->base.name);
 
-	// create stall timer
-	if (timer_create_(&usb_stack->stall_timer, usb_stack_handle_stall, usb_stack) < 0) {
-		log_error("Could not create stall timer for %s: %s (%d)",
+	// create pending error timer
+	if (timer_create_(&usb_stack->pending_error_timer, usb_stack_handle_pending_error, usb_stack) < 0) {
+		log_error("Could not create pending error timer for %s: %s (%d)",
 		          usb_stack->base.name, get_errno_name(errno), errno);
 
 		goto cleanup;
@@ -585,7 +652,7 @@ cleanup:
 		// fall through
 
 	case 5:
-		timer_destroy(&usb_stack->stall_timer);
+		timer_destroy(&usb_stack->pending_error_timer);
 		// fall through
 
 	case 4:
@@ -621,7 +688,7 @@ void usb_stack_destroy(USBStack *usb_stack) {
 	array_destroy(&usb_stack->read_transfers, (ItemDestroyFunction)usb_transfer_destroy);
 	array_destroy(&usb_stack->write_transfers, (ItemDestroyFunction)usb_transfer_destroy);
 
-	timer_destroy(&usb_stack->stall_timer);
+	timer_destroy(&usb_stack->pending_error_timer);
 
 	queue_destroy(&usb_stack->write_queue, NULL);
 
@@ -639,9 +706,9 @@ void usb_stack_destroy(USBStack *usb_stack) {
 	          usb_stack->bus_number, usb_stack->device_address, name);
 }
 
-void usb_stack_start_stall_timer(USBStack *usb_stack) {
-	if (timer_configure(&usb_stack->stall_timer, STALL_TIMER_DELAY, 0) < 0) {
-		log_error("Could not start stall timer for %s: %s (%d)",
+void usb_stack_start_pending_error_timer(USBStack *usb_stack) {
+	if (timer_configure(&usb_stack->pending_error_timer, PENDING_ERROR_TIMER_DELAY, 0) < 0) {
+		log_error("Could not start pending error timer for %s: %s (%d)",
 		          usb_stack->base.name, get_errno_name(errno), errno);
 
 		return;

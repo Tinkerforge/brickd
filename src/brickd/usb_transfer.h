@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2012-2014, 2016-2019 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2012-2014, 2016-2020 Matthias Bolte <matthias@tinkerforge.com>
  *
  * usb_transfer.h: libusb transfer specific functions
  *
@@ -34,6 +34,12 @@ typedef enum {
 	USB_TRANSFER_TYPE_WRITE
 } USBTransferType;
 
+typedef enum {
+	USB_TRANSFER_PENDING_ERROR_NONE = 0,
+	USB_TRANSFER_PENDING_ERROR_STALL,
+	USB_TRANSFER_PENDING_ERROR_UNSPECIFIED
+} USBTransferPendingError;
+
 typedef struct _USBTransfer USBTransfer;
 
 typedef void (*USBTransferFunction)(USBTransfer *usb_transfer);
@@ -50,12 +56,16 @@ struct _USBTransfer {
 		Packet packet;
 	};
 	uint32_t submission;
+	USBTransferPendingError pending_error;
 };
 
 int usb_transfer_create(USBTransfer *usb_transfer, USBStack *usb_stack,
                         USBTransferType type, USBTransferFunction function);
 void usb_transfer_destroy(USBTransfer *usb_transfer);
 
+bool usb_transfer_is_submittable(USBTransfer *usb_transfer);
 int usb_transfer_submit(USBTransfer *usb_transfer);
+
+void usb_transfer_clear_pending_error(USBTransfer *usb_transfer);
 
 #endif // BRICKD_USB_TRANSFER_H

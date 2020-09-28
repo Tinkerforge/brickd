@@ -117,11 +117,26 @@ static void LIBUSB_CALL usb_transfer_wrapper(struct libusb_transfer *handle) {
 			          usb_transfer, handle, usb_transfer->submission,
 			          usb_transfer->usb_stack->base.name);
 
+			usb_transfer->pending_error = USB_TRANSFER_PENDING_ERROR_STALL;
+
 			// in most cases a transfer will stall as a result of unplugging the
-			// USB device. use a 1 second timer to delay the reopening to avoid
-			// trying to reopen an already unplugged USB device.
-			usb_stack_start_stall_timer(usb_transfer->usb_stack);
+			// USB device. use a 1 second timer to delay the recovery process to
+			// avoid trying to access an already unplugged USB device.
+			usb_stack_start_pending_error_timer(usb_transfer->usb_stack);
 		}
+
+		return;
+	} else if (handle->status == LIBUSB_TRANSFER_ERROR) {
+		log_debug("%s transfer %p (handle: %p, submission: %u) returned with an unspecified error from %s",
+		          usb_transfer_get_type_name(usb_transfer->type, true), usb_transfer,
+		          handle, usb_transfer->submission, usb_transfer->usb_stack->base.name);
+
+		usb_transfer->pending_error = USB_TRANSFER_PENDING_ERROR_UNSPECIFIED;
+
+		// in some cases a transfer will fail as a result of unplugging the
+		// USB device. use a 1 second timer to delay the recovery process to
+		// avoid trying to access an already unplugged USB device.
+		usb_stack_start_pending_error_timer(usb_transfer->usb_stack);
 
 		return;
 	} else if (handle->status != LIBUSB_TRANSFER_COMPLETED) {
@@ -153,8 +168,7 @@ static void LIBUSB_CALL usb_transfer_wrapper(struct libusb_transfer *handle) {
 	usb_transfer->submission = 0;
 
 	if (usb_transfer->type == USB_TRANSFER_TYPE_READ &&
-	    !usb_transfer->cancelled &&
-	    !usb_transfer->usb_stack->expecting_disconnect) {
+	    usb_transfer_is_submittable(usb_transfer)) {
 		usb_transfer_submit(usb_transfer);
 	}
 }
@@ -168,6 +182,7 @@ int usb_transfer_create(USBTransfer *usb_transfer, USBStack *usb_stack,
 	usb_transfer->function = function;
 	usb_transfer->handle = libusb_alloc_transfer(0);
 	usb_transfer->submission = 0;
+	usb_transfer->pending_error = USB_TRANSFER_PENDING_ERROR_NONE;
 
 	if (usb_transfer->handle == NULL) {
 		log_error("Could not allocate libusb %s transfer for %s",
@@ -259,13 +274,36 @@ void usb_transfer_destroy(USBTransfer *usb_transfer) {
 	}
 }
 
+bool usb_transfer_is_submittable(USBTransfer *usb_transfer) {
+	return !usb_transfer->submitted &&
+	       !usb_transfer->cancelled &&
+	       !usb_transfer->usb_stack->expecting_disconnect &&
+	       usb_transfer->pending_error == USB_TRANSFER_PENDING_ERROR_NONE;
+}
+
 int usb_transfer_submit(USBTransfer *usb_transfer) {
 	uint8_t endpoint;
 	int length;
 	int rc;
 
 	if (usb_transfer->submitted) {
-		log_error("%s transfer %p (handle: %p, submission: %u) is already submitted for %s",
+		log_error("%s transfer %p (handle: %p, submission: %u) for %s is already submitted",
+		          usb_transfer_get_type_name(usb_transfer->type, true), usb_transfer,
+		          usb_transfer->handle, usb_transfer->submission, usb_transfer->usb_stack->base.name);
+
+		return -1;
+	}
+
+	if (usb_transfer->cancelled) {
+		log_error("%s transfer %p (handle: %p, submission: %u) for %s is already cancelled",
+		          usb_transfer_get_type_name(usb_transfer->type, true), usb_transfer,
+		          usb_transfer->handle, usb_transfer->submission, usb_transfer->usb_stack->base.name);
+
+		return -1;
+	}
+
+	if (usb_transfer->pending_error != USB_TRANSFER_PENDING_ERROR_NONE) {
+		log_error("%s transfer %p (handle: %p, submission: %u) for %s has a pending error",
 		          usb_transfer_get_type_name(usb_transfer->type, true), usb_transfer,
 		          usb_transfer->handle, usb_transfer->submission, usb_transfer->usb_stack->base.name);
 
@@ -325,4 +363,20 @@ int usb_transfer_submit(USBTransfer *usb_transfer) {
 	                 length, usb_transfer->usb_stack->base.name);
 
 	return 0;
+}
+
+void usb_transfer_clear_pending_error(USBTransfer *usb_transfer) {
+	if (usb_transfer->pending_error == USB_TRANSFER_PENDING_ERROR_STALL) {
+		log_warn("%s transfer %p (handle: %p, submission: %u) for %s aborted by stall condition",
+		         usb_transfer_get_type_name(usb_transfer->type, true),
+		         usb_transfer, usb_transfer->handle, usb_transfer->submission,
+		         usb_transfer->usb_stack->base.name);
+	} else if (usb_transfer->pending_error == USB_TRANSFER_PENDING_ERROR_UNSPECIFIED) {
+		log_warn("%s transfer %p (handle: %p, submission: %u) returned with an unspecified error from %s",
+		         usb_transfer_get_type_name(usb_transfer->type, true), usb_transfer,
+		         usb_transfer->handle, usb_transfer->submission, usb_transfer->usb_stack->base.name);
+	}
+
+	usb_transfer->submission = 0;
+	usb_transfer->pending_error = USB_TRANSFER_PENDING_ERROR_NONE;
 }

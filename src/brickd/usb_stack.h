@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2013-2018 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2013-2018, 2020 Matthias Bolte <matthias@tinkerforge.com>
  * Copyright (C) 2014 Olaf Lüke <olaf@tinkerforge.com>
  *
  * usb_stack.h: USB stack specific functions
@@ -42,7 +42,7 @@ typedef struct {
 	int interface_number;
 	uint8_t endpoint_in;
 	uint8_t endpoint_out;
-	Timer stall_timer;
+	Timer pending_error_timer;
 	Array read_transfers;
 	Array write_transfers;
 	Queue write_queue;
@@ -56,6 +56,6 @@ typedef struct {
 int usb_stack_create(USBStack *usb_stack, uint8_t bus_number, uint8_t device_address);
 void usb_stack_destroy(USBStack *usb_stack);
 
-void usb_stack_start_stall_timer(USBStack *usb_stack);
+void usb_stack_start_pending_error_timer(USBStack *usb_stack);
 
 #endif // BRICKD_USB_STACK_H
