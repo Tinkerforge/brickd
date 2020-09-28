@@ -11,6 +11,7 @@ src/build_data/alpine/packages
 src/build_data/android/brickd/.gradle
 src/build_data/android/brickd/.idea
 src/build_data/android/brickd/local.properties
+src/build_data/android/brickd/app/.cxx
 src/build_data/android/brickd/app/.externalNativeBuild
 src/build_data/android/brickd/app/build
 src/build_data/linux/libusb_static/libusb*
