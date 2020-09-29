@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2012-2014 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2012-2014, 2020 Matthias Bolte <matthias@tinkerforge.com>
  * Copyright (C) 2014 Olaf Lüke <olaf@tinkerforge.com>
  *
  * hmac.h: HMAC functions
@@ -29,8 +29,8 @@
 
 uint32_t get_random_uint32(void);
 
-void hmac_sha1(uint8_t *secret, int secret_length,
-               uint8_t *data, int data_length,
+void hmac_sha1(const uint8_t *secret, int secret_length,
+               const uint8_t *data, int data_length,
                uint8_t digest[SHA1_DIGEST_LENGTH]);
 
 #endif // BRICKD_HMAC_H

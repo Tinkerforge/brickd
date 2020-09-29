@@ -132,8 +132,8 @@ static void client_handle_authenticate_request(Client *client,
 
 	secret = config_get_option_value("authentication.secret")->string;
 
-	hmac_sha1((uint8_t *)secret, strlen(secret),
-	          (uint8_t *)nonces, sizeof(nonces), digest);
+	hmac_sha1((const uint8_t *)secret, strlen(secret),
+	          (const uint8_t *)nonces, sizeof(nonces), digest);
 
 	if (memcmp(request->digest, digest, SHA1_DIGEST_LENGTH) != 0) {
 		log_error("Authenticate request (%s) from client ("CLIENT_SIGNATURE_FORMAT") did not contain the expected data, disconnecting client",
