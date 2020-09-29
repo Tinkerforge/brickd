@@ -79,7 +79,7 @@ static void usb_stack_handle_pending_error(void *opaque) {
 
 	// clear read endpoint stall
 	if (read_stall) {
-		rc = libusb_clear_halt(usb_stack->device_handle, usb_transfer->usb_stack->endpoint_in);
+		rc = libusb_clear_halt(usb_stack->device_handle, usb_stack->endpoint_in);
 
 		if (rc < 0) {
 			log_warn("Could not clear read endpoint stall for %s: %s (%d)",
@@ -93,7 +93,7 @@ static void usb_stack_handle_pending_error(void *opaque) {
 
 	// clear write endpoint stall
 	if (write_stall) {
-		rc = libusb_clear_halt(usb_stack->device_handle, usb_transfer->usb_stack->endpoint_out);
+		rc = libusb_clear_halt(usb_stack->device_handle, usb_stack->endpoint_out);
 
 		if (rc < 0) {
 			log_warn("Could not clear write endpoint stall for %s: %s (%d)",
