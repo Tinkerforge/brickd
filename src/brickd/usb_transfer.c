@@ -226,11 +226,29 @@ void usb_transfer_destroy(USBTransfer *usb_transfer) {
 		// crash by NULL pointer dereference because libusb assumes that the
 		// libusb_device_handle is not closed as long as there are submitted
 		// transfers.
+		//
+		// at least on Windows libusb_cancel_transfer has been reported to be
+		// able to fail with LIBUSB_ERROR_NOT_FOUND during device disconnect.
+		// but according to the libusb f1e385390213aab96d2a40e4858ff0d019a1b0b7
+		// this should not be possible. libusb_cancel_transfer itself will
+		// report LIBUSB_ERROR_NOT_FOUND if the transfer is either not in-flight
+		// (should not be possible as the transfer is marked as submitted) or
+		// libusb_cancel_transfer was called for the transfer already but the
+		// cancellation has not completed yet (should not be possible as this
+		// function will cancel each transfer at most once). the OS USB stack
+		// can report the transfer as not existing (might be possible during
+		// device disconnect). therefore, it should be safe to free a transfer
+		// in this case even if it is marked as submitted.
 		if (rc < 0 && rc != LIBUSB_ERROR_NO_DEVICE) {
 			log_warn("Could not cancel pending %s transfer %p (handle: %p, submission: %u) for %s: %s (%d)",
 			         usb_transfer_get_type_name(usb_transfer->type, false), usb_transfer,
 			         usb_transfer->handle, usb_transfer->submission,
 			         usb_transfer->usb_stack->base.name, usb_get_error_name(rc), rc);
+
+			if (rc == LIBUSB_ERROR_NOT_FOUND) {
+				// clear submitted flag to allow freeing it later in this function
+				usb_transfer->submitted = false;
+			}
 		} else {
 			log_debug("Waiting for cancellation of pending %s transfer %p (handle: %p, submission: %u) for %s to complete",
 			          usb_transfer_get_type_name(usb_transfer->type, false), usb_transfer,
