@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2012-2019 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2012-2020 Matthias Bolte <matthias@tinkerforge.com>
  *
  * log_winapi.c: Windows log file, live log view and debugger output handling
  *
@@ -429,13 +429,14 @@ void log_apply_color_platform(LogLevel level, bool begin) {
 	}
 }
 
-bool log_is_included_platform(LogLevel level, LogSource *source,
-                              LogDebugGroup debug_group) {
+uint32_t log_check_inclusion_platform(LogLevel level, LogSource *source,
+                                      LogDebugGroup debug_group, int line) {
 	(void)source;
 	(void)debug_group;
+	(void)line;
 
 	if (_debugger_present) {
-		return true;
+		return LOG_INCLUSION_SECONDARY;
 	}
 
 	switch (level) {
@@ -443,19 +444,19 @@ bool log_is_included_platform(LogLevel level, LogSource *source,
 		return false;
 
 	case LOG_LEVEL_ERROR:
-		return _pipes[3].connected || _pipes[2].connected || _pipes[1].connected || _pipes[0].connected;
+		return _pipes[3].connected || _pipes[2].connected || _pipes[1].connected || _pipes[0].connected ? LOG_INCLUSION_SECONDARY : LOG_INCLUSION_NONE;
 
 	case LOG_LEVEL_WARN:
-		return _pipes[3].connected || _pipes[2].connected || _pipes[1].connected;
+		return _pipes[3].connected || _pipes[2].connected || _pipes[1].connected ? LOG_INCLUSION_SECONDARY : LOG_INCLUSION_NONE;
 
 	case LOG_LEVEL_INFO:
-		return _pipes[3].connected || _pipes[2].connected;
+		return _pipes[3].connected || _pipes[2].connected ? LOG_INCLUSION_SECONDARY : LOG_INCLUSION_NONE;
 
 	case LOG_LEVEL_DEBUG:
-		return _pipes[3].connected;
+		return _pipes[3].connected ? LOG_INCLUSION_SECONDARY : LOG_INCLUSION_NONE;
 	}
 
-	return false;
+	return LOG_INCLUSION_NONE;
 }
 
 // NOTE: assumes that _mutex (in log.c) is locked

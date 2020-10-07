@@ -57,6 +57,7 @@ static void LIBUSB_CALL usb_forward_message(libusb_context *ctx,
                                             va_list arguments) {
 	LogLevel level;
 	LogDebugGroup debug_group;
+	uint32_t inclusion;
 	char buffer[1024] = "<unknown>";
 
 	(void)ctx;
@@ -75,11 +76,13 @@ static void LIBUSB_CALL usb_forward_message(libusb_context *ctx,
 		debug_group = LOG_DEBUG_GROUP_NONE;
 	}
 
-	if (log_is_included(level, &_libusb_log_source, debug_group)) {
+	inclusion = log_check_inclusion(level, &_libusb_log_source, debug_group, -1);
+
+	if (inclusion != LOG_INCLUSION_NONE) {
 		vsnprintf(buffer, sizeof(buffer), format, arguments);
 
-		log_message(level, &_libusb_log_source, debug_group, true, function, -1,
-		            "%s", buffer);
+		log_message(level, &_libusb_log_source, debug_group, true, inclusion,
+		            function, -1, "%s", buffer);
 	}
 }
 
@@ -279,8 +282,8 @@ int usb_init(void) {
 		break;
 
 	case LOG_LEVEL_DEBUG:
-		if (log_is_included(LOG_LEVEL_DEBUG, &_libusb_log_source,
-		                    LOG_DEBUG_GROUP_LIBUSB)) {
+		if (log_check_inclusion(LOG_LEVEL_DEBUG, &_libusb_log_source,
+		                        LOG_DEBUG_GROUP_LIBUSB, -1) != LOG_INCLUSION_NONE) {
 			putenv("LIBUSB_DEBUG=4");
 		} else {
 			putenv("LIBUSB_DEBUG=3");
@@ -510,8 +513,8 @@ int usb_create_context(libusb_context **context) {
 		break;
 
 	case LOG_LEVEL_DEBUG:
-		if (log_is_included(LOG_LEVEL_DEBUG, &_libusb_log_source,
-		                    LOG_DEBUG_GROUP_LIBUSB)) {
+		if (log_check_inclusion(LOG_LEVEL_DEBUG, &_libusb_log_source,
+		                        LOG_DEBUG_GROUP_LIBUSB, -1) != LOG_INCLUSION_NONE) {
 			usb_set_debug(*context, 4);
 		} else {
 			usb_set_debug(*context, 3);

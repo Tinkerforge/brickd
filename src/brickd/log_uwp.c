@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2016, 2019 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2016, 2019-2020 Matthias Bolte <matthias@tinkerforge.com>
  *
  * log_uwp.c: Universal Windows Platform debugger output handling
  *
@@ -41,13 +41,14 @@ void log_apply_color_platform(LogLevel level, bool begin) {
 	(void)begin;
 }
 
-bool log_is_included_platform(LogLevel level, LogSource *source,
-                              LogDebugGroup debug_group) {
+uint32_t log_check_inclusion_platform(LogLevel level, LogSource *source,
+                                      LogDebugGroup debug_group, int line) {
 	(void)level;
 	(void)source;
 	(void)debug_group;
+	(void)line;
 
-	return _debugger_present;
+	return _debugger_present ? LOG_INCLUSION_SECONDARY : LOG_INCLUSION_NONE;
 }
 
 // NOTE: assumes that _mutex (in log.c) is locked
