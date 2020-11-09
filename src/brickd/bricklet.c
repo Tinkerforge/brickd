@@ -227,15 +227,17 @@ int bricklet_init_rpi_hat(const char *product_id_test, const char *spidev,
 		return 1;
 	}
 #else
-	int fd = open("/proc/device-tree/hat/product_id", O_RDONLY);
+	const char *path = "/proc/device-tree/hat/product_id";
+	int fd = open(path, O_RDONLY);
 	int rc;
 
 	if (fd < 0) {
 		if (errno == ENOENT) {
-			log_debug("No HAT product_id in device tree, not using pre-configured %s Brick setup", name);
+			// log this on debug, because this is the default situation on all non-Raspberry Pi setups
+			log_debug("No HAT product_id file in device tree, not using default %s Brick config", name);
 		} else {
-			log_warn("Could not open HAT product_id file in device tree, not using pre-configured %s Brick setup: %s (%d)",
-			         name, get_errno_name(errno), errno);
+			log_warn("Could not open %s for reading, not using default %s Brick config: %s (%d)",
+			         path, name, get_errno_name(errno), errno);
 		}
 
 		return 1;
@@ -247,10 +249,10 @@ int bricklet_init_rpi_hat(const char *product_id_test, const char *spidev,
 
 	if (rc != BRICKLET_RPI_PRODUCT_ID_LENGTH) {
 		if (rc < 0) {
-			log_warn("Could not read HAT product_id in device tree, not using pre-configured %s Brick setup: %s (%d)",
-			         name, get_errno_name(errno), errno);
+			log_warn("Could not read from %s, not using default %s Brick config: %s (%d)",
+			         path, name, get_errno_name(errno), errno);
 		} else {
-			log_warn("HAT product_id in device tree has wrong length, not using pre-configured %s Brick setup", name);
+			log_warn("HAT product_id in device tree has wrong length, not using default %s Brick config", name);
 		}
 
 		return 1;
@@ -259,13 +261,13 @@ int bricklet_init_rpi_hat(const char *product_id_test, const char *spidev,
 
 	if (strncmp(product_id_test, product_id, BRICKLET_RPI_PRODUCT_ID_LENGTH) != 0) {
 		if (last) {
-			log_warn("The product_id of the connected HAT (%s) is not supported, not using pre-configured %s Brick setup", product_id, name);
+			log_warn("Found unsupported HAT product_id %s is device tree, not using default %s Brick config", product_id, name);
 		}
 
 		return 1;
 	}
 
-	log_info("Found product_id '%s' in device tree, using pre-configured %s Brick setup", product_id, name);
+	log_info("Found supported HAT product_id %s in device tree, using default %s Brick config", product_id, name);
 
 	memset(&config, 0, sizeof(config));
 
@@ -335,7 +337,7 @@ int bricklet_init_hctosys(void) {
 	fp = popen("/sbin/hwclock --hctosys", "r");
 
 	if (fp == NULL) {
-		log_warn("Could not execute '/sbin/hwclock --hctosys', time will not be updated: %s (%d)",
+		log_warn("Could not execute '/sbin/hwclock --hctosys', system time will not be changed: %s (%d)",
 		         get_errno_name(errno), errno);
 
 		return -1;
@@ -353,7 +355,7 @@ int bricklet_init_hctosys(void) {
 			return -1;
 		}
 
-		log_info("Updated system time to RTC time using '/sbin/hwclock --hctosys'");
+		log_info("Setting system time to RTC time using '/sbin/hwclock --hctosys'");
 
 		return 0;
 	}
@@ -376,6 +378,7 @@ int bricklet_init(void) {
 	char str_cs_num[]              = "bricklet.groupX.csY.num";
 	char str_sleep_between_reads[] = "bricklet.portX.sleep_between_reads";
 	BrickletStackConfig config;
+	bool first = true;
 
 	mutex_create(&_bricklet_spi_mutex[0]);
 	mutex_create(&_bricklet_spi_mutex[1]);
@@ -389,9 +392,11 @@ int bricklet_init(void) {
 	                           "HAT",
 	                           false);
 
-	if(rc < 0) {
+	if (rc < 0) {
 		return -1;
-	} else if(rc == 0) {
+	}
+
+	if (rc == 0) {
 		// The HAT Brick has a RTC.
 		// If we find one, we update the system time with the RTC time.
 		bricklet_init_hctosys();
@@ -406,13 +411,18 @@ int bricklet_init(void) {
 	                           "HAT Zero",
 	                           true);
 
-	if(rc < 0) {
+	if (rc < 0) {
 		return -1;
-	} else if(rc == 0) {
+	}
+
+	if (rc == 0) {
 		return 0;
 	}
 
 	// If there is no HAT we try to read the SPI configuration from the config
+	// log this on debug, because this is the default situation on all non-Raspberry Pi setups
+	log_debug("Found no supported HAT product_id in device tree, checking bricklet.* section in config file instead");
+
 	for (uint8_t i = 0; i < BRICKLET_SPI_MAX_NUM; i++) {
 		memset(&config, 0, sizeof(config));
 
@@ -466,6 +476,12 @@ int bricklet_init(void) {
 				continue; // FIXME: WiringPi
 			}
 
+			if (first) {
+				log_info("Using bricklet.* section in config file");
+
+				first = false;
+			}
+
 			log_info("Found Bricklet port %c (spidev: %s, driver: %s, name: %s, num: %d)",
 			         config.position, config.spidev,
 			         _chip_select_driver_names[config.chip_select_driver],
@@ -482,6 +498,11 @@ int bricklet_init(void) {
 
 			_bricklet_stack_count++;
 		}
+	}
+
+	if (_bricklet_stack_count == 0) {
+		// log this on debug, because this is the default situation on all non-HAT setups
+		log_debug("Found no bricklet.* section in config file");
 	}
 
 	return 0;
