@@ -337,7 +337,7 @@ int bricklet_init_hctosys(void) {
 	fp = popen("/sbin/hwclock --hctosys", "r");
 
 	if (fp == NULL) {
-		log_warn("Could not execute '/sbin/hwclock --hctosys', system time will not be changed: %s (%d)",
+		log_warn("Could not execute '/sbin/hwclock --hctosys', system time will not be updated: %s (%d)",
 		         get_errno_name(errno), errno);
 
 		return -1;
@@ -355,7 +355,7 @@ int bricklet_init_hctosys(void) {
 			return -1;
 		}
 
-		log_info("Setting system time to RTC time using '/sbin/hwclock --hctosys'");
+		log_info("Updated system time from RTC time using '/sbin/hwclock --hctosys'");
 
 		return 0;
 	}
