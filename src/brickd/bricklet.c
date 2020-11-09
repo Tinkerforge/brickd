@@ -328,34 +328,39 @@ int bricklet_init_hctosys(void) {
 	return 0;
 #else
 	FILE *fp;
-	char buffer[256];
+	char buffer[256] = "";
 	int rc;
 
-	buffer[0] = '\0';
-
+	errno = ENOMEM; // popen does not set errno if memory allocation fails
 	fp = popen("/sbin/hwclock --hctosys", "r");
 
-	if(fp == NULL) {
-		log_warn("Could not popen /sbin/hwclock, time will not be updated");
+	if (fp == NULL) {
+		log_warn("Could not execute '/sbin/hwclock --hctosys', time will not be updated: %s (%d)",
+		         get_errno_name(errno), errno);
+
 		return -1;
 	}
 
 	// If there is no error, we expect that hwclock does not print anything
 	// to stdout or stderr and the exit code is 0.
-	if(fgets(buffer, sizeof(buffer), fp) == NULL) {
+	if (fgets(buffer, sizeof(buffer), fp) == NULL) {
 		rc = pclose(fp);
 
-		if(rc == 0) {
-			log_debug("Updated system time to RTC time with \"hwclock --hctosys\"");
-			return 0;
-		} else {
-			log_warn("Unexpected exit code of \"hwclock --hctosys\"-call: %d", rc);
+		if (rc < 0) {
+			log_warn("Could not read '/sbin/hwclock --hctosys' exit code: %s (%d)",
+			         get_errno_name(errno), errno);
+
 			return -1;
 		}
+
+		log_info("Updated system time to RTC time using '/sbin/hwclock --hctosys'");
+
+		return 0;
 	}
 
 	rc = pclose(fp);
-	log_warn("Unexpected return from /sbin/hwclock call (exit code %d): %s", rc, buffer);
+
+	log_warn("Unexpected output from '/sbin/hwclock --hctosys' (exit-code: %d): %s", rc, buffer);
 
 	return -1;
 #endif
