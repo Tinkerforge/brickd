@@ -34,7 +34,6 @@ WITH_BRICKLET ?= check
 WITH_MESH_SINGLE_ROOT_NODE ?= no
 WITH_UNKNOWN_LIBUSB_API_VERSION ?= no
 WITH_LIBUSB_HOTPLUG_MKNOD ?= no
-WITH_BCM2835 ?= no
 WITH_VERSION_SUFFIX ?= no
 
 ## RULES ######################################################################
@@ -331,12 +330,10 @@ ifeq ($(WITH_BRICKLET),yes)
 	                  bricklet_stack.c
 
 ifeq ($(PLATFORM),Linux)
-ifeq ($(WITH_BCM2835),yes)
-	SOURCES_BRICKD += bcm2835.c \
-	                  bricklet_stack_bcm2835.c
-else
-	SOURCES_BRICKD += bricklet_stack_linux.c
-endif
+	SOURCES_BRICKD += bricklet_stack_linux.c \
+	                  bricklet_stack_linux_bcm2835.c \
+	                  bricklet_stack_linux_spidev.c \
+	                  bcm2835.c
 endif
 endif
 
@@ -611,7 +608,6 @@ $(info - bricklet:                   $(WITH_BRICKLET))
 $(info - unknown-libusb-api-version: $(WITH_UNKNOWN_LIBUSB_API_VERSION))
 $(info - mesh-single-root-node:      $(WITH_MESH_SINGLE_ROOT_NODE))
 $(info - libusb-hotplug-mknod:       $(WITH_LIBUSB_HOTPLUG_MKNOD))
-$(info - bcm2835:                    $(WITH_BCM2835))
 $(info - version-suffix:             $(WITH_VERSION_SUFFIX))
 $(info - hotplug:                    $(HOTPLUG))
 $(info options:)

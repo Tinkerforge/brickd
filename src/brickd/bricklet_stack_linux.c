@@ -1,7 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2018 Olaf Lüke <olaf@tinkerforge.com>
- * Copyright (C) 2018-2019 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2020 Matthias Bolte <matthias@tinkerforge.com>
  *
  * bricklet_stack_linux.c: Linux specific parts of SPI Tinkerforge Protocol
  *                         (SPITFP) implementation for direct communication
@@ -23,179 +22,140 @@
  */
 
 #include <errno.h>
-#include <string.h>
-#include <fcntl.h>
-#include <sys/ioctl.h>
 #include <stdbool.h>
-#include <sys/eventfd.h>
-#include <sys/ioctl.h>
-#include <linux/spi/spidev.h>
+#include <string.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 #include <unistd.h>
 
-#include <daemonlib/gpio_sysfs.h>
 #include <daemonlib/log.h>
 #include <daemonlib/utils.h>
 
 #include "bricklet_stack.h"
 
-#include "bricklet.h"
-
-#define BRICKLET_STACK_SPI_CONFIG_MODE           SPI_MODE_3
-#define BRICKLET_STACK_SPI_CONFIG_LSB_FIRST      0
-#define BRICKLET_STACK_SPI_CONFIG_BITS_PER_WORD  8
-
-// On RPi 3 make sure to set "core_freq=250" in /boot/config.txt.
-// The SPI clock is scaled with the variable core_freq otherwise
-// and the SPI clock is not stable...
-#define BRICKLET_STACK_SPI_CONFIG_MAX_SPEED_HZ   1400000
-
-struct _BrickletStackPlatform {
-	int spi_fd;
-	int chip_select_gpio_fd;
-};
-
 static LogSource _log_source = LOG_SOURCE_INITIALIZER;
-static BrickletStackPlatform _platform[BRICKLET_SPI_MAX_NUM * BRICKLET_CS_MAX_NUM];
+
+extern int bricklet_stack_create_platform_bcm2835(BrickletStack *bricklet_stack);
+extern void bricklet_stack_destroy_platform_bcm2835(BrickletStack *bricklet_stack);
+extern int bricklet_stack_chip_select_gpio_bcm2835(BrickletStack *bricklet_stack, bool enable);
+extern int bricklet_stack_notify_bcm2835(BrickletStack *bricklet_stack);
+extern int bricklet_stack_wait_bcm2835(BrickletStack *bricklet_stack);
+extern int bricklet_stack_spi_transceive_bcm2835(BrickletStack *bricklet_stack, uint8_t *write_buffer,
+                                                 uint8_t *read_buffer, int length);
+
+extern int bricklet_stack_create_platform_spidev(BrickletStack *bricklet_stack);
+extern void bricklet_stack_destroy_platform_spidev(BrickletStack *bricklet_stack);
+extern int bricklet_stack_chip_select_gpio_spidev(BrickletStack *bricklet_stack, bool enable);
+extern int bricklet_stack_notify_spidev(BrickletStack *bricklet_stack);
+extern int bricklet_stack_wait_spidev(BrickletStack *bricklet_stack);
+extern int bricklet_stack_spi_transceive_spidev(BrickletStack *bricklet_stack, uint8_t *write_buffer,
+                                                uint8_t *read_buffer, int length);
+
+typedef int (*create_platform_t)(BrickletStack *bricklet_stack);
+typedef void (*destroy_platform_t)(BrickletStack *bricklet_stack);
+typedef int (*chip_select_gpio_t)(BrickletStack *bricklet_stack, bool enable);
+typedef int (*notify_t)(BrickletStack *bricklet_stack);
+typedef int (*wait_t)(BrickletStack *bricklet_stack);
+typedef int (*spi_transceive_t)(BrickletStack *bricklet_stack, uint8_t *write_buffer,
+                                uint8_t *read_buffer, int length);
+
+static int _raspberry_pi = -1;
+static create_platform_t _create_platform = NULL;
+static destroy_platform_t _destroy_platform = NULL;
+static chip_select_gpio_t _chip_select_gpio = NULL;
+static notify_t _notify = NULL;
+static wait_t _wait = NULL;
+static spi_transceive_t _spi_transceive = NULL;
 
 int bricklet_stack_create_platform(BrickletStack *bricklet_stack) {
-	// Use HW chip select if it is done by SPI hardware unit, otherwise set SPI_NO_CS flag.
-	const int mode = BRICKLET_STACK_SPI_CONFIG_MODE | (bricklet_stack->config.chip_select_driver == BRICKLET_CHIP_SELECT_DRIVER_HARDWARE ? 0 : SPI_NO_CS);
-	const int lsb_first = BRICKLET_STACK_SPI_CONFIG_LSB_FIRST;
-	const int bits_per_word = BRICKLET_STACK_SPI_CONFIG_BITS_PER_WORD;
-	const int max_speed_hz = BRICKLET_STACK_SPI_CONFIG_MAX_SPEED_HZ;
-	BrickletStackPlatform *platform = &_platform[bricklet_stack->config.index];
+	bool raspberry_pi = false;
+#if defined __arm__ || defined __aarch64__
+	char spidev_reason[256] = "<unknown>";
+	const char *model_path = "/proc/device-tree/model";
 	char buffer[256];
+	int length;
+	const char *model_perfix = "Raspberry Pi";
+	int fd;
 
-	memset(platform, 0, sizeof(BrickletStackPlatform));
+	if (_raspberry_pi < 0) {
+		fd = open(model_path, O_RDONLY);
 
-	bricklet_stack->platform = platform;
+		if (fd < 0) {
+			if (errno == ENOENT) {
+				snprintf(spidev_reason, sizeof(spidev_reason), "%s not found", model_path);
+			} else {
+				snprintf(spidev_reason, sizeof(spidev_reason), "could not open %s for reading: %s (%d)",
+				         model_path, get_errno_name(errno), errno);
+			}
+		} else {
+			length = robust_read(fd, buffer, sizeof(buffer) - 1);
 
-	// configure GPIO chip select
-	if (bricklet_stack->config.chip_select_driver == BRICKLET_CHIP_SELECT_DRIVER_GPIO) {
-		if (gpio_sysfs_export(&bricklet_stack->config.chip_select_gpio_sysfs) < 0) {
-			log_error("Could not export %s: %s (%d)",
-			          bricklet_stack->config.chip_select_gpio_sysfs.name, get_errno_name(errno), errno);
+			if (length < 0) {
+				snprintf(spidev_reason, sizeof(spidev_reason), "could not read from %s: %s (%d)",
+				         model_path, get_errno_name(errno), errno);
+			} else {
+				buffer[length] = '\0';
 
-			return -1;
-		}
+				if (strncmp(buffer, model_perfix, strlen(model_perfix)) != 0) {
+					snprintf(spidev_reason, sizeof(spidev_reason), "no 'Raspberry Pi' prefix in %s",
+					         model_path);
+				} else {
+					raspberry_pi = true;
+				}
+			}
 
-		if (gpio_sysfs_set_direction(&bricklet_stack->config.chip_select_gpio_sysfs, GPIO_SYSFS_DIRECTION_OUTPUT) < 0) {
-			log_error("Could not set direction for %s: %s (%d)",
-			          bricklet_stack->config.chip_select_gpio_sysfs.name, get_errno_name(errno), errno);
-
-			return -1; // FIXME: unexport gpio cs pin
-		}
-
-		if (gpio_sysfs_set_output(&bricklet_stack->config.chip_select_gpio_sysfs, GPIO_SYSFS_VALUE_HIGH) < 0) {
-			log_error("Could not set output for %s: %s (%d)",
-			          bricklet_stack->config.chip_select_gpio_sysfs.name, get_errno_name(errno), errno);
-
-			return -1; // FIXME: unexport gpio cs pin
-		}
-
-		snprintf(buffer, sizeof(buffer), "/sys/class/gpio/%s/value", bricklet_stack->config.chip_select_name);
-		bricklet_stack->platform->chip_select_gpio_fd = open(buffer, O_WRONLY);
-
-		if (bricklet_stack->platform->chip_select_gpio_fd < 0) {
-			log_error("Could not open %s: %s (%d)",
-			          buffer, get_errno_name(errno), errno);
-
-			return -1; // FIXME: unexport gpio cs pin
+			close(fd);
 		}
 	}
+#else
+	const char *spidev_reason =  "non-ARM architecture";
+#endif
 
-	// Open spidev
-	bricklet_stack->platform->spi_fd = open(bricklet_stack->config.spidev, O_RDWR);
+	if (_raspberry_pi < 0) {
+		if (raspberry_pi) {
+			log_info("Using BCM2835 backend for Bricklets (Raspberry Pi detected)");
 
-	if (bricklet_stack->platform->spi_fd < 0) {
-		log_error("Could not open %s: %s (%d)",
-		          bricklet_stack->config.spidev, get_errno_name(errno), errno);
+			_raspberry_pi = 1;
+			_create_platform = bricklet_stack_create_platform_bcm2835;
+			_destroy_platform = bricklet_stack_destroy_platform_bcm2835;
+			_chip_select_gpio = bricklet_stack_chip_select_gpio_bcm2835;
+			_notify = bricklet_stack_notify_bcm2835;
+			_wait = bricklet_stack_wait_bcm2835;
+			_spi_transceive = bricklet_stack_spi_transceive_bcm2835;
+		} else {
+			log_info("Using spidev backend for Bricklets (%s)", spidev_reason);
 
-		return -1; // FIXME: close gpio_fd and unexport gpio cs pin
+			_raspberry_pi = 0;
+			_create_platform = bricklet_stack_create_platform_spidev;
+			_destroy_platform = bricklet_stack_destroy_platform_spidev;
+			_chip_select_gpio = bricklet_stack_chip_select_gpio_spidev;
+			_notify = bricklet_stack_notify_spidev;
+			_wait = bricklet_stack_wait_spidev;
+			_spi_transceive = bricklet_stack_spi_transceive_spidev;
+		}
 	}
 
-	if (ioctl(bricklet_stack->platform->spi_fd, SPI_IOC_WR_MODE, &mode) < 0) {
-		log_error("Could not configure SPI mode: %s (%d)",
-		          get_errno_name(errno), errno);
-
-		return -1; // FIXME: close spi_fd, close gpio_fd and unexport gpio cs pin
-	}
-
-	if (ioctl(bricklet_stack->platform->spi_fd, SPI_IOC_WR_MAX_SPEED_HZ, &max_speed_hz) < 0) {
-		log_error("Could not configure SPI max speed: %s (%d)",
-		          get_errno_name(errno), errno);
-
-		return -1; // FIXME: close spi_fd, close gpio_fd and unexport gpio cs pin
-	}
-
-	if (ioctl(bricklet_stack->platform->spi_fd, SPI_IOC_WR_BITS_PER_WORD, &bits_per_word) < 0) {
-		log_error("Could not configure SPI bits per word: %s (%d)",
-		          get_errno_name(errno), errno);
-
-		return -1; // FIXME: close spi_fd, close gpio_fd and unexport gpio cs pin
-	}
-
-	if (ioctl(bricklet_stack->platform->spi_fd, SPI_IOC_WR_LSB_FIRST, &lsb_first) < 0) {
-		log_error("Could not configure SPI LSB first: %s (%d)",
-		          get_errno_name(errno), errno);
-
-		return -1; // FIXME: close spi_fd, close gpio_fd and unexport gpio cs pin
-	}
-
-	return 0;
+	return _create_platform(bricklet_stack);
 }
 
 void bricklet_stack_destroy_platform(BrickletStack *bricklet_stack) {
-	robust_close(bricklet_stack->platform->spi_fd);
-	robust_close(bricklet_stack->platform->chip_select_gpio_fd);
-
-	if (bricklet_stack->config.chip_select_driver == BRICKLET_CHIP_SELECT_DRIVER_GPIO) {
-		gpio_sysfs_unexport(&bricklet_stack->config.chip_select_gpio_sysfs);
-	}
+	_destroy_platform(bricklet_stack);
 }
 
 int bricklet_stack_chip_select_gpio(BrickletStack *bricklet_stack, bool enable) {
-	// Use direct write call instead of gpio_sysfs_set_output on buffered fd to save some CPU time
-	return write(bricklet_stack->platform->chip_select_gpio_fd, enable ? "0" : "1", 1);
+	return _chip_select_gpio(bricklet_stack, enable);
 }
 
 int bricklet_stack_notify(BrickletStack *bricklet_stack) {
-	eventfd_t ev = 1;
-
-	if (eventfd_write(bricklet_stack->notification_event, ev) < 0) {
-		log_error("Could not write to Bricklet stack SPI notification event: %s (%d)",
-		          get_errno_name(errno), errno);
-
-		return -1;
-	}
-
-	return 0;
+	return _notify(bricklet_stack);
 }
 
 int bricklet_stack_wait(BrickletStack *bricklet_stack) {
-	eventfd_t ev;
-
-	if (eventfd_read(bricklet_stack->notification_event, &ev) < 0) {
-		if (errno_would_block()) {
-			return -1; // no queue responses left
-		}
-
-		log_error("Could not read from SPI notification event: %s (%d)",
-		          get_errno_name(errno), errno);
-
-		return -1;
-	}
-
-	return 0;
+	return _wait(bricklet_stack);
 }
 
 int bricklet_stack_spi_transceive(BrickletStack *bricklet_stack, uint8_t *write_buffer,
                                   uint8_t *read_buffer, int length) {
-	struct spi_ioc_transfer spi_transfer = {
-		.tx_buf = (unsigned long)write_buffer,
-		.rx_buf = (unsigned long)read_buffer,
-		.len = length,
-	};
-
-	return ioctl(bricklet_stack->platform->spi_fd, SPI_IOC_MESSAGE(1), &spi_transfer);
+	return _spi_transceive(bricklet_stack, write_buffer, read_buffer, length);
 }

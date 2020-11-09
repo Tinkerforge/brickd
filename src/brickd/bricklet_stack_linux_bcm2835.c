@@ -2,9 +2,9 @@
  * brickd
  * Copyright (C) 2020 Erik Fleckstein <erik@tinkerforge.com>
  *
- * bricklet_stack_bcm2835.c: BCM2835 specific parts of SPI Tinkerforge Protocol
- *                           (SPITFP) implementation for direct communication
- *                           between brickd and Bricklet with co-processor
+ * bricklet_stack_linux_bcm2835.c: Linux BCM2835 specific parts of SPI Tinkerforge Protocol
+ *                                 (SPITFP) implementation for direct communication
+ *                                 between brickd and Bricklet with co-processor
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -25,13 +25,13 @@
 #include <string.h>
 #include <stdbool.h>
 #include <unistd.h>
-
-#include <daemonlib/log.h>
 #include <sys/eventfd.h>
 
-#include "bricklet_stack.h"
-#include "bricklet.h"
+#include <daemonlib/log.h>
 
+#include "bricklet_stack.h"
+
+#include "bricklet.h"
 #include "bcm2835.h"
 
 #define BRICKLET_STACK_SPI_CONFIG_MODE             BCM2835_SPI_MODE3
@@ -55,7 +55,7 @@ static BrickletStackPlatform _platform[BRICKLET_SPI_MAX_NUM * BRICKLET_CS_MAX_NU
 // this is the last platform to be destroyed.
 static int platform_init_counter = 0;
 
-int bricklet_stack_create_platform(BrickletStack *bricklet_stack) {
+int bricklet_stack_create_platform_bcm2835(BrickletStack *bricklet_stack) {
 	BrickletStackPlatform *platform = &_platform[bricklet_stack->config.index];
 
 	memset(platform, 0, sizeof(BrickletStackPlatform));
@@ -64,11 +64,13 @@ int bricklet_stack_create_platform(BrickletStack *bricklet_stack) {
 
 	if (strcmp(bricklet_stack->config.spidev, "/dev/spidev0.0") != 0) {
 		log_error("Only /dev/spidev0.0 is supported");
+
 		return -1;
 	}
 
 	if (bricklet_stack->config.chip_select_driver != BRICKLET_CHIP_SELECT_DRIVER_GPIO) {
 		log_error("Only chip-select-driver gpio is supported");
+
 		return -1;
 	}
 
@@ -76,12 +78,14 @@ int bricklet_stack_create_platform(BrickletStack *bricklet_stack) {
 		// Open spidev
 		if (!bcm2835_init()) {
 			log_error("Could not init bcm2835");
+
 			return -1;
 		}
 
 		if (!bcm2835_spi_begin()) {
 			log_error("Could not begin bcm2835 spi");
 			bcm2835_close();
+
 			return -1;
 		}
 
@@ -102,7 +106,7 @@ int bricklet_stack_create_platform(BrickletStack *bricklet_stack) {
 	return 0;
 }
 
-void bricklet_stack_destroy_platform(BrickletStack *bricklet_stack) {
+void bricklet_stack_destroy_platform_bcm2835(BrickletStack *bricklet_stack) {
 	(void)bricklet_stack;
 
 	--platform_init_counter;
@@ -113,12 +117,13 @@ void bricklet_stack_destroy_platform(BrickletStack *bricklet_stack) {
 	}
 }
 
-int bricklet_stack_chip_select_gpio(BrickletStack *bricklet_stack, bool enable) {
+int bricklet_stack_chip_select_gpio_bcm2835(BrickletStack *bricklet_stack, bool enable) {
 	bcm2835_gpio_write(bricklet_stack->platform->chip_select_pin, enable ? LOW : HIGH);
+
 	return 0;
 }
 
-int bricklet_stack_notify(BrickletStack *bricklet_stack) {
+int bricklet_stack_notify_bcm2835(BrickletStack *bricklet_stack) {
 	eventfd_t ev = 1;
 
 	if (eventfd_write(bricklet_stack->notification_event, ev) < 0) {
@@ -131,7 +136,7 @@ int bricklet_stack_notify(BrickletStack *bricklet_stack) {
 	return 0;
 }
 
-int bricklet_stack_wait(BrickletStack *bricklet_stack) {
+int bricklet_stack_wait_bcm2835(BrickletStack *bricklet_stack) {
 	eventfd_t ev;
 
 	if (eventfd_read(bricklet_stack->notification_event, &ev) < 0) {
@@ -148,8 +153,8 @@ int bricklet_stack_wait(BrickletStack *bricklet_stack) {
 	return 0;
 }
 
-int bricklet_stack_spi_transceive(BrickletStack *bricklet_stack, uint8_t *write_buffer,
-                                  uint8_t *read_buffer, int length) {
+int bricklet_stack_spi_transceive_bcm2835(BrickletStack *bricklet_stack, uint8_t *write_buffer,
+                                          uint8_t *read_buffer, int length) {
 	(void)bricklet_stack;
 
 	bcm2835_spi_transfernb((char *)write_buffer, (char *)read_buffer, length);
