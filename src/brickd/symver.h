@@ -34,6 +34,8 @@
 __asm__(".symver memcpy,memcpy@GLIBC_2.4");
 #else
 __asm__(".symver memcpy,memcpy@GLIBC_2.2.5");
+__asm__(".symver clock_gettime,clock_gettime@GLIBC_2.2.5");
+__asm__(".symver clock_nanosleep,clock_nanosleep@GLIBC_2.2.5");
 #endif
 
 #endif // __GLIBC__
