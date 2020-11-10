@@ -492,15 +492,26 @@ def build_linux_pkg():
         print('error: version mismatch: {0} != {1}'.format(changelog_version, binary_version))
         sys.exit(1)
 
+    if architecture == 'arm64':
+        # arm64 support was added to glibc in version 2.17
+        maximum_glibc_version = (2, 17, 0)
+    else:
+        maximum_glibc_version = (2, 9, 0)
+
     glibc_version = (0, 0, 0)
+    glibc_symbols = []
 
     for line in subprocess.check_output(['objdump', '-T', '{0}/debian/brickd/usr/bin/brickd'.format(source_path)]).decode('utf-8').split('\n'):
-        m = re.search(r'GLIBC_([0-9\.]+)', line)
+        m = re.search(r'(GLIBC_([0-9\.]+).*)', line.strip())
 
         if m == None:
             continue
 
-        version = tuple(int(x) for x in m.group(1).split('.'))
+        symbol = m.group(1)
+        version = tuple(int(x) for x in m.group(2).split('.'))
+
+        if version > maximum_glibc_version:
+            glibc_symbols.append(symbol)
 
         if version > glibc_version:
             glibc_version = version
@@ -508,13 +519,9 @@ def build_linux_pkg():
     while len(glibc_version) < 3:
         glibc_version += (0,)
 
-    if architecture == 'arm64':
-        # arm64 support was added to glibc in version 2.17
-        maximum_glibc_version = (2, 17, 0)
-    else:
-        maximum_glibc_version = (2, 9, 0)
-
     if glibc_version > maximum_glibc_version:
+        print('\n'.join(glibc_symbols))
+
         warning = 'warning: brickd binary imports glibc {0}.{1}.{2} symbols, but should import symbols from glibc <= {3}.{4}.{5} only'.format(*(glibc_version + maximum_glibc_version))
 
         if sys.stdin.isatty():
