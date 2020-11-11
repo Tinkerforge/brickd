@@ -23,6 +23,12 @@ Free Software Foundation, Inc., 59 Temple Place - Suite 330,
 Boston, MA 02111-1307, USA.
 """
 
+
+# FIXME: add build_zip.py that build a zip with the matching brickd and daemonlib
+#        source code to be used as the source download instead of the github.com
+#        source download that doesn't include the matching daemonlib
+
+
 import sys
 import os
 import shutil
@@ -417,7 +423,7 @@ def build_linux_pkg():
     changelog_version = parse_changelog('changelog') + version_suffix
     architecture = check_output(['dpkg', '--print-architecture']).strip()
 
-    print('building brickd Debian package')
+    print('building brickd Debian package for {0}'.format(architecture))
     root_path = os.getcwd()
 
     print('removing old build directory')
