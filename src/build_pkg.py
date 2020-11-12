@@ -37,6 +37,7 @@ import plistlib
 import time
 import re
 import argparse
+import pprint
 
 def system(command):
     if os.system(command) != 0:
@@ -154,8 +155,7 @@ def build_macos_pkg():
     if not args.no_sign:
         print('signing libusb and brickd binaries')
         system('security unlock-keychain /Users/$USER/Library/Keychains/login.keychain')
-        # NOTE: codesign_application_identity contains "Developer ID Application: ..."
-        codesign_command = 'codesign --force --verify --verbose -o runtime --sign "`cat codesign_application_identity`" {0}'
+        codesign_command = 'codesign --force --verify --verbose=1 -o runtime --sign "Developer ID Application: Tinkerforge GmbH (K39N76HTZ4)" {0}'
         system(codesign_command.format(os.path.join(macos_path, 'libusb-1.0-brickd.dylib')))
         system(codesign_command.format(app_path))
 
@@ -163,7 +163,15 @@ def build_macos_pkg():
         zip_path = os.path.join(dist_path, 'brickd.app.zip')
         system('ditto -c -k --keepParent "{0}" "{1}"'.format(app_path, zip_path))
         output = subprocess.check_output(['xcrun', 'altool', '--notarize-app', '--primary-bundle-id', 'com.tinkerforge.brickd', '--username', 'olaf@tinkerforge.com', '--password', '@keychain:Notarization', '--output-format', 'xml', '--file', zip_path])
-        request_uuid = plistlib.loads(output)['notarization-upload']['RequestUUID']
+        plist = plistlib.loads(output)
+
+        try:
+            request_uuid = plist['notarization-upload']['RequestUUID']
+        except:
+            print('error: notarization output does not contain expected fields')
+            pprint.pprint(output)
+            pprint.pprint(plist)
+            sys.exit(1)
 
         print('notarize app request uuid', request_uuid)
         notarization_info = None
@@ -192,8 +200,7 @@ def build_macos_pkg():
     component_path = os.path.join(root_path, 'build_data', 'macos', 'installer', 'component.plist')
 
     if not args.no_sign:
-        # NOTE: codesign_installer_identity contains "Developer ID Installer: ..."
-        sign = ' --sign "`cat codesign_installer_identity`"'
+        sign = ' --sign "Developer ID Installer: Tinkerforge GmbH (K39N76HTZ4)"'
     else:
         sign = ''
 
@@ -210,7 +217,15 @@ def build_macos_pkg():
     if not args.no_sign:
         print('notarize pkg')
         output = subprocess.check_output(['xcrun', 'altool', '--notarize-app', '--primary-bundle-id', 'com.tinkerforge.brickd.pkg', '--username', 'olaf@tinkerforge.com', '--password', '@keychain:Notarization', '--output-format', 'xml', '--file', pkg_path])
-        request_uuid = plistlib.loads(output)['notarization-upload']['RequestUUID']
+        plist = plistlib.loads(output)
+
+        try:
+            request_uuid = plist['notarization-upload']['RequestUUID']
+        except:
+            print('error: notarization output does not contain expected fields')
+            pprint.pprint(output)
+            pprint.pprint(plist)
+            sys.exit(1)
 
         print('notarize pkg request uuid', request_uuid)
         notarization_info = None
