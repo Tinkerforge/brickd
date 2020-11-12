@@ -272,7 +272,7 @@ def build_windows_pkg():
 
     if not args.no_sign:
         print('signing brickd.exe')
-        system('signtool.exe sign /v /tr http://rfc3161timestamp.globalsign.com/advanced /td sha256 /n "Tinkerforge GmbH" dist\\brickd.exe')
+        system('signtool.exe sign /v /tr http://rfc3161timestamp.globalsign.com/advanced /td sha256 /n "Tinkerforge GmbH" /a dist\\brickd.exe')
 
         print('verifying brickd.exe signature')
         system('signtool.exe verify /v /pa dist\\brickd.exe')
@@ -282,7 +282,7 @@ def build_windows_pkg():
 
     if not args.no_sign:
         print('signing logviewer.exe')
-        system('signtool.exe sign /v /tr http://rfc3161timestamp.globalsign.com/advanced /td sha256 /n "Tinkerforge GmbH" build_data\\windows\\logviewer\\logviewer.exe')
+        system('signtool.exe sign /v /tr http://rfc3161timestamp.globalsign.com/advanced /td sha256 /n "Tinkerforge GmbH" /a build_data\\windows\\logviewer\\logviewer.exe')
 
         print('verifying logviewer.exe signature')
         system('signtool.exe verify /v /pa build_data\\windows\\logviewer\\logviewer.exe')
@@ -318,7 +318,7 @@ def build_windows_pkg():
 
     if not args.no_sign:
         print('signing NSIS installer')
-        system('signtool.exe sign /v /tr http://rfc3161timestamp.globalsign.com/advanced /td sha256 /n "Tinkerforge GmbH" ' + installer)
+        system('signtool.exe sign /v /tr http://rfc3161timestamp.globalsign.com/advanced /td sha256 /n "Tinkerforge GmbH" /a ' + installer)
 
         print('verifying NSIS installer signature')
         system('signtool.exe verify /v /pa ' + installer)
