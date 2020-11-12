@@ -238,7 +238,7 @@
   Windows 10 IoT Core, disabled by default due to missing HAT detection
 - Notarize Brick Daemon app to make it ready for macOS 10.15
 
-2020-11-12: 2.4.2 (<unknown>)
+2020-11-12: 2.4.2 (1e6411a)
 - Properly shutdown subsystems on Ctrl+C instead of abruptly exiting on Windows
 - Rotate persistent log file on Windows and limit its total size to 25 MB
 - Add commandline options to override log and config file location on Windows
