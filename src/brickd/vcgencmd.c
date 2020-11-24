@@ -305,7 +305,7 @@ int vcgencmd_get_config(const char *name, char *value, int value_length) {
 			continue;
 		}
 
-		// FIXME: ignoring the first 4 bytes of VCHIQ error code (little-endian)
+		// FIXME: ignoring 4 byte VCHIQ error code (little-endian)
 
 		value_length = rc - prefix_length;
 
