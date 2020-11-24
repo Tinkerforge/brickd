@@ -143,6 +143,7 @@ typedef struct {
 #define RETRY(r,x)                     do { r = x; } while ((r < 0) && (errno == EINTR))
 #define MAKE_FOURCC(x)                 ((int32_t)((x[0] << 24)|(x[1] << 16)|(x[2] << 8)|x[3]))
 #define GENCMDSERVICE_MSGFIFO_SIZE     (4096 - 4)
+#define GENCMDSERVICE_TIMEOUT          5000 // milliseconds
 #define VC_GENCMD_VER                  1
 #define VCHIQ_SERVICE_HANDLE_INVALID   0
 #define VCHIQ_IOC_MAGIC                0xC4
@@ -168,6 +169,7 @@ int vcgencmd_get_config(const char *name, char *value, int value_length) {
 	vchiq_service_params_t service_params;
 	vchiq_create_service_t create_service;
 	vchiq_service_handle_t service_handle;
+	uint64_t start;
 	char command[128];
 	vchiq_queue_message_t queue_message;
 	vchiq_element_t element;
@@ -267,7 +269,16 @@ int vcgencmd_get_config(const char *name, char *value, int value_length) {
 		return -1;
 	}
 
-	while (1) { // FIXME: add timeout
+	start = millitime();
+
+	while (true) {
+		if (millitime() - start > GENCMDSERVICE_TIMEOUT) {
+			log_error("Could not dequeue valid message from VCHIQ GCMD service in time");
+			robust_close(fd);
+
+			return -1;
+		}
+
 		memset(&dequeue_message, 0, sizeof(dequeue_message));
 
 		dequeue_message.handle = service_handle;
