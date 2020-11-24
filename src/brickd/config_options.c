@@ -28,6 +28,7 @@
 #endif
 
 #ifdef BRICKD_WITH_BRICKLET
+	#include "bricklet.h"
 	#include "bricklet_stack.h"
 #endif
 
@@ -54,6 +55,21 @@ static const char *config_format_red_led_trigger(int value) {
 #endif
 
 #ifdef BRICKD_WITH_BRICKLET
+
+static EnumValueName _bricklet_spi_driver_enum_value_names[] = {
+	{ BRICKLET_SPI_DRIVER_AUTO,    "auto" },
+	{ BRICKLET_SPI_DRIVER_BCM2835, "bcm2835" },
+	{ BRICKLET_SPI_DRIVER_SPIDEV,  "spidev" },
+	{ -1,                          NULL }
+};
+
+static int config_parse_bricklet_spi_driver(const char *string, int *value) {
+	return enum_get_value(_bricklet_spi_driver_enum_value_names, string, value, true);
+}
+
+static const char *config_format_bricklet_spi_driver(int value) {
+	return enum_get_name(_bricklet_spi_driver_enum_value_names, value, "<unknown>");
+}
 
 static EnumValueName _bricklet_chip_select_driver_enum_value_names[] = {
 	{ BRICKLET_CHIP_SELECT_DRIVER_HARDWARE, "hardware" },
@@ -99,6 +115,8 @@ ConfigOption config_options[] = {
 	CONFIG_OPTION_INTEGER_INITIALIZER("bricklet.portI.sleep_between_reads", 100, 1000000, 200), // microseconds
 	CONFIG_OPTION_INTEGER_INITIALIZER("bricklet.portJ.sleep_between_reads", 100, 1000000, 200), // microseconds
 	CONFIG_OPTION_INTEGER_INITIALIZER("bricklet.portHAT.sleep_between_reads", 100, 1000000, 2000), // microseconds
+
+	CONFIG_OPTION_SYMBOL_INITIALIZER("bricklet.spi.driver", config_parse_bricklet_spi_driver, config_format_bricklet_spi_driver, BRICKLET_SPI_DRIVER_AUTO),
 
 	CONFIG_OPTION_STRING_INITIALIZER("bricklet.group0.spidev", 0, BRICKLET_SPIDEV_MAX_LENGTH, NULL),
 	CONFIG_OPTION_STRING_INITIALIZER("bricklet.group1.spidev", 0, BRICKLET_SPIDEV_MAX_LENGTH, NULL),

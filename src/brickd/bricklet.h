@@ -1,7 +1,7 @@
 /*
  * brickd
  * Copyright (C) 2018 Olaf Lüke <olaf@tinkerforge.com>
- * Copyright (C) 2018-2019 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2018-2020 Matthias Bolte <matthias@tinkerforge.com>
  *
  * bricklet.c: Bricklet support
  *
@@ -25,6 +25,12 @@
 
 #define BRICKLET_SPI_MAX_NUM 2
 #define BRICKLET_CS_MAX_NUM 10
+
+typedef enum {
+	BRICKLET_SPI_DRIVER_AUTO = 0,
+	BRICKLET_SPI_DRIVER_BCM2835, // Raspberry Pi
+	BRICKLET_SPI_DRIVER_SPIDEV
+} BrickletSPIDriver;
 
 int bricklet_init(void);
 void bricklet_exit(void);

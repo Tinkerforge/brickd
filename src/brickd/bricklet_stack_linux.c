@@ -29,9 +29,11 @@
 #include <fcntl.h>
 #include <unistd.h>
 
+#include <daemonlib/config.h>
 #include <daemonlib/log.h>
 #include <daemonlib/utils.h>
 
+#include "bricklet.h"
 #include "bricklet_stack.h"
 
 static LogSource _log_source = LOG_SOURCE_INITIALIZER;
@@ -69,7 +71,8 @@ static wait_t _wait = NULL;
 static spi_transceive_t _spi_transceive = NULL;
 
 int bricklet_stack_create_platform(BrickletStack *bricklet_stack) {
-	bool raspberry_pi = false;
+	bool bmc2835;
+	int spi_driver;
 #if defined __arm__ || defined __aarch64__
 	char spidev_reason[256] = "<unknown>";
 	const char *model_path = "/proc/device-tree/model";
@@ -101,22 +104,48 @@ int bricklet_stack_create_platform(BrickletStack *bricklet_stack) {
 					snprintf(spidev_reason, sizeof(spidev_reason), "no 'Raspberry Pi' prefix in %s",
 					         model_path);
 				} else {
-					raspberry_pi = true;
+					_raspberry_pi = 1;
 				}
 			}
 
 			close(fd);
 		}
+
+		if (_raspberry_pi < 0) {
+			_raspberry_pi = 0;
+		}
 	}
 #else
 	const char *spidev_reason =  "non-ARM architecture";
+
+	_raspberry_pi = 0;
 #endif
 
-	if (_raspberry_pi < 0) {
-		if (raspberry_pi) {
-			log_info("Using BCM2835 backend for Bricklets (Raspberry Pi detected)");
+	if (_create_platform == NULL) {
+		spi_driver = config_get_option_value("bricklet.spi.driver")->symbol;
 
-			_raspberry_pi = 1;
+		if (spi_driver == BRICKLET_SPI_DRIVER_AUTO) {
+			if (_raspberry_pi) {
+				log_info("Using BCM2835 backend for Bricklets (Raspberry Pi detected)");
+				bmc2835 = true;
+			} else {
+				log_info("Using spidev backend for Bricklets (%s)", spidev_reason);
+				bmc2835 = false;
+			}
+		} else if (spi_driver == BRICKLET_SPI_DRIVER_BCM2835) {
+			if (_raspberry_pi) {
+				log_info("Using BCM2835 backend for Bricklets (forced by config)");
+			} else {
+				log_info("Using BCM2835 backend for Bricklets (forced by config, but %s)", spidev_reason);
+			}
+
+			bmc2835 = true;
+		} else { // BRICKLET_SPI_DRIVER_SPIDEV
+			log_info("Using spidev backend for Bricklets (forced by config)");
+			bmc2835 = false;
+		}
+
+		if (bmc2835) {
 			_create_platform = bricklet_stack_create_platform_bcm2835;
 			_destroy_platform = bricklet_stack_destroy_platform_bcm2835;
 			_chip_select_gpio = bricklet_stack_chip_select_gpio_bcm2835;
@@ -124,9 +153,6 @@ int bricklet_stack_create_platform(BrickletStack *bricklet_stack) {
 			_wait = bricklet_stack_wait_bcm2835;
 			_spi_transceive = bricklet_stack_spi_transceive_bcm2835;
 		} else {
-			log_info("Using spidev backend for Bricklets (%s)", spidev_reason);
-
-			_raspberry_pi = 0;
 			_create_platform = bricklet_stack_create_platform_spidev;
 			_destroy_platform = bricklet_stack_destroy_platform_spidev;
 			_chip_select_gpio = bricklet_stack_chip_select_gpio_spidev;
