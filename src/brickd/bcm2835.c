@@ -70,8 +70,6 @@ volatile uint32_t *bcm2835_st	       = (uint32_t *)MAP_FAILED;
 volatile uint32_t *bcm2835_aux	       = (uint32_t *)MAP_FAILED;
 volatile uint32_t *bcm2835_spi1        = (uint32_t *)MAP_FAILED;
 
-
-
 /* This variable allows us to test on hardware other than RPi.
 // It prevents access to the kernel memory, and does not do any peripheral access
 // Instead it prints out what it _would_ do if debug were 0
@@ -129,6 +127,8 @@ static uint8_t bcm2835_byte_reverse_table[] =
     0x0f, 0x8f, 0x4f, 0xcf, 0x2f, 0xaf, 0x6f, 0xef,
     0x1f, 0x9f, 0x5f, 0xdf, 0x3f, 0xbf, 0x7f, 0xff
 };
+
+extern uint32_t bcm2835_core_clk_hz;
 
 static uint8_t bcm2835_correct_order(uint8_t b)
 {

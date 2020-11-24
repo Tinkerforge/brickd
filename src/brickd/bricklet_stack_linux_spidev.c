@@ -43,10 +43,6 @@
 #define BRICKLET_STACK_SPI_CONFIG_MODE           SPI_MODE_3
 #define BRICKLET_STACK_SPI_CONFIG_LSB_FIRST      0
 #define BRICKLET_STACK_SPI_CONFIG_BITS_PER_WORD  8
-
-// On RPi 3 make sure to set "core_freq=250" in /boot/config.txt.
-// The SPI clock is scaled with the variable core_freq otherwise
-// and the SPI clock is not stable...
 #define BRICKLET_STACK_SPI_CONFIG_MAX_SPEED_HZ   1400000
 
 struct _BrickletStackPlatform {

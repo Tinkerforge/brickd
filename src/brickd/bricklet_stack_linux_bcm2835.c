@@ -33,15 +33,12 @@
 
 #include "bricklet.h"
 #include "bcm2835.h"
+#include "vcgencmd.h"
 
 #define BRICKLET_STACK_SPI_CONFIG_MODE             BCM2835_SPI_MODE3
 #define BRICKLET_STACK_SPI_CONFIG_BIT_ORDER        BCM2835_SPI_BIT_ORDER_MSBFIRST
 #define BRICKLET_STACK_SPI_CONFIG_HARDWARE_CS_PINS BCM2835_SPI_CS_NONE
-
-// On RPi 3 make sure to set "core_freq=250" in /boot/config.txt.
-// The SPI clock is scaled with the variable core_freq otherwise
-// and the SPI clock is not stable...
-#define BRICKLET_STACK_SPI_CONFIG_MAX_SPEED_HZ   1400000
+#define BRICKLET_STACK_SPI_CONFIG_MAX_SPEED_HZ     1400000
 
 struct _BrickletStackPlatform {
 	int chip_select_pin;
@@ -55,8 +52,49 @@ static BrickletStackPlatform _platform[BRICKLET_SPI_MAX_NUM * BRICKLET_CS_MAX_NU
 // this is the last platform to be destroyed.
 static int platform_init_counter = 0;
 
+uint32_t bcm2835_core_clk_hz;
+
+static int bricklet_stack_parse_core_freq(const char *name, int *value) {
+	char buffer[128];
+	int length;
+
+	length = vcgencmd_get_config(name, buffer, sizeof(buffer) - 1);
+
+	if (length < 0) {
+		log_error("Could not read Raspberry Pi %s config", name);
+
+		return -1;
+	}
+
+	buffer[length] = '\0';
+
+	if (parse_int(buffer, NULL, 10, value) < 0) {
+		log_error("Could not parse Raspberry Pi %s value: %s", name, buffer);
+
+		return -1;
+	}
+
+	if (*value == 0) {
+		// zero means default value, which is 250 for core_freq and core_freq_min
+		// https://github.com/raspberrypi/userland/issues/653
+		log_debug("Raspberry Pi %s value is zero, assuming 250 MHz", name);
+
+		*value = 250;
+	}
+
+	if (*value < 100 || *value > 1000) {
+		log_error("Invalid value for Raspberry Pi %s config: %d", name, *value);
+
+		return -1;
+	}
+
+	return 0;
+}
+
 int bricklet_stack_create_platform_bcm2835(BrickletStack *bricklet_stack) {
 	BrickletStackPlatform *platform = &_platform[bricklet_stack->config.index];
+	int core_freq;
+	int core_freq_min;
 
 	memset(platform, 0, sizeof(BrickletStackPlatform));
 
@@ -75,7 +113,27 @@ int bricklet_stack_create_platform_bcm2835(BrickletStack *bricklet_stack) {
 	}
 
 	if (platform_init_counter == 0) {
-		// Open spidev
+		// core_freq
+		if (bricklet_stack_parse_core_freq("core_freq", &core_freq) < 0) {
+			return -1;
+		}
+
+		// core_freq_min
+		if (bricklet_stack_parse_core_freq("core_freq_min", &core_freq_min) < 0) {
+			return -1;
+		}
+
+		// bcm2835
+		if (core_freq != core_freq_min) {
+			log_warn("Raspberry Pi core frequency (core_freq: %d, core_freq_min: %d) is unstable, SPI throughput will be unstable too",
+			         core_freq, core_freq_min);
+		}
+
+		log_info("Using %d MHz Raspberry Pi core frequency (core_freq: %d, core_freq_min: %d) for BCM2835 backend",
+		         core_freq, core_freq, core_freq_min);
+
+		bcm2835_core_clk_hz = core_freq * 1000000; // MHz -> Hz
+
 		if (!bcm2835_init()) {
 			log_error("Could not init bcm2835");
 

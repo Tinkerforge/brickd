@@ -333,7 +333,8 @@ ifeq ($(PLATFORM),Linux)
 	SOURCES_BRICKD += bricklet_stack_linux.c \
 	                  bricklet_stack_linux_bcm2835.c \
 	                  bricklet_stack_linux_spidev.c \
-	                  bcm2835.c
+	                  bcm2835.c \
+	                  vcgencmd.c
 endif
 endif
 
