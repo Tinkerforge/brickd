@@ -254,3 +254,7 @@
 - Allow to fully static link brickd for Docker container usage on Linux
 - Switch Debian package build to debhelper and drop SysV init support
 - Improve USB transfer error logging and stall error recovery
+
+2020-12-01: 2.4.3 (<unknown>)
+- Fix SPI clock for HAT (Zero) Brick on Linux, if core_freq differs from 250 MHz
+- Add config option to override SPI backend detection
