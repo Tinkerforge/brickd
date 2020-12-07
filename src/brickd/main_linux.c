@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2012-2019 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2012-2020 Matthias Bolte <matthias@tinkerforge.com>
  * Copyright (C) 2014, 2018 Olaf Lüke <olaf@tinkerforge.com>
  * Copyright (C) 2014, 2016-2017 Ishraq Ibne Ashraf <ishraq@tinkerforge.com>
  *
@@ -31,6 +31,7 @@
 #include <pwd.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <sys/utsname.h>
 
 #include <daemonlib/config.h>
 #include <daemonlib/daemon.h>
@@ -254,6 +255,7 @@ int main(int argc, char **argv) {
 	bool daemon = false;
 	const char *debug_filter = NULL;
 	int pid_fd = -1;
+	struct utsname uts;
 #ifdef BRICKD_WITH_LIBUDEV
 	bool initialized_udev = false;
 #endif
@@ -365,6 +367,13 @@ int main(int argc, char **argv) {
 
 	log_info("Brick Daemon %s started (pid: %u, daemonized: %d)",
 	         VERSION_STRING, getpid(), daemon ? 1 : 0);
+
+	if (uname(&uts) < 0) {
+		log_warn("Could not get Linux system information: %s (%d)", get_errno_name(errno), errno);
+	} else {
+		log_info("Running on Linux system (sysname: %s, release: %s, version: %s, machine: %s)",
+		         uts.sysname, uts.release, uts.version, uts.machine);
+	}
 
 	phase = 3;
 
