@@ -1,6 +1,6 @@
 /*
  * log viewer for brickd
- * Copyright (C) 2013-2015, 2019-2020 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2013-2015, 2019-2021 Matthias Bolte <matthias@tinkerforge.com>
  *
  * logviewer.c: Shows brickd log file
  *
@@ -57,6 +57,7 @@ enum {
 	ID_LIVE_LOG_PAUSE,
 	ID_LIVE_LOG_COLORIZE,
 	ID_LIVE_LOG_SAVE,
+	ID_LIVE_LOG_CLEAR,
 	ID_LOG_FILE_VIEW_FILE,
 	ID_LOG_FILE_VIEW_DIRECTORY,
 	ID_CONFIG_FILE_EDIT_FILE,
@@ -251,6 +252,7 @@ static void create_menu() {
 	AppendMenu(_live_log_menu, MF_STRING | MF_CHECKED, ID_LIVE_LOG_COLORIZE, "&Colorize");
 	AppendMenu(_live_log_menu, MF_SEPARATOR, 0, "");
 	AppendMenu(_live_log_menu, MF_STRING, ID_LIVE_LOG_SAVE, "&Save...");
+	AppendMenu(_live_log_menu, MF_STRING, ID_LIVE_LOG_CLEAR, "&Clear");
 
 	set_menu_item_type(_live_log_menu, ID_LIVE_LOG_ERROR_LEVEL, MFT_RADIOCHECK);
 	set_menu_item_type(_live_log_menu, ID_LIVE_LOG_WARN_LEVEL, MFT_RADIOCHECK);
@@ -919,6 +921,12 @@ static void save_live_log(void) {
 	update_status_bar();
 }
 
+static void clear_live_log(void) {
+	ListView_DeleteAllItems(_live_log_view);
+
+	update_status_bar();
+}
+
 static LRESULT CALLBACK window_proc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
 	RECT client_rect;
 	RECT status_bar_rect;
@@ -999,6 +1007,10 @@ static LRESULT CALLBACK window_proc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM l
 
 		case ID_LIVE_LOG_SAVE:
 			save_live_log();
+			break;
+
+		case ID_LIVE_LOG_CLEAR:
+			clear_live_log();
 			break;
 
 		case ID_LOG_FILE_VIEW_FILE:
