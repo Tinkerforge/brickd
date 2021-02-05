@@ -28,7 +28,7 @@
 
 #ifdef __GLIBC__
 
-#if defined __aarch64__
+#if defined __aarch64__ || defined __riscv
 // do nothing, because arm64 requires glibc >= 2.17 anyway
 #elif defined __arm__
 __asm__(".symver memcpy,memcpy@GLIBC_2.4");
