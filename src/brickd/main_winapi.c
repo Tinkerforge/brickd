@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2012-2014, 2016-2020 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2012-2014, 2016-2021 Matthias Bolte <matthias@tinkerforge.com>
  * Copyright (C) 2012 Olaf Lüke <olaf@tinkerforge.com>
  * Copyright (C) 2016-2017 Ishraq Ibne Ashraf <ishraq@tinkerforge.com>
  *
@@ -213,9 +213,9 @@ static DWORD WINAPI service_control_handler(DWORD control, DWORD event_type,
 	case SERVICE_CONTROL_SHUTDOWN:
 	case SERVICE_CONTROL_STOP:
 		if (control == SERVICE_CONTROL_SHUTDOWN) {
-			log_info("Received shutdown command");
+			log_info("Received service shutdown command from Windows Service Manager");
 		} else {
-			log_info("Received stop command");
+			log_info("Received service stop command from Windows Service Manager");
 		}
 
 		service_set_status(SERVICE_STOP_PENDING, NO_ERROR);
@@ -235,23 +235,23 @@ static DWORD WINAPI service_control_handler(DWORD control, DWORD event_type,
 static BOOL WINAPI console_ctrl_handler(DWORD ctrl_type) {
 	switch (ctrl_type) {
 	case CTRL_C_EVENT:
-		log_info("Received CTRL_C_EVENT");
+		log_info("Received CTRL_C_EVENT console event");
 		break;
 
 	case CTRL_BREAK_EVENT:
-		log_info("Received CTRL_BREAK_EVENT");
+		log_info("Received CTRL_BREAK_EVENT console event");
 		break;
 
 	case CTRL_CLOSE_EVENT:
-		log_info("Received CTRL_CLOSE_EVENT");
+		log_info("Received CTRL_CLOSE_EVENT console event");
 		break;
 
 	case CTRL_LOGOFF_EVENT:
-		log_info("Received CTRL_LOGOFF_EVENT");
+		log_info("Received CTRL_LOGOFF_EVENT console event");
 		break;
 
 	case CTRL_SHUTDOWN_EVENT:
-		log_info("Received CTRL_SHUTDOWN_EVENT");
+		log_info("Received CTRL_SHUTDOWN_EVENT console event");
 		break;
 
 	default:
