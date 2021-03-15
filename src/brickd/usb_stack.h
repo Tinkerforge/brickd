@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2013-2018, 2020 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2013-2018, 2020-2021 Matthias Bolte <matthias@tinkerforge.com>
  * Copyright (C) 2014 Olaf Lüke <olaf@tinkerforge.com>
  *
  * usb_stack.h: USB stack specific functions
@@ -50,7 +50,7 @@ typedef struct {
 	bool connected;
 	bool expecting_short_Ax_response;
 	bool expecting_read_stall_before_removal;
-	bool expecting_disconnect;
+	bool expecting_removal;
 } USBStack;
 
 int usb_stack_create(USBStack *usb_stack, uint8_t bus_number, uint8_t device_address);

@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2012-2020 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2012-2021 Matthias Bolte <matthias@tinkerforge.com>
  * Copyright (C) 2014 Olaf Lüke <olaf@tinkerforge.com>
  *
  * usb_stack.c: USB stack specific functions
@@ -55,6 +55,10 @@ static void usb_stack_handle_pending_error(void *opaque) {
 	bool write_stall = false;
 	int rc;
 
+	if (usb_stack->expecting_removal) {
+		return;
+	}
+
 	// check read transfers
 	for (i = 0; i < usb_stack->read_transfers.count; ++i) {
 		usb_transfer = array_get(&usb_stack->read_transfers, i);
@@ -81,7 +85,12 @@ static void usb_stack_handle_pending_error(void *opaque) {
 	if (read_stall) {
 		rc = libusb_clear_halt(usb_stack->device_handle, usb_stack->endpoint_in);
 
-		if (rc < 0) {
+		if (rc == LIBUSB_ERROR_NO_DEVICE) {
+			log_debug("Not trying to clear read endpoint stall for %s, device got removed",
+			          usb_stack->base.name);
+
+			usb_stack->expecting_removal = true;
+		} else if (rc < 0) {
 			log_warn("Could not clear read endpoint stall for %s: %s (%d)",
 			         usb_stack->base.name, usb_get_error_name(rc), rc);
 
@@ -95,7 +104,12 @@ static void usb_stack_handle_pending_error(void *opaque) {
 	if (write_stall) {
 		rc = libusb_clear_halt(usb_stack->device_handle, usb_stack->endpoint_out);
 
-		if (rc < 0) {
+		if (rc == LIBUSB_ERROR_NO_DEVICE) {
+			log_debug("Not trying to clear write endpoint stall for %s, device got removed",
+			          usb_stack->base.name);
+
+			usb_stack->expecting_removal = true;
+		} else if (rc < 0) {
 			log_warn("Could not clear write endpoint stall for %s: %s (%d)",
 			         usb_stack->base.name, usb_get_error_name(rc), rc);
 
@@ -229,7 +243,7 @@ static void usb_stack_write_callback(USBTransfer *usb_transfer) {
 	Packet *request;
 	char packet_signature[PACKET_MAX_SIGNATURE_LENGTH];
 
-	if (!usb_transfer->usb_stack->expecting_disconnect &&
+	if (!usb_transfer->usb_stack->expecting_removal &&
 	    usb_transfer->usb_stack->write_queue.count > 0) {
 		request = queue_peek(&usb_transfer->usb_stack->write_queue);
 
@@ -264,8 +278,8 @@ static int usb_stack_dispatch_request(Stack *stack, Packet *request,
 
 	(void)recipient;
 
-	if (usb_stack->expecting_disconnect) {
-		log_debug("Cannot dispatch request (%s) to %s that is about to be disconnected, dropping request",
+	if (usb_stack->expecting_removal) {
+		log_debug("Cannot dispatch request (%s) to %s that is about to be removed, dropping request",
 		          packet_get_request_signature(packet_signature, request),
 		          usb_stack->base.name);
 
@@ -348,7 +362,7 @@ int usb_stack_create(USBStack *usb_stack, uint8_t bus_number, uint8_t device_add
 	usb_stack->connected = true;
 	usb_stack->expecting_short_Ax_response = false;
 	usb_stack->expecting_read_stall_before_removal = false;
-	usb_stack->expecting_disconnect = false;
+	usb_stack->expecting_removal = false;
 
 	// create stack base
 	snprintf(preliminary_name, sizeof(preliminary_name),
@@ -681,7 +695,7 @@ cleanup:
 void usb_stack_destroy(USBStack *usb_stack) {
 	char name[STACK_MAX_NAME_LENGTH];
 
-	usb_stack->expecting_disconnect = true;
+	usb_stack->expecting_removal = true;
 
 	hardware_remove_stack(&usb_stack->base);
 

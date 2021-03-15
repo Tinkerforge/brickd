@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2012-2020 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2012-2021 Matthias Bolte <matthias@tinkerforge.com>
  *
  * usb_transfer.c: libusb transfer specific functions
  *
@@ -79,20 +79,20 @@ static void LIBUSB_CALL usb_transfer_wrapper(struct libusb_transfer *handle) {
 		          usb_transfer_get_type_name(usb_transfer->type, true),
 		          usb_transfer, handle, usb_transfer->submission,
 		          usb_transfer->usb_stack->base.name,
-		          !usb_transfer->usb_stack->expecting_disconnect
+		          !usb_transfer->usb_stack->expecting_removal
 		          ? ", marking device as about to be removed"
 		          : "");
 
-		usb_transfer->usb_stack->expecting_disconnect = true;
+		usb_transfer->usb_stack->expecting_removal = true;
 
 		return;
 	} else if (handle->status == LIBUSB_TRANSFER_NO_DEVICE) {
-		log_debug("%s transfer %p (handle: %p, submission: %u) for %s was aborted, device got disconnected",
+		log_debug("%s transfer %p (handle: %p, submission: %u) for %s was aborted, device got removed",
 		          usb_transfer_get_type_name(usb_transfer->type, true),
 		          usb_transfer, handle, usb_transfer->submission,
 		          usb_transfer->usb_stack->base.name);
 
-		usb_transfer->usb_stack->expecting_disconnect = true;
+		usb_transfer->usb_stack->expecting_removal = true;
 
 		return;
 	} else if (handle->status == LIBUSB_TRANSFER_STALL) {
@@ -105,7 +105,7 @@ static void LIBUSB_CALL usb_transfer_wrapper(struct libusb_transfer *handle) {
 		if (usb_transfer->usb_stack->expecting_read_stall_before_removal &&
 		    usb_transfer->type == USB_TRANSFER_TYPE_READ) {
 			usb_transfer->usb_stack->expecting_read_stall_before_removal = false;
-			usb_transfer->usb_stack->expecting_disconnect = true;
+			usb_transfer->usb_stack->expecting_removal = true;
 
 			log_debug("%s transfer %p (handle: %p, submission: %u) for %s aborted by stall condition as expected before device removal",
 			          usb_transfer_get_type_name(usb_transfer->type, true),
@@ -151,12 +151,11 @@ static void LIBUSB_CALL usb_transfer_wrapper(struct libusb_transfer *handle) {
 		                 usb_transfer->usb_stack->base.name,
 		                 usb_transfer->cancelled
 		                 ? ", but it was cancelled in the meantime"
-		                 : (usb_transfer->usb_stack->expecting_disconnect
+		                 : (usb_transfer->usb_stack->expecting_removal
 		                    ? ", but the corresponding USB device is about to be removed"
 		                    : ""));
 
-		if (usb_transfer->cancelled ||
-		    usb_transfer->usb_stack->expecting_disconnect) {
+		if (usb_transfer->cancelled || usb_transfer->usb_stack->expecting_removal) {
 			return;
 		}
 
@@ -217,7 +216,7 @@ void usb_transfer_destroy(USBTransfer *usb_transfer) {
 		rc = libusb_cancel_transfer(usb_transfer->handle);
 
 		// if libusb_cancel_transfer fails with LIBUSB_ERROR_NO_DEVICE then the
-		// device was disconnected before the transfer could be cancelled. but
+		// device was removed before the transfer could be cancelled. but
 		// the transfer might be cancelled anyway and we need to wait for the
 		// transfer to complete. this can result in waiting for a transfer that
 		// might not complete anymore. but if we don't wait for the transfer to
@@ -228,7 +227,7 @@ void usb_transfer_destroy(USBTransfer *usb_transfer) {
 		// transfers.
 		//
 		// at least on Windows libusb_cancel_transfer has been reported to be
-		// able to fail with LIBUSB_ERROR_NOT_FOUND during device disconnect.
+		// able to fail with LIBUSB_ERROR_NOT_FOUND during device removal.
 		// but according to the libusb f1e385390213aab96d2a40e4858ff0d019a1b0b7
 		// this should not be possible. libusb_cancel_transfer itself will
 		// report LIBUSB_ERROR_NOT_FOUND if the transfer is either not in-flight
@@ -237,7 +236,7 @@ void usb_transfer_destroy(USBTransfer *usb_transfer) {
 		// cancellation has not completed yet (should not be possible as this
 		// function will cancel each transfer at most once). the OS USB stack
 		// can report the transfer as not existing (might be possible during
-		// device disconnect). therefore, it should be safe to free a transfer
+		// device removal). therefore, it should be safe to free a transfer
 		// in this case even if it is marked as submitted.
 		if (rc < 0 && rc != LIBUSB_ERROR_NO_DEVICE) {
 			log_warn("Could not cancel pending %s transfer %p (handle: %p, submission: %u) for %s: %s (%d)",
@@ -295,8 +294,8 @@ void usb_transfer_destroy(USBTransfer *usb_transfer) {
 bool usb_transfer_is_submittable(USBTransfer *usb_transfer) {
 	return !usb_transfer->submitted &&
 	       !usb_transfer->cancelled &&
-	       !usb_transfer->usb_stack->expecting_disconnect &&
-	       usb_transfer->pending_error == USB_TRANSFER_PENDING_ERROR_NONE;
+	       usb_transfer->pending_error == USB_TRANSFER_PENDING_ERROR_NONE &&
+	       !usb_transfer->usb_stack->expecting_removal;
 }
 
 int usb_transfer_submit(USBTransfer *usb_transfer) {
@@ -322,6 +321,14 @@ int usb_transfer_submit(USBTransfer *usb_transfer) {
 
 	if (usb_transfer->pending_error != USB_TRANSFER_PENDING_ERROR_NONE) {
 		log_error("%s transfer %p (handle: %p, submission: %u) for %s has a pending error",
+		          usb_transfer_get_type_name(usb_transfer->type, true), usb_transfer,
+		          usb_transfer->handle, usb_transfer->submission, usb_transfer->usb_stack->base.name);
+
+		return -1;
+	}
+
+	if (usb_transfer->usb_stack->expecting_removal) {
+		log_error("%s transfer %p (handle: %p, submission: %u) for %s that is about to be removed",
 		          usb_transfer_get_type_name(usb_transfer->type, true), usb_transfer,
 		          usb_transfer->handle, usb_transfer->submission, usb_transfer->usb_stack->base.name);
 

@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2012-2020 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2012-2021 Matthias Bolte <matthias@tinkerforge.com>
  * Copyright (C) 2014 Olaf Lüke <olaf@tinkerforge.com>
  *
  * usb.c: USB specific functions
@@ -462,6 +462,8 @@ int usb_reopen(USBStack *usb_stack) {
 
 			log_warn("Could not reopen USB device (bus: %u, device: %u) due to an error",
 			         bus_number, device_address);
+
+			recipients_announce_disconnect(&recipients);
 		} else {
 			array_swap(&recipients, &candidate->base.recipients);
 		}

@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2012-2018 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2012-2018, 2021 Matthias Bolte <matthias@tinkerforge.com>
  * Copyright (C) 2014 Olaf Lüke <olaf@tinkerforge.com>
  *
  * stack.c: Stack specific functions
@@ -140,14 +140,18 @@ int stack_dispatch_request(Stack *stack, Packet *request, bool force) {
 }
 
 void stack_announce_disconnect(Stack *stack) {
+	log_debug("Disconnecting %s stack", stack->name);
+
+	recipients_announce_disconnect(&stack->recipients);
+}
+
+void recipients_announce_disconnect(Array *recipients) {
 	int i;
 	Recipient *recipient;
 	EnumerateCallback enumerate_callback;
 
-	log_debug("Disconnecting %s stack", stack->name);
-
-	for (i = 0; i < stack->recipients.count; ++i) {
-		recipient = array_get(&stack->recipients, i);
+	for (i = 0; i < recipients->count; ++i) {
+		recipient = array_get(recipients, i);
 
 		memset(&enumerate_callback, 0, sizeof(enumerate_callback));
 

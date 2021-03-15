@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2012-2014, 2016 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2012-2014, 2016, 2021 Matthias Bolte <matthias@tinkerforge.com>
  * Copyright (C) 2014 Olaf Lüke <olaf@tinkerforge.com>
  *
  * stack.h: Stack specific functions
@@ -55,5 +55,7 @@ Recipient *stack_get_recipient(Stack *stack, uint32_t uid /* always little endia
 int stack_dispatch_request(Stack *stack, Packet *request, bool force);
 
 void stack_announce_disconnect(Stack *stack);
+
+void recipients_announce_disconnect(Array *recipients);
 
 #endif // BRICKD_STACK_H
