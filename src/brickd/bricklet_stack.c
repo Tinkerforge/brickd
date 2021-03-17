@@ -1,7 +1,7 @@
 /*
  * brickd
  * Copyright (C) 2018 Olaf Lüke <olaf@tinkerforge.com>
- * Copyright (C) 2018-2020 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2018-2021 Matthias Bolte <matthias@tinkerforge.com>
  *
  * bricklet_stack.c: SPI Tinkerforge Protocol (SPITFP) implementation for direct
  *                   communication between brickd and Bricklet with co-processor
@@ -44,6 +44,8 @@
 
 #include "hardware.h"
 #include "network.h"
+
+#define BRICKLET_STACK_ERROR_COUNT_REPORT_INTERVAL 5000 // milliseconds
 
 typedef enum {
 	SPITFP_STATE_START,
@@ -162,13 +164,15 @@ static uint16_t bricklet_stack_check_missing_length(BrickletStack *bricklet_stac
 	// Peak into the buffer to get the message length.
 	// Only call this before or after bricklet_co_mcu_check_recv.
 	Ringbuffer *rb = &bricklet_stack->ringbuffer_recv;
+	int32_t ret = 0;
+	uint32_t error_count_frame = 0;
 
 	while (rb->start != rb->end) {
 		uint8_t length = rb->buffer[rb->start];
 
 		if ((length < SPITFP_MIN_TFP_MESSAGE_LENGTH || length > SPITFP_MAX_TFP_MESSAGE_LENGTH) && length != SPITFP_PROTOCOL_OVERHEAD) {
 			if (length != 0) {
-				bricklet_stack->error_count_frame++;
+				error_count_frame++;
 			}
 
 			ringbuffer_remove(rb, 1);
@@ -176,16 +180,32 @@ static uint16_t bricklet_stack_check_missing_length(BrickletStack *bricklet_stac
 			continue;
 		}
 
-		int32_t ret = length - ringbuffer_get_used(rb);
+		ret = length - ringbuffer_get_used(rb);
 
 		if((ret < 0) || (ret > TFP_MESSAGE_MAX_LENGTH)) {
-			return 0;
+			ret = 0;
 		}
 
-		return (uint16_t)ret;
+		break;
 	}
 
-	return 0;
+	if (error_count_frame > 0) {
+		bricklet_stack->error_count_frame += error_count_frame;
+
+		if (bricklet_stack->last_report_frame + BRICKLET_STACK_ERROR_COUNT_REPORT_INTERVAL < millitime()) {
+			bricklet_stack->last_report_frame = millitime();
+
+			log_error("Frame error (port: %c, count: %u)",
+			          bricklet_stack->config.position,
+			          bricklet_stack->error_count_frame);
+		} else {
+			log_debug("Frame error (port: %c, count: %u)",
+			          bricklet_stack->config.position,
+			          bricklet_stack->error_count_frame);
+		}
+	}
+
+	return (uint16_t)ret;
 }
 
 static uint8_t bricklet_stack_get_sequence_byte(BrickletStack *bricklet_stack, const bool increase) {
@@ -391,9 +411,19 @@ static void bricklet_stack_check_message(BrickletStack *bricklet_stack) {
 					// or 0, something has gone wrong!
 					bricklet_stack->error_count_frame++;
 					bricklet_stack_handle_protocol_error(bricklet_stack);
-					log_error("Frame error (port: %c, count: %u)",
-					          bricklet_stack->config.position,
-					          bricklet_stack->error_count_frame);
+
+					if (bricklet_stack->last_report_frame + BRICKLET_STACK_ERROR_COUNT_REPORT_INTERVAL < millitime()) {
+						bricklet_stack->last_report_frame = millitime();
+
+						log_error("Frame error (port: %c, count: %u)",
+						          bricklet_stack->config.position,
+						          bricklet_stack->error_count_frame);
+					} else {
+						log_debug("Frame error (port: %c, count: %u)",
+						          bricklet_stack->config.position,
+						          bricklet_stack->error_count_frame);
+					}
+
 					return;
 				}
 
@@ -426,9 +456,19 @@ static void bricklet_stack_check_message(BrickletStack *bricklet_stack) {
 				if(checksum != data) {
 					bricklet_stack->error_count_ack_checksum++;
 					bricklet_stack_handle_protocol_error(bricklet_stack);
-					log_error("ACK checksum error (port: %c, count: %u)",
-					          bricklet_stack->config.position,
-					          bricklet_stack->error_count_ack_checksum);
+
+					if (bricklet_stack->last_report_ack_checksum + BRICKLET_STACK_ERROR_COUNT_REPORT_INTERVAL < millitime()) {
+						bricklet_stack->last_report_ack_checksum = millitime();
+
+						log_error("ACK checksum error (port: %c, count: %u)",
+						          bricklet_stack->config.position,
+						          bricklet_stack->error_count_ack_checksum);
+					} else {
+						log_debug("ACK checksum error (port: %c, count: %u)",
+						          bricklet_stack->config.position,
+						          bricklet_stack->error_count_ack_checksum);
+					}
+
 					return;
 				}
 
@@ -473,37 +513,78 @@ static void bricklet_stack_check_message(BrickletStack *bricklet_stack) {
 				if (checksum != data) {
 					bricklet_stack->error_count_message_checksum++;
 					bricklet_stack_handle_protocol_error(bricklet_stack);
-					log_error("Message checksum error (port: %c, count: %u)",
-					          bricklet_stack->config.position,
-					          bricklet_stack->error_count_message_checksum);
+
+					if (bricklet_stack->last_report_message_checksum + BRICKLET_STACK_ERROR_COUNT_REPORT_INTERVAL < millitime()) {
+						bricklet_stack->last_report_message_checksum = millitime();
+
+						log_error("Message checksum error (port: %c, count: %u)",
+						          bricklet_stack->config.position,
+						          bricklet_stack->error_count_message_checksum);
+					} else {
+						log_debug("Message checksum error (port: %c, count: %u)",
+						          bricklet_stack->config.position,
+						          bricklet_stack->error_count_message_checksum);
+					}
+
 					return;
 				}
 
 				if (message_position < sizeof(PacketHeader)) {
 					bricklet_stack->error_count_message_packet++;
 					bricklet_stack_handle_protocol_error(bricklet_stack);
-					log_error("Message packet error (port: %c, count: %u), too short: %d < %d",
-					          bricklet_stack->config.position,
-					          bricklet_stack->error_count_message_packet,
-					          message_position, (int)sizeof(PacketHeader));
+
+					if (bricklet_stack->last_report_message_packet + BRICKLET_STACK_ERROR_COUNT_REPORT_INTERVAL < millitime()) {
+						bricklet_stack->last_report_message_packet = millitime();
+
+						log_error("Message packet error (port: %c, count: %u), too short: %d < %d",
+						          bricklet_stack->config.position,
+						          bricklet_stack->error_count_message_packet,
+						          message_position, (int)sizeof(PacketHeader));
+					} else {
+						log_debug("Message packet error (port: %c, count: %u), too short: %d < %d",
+						          bricklet_stack->config.position,
+						          bricklet_stack->error_count_message_packet,
+						          message_position, (int)sizeof(PacketHeader));
+					}
+
 					return;
 				}
 
 				if (message[4] != message_position) {
 					bricklet_stack->error_count_message_packet++;
 					bricklet_stack_handle_protocol_error(bricklet_stack);
-					log_error("Message packet error (port: %c, count: %u), length mismatch: actual %d != expected %d",
-					          bricklet_stack->config.position,
-					          bricklet_stack->error_count_message_packet, message[4], message_position);
+
+					if (bricklet_stack->last_report_message_packet + BRICKLET_STACK_ERROR_COUNT_REPORT_INTERVAL < millitime()) {
+						bricklet_stack->last_report_message_packet = millitime();
+
+						log_error("Message packet error (port: %c, count: %u), length mismatch: actual %d != expected %d",
+						          bricklet_stack->config.position,
+						          bricklet_stack->error_count_message_packet, message[4], message_position);
+					} else {
+						log_debug("Message packet error (port: %c, count: %u), length mismatch: actual %d != expected %d",
+						          bricklet_stack->config.position,
+						          bricklet_stack->error_count_message_packet, message[4], message_position);
+					}
+
 					return;
 				}
 
 				if (!packet_header_is_valid_response((PacketHeader *)message, &packet_error)) {
 					bricklet_stack->error_count_message_packet++;
 					bricklet_stack_handle_protocol_error(bricklet_stack);
-					log_error("Message packet error (port: %c, count: %u), invalid response: %s",
-					          bricklet_stack->config.position,
-					          bricklet_stack->error_count_message_packet, packet_error);
+
+					if (bricklet_stack->last_report_message_packet + BRICKLET_STACK_ERROR_COUNT_REPORT_INTERVAL < millitime()) {
+						bricklet_stack->last_report_message_packet = millitime();
+
+						log_error("Message packet error (port: %c, count: %u), invalid response: %s",
+						          bricklet_stack->config.position,
+						          bricklet_stack->error_count_message_packet, packet_error);
+					} else {
+						log_error("Message packet error (port: %c, count: %u), invalid response: %s",
+						          bricklet_stack->config.position,
+						          bricklet_stack->error_count_message_packet, packet_error);
+					}
+
 					return;
 				}
 
