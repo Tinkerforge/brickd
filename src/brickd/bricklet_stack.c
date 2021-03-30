@@ -580,7 +580,7 @@ static void bricklet_stack_check_message(BrickletStack *bricklet_stack) {
 						          bricklet_stack->config.position,
 						          bricklet_stack->error_count_message_packet, packet_error);
 					} else {
-						log_error("Message packet error (port: %c, count: %u), invalid response: %s",
+						log_debug("Message packet error (port: %c, count: %u), invalid response: %s",
 						          bricklet_stack->config.position,
 						          bricklet_stack->error_count_message_packet, packet_error);
 					}
