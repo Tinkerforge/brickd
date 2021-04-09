@@ -372,7 +372,7 @@ ifdef RPM_OPT_FLAGS
 	override CFLAGS += $(RPM_OPT_FLAGS)
 else
 ifeq ($(WITH_DEBUG),yes)
-	override CFLAGS += -O0
+	override CFLAGS += -Og
 else
 ifeq ($(findstring -O,$(CFLAGS)),)
 	override CFLAGS += -O2
