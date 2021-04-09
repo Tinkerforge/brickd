@@ -15,8 +15,6 @@ else
 endif
 
 CONFIG := CC=gcc \
-          WITH_LIBUDEV=yes \
-          WITH_LIBUDEV_DLOPEN=yes \
           WITH_EPOLL=yes \
           WITH_PM_UTILS=no \
           WITH_SYSTEMD=yes \

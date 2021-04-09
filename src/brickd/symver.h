@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2020 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2020-2021 Matthias Bolte <matthias@tinkerforge.com>
  *
  * symver.h: force linking to older glibc symbols to lower glibc dependency
  *
@@ -22,14 +22,16 @@
 #ifndef BRICKD_SYMVER_H
 #define BRICKD_SYMVER_H
 
-#ifdef __linux__
+#if defined(__linux__) && !defined(DAEMONLIB_WITH_STATIC)
 
 #include <features.h>
 
 #ifdef __GLIBC__
 
-#if defined __aarch64__ || defined __riscv
+#if defined __aarch64__
 // do nothing, because arm64 requires glibc >= 2.17 anyway
+#elif defined __riscv
+// do nothing, because riscv requires glibc >= 2.27 anyway
 #elif defined __arm__
 __asm__(".symver memcpy,memcpy@GLIBC_2.4");
 #elif defined __i386__

@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2017, 2019-2020 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2017, 2019-2021 Matthias Bolte <matthias@tinkerforge.com>
  *
  * libusb.h: dlopen wrapper for libusb API
  *
@@ -26,6 +26,8 @@
 #include <stdlib.h>
 #include <sys/types.h> // for ssize_t
 #include <sys/time.h> // for struct timeval
+
+#define LIBUSB_API_VERSION 0x01000104 // 1.0.20
 
 #define LIBUSB_ENDPOINT_DIR_MASK 0x80
 
@@ -168,6 +170,13 @@ struct libusb_transfer {
 	;
 };
 
+enum libusb_capability {
+	LIBUSB_CAP_HAS_CAPABILITY = 0x0000,
+	LIBUSB_CAP_HAS_HOTPLUG = 0x0001,
+	LIBUSB_CAP_HAS_HID_ACCESS = 0x0100,
+	LIBUSB_CAP_SUPPORTS_DETACH_KERNEL_DRIVER = 0x0101
+};
+
 enum libusb_log_level {
 	LIBUSB_LOG_LEVEL_NONE = 0,
 	LIBUSB_LOG_LEVEL_ERROR,
@@ -181,12 +190,29 @@ struct libusb_pollfd {
 	short events;
 };
 
+typedef int libusb_hotplug_callback_handle;
+
+typedef enum {
+	LIBUSB_HOTPLUG_NO_FLAGS = 0,
+	LIBUSB_HOTPLUG_ENUMERATE = 1 << 0,
+} libusb_hotplug_flag;
+
+typedef enum {
+	LIBUSB_HOTPLUG_EVENT_DEVICE_ARRIVED = 0x01,
+	LIBUSB_HOTPLUG_EVENT_DEVICE_LEFT = 0x02,
+} libusb_hotplug_event;
+
+#define LIBUSB_HOTPLUG_MATCH_ANY -1
+
+typedef int (*libusb_hotplug_callback_fn)(libusb_context *ctx, libusb_device *device, libusb_hotplug_event event, void *user_data);
+
 typedef void (*libusb_pollfd_added_callback)(int fd, short events, void *user_data);
 typedef void (*libusb_pollfd_removed_callback)(int fd, void *user_data);
 
 typedef int (*libusb_init_t)(libusb_context **ctx);
 typedef void (*libusb_exit_t)(libusb_context *ctx);
 typedef void (*libusb_set_debug_t)(libusb_context *ctx, int level);
+typedef int (*libusb_has_capability_t)(uint32_t capability);
 
 typedef ssize_t (*libusb_get_device_list_t)(libusb_context *ctx, libusb_device ***list);
 typedef void (*libusb_free_device_list_t)(libusb_device **list, int unref_devices);
@@ -219,11 +245,16 @@ typedef int (*libusb_get_string_descriptor_ascii_t)(libusb_device_handle *dev_ha
 typedef int (*libusb_handle_events_timeout_t)(libusb_context *ctx, struct timeval *tv);
 
 typedef const struct libusb_pollfd **(*libusb_get_pollfds_t)(libusb_context *ctx);
+typedef void (*libusb_free_pollfds_t)(const struct libusb_pollfd **pollfds);
 typedef void (*libusb_set_pollfd_notifiers_t)(libusb_context *ctx, libusb_pollfd_added_callback added_callback, libusb_pollfd_removed_callback removed_callback, void *user_data);
+
+typedef int (*libusb_hotplug_register_callback_t)(libusb_context *ctx, int events, int flags, int vendor_id, int product_id, int dev_class, libusb_hotplug_callback_fn cb_fn, void *user_data, libusb_hotplug_callback_handle *callback_handle);
+typedef void (*libusb_hotplug_deregister_callback_t)(libusb_context *ctx, libusb_hotplug_callback_handle callback_handle);
 
 extern libusb_init_t libusb_init;
 extern libusb_exit_t libusb_exit;
 extern libusb_set_debug_t libusb_set_debug;
+extern libusb_has_capability_t libusb_has_capability;
 
 extern libusb_get_device_list_t libusb_get_device_list;
 extern libusb_free_device_list_t libusb_free_device_list;
@@ -273,7 +304,11 @@ extern libusb_get_string_descriptor_ascii_t libusb_get_string_descriptor_ascii;
 extern libusb_handle_events_timeout_t libusb_handle_events_timeout;
 
 extern libusb_get_pollfds_t libusb_get_pollfds;
+extern libusb_free_pollfds_t libusb_free_pollfds;
 extern libusb_set_pollfd_notifiers_t libusb_set_pollfd_notifiers;
+
+extern libusb_hotplug_register_callback_t libusb_hotplug_register_callback;
+extern libusb_hotplug_deregister_callback_t libusb_hotplug_deregister_callback;
 
 int libusb_init_dlopen(void);
 void libusb_exit_dlopen(void);

@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2017, 2019-2020 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2017, 2019-2021 Matthias Bolte <matthias@tinkerforge.com>
  *
  * libusb.c: dlopen wrapper for libusb API
  *
@@ -36,6 +36,7 @@ static void *_libusb_handle = NULL;
 libusb_init_t libusb_init;
 libusb_exit_t libusb_exit;
 libusb_set_debug_t libusb_set_debug;
+libusb_has_capability_t libusb_has_capability;
 
 libusb_get_device_list_t libusb_get_device_list;
 libusb_free_device_list_t libusb_free_device_list;
@@ -68,7 +69,11 @@ libusb_get_string_descriptor_ascii_t libusb_get_string_descriptor_ascii;
 libusb_handle_events_timeout_t libusb_handle_events_timeout;
 
 libusb_get_pollfds_t libusb_get_pollfds;
+libusb_free_pollfds_t libusb_free_pollfds;
 libusb_set_pollfd_notifiers_t libusb_set_pollfd_notifiers;
+
+libusb_hotplug_register_callback_t libusb_hotplug_register_callback;
+libusb_hotplug_deregister_callback_t libusb_hotplug_deregister_callback;
 
 #if defined(__clang__) || !defined(__GNUC__) || __GNUC_PREREQ(4, 6)
 
@@ -107,6 +112,7 @@ int libusb_init_dlopen(void) {
 	LIBUSB_DLSYM(libusb_init);
 	LIBUSB_DLSYM(libusb_exit);
 	LIBUSB_DLSYM(libusb_set_debug);
+	LIBUSB_DLSYM(libusb_has_capability);
 
 	LIBUSB_DLSYM(libusb_get_device_list);
 	LIBUSB_DLSYM(libusb_free_device_list);
@@ -139,7 +145,11 @@ int libusb_init_dlopen(void) {
 	LIBUSB_DLSYM(libusb_handle_events_timeout);
 
 	LIBUSB_DLSYM(libusb_get_pollfds);
+	LIBUSB_DLSYM(libusb_free_pollfds);
 	LIBUSB_DLSYM(libusb_set_pollfd_notifiers);
+
+	LIBUSB_DLSYM(libusb_hotplug_register_callback);
+	LIBUSB_DLSYM(libusb_hotplug_deregister_callback);
 
 	return 0;
 }

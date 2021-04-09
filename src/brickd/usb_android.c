@@ -1,8 +1,8 @@
 /*
  * brickd
- * Copyright (C) 2018-2019 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2018-2019, 2021 Matthias Bolte <matthias@tinkerforge.com>
  *
- * usb_android.c: Android USB hotplug implementation
+ * usb_android.c: Android specific USB functions
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -31,21 +31,21 @@
 
 static LogSource _log_source = LOG_SOURCE_INITIALIZER;
 
-static Pipe _notification_pipe;
+static Pipe _hotplug_pipe;
 
-static void usb_forward_notifications(void *opaque) {
+static void usb_forward_hotplug(void *opaque) {
 	uint8_t byte;
 
 	(void)opaque;
 
-	if (pipe_read(&_notification_pipe, &byte, sizeof(byte)) < 0) {
-		log_error("Could not read from notification pipe: %s (%d)",
+	if (pipe_read(&_hotplug_pipe, &byte, sizeof(byte)) < 0) {
+		log_error("Could not read from hotplug pipe: %s (%d)",
 		          get_errno_name(errno), errno);
 
 		return;
 	}
 
-	log_debug("Starting USB device scan, triggered by notification");
+	log_debug("Starting USB device scan, triggered by hotplug");
 
 	usb_rescan();
 }
@@ -60,17 +60,17 @@ void usb_exit_platform(void) {
 int usb_init_hotplug(libusb_context *context) {
 	(void)context;
 
-	// create notification pipe
-	if (pipe_create(&_notification_pipe, PIPE_FLAG_NON_BLOCKING_READ) < 0) {
+	// create hotplug pipe
+	if (pipe_create(&_hotplug_pipe, PIPE_FLAG_NON_BLOCKING_READ) < 0) {
 		log_error("Could not create hotplug pipe: %s (%d)",
 		          get_errno_name(errno), errno);
 
 		return -1;
 	}
 
-	if (event_add_source(_notification_pipe.base.read_handle, EVENT_SOURCE_TYPE_GENERIC,
-	                     "hotplug", EVENT_READ, usb_forward_notifications, NULL) < 0) {
-		pipe_destroy(&_notification_pipe);
+	if (event_add_source(_hotplug_pipe.base.read_handle, EVENT_SOURCE_TYPE_GENERIC,
+	                     "hotplug", EVENT_READ, usb_forward_hotplug, NULL) < 0) {
+		pipe_destroy(&_hotplug_pipe);
 
 		return -1;
 	}
@@ -81,8 +81,8 @@ int usb_init_hotplug(libusb_context *context) {
 void usb_exit_hotplug(libusb_context *context) {
 	(void)context;
 
-	event_remove_source(_notification_pipe.base.read_handle, EVENT_SOURCE_TYPE_GENERIC);
-	pipe_destroy(&_notification_pipe);
+	event_remove_source(_hotplug_pipe.base.read_handle, EVENT_SOURCE_TYPE_GENERIC);
+	pipe_destroy(&_hotplug_pipe);
 }
 
 bool usb_has_hotplug(void) {
@@ -95,8 +95,8 @@ Java_com_tinkerforge_brickd_MainService_hotplug(JNIEnv *env, jobject this) {
 
 	(void)this;
 
-	if (pipe_write(&_notification_pipe, &byte, sizeof(byte)) < 0) {
-		log_error("Could not write to notification pipe: %s (%d)",
+	if (pipe_write(&_hotplug_pipe, &byte, sizeof(byte)) < 0) {
+		log_error("Could not write to hotplug pipe: %s (%d)",
 		          get_errno_name(errno), errno);
 	}
 }

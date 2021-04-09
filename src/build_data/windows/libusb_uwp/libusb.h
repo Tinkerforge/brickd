@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2016-2017, 2019-2020 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2016-2017, 2019-2021 Matthias Bolte <matthias@tinkerforge.com>
  *
  * libusb.h: Emulating libusb API for Universal Windows Platform
  *
@@ -34,6 +34,8 @@ typedef int ssize_t;
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+#define LIBUSB_API_VERSION 0x01000104 // 1.0.20
 
 #define LIBUSB_ENDPOINT_DIR_MASK 0x80
 

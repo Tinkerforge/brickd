@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2017 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2017, 2021 Matthias Bolte <matthias@tinkerforge.com>
  *
  * usb_windows.h: General USB code used for all flavors of Windows
  *
@@ -24,10 +24,6 @@
 
 #include <windows.h>
 #include <stdbool.h>
-
-extern const GUID GUID_DEVINTERFACE_USB_DEVICE;
-extern const GUID GUID_DEVINTERFACE_BRICK_DEVICE;
-extern const GUID GUID_DEVINTERFACE_RED_BRICK_DEVICE;
 
 typedef enum {
 	USB_HOTPLUG_TYPE_ARRIVAL = 0,

@@ -53,9 +53,6 @@
 	#include "red_usb_gadget.h"
     #include "red_extension.h"
 #endif
-#ifdef BRICKD_WITH_LIBUDEV
-	#include "udev.h"
-#endif
 #ifdef BRICKD_WITH_BRICKLET
 	#include "bricklet.h"
 #endif
@@ -256,9 +253,6 @@ int main(int argc, char **argv) {
 	const char *debug_filter = NULL;
 	int pid_fd = -1;
 	struct utsname uts;
-#ifdef BRICKD_WITH_LIBUDEV
-	bool initialized_udev = false;
-#endif
 
 	for (i = 1; i < argc; ++i) {
 		if (strcmp(argv[i], "--help") == 0) {
@@ -426,60 +420,48 @@ int main(int argc, char **argv) {
 
 	phase = 8;
 
-#ifdef BRICKD_WITH_LIBUDEV
-	if (!usb_has_hotplug()) {
-		if (udev_init() < 0) {
-			goto cleanup;
-		}
-
-		initialized_udev = true;
-	}
-
-	phase = 9;
-#endif
-
 	if (network_init() < 0) {
 		goto cleanup;
 	}
 
-	phase = 10;
+	phase = 9;
 
 	if (mesh_init() < 0) {
 		goto cleanup;
 	}
 
-	phase = 11;
+	phase = 10;
 
 #ifdef BRICKD_WITH_RED_BRICK
 	if (gpio_red_init() < 0) {
 		goto cleanup;
 	}
 
-	phase = 12;
+	phase = 11;
 
 	if (redapid_init() < 0) {
 		goto cleanup;
 	}
 
-	phase = 13;
+	phase = 12;
 
 	if (red_stack_init() < 0) {
 		goto cleanup;
 	}
 
-	phase = 14;
+	phase = 13;
 
 	if (red_extension_init() < 0) {
 		goto cleanup;
 	}
 
-	phase = 15;
+	phase = 14;
 
 	if (red_usb_gadget_init() < 0) {
 		goto cleanup;
 	}
 
-	phase = 16;
+	phase = 15;
 
 	red_led_set_trigger(RED_LED_GREEN, config_get_option_value("led_trigger.green")->symbol);
 	red_led_set_trigger(RED_LED_RED, config_get_option_value("led_trigger.red")->symbol);
@@ -491,7 +473,7 @@ int main(int argc, char **argv) {
 		goto cleanup;
 	}
 
-	phase = 17;
+	phase = 16;
 #endif
 
 	if (event_run(handle_event_cleanup) < 0) {
@@ -509,48 +491,39 @@ int main(int argc, char **argv) {
 cleanup:
 	switch (phase) { // no breaks, all cases fall through intentionally
 #ifdef BRICKD_WITH_BRICKLET
-	case 17:
+	case 16:
 		bricklet_exit();
 #endif
 #ifdef BRICKD_WITH_RED_BRICK
 		// fall through
 
-	case 16:
+	case 15:
 		red_usb_gadget_exit();
 		// fall through
 
-	case 15:
+	case 14:
 		red_extension_exit();
 		// fall through
 
-	case 14:
+	case 13:
 		red_stack_exit();
 		// fall through
 
-	case 13:
+	case 12:
 		redapid_exit();
 		// fall through
 
-	case 12:
+	case 11:
 		//gpio_red_exit();
 #endif
 		// fall through
 
-	case 11:
+	case 10:
 		mesh_exit();
 		// fall through
 
-	case 10:
-		network_exit();
-
-#ifdef BRICKD_WITH_LIBUDEV
-		// fall through
-
 	case 9:
-		if (initialized_udev) {
-			udev_exit();
-		}
-#endif
+		network_exit();
 		// fall through
 
 	case 8:

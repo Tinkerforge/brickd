@@ -43,8 +43,6 @@ static libusb_context *_context = NULL;
 static Array _usb_stacks;
 static bool _initialized_hotplug = false;
 
-extern int usb_init_platform(void);
-extern void usb_exit_platform(void);
 extern int usb_init_hotplug(libusb_context *context);
 extern void usb_exit_hotplug(libusb_context *context);
 
@@ -240,18 +238,10 @@ static void LIBUSB_CALL usb_remove_pollfd(int fd, void *opaque) {
 }
 
 static void usb_set_debug(libusb_context *context, int level) {
-#if !defined BRICKD_WITH_UNKNOWN_LIBUSB_API_VERSION && defined LIBUSB_API_VERSION && LIBUSB_API_VERSION >= 0x01000106 // libusb 1.0.22
-	libusb_set_option(context, LIBUSB_OPTION_LOG_LEVEL, level);
+#if !defined BRICKD_WITH_UNKNOWN_LIBUSB_API_VERSION && LIBUSB_API_VERSION >= 0x01000106 // libusb 1.0.22
+	libusb_set_option(context, LIBUSB_OPTION_LOG_LEVEL, level); // avoid deprecation warning for libusb_set_debug
 #else
 	libusb_set_debug(context, level);
-#endif
-}
-
-static void usb_free_pollfds(const struct libusb_pollfd **pollfds) {
-#if defined _WIN32 || (!defined BRICKD_WITH_UNKNOWN_LIBUSB_API_VERSION && defined LIBUSB_API_VERSION && LIBUSB_API_VERSION >= 0x01000104) // libusb 1.0.20
-	libusb_free_pollfds(pollfds); // avoids possible heap-mismatch on Windows
-#else
-	free(pollfds);
 #endif
 }
 
@@ -295,18 +285,12 @@ int usb_init(void) {
 		break;
 	}
 
-	if (usb_init_platform() < 0) {
-		goto cleanup;
-	}
-
-	phase = 1;
-
 	// initialize main libusb context
 	if (usb_create_context(&_context)) {
 		goto cleanup;
 	}
 
-	phase = 2;
+	phase = 1;
 
 	// create USB stack array. the USBStack struct is not relocatable, because
 	// its USB transfers keep a pointer to it
@@ -317,10 +301,10 @@ int usb_init(void) {
 		goto cleanup;
 	}
 
-	phase = 3;
+	phase = 2;
 
 	if (usb_has_hotplug()) {
-		log_debug("libusb supports hotplug");
+		log_debug("USB hotplug detection is supported");
 
 		if (usb_init_hotplug(_context) < 0) {
 			goto cleanup;
@@ -328,7 +312,7 @@ int usb_init(void) {
 
 		_initialized_hotplug = true;
 	} else {
-		log_debug("libusb does not support hotplug");
+		log_warn("USB hotplug detection is not supported");
 	}
 
 	log_debug("Starting initial USB device scan");
@@ -337,27 +321,23 @@ int usb_init(void) {
 		goto cleanup;
 	}
 
-	phase = 4;
+	phase = 3;
 
 cleanup:
 	switch (phase) { // no breaks, all cases fall through intentionally
-	case 3:
+	case 2:
 		array_destroy(&_usb_stacks, (ItemDestroyFunction)usb_stack_destroy);
 		// fall through
 
-	case 2:
-		usb_destroy_context(_context);
-		// fall through
-
 	case 1:
-		usb_exit_platform();
+		usb_destroy_context(_context);
 		// fall through
 
 	default:
 		break;
 	}
 
-	return phase == 4 ? 0 : -1;
+	return phase == 3 ? 0 : -1;
 }
 
 void usb_exit(void) {
@@ -370,8 +350,6 @@ void usb_exit(void) {
 	array_destroy(&_usb_stacks, (ItemDestroyFunction)usb_stack_destroy);
 
 	usb_destroy_context(_context);
-
-	usb_exit_platform();
 
 #if defined _WIN32 || defined __APPLE__ || defined __ANDROID__
 	libusb_set_log_callback(NULL);
@@ -573,7 +551,7 @@ cleanup:
 		break;
 	}
 
-	usb_free_pollfds(pollfds);
+	libusb_free_pollfds(pollfds);
 
 	return phase == 3 ? 0 : -1;
 }
@@ -593,7 +571,7 @@ void usb_destroy_context(libusb_context *context) {
 			event_remove_source((*pollfd)->fd, EVENT_SOURCE_TYPE_USB);
 		}
 
-		usb_free_pollfds(pollfds);
+		libusb_free_pollfds(pollfds);
 	}
 
 	libusb_exit(context);

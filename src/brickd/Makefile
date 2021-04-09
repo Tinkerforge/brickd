@@ -1,15 +1,14 @@
 #
 # For GCC/Clang builds on Linux and macOS, and MinGW builds on Windows
 #
-# Minimum libusb version: 1.0.6
-# Tested with libusb: 1.0.6, 1.0.8, 1.0.9, 1.0.16, 1.0.17, 1.0.19, 1.0.21
+# Minimum libusb version: 1.0.20
 #
 # Debian/Ubuntu:
-# sudo apt-get install build-essential pkg-config libusb-1.0-0-dev libudev-dev pm-utils
+# sudo apt-get install build-essential pkg-config libusb-1.0-0-dev pm-utils
 #
 # Fedora:
 # sudo yum groupinstall "Development Tools"
-# sudo yum install libusb1-devel libudev-devel pm-utils-devel
+# sudo yum install libusb1-devel pm-utils-devel
 #
 
 ## CONFIG #####################################################################
@@ -21,8 +20,6 @@ WITH_HOST ?= check
 WITH_TARGET ?= check
 WITH_LIBUSB_DLOPEN ?= no
 WITH_LIBUSB_STATIC ?= no
-WITH_LIBUDEV ?= check
-WITH_LIBUDEV_DLOPEN ?= no
 WITH_LOGGING ?= yes
 WITH_EPOLL ?= check
 WITH_PACKET_TRACE ?= no
@@ -110,6 +107,34 @@ ifeq ($(wildcard ../daemonlib),)
 $(error Could not find daemonlib. Please symlink or copy daemonlib into the src/ directory)
 endif
 
+ifneq ($(WITH_TARGET),Linux)
+ifeq ($(WITH_STATIC),yes)
+$(error WITH_STATIC is not supported for $(WITH_TARGET))
+endif
+endif
+
+ifeq ($(WITH_STATIC),yes)
+	override WITH_LIBUSB_STATIC := yes
+endif
+
+ifneq ($(WITH_TARGET),Linux)
+ifeq ($(WITH_LIBUSB_DLOPEN),yes)
+$(error WITH_LIBUSB_DLOPEN is not supported for $(WITH_TARGET))
+endif
+endif
+
+ifeq ($(WITH_TARGET),Darwin)
+ifeq ($(WITH_LIBUSB_STATIC),yes)
+$(error WITH_LIBUSB_STATIC is not supported for $(WITH_TARGET))
+endif
+endif
+
+ifeq ($(WITH_LIBUSB_DLOPEN),yes)
+ifeq ($(WITH_LIBUSB_STATIC),yes)
+$(error Cannot dlopen and static link libusb at the same time)
+endif
+endif
+
 ifeq ($(WITH_TARGET),Linux)
 ifeq ($(WITH_EPOLL),check)
 	override WITH_EPOLL := yes
@@ -117,12 +142,6 @@ endif
 else
 	# not Linux, no epoll
 	override WITH_EPOLL := no
-endif
-
-ifneq ($(WITH_TARGET),Linux)
-ifeq ($(WITH_STATIC),yes)
-$(error WITH_STATIC is not supported for $(WITH_TARGET))
-endif
 endif
 
 ifeq ($(WITH_TARGET),Linux)
@@ -175,54 +194,6 @@ ifneq ($(MAKECMDGOALS),clean)
 $(error Could not find pkg-config)
 endif
 endif
-endif
-
-LIBUSB_STATUS := no
-LIBUDEV_STATUS := no
-HOTPLUG := no
-
-ifeq ($(WITH_TARGET),Windows)
-	HOTPLUG := WinAPI
-endif
-
-ifeq ($(WITH_TARGET),Linux)
-ifeq ($(WITH_STATIC),yes)
-	HOTPLUG := libusb
-else
-ifeq ($(WITH_LIBUSB_DLOPEN),yes)
-ifeq ($(WITH_LIBUSB_STATIC),yes)
-$(error Cannot use dlopen and static linking for libusb)
-endif
-
-	HOTPLUG := libusb (if supported)
-else
-	HOTPLUG := $(shell pkg-config --exists 'libusb-1.0 >= 1.0.16' && echo libusb || echo libusb \(if supported\))
-endif
-endif
-
-ifeq ($(WITH_LIBUDEV),check)
-ifeq ($(HOTPLUG),libusb)
-	# libusb hotplug, libudev not required
-	override WITH_LIBUDEV := no
-	LIBUDEV_STATUS := not required
-else
-	# no libusb hotplug, use libudev instead
-	override WITH_LIBUDEV := yes
-endif
-endif
-else
-	# not Linux, no libudev
-	override WITH_LIBUDEV := no
-endif
-
-ifeq ($(WITH_LIBUDEV),yes)
-ifeq ($(HOTPLUG),libusb (if supported))
-	HOTPLUG := libusb (if supported) or libudev
-endif
-endif
-
-ifeq ($(WITH_TARGET),Darwin)
-	HOTPLUG := libusb
 endif
 
 PM_UTILS_STATUS := no
@@ -340,10 +311,6 @@ ifeq ($(WITH_TARGET),Darwin)
 	                  iokit.c
 endif
 
-ifeq ($(WITH_LIBUDEV),yes)
-	SOURCES_BRICKD += udev.c
-endif
-
 ifeq ($(WITH_BRICKLET),yes)
 	SOURCES_BRICKD += bricklet.c \
 	                  bricklet_stack.c
@@ -436,12 +403,17 @@ ifeq ($(WITH_TARGET),Linux)
 	override LIBS += -lrt
 endif
 
+LIBUSB_STATUS := no
+HOTPLUG := no
+
 ifeq ($(WITH_TARGET),Windows)
+	HOTPLUG := WinAPI
+
 ifeq ($(WITH_LIBUSB_STATIC),yes)
 	LIBUSB_STATUS := 1.0.23-rc1 (fork, static)
 	LIBUSB_CFLAGS := -I../build_data/windows/libusb_static
 	LIBUSB_LDFLAGS := -L../build_data/windows/libusb_static
-	LIBUSB_LIBS := -lusb-1.0-brickd
+	LIBUSB_LIBS := -lusb-1.0-brickd-static
 else
 	LIBUSB_STATUS := 1.0.23-rc1 (fork)
 	LIBUSB_CFLAGS := -I../build_data/windows/libusb
@@ -450,41 +422,29 @@ else
 endif
 endif
 
-LIBUDEV_LINK := no
-
 ifeq ($(WITH_TARGET),Linux)
-ifeq ($(WITH_STATIC),yes)
-	LIBUSB_STATUS := 1.0.23 (static)
-	LIBUSB_CFLAGS := -I../build_data/linux/libusb_static
-	LIBUSB_LDFLAGS := -L../build_data/linux/libusb_static
-	LIBUSB_LIBS := -lusb-1.0
-else
+	HOTPLUG := libusb
+
 ifeq ($(WITH_LIBUSB_DLOPEN),yes)
-	LIBUSB_STATUS := dlopen
+	LIBUSB_STATUS := >= 1.0.20 (dlopen)
 	LIBUSB_CFLAGS := -I../build_data/linux/libusb_dlopen
 	LIBUSB_LDFLAGS :=
 	LIBUSB_LIBS :=
 else
-	LIBUSB_VERSION := $(shell pkg-config --exists 'libusb-1.0 >= 1.0.6' && echo okay)
-
-ifeq ($(LIBUSB_VERSION),okay)
+ifeq ($(WITH_LIBUSB_STATIC),yes)
+	LIBUSB_STATUS := 1.0.23 (static)
+	LIBUSB_CFLAGS := -I../build_data/linux/libusb_static
+	LIBUSB_LDFLAGS := -L../build_data/linux/libusb_static
+	LIBUSB_LIBS := -lusb-1.0-brickd-static
+else
+ifeq ($(shell pkg-config --exists 'libusb-1.0 >= 1.0.20' && echo okay),okay)
 	LIBUSB_STATUS := $(shell pkg-config --modversion libusb-1.0)
 	LIBUSB_CFLAGS := $(shell pkg-config --cflags libusb-1.0)
 	LIBUSB_LDFLAGS := $(shell pkg-config --libs-only-other --libs-only-L libusb-1.0)
-
-ifeq ($(WITH_LIBUSB_STATIC),yes)
-	LIBUSB_STATUS := $(LIBUSB_STATUS) (static)
-	LIBUSB_LIBS := -Wl,-Bstatic $(shell pkg-config --libs-only-l libusb-1.0) -Wl,-Bdynamic
-
-ifeq ($(findstring -ludev,$(shell pkg-config --libs-only-l --static libusb-1.0)),-ludev)
-	LIBUDEV_LINK := yes
-endif
-else
 	LIBUSB_LIBS := $(shell pkg-config --libs-only-l libusb-1.0)
-endif
 else
 ifneq ($(MAKECMDGOALS),clean)
-$(error Could not find libusb-1.0 >= 1.0.6)
+$(error Could not find libusb-1.0 >= 1.0.20)
 endif
 endif
 endif
@@ -492,6 +452,7 @@ endif
 endif
 
 ifeq ($(WITH_TARGET),Darwin)
+	HOTPLUG := libusb
 	LIBUSB_STATUS := 1.0.23-rc1 (fork)
 	LIBUSB_CFLAGS := -I../build_data/macos/libusb
 	LIBUSB_LDFLAGS := -L../build_data/macos/libusb
@@ -501,41 +462,6 @@ endif
 override CFLAGS += $(LIBUSB_CFLAGS)
 override LDFLAGS += $(LIBUSB_LDFLAGS)
 override LIBS += $(LIBUSB_LIBS)
-
-ifeq ($(WITH_LIBUDEV),yes)
-	override CFLAGS += -DBRICKD_WITH_LIBUDEV
-
-ifeq ($(WITH_LIBUDEV_DLOPEN),yes)
-	LIBUDEV_STATUS := dlopen
-
-	override CFLAGS += -DBRICKD_WITH_LIBUDEV_DLOPEN
-else
-	LIBUDEV_LINK := yes
-endif
-
-ifeq ($(HOTPLUG),libusb)
-	LIBUDEV_STATUS := $(LIBUDEV_STATUS) (unused)
-endif
-endif
-
-ifeq ($(LIBUDEV_LINK),yes)
-	LIBUDEV_EXISTS := $(shell pkg-config --exists libudev && echo yes || echo no)
-
-ifeq ($(LIBUDEV_EXISTS),yes)
-	LIBUDEV_STATUS := $(shell pkg-config --modversion libudev)
-	LIBUDEV_CFLAGS := $(shell pkg-config --cflags libudev)
-	LIBUDEV_LDFLAGS := $(shell pkg-config --libs-only-other --libs-only-L libudev)
-	LIBUDEV_LIBS := $(shell pkg-config --libs-only-l libudev)
-
-	override CFLAGS += $(LIBUDEV_CFLAGS)
-	override LDFLAGS += $(LIBUDEV_LDFLAGS)
-	override LIBS += $(LIBUDEV_LIBS)
-else
-ifneq ($(MAKECMDGOALS),clean)
-$(error Could not find libudev)
-endif
-endif
-endif
 
 ifeq ($(WITH_PM_UTILS),yes)
 	PM_UTILS_EXISTS := $(shell pkg-config --exists pm-utils && echo yes || echo no)
@@ -627,7 +553,6 @@ $(info - host:                       $(WITH_HOST))
 $(info - target:                     $(WITH_TARGET))
 $(info libraries/tools:)
 $(info - libusb:                     $(LIBUSB_STATUS))
-$(info - libudev:                    $(LIBUDEV_STATUS))
 $(info - pm-utils:                   $(PM_UTILS_STATUS))
 $(info - systemd:                    $(SYSTEMD_STATUS))
 $(info features:)

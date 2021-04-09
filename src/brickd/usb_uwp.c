@@ -1,8 +1,8 @@
 /*
  * brickd
- * Copyright (C) 2016-2019 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2016-2019, 2021 Matthias Bolte <matthias@tinkerforge.com>
  *
- * usb_uwp.c: Universal Windows Platform USB hotplug implementation
+ * usb_uwp.c: Universal Windows Platform specific USB functions
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -183,7 +183,7 @@ CMAPI CONFIGRET WINAPI CM_Unregister_Notification(
 
 static LogSource _log_source = LOG_SOURCE_INITIALIZER;
 
-static Pipe _notification_pipe;
+static Pipe _hotplug_pipe;
 static HCMNOTIFICATION _notification_handle;
 
 const char *get_configret_name(int configret) {
@@ -257,19 +257,19 @@ const char *get_configret_name(int configret) {
 #undef CONFIGRET_NAME
 }
 
-static void usb_forward_notifications(void *opaque) {
+static void usb_forward_hotplug(void *opaque) {
 	uint8_t byte;
 
 	(void)opaque;
 
-	if (pipe_read(&_notification_pipe, &byte, sizeof(byte)) < 0) {
-		log_error("Could not read from notification pipe: %s (%d)",
+	if (pipe_read(&_hotplug_pipe, &byte, sizeof(byte)) < 0) {
+		log_error("Could not read from hotplug pipe: %s (%d)",
 		          get_errno_name(errno), errno);
 
 		return;
 	}
 
-	log_debug("Starting USB device scan, triggered by notification");
+	log_debug("Starting USB device scan, triggered by hotplug");
 
 	usb_rescan();
 }
@@ -319,8 +319,8 @@ static DWORD CALLBACK usb_handle_notify_event(HCMNOTIFICATION hnotify,
 		return ERROR_SUCCESS;
 	}
 
-	if (pipe_write(&_notification_pipe, &byte, sizeof(byte)) < 0) {
-		log_error("Could not write to notification pipe: %s (%d)",
+	if (pipe_write(&_hotplug_pipe, &byte, sizeof(byte)) < 0) {
+		log_error("Could not write to hotplug pipe: %s (%d)",
 		          get_errno_name(errno), errno);
 	}
 
@@ -341,8 +341,8 @@ int usb_init_hotplug(libusb_context *context) {
 
 	(void)context;
 
-	// create notification pipe
-	if (pipe_create(&_notification_pipe, PIPE_FLAG_NON_BLOCKING_READ) < 0) {
+	// create hotplug pipe
+	if (pipe_create(&_hotplug_pipe, PIPE_FLAG_NON_BLOCKING_READ) < 0) {
 		log_error("Could not create hotplug pipe: %s (%d)",
 		          get_errno_name(errno), errno);
 
@@ -351,8 +351,8 @@ int usb_init_hotplug(libusb_context *context) {
 
 	phase = 1;
 
-	if (event_add_source(_notification_pipe.base.read_handle, EVENT_SOURCE_TYPE_GENERIC,
-	                     "hotplug", EVENT_READ, usb_forward_notifications, NULL) < 0) {
+	if (event_add_source(_hotplug_pipe.base.read_handle, EVENT_SOURCE_TYPE_GENERIC,
+	                     "hotplug", EVENT_READ, usb_forward_hotplug, NULL) < 0) {
 		goto cleanup;
 	}
 
@@ -380,11 +380,11 @@ int usb_init_hotplug(libusb_context *context) {
 cleanup:
 	switch (phase) { // no breaks, all cases fall through intentionally
 	case 2:
-		event_remove_source(_notification_pipe.base.read_handle, EVENT_SOURCE_TYPE_GENERIC);
+		event_remove_source(_hotplug_pipe.base.read_handle, EVENT_SOURCE_TYPE_GENERIC);
 		// fall through
 
 	case 1:
-		pipe_destroy(&_notification_pipe);
+		pipe_destroy(&_hotplug_pipe);
 		// fall through
 
 	default:
@@ -406,8 +406,8 @@ void usb_exit_hotplug(libusb_context *context) {
 		          get_configret_name(cr), cr);
 	}
 
-	event_remove_source(_notification_pipe.base.read_handle, EVENT_SOURCE_TYPE_GENERIC);
-	pipe_destroy(&_notification_pipe);
+	event_remove_source(_hotplug_pipe.base.read_handle, EVENT_SOURCE_TYPE_GENERIC);
+	pipe_destroy(&_hotplug_pipe);
 }
 
 bool usb_has_hotplug(void) {

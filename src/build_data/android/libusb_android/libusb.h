@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2018-2020 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2018-2021 Matthias Bolte <matthias@tinkerforge.com>
  *
  * libusb.h: Emulating libusb API for Android
  *
@@ -30,6 +30,8 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+#define LIBUSB_API_VERSION 0x01000104 // 1.0.20
 
 #define LIBUSB_ENDPOINT_DIR_MASK 0x80
 
@@ -187,6 +189,7 @@ int libusb_get_string_descriptor_ascii(libusb_device_handle *dev_handle,
 int libusb_handle_events_timeout(libusb_context *ctx, struct timeval *tv);
 
 const struct libusb_pollfd **libusb_get_pollfds(libusb_context *ctx);
+void libusb_free_pollfds(const struct libusb_pollfd **pollfds);
 void libusb_set_pollfd_notifiers(libusb_context *ctx,
                                  libusb_pollfd_added_callback added_callback,
                                  libusb_pollfd_removed_callback removed_callback,
