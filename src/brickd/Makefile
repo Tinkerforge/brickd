@@ -15,6 +15,7 @@
 ## CONFIG #####################################################################
 
 CC ?= gcc
+WINDRES ?= windres
 
 WITH_LIBUSB_DLOPEN ?= no
 WITH_LIBUSB_STATIC ?= no
@@ -731,7 +732,7 @@ endif
 
 %.o: %.rc Makefile
 	@echo GEN $@
-	$(E)windres $< $@
+	$(E)$(WINDRES) $< $@
 
 # FIXME: make dependency handling work for MinGW
 # http://make.paulandlesley.org/autodep.html
