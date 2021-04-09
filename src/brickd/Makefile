@@ -17,6 +17,8 @@
 CC ?= gcc
 WINDRES ?= windres
 
+WITH_HOST ?= check
+WITH_TARGET ?= check
 WITH_LIBUSB_DLOPEN ?= no
 WITH_LIBUSB_STATIC ?= no
 WITH_LIBUDEV ?= check
@@ -39,12 +41,24 @@ WITH_VERSION_SUFFIX ?= no
 
 ## RULES ######################################################################
 
+ifeq ($(WITH_HOST),check)
 ifeq ($(OS),Windows_NT)
-	PLATFORM := Windows
+	override WITH_HOST := Windows
+else
+	override WITH_HOST := $(shell uname)
+endif
+endif
+
+ifeq ($(WITH_HOST),Windows)
 	RM := del /F /Q
 	FIX_PATH = $(subst /,\,$1)
 else
-	PLATFORM := $(shell uname)
+ifneq ($(WITH_HOST),Linux)
+ifneq ($(WITH_HOST),Darwin)
+$(error $(WITH_HOST) is not supported as host)
+endif
+endif
+
 	RM := rm -f --
 	FIX_PATH = $1
 	INSTALL := install
@@ -78,6 +92,10 @@ ifndef datadir
 endif
 endif
 
+ifeq ($(WITH_TARGET),check)
+	override WITH_TARGET := $(WITH_HOST)
+endif
+
 ifndef libdir
 	libdir := $(prefix)/lib
 endif
@@ -92,7 +110,7 @@ ifeq ($(wildcard ../daemonlib),)
 $(error Could not find daemonlib. Please symlink or copy daemonlib into the src/ directory)
 endif
 
-ifeq ($(PLATFORM),Linux)
+ifeq ($(WITH_TARGET),Linux)
 ifeq ($(WITH_EPOLL),check)
 	override WITH_EPOLL := yes
 endif
@@ -101,13 +119,13 @@ else
 	override WITH_EPOLL := no
 endif
 
-ifneq ($(PLATFORM),Linux)
+ifneq ($(WITH_TARGET),Linux)
 ifeq ($(WITH_STATIC),yes)
-$(error WITH_STATIC not supported on this platform (yet))
+$(error WITH_STATIC is not supported for $(WITH_TARGET))
 endif
 endif
 
-ifeq ($(PLATFORM),Linux)
+ifeq ($(WITH_TARGET),Linux)
 ifeq ($(WITH_RED_BRICK),check)
 ifneq ($(wildcard /proc/red_brick_uid),)
 	# Linux and RED Brick <= 1.9
@@ -135,7 +153,7 @@ else
 endif
 endif
 
-ifeq ($(PLATFORM),Linux)
+ifeq ($(WITH_TARGET),Linux)
 ifeq ($(WITH_BRICKLET),check)
 ifeq ($(WITH_RED_BRICK),no)
 	override WITH_BRICKLET := yes
@@ -149,7 +167,7 @@ else
 	override WITH_BRICKLET := no
 endif
 
-ifeq ($(PLATFORM),Linux)
+ifeq ($(WITH_TARGET),Linux)
 	PKG_CONFIG := $(shell which pkg-config 2>/dev/null)
 
 ifeq ($(PKG_CONFIG),)
@@ -163,11 +181,11 @@ LIBUSB_STATUS := no
 LIBUDEV_STATUS := no
 HOTPLUG := no
 
-ifeq ($(PLATFORM),Windows)
+ifeq ($(WITH_TARGET),Windows)
 	HOTPLUG := WinAPI
 endif
 
-ifeq ($(PLATFORM),Linux)
+ifeq ($(WITH_TARGET),Linux)
 ifeq ($(WITH_STATIC),yes)
 	HOTPLUG := libusb
 else
@@ -203,14 +221,14 @@ ifeq ($(HOTPLUG),libusb (if supported))
 endif
 endif
 
-ifeq ($(PLATFORM),Darwin)
+ifeq ($(WITH_TARGET),Darwin)
 	HOTPLUG := libusb
 endif
 
 PM_UTILS_STATUS := no
 SYSTEMD_STATUS := no
 
-ifeq ($(PLATFORM),Linux)
+ifeq ($(WITH_TARGET),Linux)
 	PM_UTILS_EXISTS := $(shell pkg-config --exists pm-utils && echo yes || echo no)
 
 ifeq ($(WITH_PM_UTILS),check)
@@ -225,7 +243,7 @@ else
 	override WITH_PM_UTILS := no
 endif
 
-ifeq ($(PLATFORM),Linux)
+ifeq ($(WITH_TARGET),Linux)
 	SYSTEMD_EXISTS := $(shell pkg-config --exists systemd && echo yes || echo no)
 
 ifeq ($(WITH_SYSTEMD),check)
@@ -281,7 +299,7 @@ SOURCES_BRICKD := base64.c \
                   websocket.c \
                   zombie.c
 
-ifeq ($(PLATFORM),Windows)
+ifeq ($(WITH_TARGET),Windows)
 	SOURCES_DAEMONLIB += $(call FIX_PATH,../daemonlib/pipe_winapi.c) \
 	                     $(call FIX_PATH,../daemonlib/socket_winapi.c)
 
@@ -303,7 +321,7 @@ else
 	SOURCES_BRICKD += usb_posix.c
 endif
 
-ifeq ($(PLATFORM),Linux)
+ifeq ($(WITH_TARGET),Linux)
 ifeq ($(WITH_EPOLL),yes)
 	SOURCES_DAEMONLIB += ../daemonlib/event_linux.c
 else
@@ -315,7 +333,7 @@ endif
 	SOURCES_BRICKD += main_linux.c
 endif
 
-ifeq ($(PLATFORM),Darwin)
+ifeq ($(WITH_TARGET),Darwin)
 	SOURCES_DAEMONLIB += ../daemonlib/event_posix.c
 
 	SOURCES_BRICKD += main_macos.c \
@@ -330,7 +348,7 @@ ifeq ($(WITH_BRICKLET),yes)
 	SOURCES_BRICKD += bricklet.c \
 	                  bricklet_stack.c
 
-ifeq ($(PLATFORM),Linux)
+ifeq ($(WITH_TARGET),Linux)
 	SOURCES_BRICKD += bricklet_stack_linux.c \
 	                  bricklet_stack_linux_bcm2835.c \
 	                  bricklet_stack_linux_spidev.c \
@@ -360,10 +378,14 @@ SOURCES := $(SOURCES_DAEMONLIB) $(SOURCES_BRICKD)
 OBJECTS := ${SOURCES:.c=.o}
 DEPENDS := ${SOURCES:.c=.p}
 
-ifeq ($(PLATFORM),Windows)
+ifeq ($(WITH_TARGET),Windows)
 	OBJECTS += brickd.o
 	TARGET := brickd.exe
+ifeq ($(WITH_HOST),Windows)
 	DIST := ..\dist\brickd.exe
+else
+	DIST := ../dist/brickd.exe
+endif
 else
 	TARGET := brickd
 	DIST :=
@@ -398,7 +420,7 @@ ifeq ($(WITH_GPROF),yes)
 	override LDFLAGS += -pg -no-pie
 endif
 
-ifeq ($(PLATFORM),Windows)
+ifeq ($(WITH_TARGET),Windows)
 	override CFLAGS += -DWIN32_LEAN_AND_MEAN -DNDEBUG -DWINVER=0x0501 -D_WIN32_WINNT=0x0501 -mconsole -include fixes_mingw.h
 	override LDFLAGS += -Wl,-subsystem,console
 	override LIBS += -lws2_32
@@ -407,14 +429,14 @@ else
 	override LDFLAGS += -pthread
 endif
 
-ifeq ($(PLATFORM),Linux)
+ifeq ($(WITH_TARGET),Linux)
 	# always link to librt for clock_gettime for compatibility with older glibc.
 	# since glibc 2.17 this is not strictly necessary anymore, but detecting glibc
 	# version is difficult and fragile, instead always link to librt.
 	override LIBS += -lrt
 endif
 
-ifeq ($(PLATFORM),Windows)
+ifeq ($(WITH_TARGET),Windows)
 	LIBUSB_STATUS := 1.0.23 (fork)
 	LIBUSB_CFLAGS := -I../build_data/windows/libusb
 	LIBUSB_LDFLAGS := -L../build_data/windows/libusb
@@ -423,9 +445,9 @@ endif
 
 LIBUDEV_LINK := no
 
-ifeq ($(PLATFORM),Linux)
+ifeq ($(WITH_TARGET),Linux)
 ifeq ($(WITH_STATIC),yes)
-	LIBUSB_STATUS := 1.0.23
+	LIBUSB_STATUS := 1.0.23 (static)
 	LIBUSB_CFLAGS := -I../build_data/linux/libusb_static
 	LIBUSB_LDFLAGS := -L../build_data/linux/libusb_static
 	LIBUSB_LIBS := -lusb-1.0
@@ -462,8 +484,8 @@ endif
 endif
 endif
 
-ifeq ($(PLATFORM),Darwin)
-	LIBUSB_STATUS := 1.0.23 (fork)
+ifeq ($(WITH_TARGET),Darwin)
+	LIBUSB_STATUS := 1.0.23-rc1 (fork)
 	LIBUSB_CFLAGS := -I../build_data/macos/libusb
 	LIBUSB_LDFLAGS := -L../build_data/macos/libusb
 	LIBUSB_LIBS := -lusb-1.0-brickd
@@ -530,11 +552,11 @@ endif
 endif
 endif
 
-ifneq ($(PLATFORM),Windows)
+ifneq ($(WITH_TARGET),Windows)
 	override LIBS += -ldl
 endif
 
-ifeq ($(PLATFORM),Darwin)
+ifeq ($(WITH_TARGET),Darwin)
 	# ensure that there is enough room to rewrite the libusb install name
 	override LDFLAGS += -Wl,-headerpad_max_install_names
 	override LIBS += -Wl,-framework,IOKit -Wl,-framework,CoreFoundation -lobjc
@@ -593,6 +615,9 @@ ifneq ($(WITH_VERSION_SUFFIX),no)
 endif
 
 ifneq ($(MAKECMDGOALS),clean)
+$(info platform:)
+$(info - host:                       $(WITH_HOST))
+$(info - target:                     $(WITH_TARGET))
 $(info libraries/tools:)
 $(info - libusb:                     $(LIBUSB_STATUS))
 $(info - libudev:                    $(LIBUDEV_STATUS))
@@ -623,11 +648,22 @@ endif
 all: $(DIST) $(TARGET) Makefile
 
 ..\dist\brickd.exe: $(TARGET) Makefile
-	$(E)if not exist ..\dist mkdir ..\dist
+	$(E)if not exist ..\dist\ mkdir ..\dist\
 	@echo CP brickd.exe
 	$(E)copy "brickd.exe" "..\dist\"
+ifeq ($(WITH_LIBUSB_STATIC),no)
 	@echo CP libusb-1.0.dll
 	$(E)copy "..\build_data\windows\libusb\libusb-1.0.dll" "..\dist\"
+endif
+
+../dist/brickd.exe: $(TARGET) Makefile
+	$(E)mkdir -p ../dist/
+	@echo CP brickd.exe
+	$(E)cp brickd.exe ../dist/
+ifeq ($(WITH_LIBUSB_STATIC),no)
+	@echo CP libusb-1.0.dll
+	$(E)cp ../build_data/windows/libusb/libusb-1.0.dll ../dist/
+endif
 
 clean: Makefile
 	$(E)$(RM) $(OBJECTS) $(TARGET) $(DEPENDS)
@@ -637,7 +673,7 @@ $(TARGET): $(OBJECTS) Makefile
 	$(E)$(CC) -o $(TARGET) $(LDFLAGS) $(OBJECTS) $(LIBS)
 
 install: all
-ifeq ($(PLATFORM),Linux)
+ifeq ($(WITH_TARGET),Linux)
 	@echo MD $(bindir)
 	$(E)$(INSTALL) -d -m 755 $(DESTDIR)$(bindir)
 
@@ -725,7 +761,7 @@ endif
 
 %.o: %.c Makefile
 	@echo CC $@
-ifneq ($(PLATFORM),Windows)
+ifneq ($(WITH_TARGET),Windows)
 	$(E)$(CC) -M $(CFLAGS) -o $*.d $<; cp $*.d $*.p; sed -e 's/#.*//' -e 's/^[^:]*: *//' -e 's/ *\\$$//' -e '/^$$/ d' -e 's/$$/ :/' < $*.d >> $*.p; rm -f $*.d
 endif
 	$(E)$(CC) $(CFLAGS) -c -o $@ $<
@@ -736,6 +772,6 @@ endif
 
 # FIXME: make dependency handling work for MinGW
 # http://make.paulandlesley.org/autodep.html
-ifneq ($(PLATFORM),Windows)
+ifneq ($(WITH_TARGET),Windows)
 -include $(DEPENDS)
 endif
