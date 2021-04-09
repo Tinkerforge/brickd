@@ -437,10 +437,17 @@ ifeq ($(WITH_TARGET),Linux)
 endif
 
 ifeq ($(WITH_TARGET),Windows)
-	LIBUSB_STATUS := 1.0.23 (fork)
+ifeq ($(WITH_LIBUSB_STATIC),yes)
+	LIBUSB_STATUS := 1.0.23-rc1 (fork, static)
+	LIBUSB_CFLAGS := -I../build_data/windows/libusb_static
+	LIBUSB_LDFLAGS := -L../build_data/windows/libusb_static
+	LIBUSB_LIBS := -lusb-1.0-brickd
+else
+	LIBUSB_STATUS := 1.0.23-rc1 (fork)
 	LIBUSB_CFLAGS := -I../build_data/windows/libusb
 	LIBUSB_LDFLAGS := -L../build_data/windows/libusb
 	LIBUSB_LIBS := -lusb-1.0
+endif
 endif
 
 LIBUDEV_LINK := no
