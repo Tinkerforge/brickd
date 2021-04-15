@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2012-2014, 2016-2019 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2012-2014, 2016-2019, 2021 Matthias Bolte <matthias@tinkerforge.com>
  *
  * usb.h: USB specific functions
  *
@@ -49,9 +49,6 @@ bool usb_has_hotplug(void);
 
 int usb_rescan(void);
 int usb_reopen(USBStack *usb_stack);
-
-int usb_create_context(libusb_context **context);
-void usb_destroy_context(libusb_context *context);
 
 int usb_get_interface_endpoints(libusb_device_handle *device_handle, int interface_number,
                                 uint8_t *endpoint_in, uint8_t *endpoint_out);

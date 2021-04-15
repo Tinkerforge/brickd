@@ -38,6 +38,7 @@ typedef struct {
 	uint8_t bus_number;
 	uint8_t device_address;
 	libusb_context *context;
+	libusb_device *device;
 	libusb_device_handle *device_handle;
 	int interface_number;
 	uint8_t endpoint_in;
@@ -48,12 +49,13 @@ typedef struct {
 	Queue write_queue;
 	uint32_t dropped_requests;
 	bool connected;
+	bool red_brick;
 	bool expecting_short_Ax_response;
 	bool expecting_read_stall_before_removal;
 	bool expecting_removal;
 } USBStack;
 
-int usb_stack_create(USBStack *usb_stack, uint8_t bus_number, uint8_t device_address);
+int usb_stack_create(USBStack *usb_stack, libusb_context *context, libusb_device *device, bool red_brick);
 void usb_stack_destroy(USBStack *usb_stack);
 
 void usb_stack_start_pending_error_timer(USBStack *usb_stack);

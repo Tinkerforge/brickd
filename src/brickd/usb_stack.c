@@ -339,34 +339,48 @@ static int usb_stack_dispatch_request(Stack *stack, Packet *request,
 	return 0;
 }
 
-int usb_stack_create(USBStack *usb_stack, uint8_t bus_number, uint8_t device_address) {
+int usb_stack_create(USBStack *usb_stack, libusb_context *context, libusb_device *device, bool red_brick) {
 	int phase = 0;
 	int rc;
-	libusb_device **devices;
-	libusb_device *device;
-	struct libusb_device_descriptor descriptor;
 	int i = 0;
 	char preliminary_name[STACK_MAX_NAME_LENGTH];
 	int retries = 0;
 	USBTransfer *usb_transfer;
 
+	usb_stack->bus_number = libusb_get_bus_number(device);
+	usb_stack->device_address = libusb_get_device_address(device);
+	usb_stack->context = context;
+	usb_stack->device = libusb_ref_device(device);
+
 	log_debug("Acquiring USB device (bus: %u, device: %u)",
-	          bus_number, device_address);
+	          usb_stack->bus_number, usb_stack->device_address);
 
-	usb_stack->bus_number = bus_number;
-	usb_stack->device_address = device_address;
+	phase = 1;
 
-	usb_stack->context = NULL;
 	usb_stack->device_handle = NULL;
 	usb_stack->dropped_requests = 0;
 	usb_stack->connected = true;
-	usb_stack->expecting_short_Ax_response = false;
-	usb_stack->expecting_read_stall_before_removal = false;
+	usb_stack->red_brick = red_brick;
 	usb_stack->expecting_removal = false;
+
+	if (red_brick) {
+		usb_stack->interface_number = USB_RED_BRICK_INTERFACE;
+		usb_stack->expecting_short_Ax_response = true;
+#ifdef _WIN32
+		usb_stack->expecting_read_stall_before_removal = true;
+#else
+		usb_stack->expecting_read_stall_before_removal = false;
+#endif
+	} else {
+		usb_stack->interface_number = USB_BRICK_INTERFACE;
+		usb_stack->expecting_short_Ax_response = false;
+		usb_stack->expecting_read_stall_before_removal = false;
+	}
 
 	// create stack base
 	snprintf(preliminary_name, sizeof(preliminary_name),
-	         "USB device (bus: %u, device: %u)", bus_number, device_address);
+	         "USB device (bus: %u, device: %u)",
+	         usb_stack->bus_number, usb_stack->device_address);
 
 	if (stack_create(&usb_stack->base, preliminary_name,
 	                 usb_stack_dispatch_request) < 0) {
@@ -376,103 +390,21 @@ int usb_stack_create(USBStack *usb_stack, uint8_t bus_number, uint8_t device_add
 		goto cleanup;
 	}
 
-	phase = 1;
-
-	// initialize per-device libusb context
-	if (usb_create_context(&usb_stack->context) < 0) {
-		goto cleanup;
-	}
-
 	phase = 2;
 
-	// find device
-	rc = libusb_get_device_list(usb_stack->context, &devices);
+	// open device
+	rc = libusb_open(device, &usb_stack->device_handle);
 
 	if (rc < 0) {
-		log_error("Could not get USB device list: %s (%d)",
-		          usb_get_error_name(rc), rc);
+		log_warn("Could not open %s: %s (%d)",
+		         usb_stack->base.name, usb_get_error_name(rc), rc);
 
 		goto cleanup;
 	}
-
-	for (device = devices[0]; device != NULL; device = devices[++i]) {
-		if (libusb_get_bus_number(device) != usb_stack->bus_number ||
-		    libusb_get_device_address(device) != usb_stack->device_address) {
-			continue;
-		}
-
-		rc = libusb_get_device_descriptor(device, &descriptor);
-
-		if (rc < 0) {
-			log_warn("Could not get device descriptor for %s, ignoring USB device: %s (%d)",
-			         usb_stack->base.name, usb_get_error_name(rc), rc);
-
-			continue;
-		}
-
-		log_debug("Looking at USB device (bus: %u, device: %u, vendor-id: 0x%04X, product-id: 0x%04X, release: 0x%04X)",
-		          bus_number, device_address, descriptor.idVendor, descriptor.idProduct, descriptor.bcdDevice);
-
-		if (descriptor.idVendor == USB_BRICK_VENDOR_ID &&
-		    descriptor.idProduct == USB_BRICK_PRODUCT_ID) {
-			if (descriptor.bcdDevice < USB_BRICK_DEVICE_RELEASE) {
-				log_warn("%s has protocol 1.0 firmware, ignoring USB device",
-				         usb_stack->base.name);
-
-				continue;
-			}
-
-			usb_stack->interface_number = USB_BRICK_INTERFACE;
-			usb_stack->expecting_short_Ax_response = false;
-			usb_stack->expecting_read_stall_before_removal = false;
-		} else if (descriptor.idVendor == USB_RED_BRICK_VENDOR_ID &&
-		           descriptor.idProduct == USB_RED_BRICK_PRODUCT_ID) {
-			if (descriptor.bcdDevice < USB_RED_BRICK_DEVICE_RELEASE) {
-				log_warn("%s has unexpected release version, ignoring USB device",
-				         usb_stack->base.name);
-
-				continue;
-			}
-
-			usb_stack->interface_number = USB_RED_BRICK_INTERFACE;
-			usb_stack->expecting_short_Ax_response = true;
-#ifdef _WIN32
-			usb_stack->expecting_read_stall_before_removal = true;
-#else
-			usb_stack->expecting_read_stall_before_removal = false;
-#endif
-		} else {
-			log_warn("Found non-Brick USB device (bus: %u, device: %u, vendor: 0x%04X, product: 0x%04X) with address collision, ignoring USB device",
-			         usb_stack->bus_number, usb_stack->device_address,
-			         descriptor.idVendor, descriptor.idProduct);
-
-			continue;
-		}
-
-		// open device
-		rc = libusb_open(device, &usb_stack->device_handle);
-
-		if (rc < 0) {
-			log_warn("Could not open %s, ignoring USB device: %s (%d)",
-			         usb_stack->base.name, usb_get_error_name(rc), rc);
-
-			continue;
-		}
-
-		break;
-	}
-
-	libusb_free_device_list(devices, 1);
-
-	if (usb_stack->device_handle == NULL) {
-		log_error("Could not find %s", usb_stack->base.name);
-
-		goto cleanup;
-	}
-
-	log_debug("Found %s", usb_stack->base.name);
 
 	phase = 3;
+
+	log_debug("Found %s", usb_stack->base.name);
 
 	// get interface endpoints
 	rc = usb_get_interface_endpoints(usb_stack->device_handle, usb_stack->interface_number,
@@ -510,15 +442,13 @@ int usb_stack_create(USBStack *usb_stack, uint8_t bus_number, uint8_t device_add
 		// handle that allows to claim the interface
 		while (rc < 0 && retries < 10) {
 #ifdef __APPLE__
-			device = libusb_get_device(usb_stack->device_handle);
-
 			libusb_close(usb_stack->device_handle);
 #endif
 
 			millisleep(50);
 
 #ifdef __APPLE__
-			rc = libusb_open(device, &usb_stack->device_handle);
+			rc = libusb_open(usb_stack->device, &usb_stack->device_handle);
 
 			if (rc < 0) {
 				log_error("Could not reopen %s: %s (%d)",
@@ -678,11 +608,11 @@ cleanup:
 		// fall through
 
 	case 2:
-		usb_destroy_context(usb_stack->context);
+		stack_destroy(&usb_stack->base);
 		// fall through
 
 	case 1:
-		stack_destroy(&usb_stack->base);
+		libusb_unref_device(usb_stack->device);
 		// fall through
 
 	default:
@@ -710,11 +640,11 @@ void usb_stack_destroy(USBStack *usb_stack) {
 
 	libusb_close(usb_stack->device_handle);
 
-	usb_destroy_context(usb_stack->context);
-
 	string_copy(name, sizeof(name), usb_stack->base.name, -1);
 
 	stack_destroy(&usb_stack->base);
+
+	libusb_unref_device(usb_stack->device);
 
 	log_debug("Released USB device (bus: %u, device: %u), was %s",
 	          usb_stack->bus_number, usb_stack->device_address, name);
