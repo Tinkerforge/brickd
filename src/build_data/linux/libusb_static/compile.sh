@@ -1,6 +1,6 @@
 #!/bin/bash -ex
 
-version=1.0.23
+version=1.0.24
 
 rm -rf libusb-${version}
 rm -rf libusb-${version}.tar.bz2

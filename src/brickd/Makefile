@@ -432,7 +432,7 @@ ifeq ($(WITH_LIBUSB_DLOPEN),yes)
 	LIBUSB_LIBS :=
 else
 ifeq ($(WITH_LIBUSB_STATIC),yes)
-	LIBUSB_STATUS := 1.0.23 (static)
+	LIBUSB_STATUS := $(shell grep version= ../build_data/linux/libusb_static/compile.sh | sed -e s/version=//) (static)
 	LIBUSB_CFLAGS := -I../build_data/linux/libusb_static
 	LIBUSB_LDFLAGS := -L../build_data/linux/libusb_static
 	LIBUSB_LIBS := -lusb-1.0-brickd-static
