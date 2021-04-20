@@ -45,7 +45,7 @@ struct tm *localtime_r(const time_t *timep, struct tm *result);
 
 int gettimeofday(struct timeval *tv, struct timezone *tz);
 
-// replace _putenv with fixed_putenv
+// replace putenv with fixed_putenv
 int fixed_putenv(char *string);
 #define putenv fixed_putenv
 

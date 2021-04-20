@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2013-2014 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2013-2014, 2021 Matthias Bolte <matthias@tinkerforge.com>
  *
  * fixes_mingw.h: Fixes for problems with the MinGW headers and libs
  *
@@ -24,6 +24,7 @@
 
 #ifdef __MINGW32__
 
+#include <sys/time.h> // ensure gettimeofday() is declared before fixed_gettimeofday()
 #include <stdlib.h> // ensure putenv() is declared before fixed_putenv()
 #include <time.h>
 
@@ -38,6 +39,10 @@ void fixes_init(void);
 #endif
 
 struct tm *localtime_r(const time_t *timep, struct tm *result);
+
+// replace gettimeofday with fixed_gettimeofday
+int fixed_gettimeofday(struct timeval *tv, struct timezone *tz);
+#define gettimeofday fixed_gettimeofday
 
 // replace putenv with fixed_putenv
 int fixed_putenv(char *string);

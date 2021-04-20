@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2013-2014 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2013-2014, 2021 Matthias Bolte <matthias@tinkerforge.com>
  *
  * fixes_mingw.c: Fixes for problems with the MinGW headers and libs
  *
@@ -22,11 +22,20 @@
 #ifdef __MINGW32__
 
 #include <errno.h>
+#include <stdint.h>
 #include <string.h>
+#include <windows.h>
 
 #include "fixes_mingw.h"
 
+typedef void (WINAPI *GETSYSTEMTIMEPRECISEASFILETIME)(LPFILETIME);
+
+static GETSYSTEMTIMEPRECISEASFILETIME ptr_GetSystemTimePreciseAsFileTime = NULL;
+
 void fixes_init(void) {
+	ptr_GetSystemTimePreciseAsFileTime =
+	  (GETSYSTEMTIMEPRECISEASFILETIME)(void *)GetProcAddress(GetModuleHandleA("kernel32"),
+	                                                         "GetSystemTimePreciseAsFileTime");
 }
 
 // implement localtime_r based on localtime
@@ -44,6 +53,34 @@ struct tm *localtime_r(const time_t *timep, struct tm *result) {
 	memcpy(result, temp, sizeof(*result));
 
 	return result;
+}
+
+// difference between Unix epoch and January 1, 1601 in 100-nanoseconds
+#define DELTA_EPOCH 116444736000000000ULL
+
+// MinGW's gettimeofday doesn't provide the highest available resolution,
+// implement gettimeofday based on GetSystemTime(Precise)AsFileTime
+int fixed_gettimeofday(struct timeval *tv, struct timezone *tz) {
+	FILETIME ft;
+	uint64_t t;
+
+	(void)tz;
+
+	if (tv != NULL) {
+		if (ptr_GetSystemTimePreciseAsFileTime != NULL) {
+			ptr_GetSystemTimePreciseAsFileTime(&ft);
+		} else {
+			GetSystemTimeAsFileTime(&ft);
+		}
+
+		t = ((uint64_t)ft.dwHighDateTime << 32) | (uint64_t)ft.dwLowDateTime;
+		t = (t - DELTA_EPOCH) / 10; // 100-nanoseconds to microseconds
+
+		tv->tv_sec = (long)(t / 1000000UL);
+		tv->tv_usec = (long)(t % 1000000UL);
+	}
+
+	return 0;
 }
 
 #undef putenv // undefine to avoid calling fixed_putenv() from fixed_putenv()
