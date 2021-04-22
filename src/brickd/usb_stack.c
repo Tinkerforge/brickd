@@ -140,10 +140,10 @@ static void usb_stack_read_callback(USBTransfer *usb_transfer) {
 	const char *message = NULL;
 	char packet_dump[PACKET_MAX_DUMP_LENGTH];
 	char packet_signature[PACKET_MAX_SIGNATURE_LENGTH];
-	int packet_buffer_used = usb_transfer->handle->actual_length;
+	int buffer_used = usb_transfer->handle->actual_length;
 
 	// check if packet is too short
-	if (packet_buffer_used < (int)sizeof(PacketHeader)) {
+	if (buffer_used < (int)sizeof(PacketHeader)) {
 		// there is a problem with the first USB transfer send by the RED
 		// Brick. if the first USB transfer was queued to the A10s USB hardware
 		// before the USB OTG connection got established then the payload of
@@ -153,21 +153,17 @@ static void usb_stack_read_callback(USBTransfer *usb_transfer) {
 		// sending anything else. this short response with 0xA1/0xAA as payload
 		// is detected here and dropped
 		if (usb_transfer->usb_stack->expecting_short_Ax_response &&
-		    packet_buffer_used == 1 &&
-		    (usb_transfer->packet_buffer[0] == 0xA1 ||
-		     usb_transfer->packet_buffer[0] == 0xAA)) {
+		    buffer_used == 1 &&
+		    (*(uint8_t *)usb_transfer->buffer == 0xA1 ||
+		     *(uint8_t *)usb_transfer->buffer == 0xAA)) {
 			usb_transfer->usb_stack->expecting_short_Ax_response = false;
 
 			log_debug("Read transfer %p returned expected short 0x%02X response from %s, dropping response",
-			          usb_transfer, usb_transfer->packet_buffer[0],
-			          usb_transfer->usb_stack->base.name);
+			          usb_transfer, *(uint8_t *)usb_transfer->buffer, usb_transfer->usb_stack->base.name);
 		} else {
 			log_error("Read transfer %p returned response (packet: %s) with incomplete header (actual: %u < minimum: %d) from %s",
-			          usb_transfer,
-			          packet_get_dump(packet_dump, &usb_transfer->packet, packet_buffer_used),
-			          packet_buffer_used,
-			          (int)sizeof(PacketHeader),
-			          usb_transfer->usb_stack->base.name);
+			          usb_transfer, packet_get_dump(packet_dump, usb_transfer->buffer, buffer_used),
+			          buffer_used, (int)sizeof(PacketHeader), usb_transfer->usb_stack->base.name);
 		}
 
 		return;
@@ -178,64 +174,58 @@ static void usb_stack_read_callback(USBTransfer *usb_transfer) {
 	// expecting a short response
 	usb_transfer->usb_stack->expecting_short_Ax_response = false;
 
-	while (packet_buffer_used > 0) {
+	while (buffer_used > 0) {
 		// check if packet is too short
-		if (packet_buffer_used < (int)sizeof(PacketHeader)) {
+		if (buffer_used < (int)sizeof(PacketHeader)) {
 			log_error("Read transfer %p returned response (packet: %s) with incomplete header (actual: %u < minimum: %d) from %s",
-			          usb_transfer,
-			          packet_get_dump(packet_dump, &usb_transfer->packet, packet_buffer_used),
-			          packet_buffer_used,
-			          (int)sizeof(PacketHeader),
-			          usb_transfer->usb_stack->base.name);
+			          usb_transfer, packet_get_dump(packet_dump, usb_transfer->buffer, buffer_used),
+			          buffer_used, (int)sizeof(PacketHeader), usb_transfer->usb_stack->base.name);
 
 			return;
 		}
 
 		// check if packet is a valid response
-		if (!packet_header_is_valid_response(&usb_transfer->packet.header, &message)) {
+		if (!packet_header_is_valid_response(&((Packet *)usb_transfer->buffer)->header, &message)) {
 			log_error("Received invalid response (packet: %s) from %s: %s",
-			          packet_get_dump(packet_dump, &usb_transfer->packet, packet_buffer_used),
-			          usb_transfer->usb_stack->base.name,
-			          message);
+			          packet_get_dump(packet_dump, usb_transfer->buffer, buffer_used),
+			          usb_transfer->usb_stack->base.name, message);
 
 			return;
 		}
 
 		// check if packet is complete
-		if (packet_buffer_used < usb_transfer->packet.header.length) {
+		if (buffer_used < ((Packet *)usb_transfer->buffer)->header.length) {
 			log_error("Read transfer %p returned incomplete response (packet: %s, actual: %u != expected: %u) from %s",
-			          usb_transfer,
-			          packet_get_dump(packet_dump, &usb_transfer->packet, packet_buffer_used),
-			          packet_buffer_used,
-			          usb_transfer->packet.header.length,
+			          usb_transfer, packet_get_dump(packet_dump, usb_transfer->buffer, buffer_used),
+			          buffer_used, ((Packet *)usb_transfer->buffer)->header.length,
 			          usb_transfer->usb_stack->base.name);
 
 			return;
 		}
 
 		log_packet_debug("Received %s (%s) from %s",
-		                 packet_get_response_type(&usb_transfer->packet),
-		                 packet_get_response_signature(packet_signature, &usb_transfer->packet),
+		                 packet_get_response_type(usb_transfer->buffer),
+		                 packet_get_response_signature(packet_signature, usb_transfer->buffer),
 		                 usb_transfer->usb_stack->base.name);
 
 #ifdef DAEMONLIB_WITH_PACKET_TRACE
-		usb_transfer->packet.trace_id = packet_get_next_response_trace_id();
+		((Packet *)usb_transfer->buffer)->trace_id = packet_get_next_response_trace_id();
 #endif
 
-		packet_add_trace(&usb_transfer->packet);
+		packet_add_trace(usb_transfer->buffer);
 
 		if (stack_add_recipient(&usb_transfer->usb_stack->base,
-		                        usb_transfer->packet.header.uid, 0) < 0) {
+		                        ((Packet *)usb_transfer->buffer)->header.uid, 0) < 0) {
 			return;
 		}
 
-		network_dispatch_response(&usb_transfer->packet);
+		network_dispatch_response(usb_transfer->buffer);
 
-		memmove(usb_transfer->packet_buffer,
-		        usb_transfer->packet_buffer + usb_transfer->packet.header.length,
-		        packet_buffer_used - usb_transfer->packet.header.length);
+		memmove(usb_transfer->buffer,
+		        (uint8_t *)usb_transfer->buffer + ((Packet *)usb_transfer->buffer)->header.length,
+		        buffer_used - ((Packet *)usb_transfer->buffer)->header.length);
 
-		packet_buffer_used -= usb_transfer->packet.header.length;
+		buffer_used -= ((Packet *)usb_transfer->buffer)->header.length;
 	}
 }
 
@@ -247,11 +237,11 @@ static void usb_stack_write_callback(USBTransfer *usb_transfer) {
 	    usb_transfer->usb_stack->write_queue.count > 0) {
 		request = queue_peek(&usb_transfer->usb_stack->write_queue);
 
-		memcpy(&usb_transfer->packet, request, request->header.length);
+		memcpy(usb_transfer->buffer, request, request->header.length);
 
 		if (usb_transfer_submit(usb_transfer) < 0) {
 			log_error("Could not send queued request (%s) to %s: %s (%d)",
-			          packet_get_request_signature(packet_signature, &usb_transfer->packet),
+			          packet_get_request_signature(packet_signature, usb_transfer->buffer),
 			          usb_transfer->usb_stack->base.name,
 			          get_errno_name(errno), errno);
 
@@ -261,7 +251,7 @@ static void usb_stack_write_callback(USBTransfer *usb_transfer) {
 		queue_pop(&usb_transfer->usb_stack->write_queue, NULL);
 
 		log_packet_debug("Sent queued request (%s) to %s, %d request(s) left in write queue",
-		                 packet_get_request_signature(packet_signature, &usb_transfer->packet),
+		                 packet_get_request_signature(packet_signature, usb_transfer->buffer),
 		                 usb_transfer->usb_stack->base.name,
 		                 usb_transfer->usb_stack->write_queue.count);
 	}
@@ -294,7 +284,7 @@ static int usb_stack_dispatch_request(Stack *stack, Packet *request,
 			continue;
 		}
 
-		memcpy(&usb_transfer->packet, request, request->header.length);
+		memcpy(usb_transfer->buffer, request, request->header.length);
 
 		if (usb_transfer_submit(usb_transfer) < 0) {
 			// FIXME: how to handle a failed submission, try to re-submit?

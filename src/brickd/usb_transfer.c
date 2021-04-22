@@ -19,10 +19,12 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
+#include <stdlib.h>
 #include <libusb.h>
 #include <time.h>
 
 #include <daemonlib/log.h>
+#include <daemonlib/packet.h>
 
 #include "usb_transfer.h"
 
@@ -33,6 +35,7 @@ static LogSource _log_source = LOG_SOURCE_INITIALIZER;
 
 static uint32_t _next_submission = 1;
 
+#define MAX_BUFFER_LENGTH 1024
 #define CANCELLATION_TIMEOUT 1000 // 1 second in milliseconds
 
 static const char *usb_transfer_get_type_name(USBTransferType type, bool upper) {
@@ -62,6 +65,16 @@ static const char *usb_transfer_get_status_name(int usb_transfer_status) {
 
 static void LIBUSB_CALL usb_transfer_wrapper(struct libusb_transfer *handle) {
 	USBTransfer *usb_transfer = handle->user_data;
+
+	if (usb_transfer == NULL) {
+		log_warn("Abandoned USB transfer (handle: %p) finished: %s (%d)",
+		         handle, usb_transfer_get_status_name(handle->status), handle->status);
+
+		free(handle->buffer);
+		libusb_free_transfer(handle);
+
+		return;
+	}
 
 	if (!usb_transfer->submitted) {
 		log_error("%s transfer %p (handle: %p, submission: %u) returned from %s, but was not submitted before",
@@ -174,22 +187,38 @@ static void LIBUSB_CALL usb_transfer_wrapper(struct libusb_transfer *handle) {
 
 int usb_transfer_create(USBTransfer *usb_transfer, USBStack *usb_stack,
                         USBTransferType type, USBTransferFunction function) {
+	struct libusb_transfer *handle;
+	uint8_t *buffer;
+
+	handle = libusb_alloc_transfer(0);
+
+	if (handle == NULL) {
+		log_error("Could not allocate libusb %s transfer for %s",
+		          usb_transfer_get_type_name(type, false), usb_stack->base.name);
+
+		return -1;
+	}
+
+	buffer = malloc(MAX_BUFFER_LENGTH);
+
+	if (buffer == NULL) {
+		log_error("Could not allocate buffer for %s transfer for %s",
+		          usb_transfer_get_type_name(type, false), usb_stack->base.name);
+
+		libusb_free_transfer(handle);
+
+		return -1;
+	}
+
 	usb_transfer->usb_stack = usb_stack;
 	usb_transfer->type = type;
 	usb_transfer->submitted = false;
 	usb_transfer->cancelled = false;
 	usb_transfer->function = function;
-	usb_transfer->handle = libusb_alloc_transfer(0);
+	usb_transfer->handle = handle;
+	usb_transfer->buffer = buffer;
 	usb_transfer->submission = 0;
 	usb_transfer->pending_error = USB_TRANSFER_PENDING_ERROR_NONE;
-
-	if (usb_transfer->handle == NULL) {
-		log_error("Could not allocate libusb %s transfer for %s",
-		          usb_transfer_get_type_name(usb_transfer->type, false),
-		          usb_stack->base.name);
-
-		return -1;
-	}
 
 	return 0;
 }
@@ -283,11 +312,15 @@ void usb_transfer_destroy(USBTransfer *usb_transfer) {
 	}
 
 	if (!usb_transfer->submitted) {
+		free(usb_transfer->buffer);
 		libusb_free_transfer(usb_transfer->handle);
 	} else {
-		log_warn("Leaking pending %s transfer %p (handle: %p, submission: %u) for %s",
+		log_warn("Abandoning pending %s transfer %p (handle: %p, submission: %u) for %s",
 		         usb_transfer_get_type_name(usb_transfer->type, false), usb_transfer,
 		         usb_transfer->handle, usb_transfer->submission, usb_transfer->usb_stack->base.name);
+
+		usb_transfer->handle->user_data = NULL;
+		usb_transfer->handle = NULL;
 	}
 }
 
@@ -338,12 +371,12 @@ int usb_transfer_submit(USBTransfer *usb_transfer) {
 	switch (usb_transfer->type) {
 	case USB_TRANSFER_TYPE_READ:
 		endpoint = usb_transfer->usb_stack->endpoint_in;
-		length = sizeof(usb_transfer->packet_buffer);
+		length = MAX_BUFFER_LENGTH;
 		break;
 
 	case USB_TRANSFER_TYPE_WRITE:
 		endpoint = usb_transfer->usb_stack->endpoint_out;
-		length = usb_transfer->packet.header.length;
+		length = ((Packet *)usb_transfer->buffer)->header.length;
 		break;
 
 	default:
@@ -363,7 +396,7 @@ int usb_transfer_submit(USBTransfer *usb_transfer) {
 	libusb_fill_bulk_transfer(usb_transfer->handle,
 	                          usb_transfer->usb_stack->device_handle,
 	                          endpoint,
-	                          usb_transfer->packet_buffer,
+	                          usb_transfer->buffer,
 	                          length,
 	                          usb_transfer_wrapper,
 	                          usb_transfer,
