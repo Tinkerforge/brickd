@@ -337,12 +337,16 @@
 
   mikem has made Perl bindings available at CPAN:
   http://search.cpan.org/~mikem/Device-BCM2835-1.9/lib/Device/BCM2835.pm
+
   Matthew Baker has kindly made Python bindings available at:
   https:  github.com/mubeta06/py-libbcm2835
+
   Gary Marks has created a Serial Peripheral Interface (SPI) command-line utility
   for Raspberry Pi, based on the bcm2835 library. The
   utility, spincl, is licensed under Open Source GNU GPLv3 by iP Solutions (http://ipsolutionscorp.com), as a
   free download with source included: http://ipsolutionscorp.com/raspberry-pi-spi-utility/
+
+  Bindings for Ada are available courtesy Tama McGlinn at https://github.com/TamaMcGlinn/ada_raspio
 
   \par Open Source Licensing GPL V3
 
@@ -603,6 +607,10 @@
   Fixed an error in bcm2835_i2c_read() where the status byte was not correctly updated with BCM2835_BSC_S_DONE
   Reported by Zihan. Thanks.
 
+  \version 1.69, 2021-03-30
+  Added link to Ada bindings by Tama McGlinn.
+  Fixed problem with undefined off_t on some compilers.
+
   \author  Mike McCauley (mikem@airspayce.com) DO NOT CONTACT THE AUTHOR DIRECTLY: USE THE LISTS
 */
 
@@ -612,6 +620,9 @@
 #define BCM2835_H
 
 #include <stdint.h>
+
+/* Some compilers need this, as reported by Sam James */
+#include <sys/types.h>
 
 #define BCM2835_VERSION 10066 /* Version 1.66 */
 
