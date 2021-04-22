@@ -641,7 +641,7 @@
 
 /*! Return the minimum of 2 numbers */
 #ifndef MIN
-#define MIN(a, b) (a < b ? a : b)
+#define MIN(a, b) ((a) < (b) ? (a) : (b))
 #endif
 
 /*! Speed of the core clock core_clk */
