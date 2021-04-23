@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2012-2014, 2017-2020 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2012-2014, 2017-2021 Matthias Bolte <matthias@tinkerforge.com>
  *
  * iokit.c: IOKit specific functions
  *
@@ -26,7 +26,7 @@
 #include <IOKit/IOMessage.h>
 #include <IOKit/pwr_mgt/IOPMLib.h>
 #include <AvailabilityMacros.h>
-#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060 && MAC_OS_X_VERSION_MIN_REQUIRED < 101200
 	#include <objc/objc-auto.h>
 #endif
 
@@ -111,9 +111,9 @@ static void iokit_poll_notifications(void *opaque) {
 
 	log_debug("Started notification poll thread");
 
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060 && MAC_OS_X_VERSION_MIN_REQUIRED < 101200
 	// need to register this PThread with the Objective-C garbage collector,
 	// because CoreFoundation uses Objective-C
-#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060
 	objc_registerThreadWithCollector();
 #endif
 

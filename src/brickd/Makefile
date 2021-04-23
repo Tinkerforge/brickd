@@ -124,9 +124,7 @@ endif
 endif
 
 ifeq ($(WITH_TARGET),Darwin)
-ifeq ($(WITH_LIBUSB_STATIC),yes)
-$(error WITH_LIBUSB_STATIC is not supported for $(WITH_TARGET))
-endif
+override WITH_LIBUSB_STATIC := yes
 endif
 
 ifeq ($(WITH_LIBUSB_DLOPEN),yes)
@@ -453,10 +451,10 @@ endif
 
 ifeq ($(WITH_TARGET),Darwin)
 	HOTPLUG := libusb
-	LIBUSB_STATUS := 1.0.23-rc1 (fork)
+	LIBUSB_STATUS := 1.0.24+ (fork, static)
 	LIBUSB_CFLAGS := -I../build_data/macos/libusb
 	LIBUSB_LDFLAGS := -L../build_data/macos/libusb
-	LIBUSB_LIBS := -lusb-1.0-brickd
+	LIBUSB_LIBS := -lusb-1.0-brickd-static
 endif
 
 override CFLAGS += $(LIBUSB_CFLAGS)
@@ -490,8 +488,7 @@ ifneq ($(WITH_TARGET),Windows)
 endif
 
 ifeq ($(WITH_TARGET),Darwin)
-	# ensure that there is enough room to rewrite the libusb install name
-	override LDFLAGS += -Wl,-headerpad_max_install_names
+	override CFLAGS += -mmacosx-version-min=10.9
 	override LIBS += -Wl,-framework,IOKit -Wl,-framework,CoreFoundation -lobjc
 endif
 

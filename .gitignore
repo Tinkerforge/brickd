@@ -15,6 +15,8 @@ src/build_data/android/brickd/app/.cxx
 src/build_data/android/brickd/app/.externalNativeBuild
 src/build_data/android/brickd/app/build
 src/build_data/linux/libusb_static/libusb*
+src/build_data/macos/libusb/libusb-*.zip
+src/build_data/macos/libusb/libusb-src
 src/build_data/windows/libusb_static/libusb*
 src/build_data/windows/libusb_static/*.zip
 src/build_data/windows/logviewer/logviewer.exe

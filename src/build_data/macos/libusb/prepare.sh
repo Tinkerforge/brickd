@@ -1,0 +1,21 @@
+#!/bin/sh -ex
+
+version=1001cb5558cf6679af7bce3114bba1d3bb7b6f7f
+
+rm -rf libusb-src
+rm -rf libusb-${version}.zip
+curl -LOJ https://github.com/libusb/libusb/archive/${version}.zip
+unzip libusb-${version}.zip
+mv libusb-${version} libusb-src
+
+pushd libusb-src
+
+git init
+git add .
+git commit -m foobar --author "foobar <foobar@foobar.com>"
+git apply ../libusb-brickd.patch
+./autogen.sh --disable-shared --disable-examples-build --disable-tests-build
+
+popd
+
+echo done

@@ -146,17 +146,10 @@ def build_macos_pkg():
     plist_path = os.path.join(contents_path, 'Info.plist')
     specialize_template(plist_path, plist_path, {'<<VERSION>>': version.split('+')[0]}) # macOS only allows for <major>.<minor>.<patch> here
 
-    print('copying and patching libusb')
-    libusb_path = os.path.join(root_path, 'build_data', 'macos', 'libusb', 'libusb-1.0-brickd.dylib')
-    shutil.copy(libusb_path, macos_path)
-    system('install_name_tool -id @executable_path/libusb-1.0-brickd.dylib {0}'.format(os.path.join(macos_path, 'libusb-1.0-brickd.dylib')))
-    system('install_name_tool -change @executable_path/../build_data/macos/libusb/libusb-1.0-brickd.dylib @executable_path/libusb-1.0-brickd.dylib {0}'.format(os.path.join(macos_path, 'brickd')))
-
     if not args.no_sign:
         print('signing libusb and brickd binaries')
         system('security unlock-keychain /Users/$USER/Library/Keychains/login.keychain')
         codesign_command = 'codesign --force --verify --verbose=1 -o runtime --sign "Developer ID Application: Tinkerforge GmbH (K39N76HTZ4)" {0}'
-        system(codesign_command.format(os.path.join(macos_path, 'libusb-1.0-brickd.dylib')))
         system(codesign_command.format(app_path))
 
         print('notarize app')
