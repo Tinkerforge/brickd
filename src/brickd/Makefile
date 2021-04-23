@@ -427,7 +427,7 @@ ifeq ($(WITH_LIBUSB_DLOPEN),yes)
 	LIBUSB_STATUS := >= 1.0.20 (dlopen)
 	LIBUSB_CFLAGS := -I../build_data/linux/libusb_dlopen
 	LIBUSB_LDFLAGS :=
-	LIBUSB_LIBS :=
+	LIBUSB_LIBS := -ldl
 else
 ifeq ($(WITH_LIBUSB_STATIC),yes)
 	LIBUSB_STATUS := $(shell grep version= ../build_data/linux/libusb_static/compile.sh | sed -e s/version=//) (static)
@@ -481,10 +481,6 @@ ifneq ($(MAKECMDGOALS),clean)
 $(error Could not find systemd)
 endif
 endif
-endif
-
-ifneq ($(WITH_TARGET),Windows)
-	override LIBS += -ldl
 endif
 
 ifeq ($(WITH_TARGET),Darwin)
