@@ -104,6 +104,7 @@ static void iokit_handle_notifications(void *opaque, io_service_t service,
 static void iokit_poll_notifications(void *opaque) {
 	int phase = 0;
 	Semaphore *handshake = opaque;
+	bool handshake_released = false;
 	IONotificationPortRef notification_port;
 	io_object_t notifier;
 	io_connect_t root_port;
@@ -147,14 +148,17 @@ static void iokit_poll_notifications(void *opaque) {
 	_run_loop = (CFRunLoopRef)CFRetain(CFRunLoopGetCurrent());
 
 	_running = true;
+
 	semaphore_release(handshake);
+
+	handshake_released = true;
 
 	CFRunLoopRun();
 
 	log_debug("Stopped notification poll thread");
 
 cleanup:
-	if (!_running) {
+	if (!handshake_released) {
 		// need to release the handshake in all cases, otherwise iokit_init
 		// will block forever in semaphore_acquire
 		semaphore_release(handshake);

@@ -154,6 +154,7 @@ static LRESULT CALLBACK usb_window_proc(HWND hwnd, UINT msg, WPARAM wparam, LPAR
 static void usb_pump_messages(void *opaque) {
 	const char *class_name = "tinkerforge-brick-daemon-message-pump";
 	Semaphore *handshake = opaque;
+	bool handshake_released = false;
 	WNDCLASSEXA wc;
 	int rc;
 	MSG msg;
@@ -198,7 +199,10 @@ static void usb_pump_messages(void *opaque) {
 	}
 
 	_message_pump_running = true;
+
 	semaphore_release(handshake);
+
+	handshake_released = true;
 
 	while (_message_pump_running &&
 	       (rc = GetMessageA(&msg, _message_pump_hwnd, 0, 0)) != 0) {
@@ -222,7 +226,7 @@ static void usb_pump_messages(void *opaque) {
 	log_debug("Stopped message pump thread");
 
 cleanup:
-	if (!_message_pump_running) {
+	if (!handshake_released) {
 		// need to release the handshake in all cases, otherwise
 		// message_pump_start will block forever in semaphore_acquire
 		semaphore_release(handshake);
