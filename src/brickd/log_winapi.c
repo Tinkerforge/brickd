@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2012-2020 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2012-2021 Matthias Bolte <matthias@tinkerforge.com>
  *
  * log_winapi.c: Windows log file, live log view and debugger output handling
  *
@@ -59,7 +59,8 @@ typedef struct {
 	Semaphore handshake;
 } LogPipe;
 
-#define NAMED_PIPE_BUFFER_LENGTH (sizeof(LogPipeMessage) * 4)
+#define NAMED_PIPE_COUNT 4
+#define NAMED_PIPE_BUFFER_LENGTH (sizeof(LogPipeMessage) * NAMED_PIPE_COUNT)
 #define FOREGROUND_ALL (FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE | FOREGROUND_INTENSITY)
 #define BACKGROUND_ALL (BACKGROUND_RED | BACKGROUND_GREEN | BACKGROUND_BLUE | BACKGROUND_INTENSITY)
 #define FOREGROUND_YELLOW (FOREGROUND_RED | FOREGROUND_GREEN)
@@ -70,9 +71,9 @@ static IO *_output = NULL;
 static HANDLE _console = NULL;
 static WORD _default_attributes = 0;
 static bool _pipes_initialized = false;
-static LogPipe _pipes[4];
+static LogPipe _pipes[NAMED_PIPE_COUNT];
 
-static const char *_pipes_names[4][2] = {
+static const char *_pipes_names[NAMED_PIPE_COUNT][2] = {
 	{"error", "\\\\.\\pipe\\tinkerforge-brick-daemon-error-log"},
 	{"warn", "\\\\.\\pipe\\tinkerforge-brick-daemon-warn-log"},
 	{"info", "\\\\.\\pipe\\tinkerforge-brick-daemon-info-log"},
@@ -263,7 +264,7 @@ void log_init_platform(IO *output) {
 	// initialize pipes
 	memset(_pipes, 0, sizeof(_pipes));
 
-	for (i = 0; i < 4; ++i) {
+	for (i = 0; i < NAMED_PIPE_COUNT; ++i) {
 		_pipes[i].name = _pipes_names[i][0];
 		_pipes[i].handle = INVALID_HANDLE_VALUE;
 	}
@@ -293,7 +294,7 @@ void log_init_platform(IO *output) {
 	}
 
 	// create pipes
-	for (i = 0; i < 4; ++i) {
+	for (i = 0; i < NAMED_PIPE_COUNT; ++i) {
 		_pipes[i].handle = CreateNamedPipeA(_pipes_names[i][1],
 		                                    PIPE_ACCESS_DUPLEX |
 		                                    FILE_FLAG_OVERLAPPED |
@@ -341,7 +342,7 @@ void log_exit_platform(void) {
 
 	SetEvent(_pipes_stop_event);
 
-	for (i = 0; i < 4; ++i) {
+	for (i = 0; i < NAMED_PIPE_COUNT; ++i) {
 		if (_pipes[i].running) {
 			thread_join(&_pipes[i].thread);
 			thread_destroy(&_pipes[i].thread);
@@ -468,7 +469,7 @@ void log_write_platform(struct timeval *timestamp, LogLevel level,
 
 	(void)debug_group;
 
-	for (i = level; i < 4; ++i) {
+	for (i = level; i < NAMED_PIPE_COUNT; ++i) {
 		if (_pipes[i].connected) {
 			pipe = &_pipes[i];
 			break;
