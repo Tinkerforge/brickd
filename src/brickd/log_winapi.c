@@ -320,17 +320,12 @@ void log_init_platform(IO *output) {
 			}
 		} else {
 			// create named pipe connect thread
-			if (semaphore_create(&_pipes[i].handshake) < 0) {
-				rc = ERRNO_WINAPI_OFFSET + GetLastError();
+			semaphore_create(&_pipes[i].handshake);
 
-				log_error("Could not create handshake semaphore for %s pipe: %s (%d)",
-				          _pipes[i].name, get_errno_name(rc), rc);
-			} else {
-				thread_create(&_pipes[i].thread, log_connect_pipe, &_pipes[i]);
+			thread_create(&_pipes[i].thread, log_connect_pipe, &_pipes[i]);
 
-				semaphore_acquire(&_pipes[i].handshake);
-				semaphore_destroy(&_pipes[i].handshake);
-			}
+			semaphore_acquire(&_pipes[i].handshake);
+			semaphore_destroy(&_pipes[i].handshake);
 		}
 	}
 

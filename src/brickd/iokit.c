@@ -207,12 +207,7 @@ int iokit_init(void) {
 	phase = 2;
 
 	// create notification poll thread
-	if (semaphore_create(&handshake) < 0) {
-		log_error("Could not create handshake semaphore: %s (%d)",
-		          get_errno_name(errno), errno);
-
-		goto cleanup;
-	}
+	semaphore_create(&handshake);
 
 	thread_create(&_poll_thread, iokit_poll_notifications, &handshake);
 
