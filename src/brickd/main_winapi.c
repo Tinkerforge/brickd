@@ -343,7 +343,7 @@ static int rotate_log_file(IO *output, LogLevel *level, char *message, int messa
 		         _log_filename, get_errno_name(errno), errno);
 	}
 
-	if (*level != LOG_LEVEL_DUMMY) {
+	if (*level != LOG_LEVEL_NONE) {
 		fprintf(*level <= LOG_LEVEL_WARN ? stderr : stdout, "%s\n", message);
 	}
 

@@ -120,6 +120,8 @@ static void log_connect_pipe(void *opaque) {
 	OVERLAPPED overlapped;
 	uint8_t byte;
 
+	log_debug("Starting pipe connect thread for %s log pipe", pipe->name);
+
 	// create connect/read event
 	overlapped_event = CreateEvent(NULL, TRUE, FALSE, NULL);
 
@@ -398,7 +400,7 @@ void log_apply_color_platform(LogLevel level, bool begin) {
 
 	if (begin) {
 		switch (level) {
-		case LOG_LEVEL_DUMMY: // ignore this to avoid compiler warning
+		case LOG_LEVEL_NONE: // ignore this to avoid compiler warning
 			break;
 
 		case LOG_LEVEL_ERROR:
@@ -427,86 +429,108 @@ void log_apply_color_platform(LogLevel level, bool begin) {
 
 uint32_t log_check_inclusion_platform(LogLevel level, LogSource *source,
                                       LogDebugGroup debug_group, int line) {
+	bool included = _debugger_present;
+
 	(void)source;
 	(void)debug_group;
 	(void)line;
 
-	if (_debugger_present) {
-		return LOG_INCLUSION_SECONDARY;
+	if (!included) {
+		switch (level) {
+		case LOG_LEVEL_NONE: // ignore this to avoid compiler warning
+			break;
+
+		case LOG_LEVEL_ERROR:
+			included |= _pipes[0].connected;
+			// fall through
+
+		case LOG_LEVEL_WARN:
+			included |= _pipes[1].connected;
+			// fall through
+
+		case LOG_LEVEL_INFO:
+			included |= _pipes[2].connected;
+			// fall through
+
+		case LOG_LEVEL_DEBUG:
+			included |= _pipes[3].connected;
+		}
 	}
 
-	switch (level) {
-	case LOG_LEVEL_DUMMY: // ignore this to avoid compiler warning
-		return false;
-
-	case LOG_LEVEL_ERROR:
-		return _pipes[3].connected || _pipes[2].connected || _pipes[1].connected || _pipes[0].connected ? LOG_INCLUSION_SECONDARY : LOG_INCLUSION_NONE;
-
-	case LOG_LEVEL_WARN:
-		return _pipes[3].connected || _pipes[2].connected || _pipes[1].connected ? LOG_INCLUSION_SECONDARY : LOG_INCLUSION_NONE;
-
-	case LOG_LEVEL_INFO:
-		return _pipes[3].connected || _pipes[2].connected ? LOG_INCLUSION_SECONDARY : LOG_INCLUSION_NONE;
-
-	case LOG_LEVEL_DEBUG:
-		return _pipes[3].connected ? LOG_INCLUSION_SECONDARY : LOG_INCLUSION_NONE;
-	}
-
-	return LOG_INCLUSION_NONE;
+	return included ? LOG_INCLUSION_SECONDARY : LOG_INCLUSION_NONE;
 }
 
-// NOTE: assumes that _mutex (in log.c) is locked
-void log_write_platform(struct timeval *timestamp, LogLevel level,
-                        LogSource *source, LogDebugGroup debug_group,
-                        const char *function, int line,
-                        const char *format, va_list arguments) {
-	int i;
+// NOTE: assumes that _output_mutex (in daemonlib/log.c) is locked
+void log_output_platform(struct timeval *timestamp, LogLevel level,
+                         LogSource *source, LogDebugGroup debug_group,
+                         const char *function, int line, const char *message) {
 	LogPipe *pipe = NULL;
-	LogPipeMessage message;
-	char buffer[1024] = "<unknown>\n";
+	LogPipeMessage pipe_message;
 	OVERLAPPED overlapped;
 	DWORD bytes_written;
+	char buffer[1024] = "<unknown>\r\n";
 
-	(void)debug_group;
+	switch (level) {
+	case LOG_LEVEL_NONE: // ignore this to avoid compiler warning
+		return;
 
-	for (i = level; i < NAMED_PIPE_COUNT; ++i) {
-		if (_pipes[i].connected) {
-			pipe = &_pipes[i];
+	case LOG_LEVEL_ERROR:
+		if (_pipes[0].connected) {
+			pipe = &_pipes[0];
+			break;
+		}
+
+		// fall through
+
+	case LOG_LEVEL_WARN:
+		if (_pipes[1].connected) {
+			pipe = &_pipes[1];
+			break;
+		}
+
+		// fall through
+
+	case LOG_LEVEL_INFO:
+		if (_pipes[2].connected) {
+			pipe = &_pipes[2];
+			break;
+		}
+
+		// fall through
+
+	case LOG_LEVEL_DEBUG:
+		if (_pipes[3].connected) {
+			pipe = &_pipes[3];
 			break;
 		}
 	}
 
-	if (pipe == NULL && !_debugger_present) {
-		return;
-	}
-
-	vsnprintf(message.message, sizeof(message.message), format, arguments);
-
-	message.length = sizeof(message);
-	message.flags = source->libusb ? LOG_PIPE_MESSAGE_FLAG_LIBUSB : 0;
-	message.timestamp = (uint64_t)timestamp->tv_sec * 1000000 + timestamp->tv_usec;
-	message.level = level;
-	message.line = line;
-
-	string_copy(message.source, sizeof(message.source),
-	            source->libusb ? function : source->name, -1);
-
-	if (_debugger_present) {
-		log_format(buffer, sizeof(buffer), timestamp, level, source, debug_group,
-		           function, line, message.message, "", arguments);
-
-		OutputDebugStringA(buffer);
-	}
-
 	if (pipe != NULL) {
+		pipe_message.length = sizeof(pipe_message);
+		pipe_message.flags = source->libusb ? LOG_PIPE_MESSAGE_FLAG_LIBUSB : 0;
+		pipe_message.timestamp = (uint64_t)timestamp->tv_sec * 1000000 + timestamp->tv_usec;
+		pipe_message.level = level;
+		pipe_message.line = line;
+
+		string_copy(pipe_message.source, sizeof(pipe_message.source),
+		            source->libusb ? (function != NULL ? function : "") : source->name, -1);
+		string_copy(pipe_message.message, sizeof(pipe_message.message), message, -1);
+
 		memset(&overlapped, 0, sizeof(overlapped));
 		overlapped.hEvent = _pipes_write_event;
 
-		if (!WriteFile(pipe->handle, &message, sizeof(message), NULL, &overlapped) &&
+		if (!WriteFile(pipe->handle, &pipe_message, sizeof(pipe_message), NULL, &overlapped) &&
 		    GetLastError() == ERROR_IO_PENDING) {
 			// wait for result of overlapped I/O to avoid a race condition with
 			// the next WriteFile call that will reuse the same event handle
 			GetOverlappedResult(pipe->handle, &overlapped, &bytes_written, TRUE);
 		}
+	}
+
+	if (_debugger_present) {
+		log_format(buffer, sizeof(buffer), timestamp, level, source, debug_group,
+		           function, line, message);
+
+		OutputDebugStringA(buffer);
 	}
 }

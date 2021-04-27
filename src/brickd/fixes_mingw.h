@@ -24,6 +24,17 @@
 
 #ifdef __MINGW32__
 
+// MinGW(-w64) uses Win32 _vsnprintf to implement its *nprintf functions, but
+// _vsnprintf doesn't guarantee to NUL-terminate the buffer:
+//
+// https://sourceforge.net/p/mingw-w64/bugs/709/
+// https://sourceforge.net/p/mingw-w64/wiki2/gnu%20printf/
+// https://docs.microsoft.com/en-us/cpp/c-runtime-library/reference/vsnprintf-vsnprintf-vsnprintf-l-vsnwprintf-vsnwprintf-l
+//
+// the define below enables a custom *nprintf implementation in MinGW(-w64) that
+// guarantees to NUL-terminate the buffer
+#define __USE_MINGW_ANSI_STDIO 1
+
 #include <sys/time.h> // ensure gettimeofday() is declared before fixed_gettimeofday()
 #include <stdlib.h> // ensure putenv() is declared before fixed_putenv()
 #include <time.h>

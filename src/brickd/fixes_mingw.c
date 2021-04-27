@@ -33,6 +33,7 @@ typedef void (WINAPI *GETSYSTEMTIMEPRECISEASFILETIME)(LPFILETIME);
 static GETSYSTEMTIMEPRECISEASFILETIME ptr_GetSystemTimePreciseAsFileTime = NULL;
 
 void fixes_init(void) {
+	// GetSystemTimePreciseAsFileTime was added in Windows 8
 	ptr_GetSystemTimePreciseAsFileTime =
 	  (GETSYSTEMTIMEPRECISEASFILETIME)(void *)GetProcAddress(GetModuleHandleA("kernel32"),
 	                                                         "GetSystemTimePreciseAsFileTime");

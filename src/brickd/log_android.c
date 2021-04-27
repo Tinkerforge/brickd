@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2018-2020 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2018-2021 Matthias Bolte <matthias@tinkerforge.com>
  *
  * log_android.c: Android log handling
  *
@@ -50,16 +50,12 @@ uint32_t log_check_inclusion_platform(LogLevel level, LogSource *source,
 	return LOG_INCLUSION_SECONDARY; // FIXME
 }
 
-// NOTE: assumes that _mutex (in log.c) is locked
-void log_write_platform(struct timeval *timestamp, LogLevel level,
-                        LogSource *source, LogDebugGroup debug_group,
-                        const char *function, int line,
-                        const char *format, va_list arguments) {
+// NOTE: assumes that _output_mutex (in daemonlib/log.c) is locked
+void log_output_platform(struct timeval *timestamp, LogLevel level,
+                         LogSource *source, LogDebugGroup debug_group,
+                         const char *function, int line, const char *message) {
 	android_LogPriority priority;
-	char buffer[1024] = "<unknown>";
-	char *debug_group_name = "";
-	char line_str[16] = "<unknown>";
-	int offset;
+	char buffer[1024] = "<unknown>\n";
 
 	(void)timestamp;
 
@@ -71,31 +67,11 @@ void log_write_platform(struct timeval *timestamp, LogLevel level,
 	default:              priority = ANDROID_LOG_UNKNOWN; break;
 	}
 
-	// format debug group
-	switch (debug_group) {
-	case LOG_DEBUG_GROUP_EVENT:  debug_group_name = "event|";  break;
-	case LOG_DEBUG_GROUP_PACKET: debug_group_name = "packet|"; break;
-	case LOG_DEBUG_GROUP_OBJECT: debug_group_name = "object|"; break;
-	case LOG_DEBUG_GROUP_LIBUSB:                               break;
-	default:                                                   break;
-	}
+	log_format(buffer, sizeof(buffer), NULL, LOG_LEVEL_NONE, source, debug_group,
+	           function, line, message);
 
-	// format line
-	snprintf(line_str, sizeof(line_str), "%d", line);
-
-	// format prefix
-	snprintf(buffer, sizeof(buffer), "<%s%s:%s> ",
-	         debug_group_name, source->name, line >= 0 ? line_str : function);
-
-	offset = strlen(buffer); // FIXME: avoid strlen call
-
-	// format message
-	vsnprintf(buffer + offset, MAX(sizeof(buffer) - offset, 0), format, arguments);
-
-	offset = strlen(buffer); // FIXME: avoid strlen call
-
-	// format newline
-	snprintf(buffer + offset, MAX(sizeof(buffer) - offset, 0), LOG_NEWLINE);
-
+	// FIXME: the timestamp that Android will record for this log message
+	//        will be off, because the actual log writing done here is detached
+	//        from the log_<level> calls.
 	__android_log_write(priority, "brickd", buffer);
 }

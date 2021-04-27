@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2012-2014, 2016-2018 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2012-2014, 2016-2018, 2021 Matthias Bolte <matthias@tinkerforge.com>
  *
  * fixes_msvc.h: Fixes for problems with the MSVC/WDK headers and libs
  *
@@ -52,11 +52,6 @@ int fixed_putenv(char *string);
 // replace getpid with GetCurrentProcessId
 #define getpid GetCurrentProcessId
 
-// ensure that functions are available under their POSIX names
-#define snprintf(buffer, count, format, ...) \
-	_snprintf_s(buffer, count, _TRUNCATE, format, __VA_ARGS__)
-#define vsnprintf(buffer, count, format, arguments) \
-	_vsnprintf_s(buffer, count, _TRUNCATE, format, arguments)
 #define strcasecmp _stricmp
 #define strncasecmp _strnicmp
 

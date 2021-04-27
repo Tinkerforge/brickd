@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2016, 2019-2020 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2016, 2019-2021 Matthias Bolte <matthias@tinkerforge.com>
  *
  * log_uwp.c: Universal Windows Platform debugger output handling
  *
@@ -51,15 +51,14 @@ uint32_t log_check_inclusion_platform(LogLevel level, LogSource *source,
 	return _debugger_present ? LOG_INCLUSION_SECONDARY : LOG_INCLUSION_NONE;
 }
 
-// NOTE: assumes that _mutex (in log.c) is locked
-void log_write_platform(struct timeval *timestamp, LogLevel level,
-                        LogSource *source, LogDebugGroup debug_group,
-                        const char *function, int line,
-                        const char *format, va_list arguments) {
-	char buffer[1024] = "<unknown>";
+// NOTE: assumes that _output_mutex (in daemonlib/log.c) is locked
+void log_output_platform(struct timeval *timestamp, LogLevel level,
+                         LogSource *source, LogDebugGroup debug_group,
+                         const char *function, int line, const char *message) {
+	char buffer[1024] = "<unknown>\r\n";
 
 	log_format(buffer, sizeof(buffer), timestamp, level, source, debug_group,
-	           function, line, NULL, format, arguments);
+	           function, line, message);
 
 	OutputDebugStringA(buffer);
 }
