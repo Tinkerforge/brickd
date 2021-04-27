@@ -451,7 +451,7 @@ endif
 
 ifeq ($(WITH_TARGET),Darwin)
 	HOTPLUG := libusb
-	LIBUSB_STATUS := 1.0.24+ (fork, static)
+	LIBUSB_STATUS := $(shell grep version= ../build_data/macos/libusb/prepare.sh | sed -e s/version=//) (fork, static)
 	LIBUSB_CFLAGS := -I../build_data/macos/libusb
 	LIBUSB_LDFLAGS := -L../build_data/macos/libusb
 	LIBUSB_LIBS := -lusb-1.0-brickd-static

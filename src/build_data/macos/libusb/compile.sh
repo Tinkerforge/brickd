@@ -1,7 +1,7 @@
 #!/bin/sh -ex
 
-rm -rf libusb.h
-rm -rf libusb-1.0-brickd.a
+rm -f libusb.h
+rm -f libusb-1.0-brickd.a
 
 pushd libusb-src
 
