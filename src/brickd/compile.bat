@@ -1,7 +1,7 @@
 @setlocal
 
 @set CC=cl /nologo /c /MD /O2 /W4 /wd4200 /wd4201 /wd4214^
- /DWINVER=0x0501 /D_WIN32_WINNT=0x0501 /DWIN32_LEAN_AND_MEAN /DNDEBUG^
+ /DWINVER=0x0600 /D_WIN32_WINNT=0x0600 /DWIN32_LEAN_AND_MEAN /DNDEBUG^
  /DDAEMONLIB_WITH_LOGGING /DBRICKD_VERSION_SUFFIX="\"%1\""
 @set MC=mc
 @set RC=rc /dWIN32 /r
@@ -73,7 +73,7 @@
 
 %RC% /fobrickd.res brickd.rc
 
-%LD% /pdbpath:none /out:brickd.exe *.obj *.res libusb-1.0.lib advapi32.lib user32.lib ws2_32.lib shell32.lib
+%LD% /out:brickd.exe *.obj *.res libusb-1.0-brickd.lib advapi32.lib user32.lib ws2_32.lib shell32.lib
 
 @if exist brickd.exe.manifest^
  %MT% /manifest brickd.exe.manifest -outputresource:brickd.exe
@@ -82,9 +82,7 @@
 
 @if not exist ..\dist mkdir ..\dist
 copy brickd.exe ..\dist\
-copy brickd.pdb ..\dist\
-copy ..\build_data\windows\libusb\libusb-1.0.dll ..\dist\
-copy ..\build_data\windows\libusb\libusb-1.0.pdb ..\dist\
+copy ..\build_data\windows\libusb\libusb-1.0-brickd.dll ..\dist\
 
 :done
 @endlocal
