@@ -230,9 +230,12 @@ static void LIBUSB_CALL usb_add_pollfd(int fd, short events, void *opaque) {
 
 	log_event_debug("Got told to add libusb pollfd (handle: %d, events: %d)", fd, events);
 
-	// FIXME: need to handle libusb timeouts
-	event_add_source(fd, EVENT_SOURCE_TYPE_USB, "usb-poll", events,
-	                 usb_handle_events, NULL); // FIXME: handle error?
+	// FIXME: need to handle libusb timeouts?
+	// FIXME: handle error?
+	// add EVENT_ERROR to events because libusb will use it to also detect
+	// device unplug, but doesn't register for it
+	event_add_source(fd, EVENT_SOURCE_TYPE_USB, "usb-poll", events | EVENT_ERROR,
+	                 usb_handle_events, context);
 }
 
 static void LIBUSB_CALL usb_remove_pollfd(int fd, void *opaque) {
