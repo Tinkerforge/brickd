@@ -31,47 +31,73 @@
 
 #include <windows.h>
 #include <dbt.h>
+#include <libusb.h>
 
 #include <daemonlib/event.h>
 #include <daemonlib/log.h>
+#include <daemonlib/pipe.h>
+#include <daemonlib/threads.h>
 
 #include "usb.h"
+#include "usb_transfer.h"
 
 #include "service.h"
 #include "usb_windows.h"
 
 static LogSource _log_source = LOG_SOURCE_INITIALIZER;
 
-static Pipe _hotplug_pipe;
+static Pipe _transfer_pipe;
 static HWND _message_pump_hwnd = NULL;
 static Thread _message_pump_thread;
 static bool _message_pump_running = false;
 static HDEVNOTIFY _notification_handle = NULL;
+static bool _usb_event_running;
+static Thread _usb_event_thread;
 
-static void usb_forward_hotplug(void *opaque) {
-	uint8_t byte;
+extern void usb_transfer_finish(struct libusb_transfer *handle);
 
-	(void)opaque;
+static int usb_forward_transfer_internal(bool silent_errno_would_block) {
+	struct libusb_transfer *handle;
 
-	if (pipe_read(&_hotplug_pipe, &byte, sizeof(byte)) < 0) {
-		log_error("Could not read from hotplug pipe: %s (%d)",
+	// FIXME: partial read?
+	if (pipe_read(&_transfer_pipe, &handle, sizeof(handle)) < 0) {
+		if (errno_would_block() && silent_errno_would_block) {
+			return 1;
+		}
+
+		log_error("Could not read from USB transfer pipe: %s (%d)",
 		          get_errno_name(errno), errno);
 
-		return;
+		return -1;
 	}
 
-	log_debug("Starting USB device scan, triggered by hotplug");
+	usb_transfer_finish(handle);
 
-	usb_rescan();
+	return 0;
 }
 
-/*static*/ void usb_handle_device_event(DWORD event_type, DEV_BROADCAST_HDR *event_data) {
+static void usb_forward_transfer(void *opaque) {
+	(void)opaque;
+
+	usb_forward_transfer_internal(false);
+}
+
+void LIBUSB_CALL usb_transfer_callback(struct libusb_transfer *handle) {
+	// FIXME: partial write?
+	if (pipe_write(&_transfer_pipe, &handle, sizeof(handle)) < 0) {
+		log_error("Could not append finished USB transfer (handle: %p) to USB transfer pipe: %s (%d)",
+		          handle, get_errno_name(errno), errno);
+	}
+
+	log_debug("Append finished USB transfer (handle: %p) to USB transfer pipe", handle);
+}
+
+void usb_handle_device_event(DWORD event_type, DEV_BROADCAST_HDR *event_data) {
 	DEV_BROADCAST_DEVICEINTERFACE_A *event_data_a;
 	USBHotplugType type;
 	char buffer[1024] = "<unknown>";
 	int rc;
 	char *name;
-	uint8_t byte = 0;
 
 	if (event_data->dbch_devicetype != DBT_DEVTYP_DEVICEINTERFACE) {
 		return;
@@ -113,10 +139,7 @@ static void usb_forward_hotplug(void *opaque) {
 		return;
 	}
 
-	if (pipe_write(&_hotplug_pipe, &byte, sizeof(byte)) < 0) {
-		log_error("Could not write to hotplug pipe: %s (%d)",
-		          get_errno_name(errno), errno);
-	}
+	usb_handle_hotplug();
 }
 
 static LRESULT CALLBACK usb_window_proc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
@@ -277,17 +300,39 @@ static void usb_stop_message_pump(void) {
 	thread_destroy(&_message_pump_thread);
 }
 
-int usb_init_hotplug(libusb_context *context) {
+static void usb_handle_events_internal(void *opaque) {
+	libusb_context *context = opaque;
+	int rc;
+	struct timeval tv;
+
+	log_debug("Started USB event handler thread");
+
+	while (_usb_event_running) {
+		// nothing special about INT32_MAX / 2 here, it's just a big number
+		// that should fit into a timeval safely
+		tv.tv_sec = INT32_MAX / 2;
+		tv.tv_usec = 0;
+
+		rc = libusb_handle_events_timeout(context, &tv);
+
+		if (rc < 0) {
+			log_warn("Could not handle USB events: %s (%d)",
+			         usb_get_error_name(rc), rc);
+		}
+	}
+
+	log_debug("Stopped USB event handler thread");
+}
+
+int usb_init_platform(libusb_context *context) {
 	int phase = 0;
 	int rc;
 	SERVICE_STATUS_HANDLE service_status_handle;
 	DEV_BROADCAST_DEVICEINTERFACE notification_filter;
 
-	(void)context;
-
-	// create hotplug pipe
-	if (pipe_create(&_hotplug_pipe, PIPE_FLAG_NON_BLOCKING_READ) < 0) {
-		log_error("Could not create hotplug pipe: %s (%d)",
+	// create transfer pipe
+	if (pipe_create(&_transfer_pipe, PIPE_FLAG_NON_BLOCKING_READ) < 0) {
+		log_error("Could not create USB transfer pipe: %s (%d)",
 		          get_errno_name(errno), errno);
 
 		goto cleanup;
@@ -295,8 +340,8 @@ int usb_init_hotplug(libusb_context *context) {
 
 	phase = 1;
 
-	if (event_add_source(_hotplug_pipe.base.read_handle, EVENT_SOURCE_TYPE_GENERIC,
-	                     "hotplug", EVENT_READ, usb_forward_hotplug, NULL) < 0) {
+	if (event_add_source(_transfer_pipe.base.read_handle, EVENT_SOURCE_TYPE_GENERIC,
+	                     "usb-transfer", EVENT_READ, usb_forward_transfer, NULL) < 0) {
 		goto cleanup;
 	}
 
@@ -340,6 +385,11 @@ int usb_init_hotplug(libusb_context *context) {
 		goto cleanup;
 	}
 
+	// start event handler
+	_usb_event_running = true;
+
+	thread_create(&_usb_event_thread, usb_handle_events_internal, context);
+
 	phase = 4;
 
 cleanup:
@@ -352,11 +402,11 @@ cleanup:
 		// fall through
 
 	case 2:
-		event_remove_source(_hotplug_pipe.base.read_handle, EVENT_SOURCE_TYPE_GENERIC);
+		event_remove_source(_transfer_pipe.base.read_handle, EVENT_SOURCE_TYPE_GENERIC);
 		// fall through
 
 	case 1:
-		pipe_destroy(&_hotplug_pipe);
+		pipe_destroy(&_transfer_pipe);
 		// fall through
 
 	default:
@@ -366,8 +416,14 @@ cleanup:
 	return phase == 4 ? 0 : -1;
 }
 
-void usb_exit_hotplug(libusb_context *context) {
-	(void)context;
+void usb_exit_platform(libusb_context *context) {
+	log_debug("Stopping USB event handler thread");
+
+	_usb_event_running = false;
+
+	libusb_interrupt_event_handler(context);
+	thread_join(&_usb_event_thread);
+	thread_destroy(&_usb_event_thread);
 
 	UnregisterDeviceNotification(_notification_handle);
 
@@ -375,10 +431,14 @@ void usb_exit_hotplug(libusb_context *context) {
 		usb_stop_message_pump();
 	}
 
-	event_remove_source(_hotplug_pipe.base.read_handle, EVENT_SOURCE_TYPE_GENERIC);
-	pipe_destroy(&_hotplug_pipe);
+	event_remove_source(_transfer_pipe.base.read_handle, EVENT_SOURCE_TYPE_GENERIC);
+	pipe_destroy(&_transfer_pipe);
 }
 
-bool usb_has_hotplug(void) {
-	return true;
+void usb_handle_events_platform(libusb_context *context) {
+	(void)context;
+
+	microsleep(0); // give USB event handler thread a chance
+
+	while (usb_forward_transfer_internal(true) == 0) {}
 }

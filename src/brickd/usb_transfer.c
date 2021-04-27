@@ -21,7 +21,6 @@
 
 #include <stdlib.h>
 #include <libusb.h>
-#include <time.h>
 
 #include <daemonlib/log.h>
 #include <daemonlib/packet.h>
@@ -36,7 +35,6 @@ static LogSource _log_source = LOG_SOURCE_INITIALIZER;
 static uint32_t _next_submission = 1;
 
 #define MAX_BUFFER_LENGTH 1024
-#define CANCELLATION_TIMEOUT 1000 // 1 second in milliseconds
 
 static const char *usb_transfer_get_type_name(USBTransferType type, bool upper) {
 	switch (type) {
@@ -63,7 +61,7 @@ static const char *usb_transfer_get_status_name(int usb_transfer_status) {
 	}
 }
 
-static void LIBUSB_CALL usb_transfer_wrapper(struct libusb_transfer *handle) {
+void usb_transfer_finish(struct libusb_transfer *handle) {
 	USBTransfer *usb_transfer = handle->user_data;
 
 	if (usb_transfer == NULL) {
@@ -86,6 +84,7 @@ static void LIBUSB_CALL usb_transfer_wrapper(struct libusb_transfer *handle) {
 	}
 
 	usb_transfer->submitted = false;
+	--usb_transfer->usb_stack->pending_transfers;
 
 	if (handle->status == LIBUSB_TRANSFER_CANCELLED) {
 		log_debug("%s transfer %p (handle: %p, submission: %u) for %s was cancelled%s",
@@ -185,6 +184,18 @@ static void LIBUSB_CALL usb_transfer_wrapper(struct libusb_transfer *handle) {
 	}
 }
 
+#ifdef _WIN32
+
+extern void LIBUSB_CALL usb_transfer_callback(struct libusb_transfer *handle);
+
+#else
+
+static void LIBUSB_CALL usb_transfer_callback(struct libusb_transfer *handle) {
+	usb_transfer_finish(handle);
+}
+
+#endif
+
 int usb_transfer_create(USBTransfer *usb_transfer, USBStack *usb_stack,
                         USBTransferType type, USBTransferFunction function) {
 	struct libusb_transfer *handle;
@@ -224,91 +235,14 @@ int usb_transfer_create(USBTransfer *usb_transfer, USBStack *usb_stack,
 }
 
 void usb_transfer_destroy(USBTransfer *usb_transfer) {
-	struct timeval tv;
-	uint64_t start;
-	uint64_t now;
-	int rc;
-
-	log_debug("Destroying %s transfer %p (handle: %p, submission: %u) for %s",
+	log_debug("Destroying %s%s transfer %p (handle: %p, submission: %u, cancelled: %d) for %s",
+	          usb_transfer->submitted ? "pending ": "",
 	          usb_transfer_get_type_name(usb_transfer->type, false), usb_transfer,
-	          usb_transfer->handle, usb_transfer->submission,
+	          usb_transfer->handle, usb_transfer->submission, usb_transfer->cancelled ? 1 : 0,
 	          usb_transfer->usb_stack->base.name);
 
-	if (usb_transfer->submitted) {
-		log_debug("Cancelling pending %s transfer %p (handle: %p, submission: %u) for %s",
-		          usb_transfer_get_type_name(usb_transfer->type, false), usb_transfer,
-		          usb_transfer->handle, usb_transfer->submission,
-		          usb_transfer->usb_stack->base.name);
-
-		usb_transfer->cancelled = true;
-
-		rc = libusb_cancel_transfer(usb_transfer->handle);
-
-		// if libusb_cancel_transfer fails with LIBUSB_ERROR_NO_DEVICE then the
-		// device was removed before the transfer could be cancelled. but
-		// the transfer might be cancelled anyway and we need to wait for the
-		// transfer to complete. this can result in waiting for a transfer that
-		// might not complete anymore. but if we don't wait for the transfer to
-		// complete if it actually will complete then the libusb_device_handle
-		// might be closed before the transfer completes. this results in a
-		// crash by NULL pointer dereference because libusb assumes that the
-		// libusb_device_handle is not closed as long as there are submitted
-		// transfers.
-		//
-		// at least on Windows libusb_cancel_transfer has been reported to be
-		// able to fail with LIBUSB_ERROR_NOT_FOUND during device removal.
-		// but according to the libusb f1e385390213aab96d2a40e4858ff0d019a1b0b7
-		// this should not be possible. libusb_cancel_transfer itself will
-		// report LIBUSB_ERROR_NOT_FOUND if the transfer is either not in-flight
-		// (should not be possible as the transfer is marked as submitted) or
-		// libusb_cancel_transfer was called for the transfer already but the
-		// cancellation has not completed yet (should not be possible as this
-		// function will cancel each transfer at most once). the OS USB stack
-		// can report the transfer as not existing (might be possible during
-		// device removal). therefore, it should be safe to free a transfer
-		// in this case even if it is marked as submitted.
-		if (rc < 0 && rc != LIBUSB_ERROR_NO_DEVICE) {
-			log_warn("Could not cancel pending %s transfer %p (handle: %p, submission: %u) for %s: %s (%d)",
-			         usb_transfer_get_type_name(usb_transfer->type, false), usb_transfer,
-			         usb_transfer->handle, usb_transfer->submission,
-			         usb_transfer->usb_stack->base.name, usb_get_error_name(rc), rc);
-
-			if (rc == LIBUSB_ERROR_NOT_FOUND) {
-				// clear submitted flag to allow freeing it later in this function
-				usb_transfer->submitted = false;
-			}
-		} else {
-			log_debug("Waiting for cancellation of pending %s transfer %p (handle: %p, submission: %u) for %s to complete",
-			          usb_transfer_get_type_name(usb_transfer->type, false), usb_transfer,
-			          usb_transfer->handle, usb_transfer->submission,
-			          usb_transfer->usb_stack->base.name);
-
-			tv.tv_sec = 0;
-			tv.tv_usec = 0;
-
-			start = millitime();
-			now = start;
-
-			// FIXME: don't wait 1 second per transfer
-			while (usb_transfer->submitted && now >= start && now < start + CANCELLATION_TIMEOUT) {
-				rc = libusb_handle_events_timeout(usb_transfer->usb_stack->context, &tv);
-
-				if (rc < 0) {
-					log_error("Could not handle USB events during %s transfer %p (handle: %p, submission: %u) cancellation for %s: %s (%d)",
-					          usb_transfer_get_type_name(usb_transfer->type, false),
-					          usb_transfer, usb_transfer->handle, usb_transfer->submission,
-					          usb_transfer->usb_stack->base.name, usb_get_error_name(rc), rc);
-				}
-
-				now = millitime();
-			}
-
-			if (usb_transfer->submitted) {
-				log_warn("Attempt to cancel pending %s transfer %p (handle: %p, submission: %u) for %s timed out",
-				         usb_transfer_get_type_name(usb_transfer->type, false), usb_transfer,
-				         usb_transfer->handle, usb_transfer->submission, usb_transfer->usb_stack->base.name);
-			}
-		}
+	if (usb_transfer->submitted && !usb_transfer->cancelled) {
+		usb_transfer_cancel(usb_transfer);
 	}
 
 	if (!usb_transfer->submitted) {
@@ -398,7 +332,7 @@ int usb_transfer_submit(USBTransfer *usb_transfer) {
 	                          endpoint,
 	                          usb_transfer->buffer,
 	                          length,
-	                          usb_transfer_wrapper,
+	                          usb_transfer_callback,
 	                          usb_transfer,
 	                          0);
 
@@ -415,12 +349,75 @@ int usb_transfer_submit(USBTransfer *usb_transfer) {
 		return -1;
 	}
 
+	++usb_transfer->usb_stack->pending_transfers;
+
 	log_packet_debug("Submitted %s transfer %p (handle: %p, submission: %u) for %u bytes to %s",
 	                 usb_transfer_get_type_name(usb_transfer->type, false),
 	                 usb_transfer, usb_transfer->handle, usb_transfer->submission,
 	                 length, usb_transfer->usb_stack->base.name);
 
 	return 0;
+}
+
+void usb_transfer_cancel(USBTransfer *usb_transfer) {
+	int rc;
+
+	if (!usb_transfer->submitted) {
+		log_error("Trying to cancel %s transfer %p (handle: %p) for %s that was not submitted before",
+		          usb_transfer_get_type_name(usb_transfer->type, false),
+		          usb_transfer, usb_transfer->handle, usb_transfer->usb_stack->base.name);
+
+		return;
+	}
+
+	if (usb_transfer->cancelled) {
+		log_error("Trying to cancel %s transfer %p (handle: %p) for %s that was already cancelled",
+		          usb_transfer_get_type_name(usb_transfer->type, false),
+		          usb_transfer, usb_transfer->handle, usb_transfer->usb_stack->base.name);
+
+		return;
+	}
+
+	usb_transfer->cancelled = true;
+
+	// if the device got unplugged and this transfer is being cancelled because
+	// of that then this transfer might just have finished as a result of the
+	// device being unplugged, but the transfer callback might not have been
+	// fully executed yet. especially on Windows with its asynchronous libusb
+	// event handling performed in an extra thread. to minimize the duration of
+	// the race condition window handle USB events again to make sure that the
+	// transfer callback has had a chance to be fully executed and mark this
+	// transfer as finished.
+	usb_handle_events();
+
+	if (!usb_transfer->submitted) {
+		return;
+	}
+
+	log_debug("Cancelling pending %s transfer %p (handle: %p, submission: %u) for %s",
+	          usb_transfer_get_type_name(usb_transfer->type, false), usb_transfer,
+	          usb_transfer->handle, usb_transfer->submission,
+	          usb_transfer->usb_stack->base.name);
+
+	// cancellation might fail on Windows because of the asynchronous libusb
+	// event handling performed in an extra thread. it can happen that the
+	// transfer is actually not submitted anymore but the transfer callback has
+	// not been fully executed yet. therefore, this USBTransfer might still have
+	// its submitted flag set. in this case cancellation wasn't necessary as the
+	// transfer was already finished. but distinguishing this situation from a
+	// real error is difficult. therefore, all errors are reported here.
+	rc = libusb_cancel_transfer(usb_transfer->handle);
+
+	if (rc < 0) {
+		log_warn("Could not cancel pending %s transfer %p (handle: %p, submission: %u) for %s: %s (%d)",
+		         usb_transfer_get_type_name(usb_transfer->type, false), usb_transfer,
+		         usb_transfer->handle, usb_transfer->submission,
+		         usb_transfer->usb_stack->base.name, usb_get_error_name(rc), rc);
+	}
+
+	// give cancellation a chance to finish now, regardless of the cancellation
+	// seeming successful or not
+	usb_handle_events();
 }
 
 void usb_transfer_clear_pending_error(USBTransfer *usb_transfer) {

@@ -18,8 +18,8 @@ src/build_data/linux/libusb/libusb-*.zip
 src/build_data/linux/libusb/libusb-src
 src/build_data/macos/libusb/libusb-*.zip
 src/build_data/macos/libusb/libusb-src
-src/build_data/windows/libusb_static/libusb*
-src/build_data/windows/libusb_static/*.zip
+src/build_data/windows/libusb/libusb-*.zip
+src/build_data/windows/libusb/libusb-src
 src/build_data/windows/logviewer/logviewer.exe
 src/build_data/windows/logviewer/logviewer.pdb
 src/build_data/windows/msvc/.vs

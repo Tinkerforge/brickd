@@ -1,4 +1,4 @@
-LIBRARY "libusb-1.0.dll"
+LIBRARY "libusb-1.0-brickd.dll"
 EXPORTS
   libusb_alloc_streams
   libusb_alloc_streams@16 = libusb_alloc_streams
@@ -116,6 +116,8 @@ EXPORTS
   libusb_has_capability@4 = libusb_has_capability
   libusb_hotplug_deregister_callback
   libusb_hotplug_deregister_callback@8 = libusb_hotplug_deregister_callback
+  libusb_hotplug_get_user_data
+  libusb_hotplug_get_user_data@8 = libusb_hotplug_get_user_data
   libusb_hotplug_register_callback
   libusb_hotplug_register_callback@36 = libusb_hotplug_register_callback
   libusb_init
@@ -176,15 +178,7 @@ EXPORTS
   libusb_unref_device@4 = libusb_unref_device
   libusb_wait_for_event
   libusb_wait_for_event@8 = libusb_wait_for_event
+  libusb_wrap_sys_device
+  libusb_wrap_sys_device@12 = libusb_wrap_sys_device
   libusb_set_log_callback
   libusb_set_log_callback@4 = libusb_set_log_callback
-  usbi_pipe
-  usbi_pipe@4 = usbi_pipe
-  usbi_poll
-  usbi_poll@12 = usbi_poll
-  usbi_write
-  usbi_write@12 = usbi_write
-  usbi_read
-  usbi_read@12 = usbi_read
-  usbi_close
-  usbi_close@4 = usbi_close

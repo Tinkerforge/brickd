@@ -45,7 +45,8 @@
 int usb_init(void);
 void usb_exit(void);
 
-bool usb_has_hotplug(void);
+void usb_handle_events(void);
+void usb_handle_hotplug(void);
 
 int usb_rescan(void);
 int usb_reopen(USBStack *usb_stack);

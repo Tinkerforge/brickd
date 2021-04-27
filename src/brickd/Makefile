@@ -386,7 +386,7 @@ ifeq ($(WITH_GPROF),yes)
 endif
 
 ifeq ($(WITH_TARGET),Windows)
-	override CFLAGS += -DWIN32_LEAN_AND_MEAN -DNDEBUG -DWINVER=0x0501 -D_WIN32_WINNT=0x0501 -mconsole -include fixes_mingw.h
+	override CFLAGS += -DWIN32_LEAN_AND_MEAN -DNDEBUG -DWINVER=0x0600 -D_WIN32_WINNT=0x0600 -mconsole -include fixes_mingw.h
 	override LDFLAGS += -Wl,-subsystem,console
 	override LIBS += -lws2_32
 else
@@ -408,16 +408,15 @@ ifeq ($(WITH_TARGET),Windows)
 	HOTPLUG := WinAPI
 
 ifeq ($(WITH_LIBUSB_STATIC),yes)
-	LIBUSB_STATUS := 1.0.23-rc1 (fork, static)
-	LIBUSB_CFLAGS := -I../build_data/windows/libusb_static
-	LIBUSB_LDFLAGS := -L../build_data/windows/libusb_static
+	LIBUSB_STATUS := 1.0.24.11609 (fork, static)
 	LIBUSB_LIBS := -lusb-1.0-brickd-static
 else
-	LIBUSB_STATUS := 1.0.23-rc1 (fork)
+	LIBUSB_STATUS := 1.0.24.11609 (fork)
+	LIBUSB_LIBS := -lusb-1.0-brickd
+endif
+
 	LIBUSB_CFLAGS := -I../build_data/windows/libusb
 	LIBUSB_LDFLAGS := -L../build_data/windows/libusb
-	LIBUSB_LIBS := -lusb-1.0
-endif
 endif
 
 ifeq ($(WITH_TARGET),Linux)
@@ -577,8 +576,8 @@ all: $(DIST) $(TARGET) Makefile
 	@echo CP brickd.exe
 	$(E)copy "brickd.exe" "..\dist\"
 ifeq ($(WITH_LIBUSB_STATIC),no)
-	@echo CP libusb-1.0.dll
-	$(E)copy "..\build_data\windows\libusb\libusb-1.0.dll" "..\dist\"
+	@echo CP libusb-1.0-brickd.dll
+	$(E)copy "..\build_data\windows\libusb\libusb-1.0-brickd.dll" "..\dist\"
 endif
 
 ../dist/brickd.exe: $(TARGET) Makefile
@@ -586,8 +585,8 @@ endif
 	@echo CP brickd.exe
 	$(E)cp brickd.exe ../dist/
 ifeq ($(WITH_LIBUSB_STATIC),no)
-	@echo CP libusb-1.0.dll
-	$(E)cp ../build_data/windows/libusb/libusb-1.0.dll ../dist/
+	@echo CP libusb-1.0-brickd.dll
+	$(E)cp ../build_data/windows/libusb/libusb-1.0-brickd.dll ../dist/
 endif
 
 clean: Makefile

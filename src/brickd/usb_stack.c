@@ -46,6 +46,8 @@ static LogSource _log_source = LOG_SOURCE_INITIALIZER;
 #define MAX_WRITE_TRANSFERS 10
 #define MAX_QUEUED_WRITES 32768
 #define PENDING_ERROR_TIMER_DELAY 1000000 // 1 second in microseconds
+#define PENDING_TRANSFERS_TIMEOUT 1000 // milliseconds
+#define PENDING_TRANSFERS_CHECK_INTERVAL 10 // milliseconds
 
 static void usb_stack_handle_pending_error(void *opaque) {
 	USBStack *usb_stack = opaque;
@@ -348,6 +350,7 @@ int usb_stack_create(USBStack *usb_stack, libusb_context *context, libusb_device
 	phase = 1;
 
 	usb_stack->device_handle = NULL;
+	usb_stack->pending_transfers = 0;
 	usb_stack->dropped_requests = 0;
 	usb_stack->connected = true;
 	usb_stack->red_brick = red_brick;
@@ -613,11 +616,62 @@ cleanup:
 }
 
 void usb_stack_destroy(USBStack *usb_stack) {
+	int i;
+	USBTransfer *usb_transfer;
+	uint64_t now;
+	uint64_t start;
 	char name[STACK_MAX_NAME_LENGTH];
 
 	usb_stack->expecting_removal = true;
 
 	hardware_remove_stack(&usb_stack->base);
+
+	// cancel pending transfers
+	if (usb_stack->pending_transfers <= 0) {
+		log_debug("No pending transfers left before releasing %s",
+		          usb_stack->base.name);
+	} else {
+		log_debug("Cancelling %d pending transfer(s) before releasing %s",
+		          usb_stack->pending_transfers, usb_stack->base.name);
+
+		for (i = 0; i < usb_stack->read_transfers.count; ++i) {
+			usb_transfer = array_get(&usb_stack->read_transfers, i);
+
+			if (usb_transfer->submitted) {
+				usb_transfer_cancel(usb_transfer);
+			}
+		}
+
+		for (i = 0; i < usb_stack->write_transfers.count; ++i) {
+			usb_transfer = array_get(&usb_stack->write_transfers, i);
+
+			if (usb_transfer->submitted) {
+				usb_transfer_cancel(usb_transfer);
+			}
+		}
+
+		// wait for transfer cancellations to finish
+		now = millitime();
+		start = now;
+
+		while (usb_stack->pending_transfers > 0 && now >= start && start + PENDING_TRANSFERS_TIMEOUT >= now) {
+			usb_handle_events();
+
+			if (usb_stack->pending_transfers > 0) {
+				millisleep(PENDING_TRANSFERS_CHECK_INTERVAL);
+
+				now = millitime();
+			}
+		}
+
+		if (usb_stack->pending_transfers <= 0) {
+			log_debug("Cancelled all pending transfers before releasing %s",
+			          usb_stack->base.name);
+		} else {
+			log_warn("Abandoning %d pending transfer(s) for %s",
+			         usb_stack->pending_transfers, usb_stack->base.name);
+		}
+	}
 
 	array_destroy(&usb_stack->read_transfers, (ItemDestroyFunction)usb_transfer_destroy);
 	array_destroy(&usb_stack->write_transfers, (ItemDestroyFunction)usb_transfer_destroy);

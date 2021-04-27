@@ -46,6 +46,7 @@ typedef struct {
 	Timer pending_error_timer;
 	Array read_transfers;
 	Array write_transfers;
+	int pending_transfers;
 	Queue write_queue;
 	uint32_t dropped_requests;
 	bool connected;

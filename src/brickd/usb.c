@@ -28,6 +28,7 @@
 #include <daemonlib/array.h>
 #include <daemonlib/event.h>
 #include <daemonlib/log.h>
+#include <daemonlib/pipe.h>
 #include <daemonlib/utils.h>
 
 #include "usb.h"
@@ -40,11 +41,12 @@ static LogSource _log_source = LOG_SOURCE_INITIALIZER;
 static LogSource _libusb_log_source = LOG_SOURCE_INITIALIZER;
 
 static libusb_context *_context = NULL;
+static Pipe _hotplug_pipe;
 static Array _usb_stacks;
-static bool _initialized_hotplug = false;
 
-extern int usb_init_hotplug(libusb_context *context);
-extern void usb_exit_hotplug(libusb_context *context);
+extern int usb_init_platform(libusb_context *context);
+extern void usb_exit_platform(libusb_context *context);
+extern void usb_handle_events_platform(libusb_context *context);
 
 #if defined _WIN32 || defined __APPLE__ || defined __ANDROID__
 
@@ -85,6 +87,39 @@ static void LIBUSB_CALL usb_forward_message(libusb_context *ctx,
 }
 
 #endif
+
+static void usb_forward_hotplug(void *opaque) {
+	uint8_t byte;
+	int repeat;
+
+	(void)opaque;
+
+	if (pipe_read(&_hotplug_pipe, &byte, sizeof(byte)) < 0) {
+		log_error("Could not read from USB hotplug pipe: %s (%d)",
+		          get_errno_name(errno), errno);
+
+		return;
+	}
+
+	for (repeat = 0; repeat < 100; ++repeat) {
+		// consume all accumulated hotplug events in one go, but atmost
+		// 100 to avoid getting stuck here forever
+		if (pipe_read(&_hotplug_pipe, &byte, sizeof(byte)) < 0) {
+			if (errno_would_block()) {
+				break;
+			}
+
+			log_error("Could not read from USB hotplug pipe: %s (%d)",
+			          get_errno_name(errno), errno);
+
+			return;
+		}
+	}
+
+	log_debug("Starting USB device scan, triggered by hotplug (repeat: %d)", repeat);
+
+	usb_rescan();
+}
 
 static int usb_enumerate(void) {
 	int result = -1;
@@ -208,44 +243,6 @@ cleanup:
 	return result;
 }
 
-static void usb_handle_events(void *opaque) {
-	int rc;
-	struct timeval tv;
-
-	(void)opaque;
-
-	tv.tv_sec = 0;
-	tv.tv_usec = 0;
-
-	rc = libusb_handle_events_timeout(_context, &tv);
-
-	if (rc < 0) {
-		log_error("Could not handle USB events: %s (%d)",
-		          usb_get_error_name(rc), rc);
-	}
-}
-
-static void LIBUSB_CALL usb_add_pollfd(int fd, short events, void *opaque) {
-	(void)opaque;
-
-	log_event_debug("Got told to add libusb pollfd (handle: %d, events: %d)", fd, events);
-
-	// FIXME: need to handle libusb timeouts?
-	// FIXME: handle error?
-	// add EVENT_ERROR to events because libusb will use it to also detect
-	// device unplug, but doesn't register for it
-	event_add_source(fd, EVENT_SOURCE_TYPE_USB, "usb-poll", events | EVENT_ERROR,
-	                 usb_handle_events, NULL);
-}
-
-static void LIBUSB_CALL usb_remove_pollfd(int fd, void *opaque) {
-	(void)opaque;
-
-	log_event_debug("Got told to remove libusb pollfd (handle: %d)", fd);
-
-	event_remove_source(fd, EVENT_SOURCE_TYPE_USB);
-}
-
 static void usb_set_debug(libusb_context *context, int level) {
 #if !defined BRICKD_WITH_UNKNOWN_LIBUSB_API_VERSION && LIBUSB_API_VERSION >= 0x01000106 // libusb 1.0.22
 	libusb_set_option(context, LIBUSB_OPTION_LOG_LEVEL, level); // avoid deprecation warning for libusb_set_debug
@@ -257,9 +254,6 @@ static void usb_set_debug(libusb_context *context, int level) {
 int usb_init(void) {
 	int phase = 0;
 	int rc;
-	const struct libusb_pollfd **pollfds = NULL;
-	const struct libusb_pollfd **pollfd;
-	const struct libusb_pollfd **last_added_pollfd = NULL;
 
 	log_debug("Initializing USB subsystem");
 
@@ -271,6 +265,24 @@ int usb_init(void) {
 	libusb_set_log_callback(usb_forward_message);
 #endif
 
+	// create hotplug pipe
+	if (pipe_create(&_hotplug_pipe, PIPE_FLAG_NON_BLOCKING_READ) < 0) {
+		log_error("Could not create USB hotplug pipe: %s (%d)",
+		          get_errno_name(errno), errno);
+
+		goto cleanup;
+	}
+
+	phase = 1;
+
+	if (event_add_source(_hotplug_pipe.base.read_handle, EVENT_SOURCE_TYPE_GENERIC,
+	                     "usb-hotplug", EVENT_READ, usb_forward_hotplug, NULL) < 0) {
+		goto cleanup;
+	}
+
+	phase = 2;
+
+	// configure logging
 	switch (log_get_effective_level()) {
 	case LOG_LEVEL_ERROR:
 		putenv("LIBUSB_DEBUG=1");
@@ -308,7 +320,7 @@ int usb_init(void) {
 		goto cleanup;
 	}
 
-	phase = 1;
+	phase = 3;
 
 	switch (log_get_effective_level()) {
 	case LOG_LEVEL_ERROR:
@@ -337,27 +349,11 @@ int usb_init(void) {
 		break;
 	}
 
-	// get pollfds from libusb context
-	pollfds = libusb_get_pollfds(_context);
-
-	if (pollfds == NULL) {
-		log_error("Could not get pollfds from libusb context");
-
+	if (usb_init_platform(_context)) {
 		goto cleanup;
 	}
 
-	for (pollfd = pollfds; *pollfd != NULL; ++pollfd) {
-		if (event_add_source((*pollfd)->fd, EVENT_SOURCE_TYPE_USB, "usb-poll",
-		                     (*pollfd)->events, usb_handle_events, NULL) < 0) {
-			goto cleanup;
-		}
-
-		last_added_pollfd = pollfd;
-		phase = 2;
-	}
-
-	// register pollfd notifiers
-	libusb_set_pollfd_notifiers(_context, usb_add_pollfd, usb_remove_pollfd, NULL);
+	phase = 4;
 
 	// create USB stack array. the USBStack struct is not relocatable, because
 	// its USB transfers keep a pointer to it
@@ -368,21 +364,7 @@ int usb_init(void) {
 		goto cleanup;
 	}
 
-	phase = 3;
-
-	if (usb_has_hotplug()) {
-		log_debug("USB hotplug detection is supported");
-
-		if (usb_init_hotplug(_context) < 0) {
-			goto cleanup;
-		}
-
-		_initialized_hotplug = true;
-	} else {
-		log_warn("USB hotplug detection is not supported");
-	}
-
-	phase = 4;
+	phase = 5;
 
 	log_debug("Starting initial USB device scan");
 
@@ -390,75 +372,65 @@ int usb_init(void) {
 		goto cleanup;
 	}
 
-	phase = 5;
+	phase = 6;
 
 cleanup:
 	switch (phase) { // no breaks, all cases fall through intentionally
-	case 4:
-		if (_initialized_hotplug) {
-			usb_exit_hotplug(_context);
-		}
-
-		// fall through
-
-	case 3:
+	case 5:
 		array_destroy(&_usb_stacks, (ItemDestroyFunction)usb_stack_destroy);
 		// fall through
 
+	case 4:
+		usb_exit_platform(_context);
+		// fall through
+
+	case 3:
+		libusb_exit(_context);
+		// fall through
+
 	case 2:
-		for (pollfd = pollfds; pollfd != last_added_pollfd; ++pollfd) {
-			event_remove_source((*pollfd)->fd, EVENT_SOURCE_TYPE_USB);
-		}
-
-		if (last_added_pollfd != NULL) {
-			event_remove_source((*last_added_pollfd)->fd, EVENT_SOURCE_TYPE_USB);
-		}
-
+		event_remove_source(_hotplug_pipe.base.read_handle, EVENT_SOURCE_TYPE_GENERIC);
 		// fall through
 
 	case 1:
-		libusb_exit(_context);
+		pipe_destroy(&_hotplug_pipe);
 		// fall through
 
 	default:
 		break;
 	}
 
-	libusb_free_pollfds(pollfds);
-
-	return phase == 5 ? 0 : -1;
+	return phase == 6 ? 0 : -1;
 }
 
 void usb_exit(void) {
-	const struct libusb_pollfd **pollfds = NULL;
-	const struct libusb_pollfd **pollfd;
-
 	log_debug("Shutting down USB subsystem");
 
-	if (_initialized_hotplug) {
-		usb_exit_hotplug(_context);
-	}
-
 	array_destroy(&_usb_stacks, (ItemDestroyFunction)usb_stack_destroy);
-	libusb_set_pollfd_notifiers(_context, NULL, NULL, NULL);
 
-	pollfds = libusb_get_pollfds(_context);
-
-	if (pollfds == NULL) {
-		log_error("Could not get pollfds from libusb context");
-	} else {
-		for (pollfd = pollfds; *pollfd != NULL; ++pollfd) {
-			event_remove_source((*pollfd)->fd, EVENT_SOURCE_TYPE_USB);
-		}
-
-		libusb_free_pollfds(pollfds);
-	}
+	usb_exit_platform(_context);
 
 	libusb_exit(_context);
+
+	event_remove_source(_hotplug_pipe.base.read_handle, EVENT_SOURCE_TYPE_GENERIC);
+	pipe_destroy(&_hotplug_pipe);
 
 #if defined _WIN32 || defined __APPLE__ || defined __ANDROID__
 	libusb_set_log_callback(NULL);
 #endif
+}
+
+void usb_handle_events(void) {
+	usb_handle_events_platform(_context);
+}
+
+void usb_handle_hotplug(void) {
+	uint8_t byte = 0;
+
+	if (pipe_write(&_hotplug_pipe, &byte, sizeof(byte)) < 0) {
+		log_error("Could not write to USB hotplug pipe: %s (%d)",
+		          get_errno_name(errno), errno);
+	}
 }
 
 int usb_rescan(void) {

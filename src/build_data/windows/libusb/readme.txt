@@ -1,25 +1,14 @@
-This is a special version of libusb for brickd build with WDK 7 for x86.
+This is a special version of libusb for brickd build with MinGW-w64.
 
-Based on libusb's github.com commit f1e385390213aab96d2a40e4858ff0d019a1b0b7
-(libusb version 1.0.23-rc1 and a few commits) with the libusb-brickd.patch
-applied to it.
+Based on libusb's github.com commit 1001cb5558cf6679af7bce3114bba1d3bb7b6f7f
+(libusb version 1.0.24.11609) with the libusb-brickd.patch applied to it.
 
-The MinGW import lib libusb-1.0.dll.a was created from libusb-1.0.def using:
-dlltool -k -d libusb-1.0.def -l libusb-1.0.dll.a
+The libusb-1.0-brickd-static.a and libusb-1.0-brickd.dll[.a] were build using
+the prepare.sh and compile.sh scripts.
 
 Changes:
 - Add libusb_set_log_callback function to intercept all log output.
-- Make libusb_get_pollfds work on Windows.
-- Expose internal functions for fake file descriptors, to allow integration
-  into the brickd event loop.
-- Make event handling ignore leaked transfer handles.
 - Check for invalid port number reported by Renesas/NEC USB controller with
   outdated driver.
-- Make usbi_poll work with more than 64 fake file descriptors in all cases.
-
-Known issues:
-- Windows XP: Submitted transfers are not correctly aborted on USB device
-  disconnect. This results in leaking the underlying fake file descriptor.
-  Currently libsub has a hard limit of 512 fake file descriptors. When
-  libusb runs out of fake file descriptors then new transfers cannot be
-  created anymore. Workaround: brickd restart.
+- Enable USB enumerate debug logging
+- Ignoring orphaned USB transfer completion to avoid crashing

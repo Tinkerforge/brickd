@@ -61,6 +61,8 @@ void usb_transfer_destroy(USBTransfer *usb_transfer);
 bool usb_transfer_is_submittable(USBTransfer *usb_transfer);
 int usb_transfer_submit(USBTransfer *usb_transfer);
 
+void usb_transfer_cancel(USBTransfer *usb_transfer);
+
 void usb_transfer_clear_pending_error(USBTransfer *usb_transfer);
 
 #endif // BRICKD_USB_TRANSFER_H
