@@ -185,6 +185,11 @@ enum libusb_log_level {
 	LIBUSB_LOG_LEVEL_DEBUG
 };
 
+enum libusb_log_cb_mode { // 1.0.23
+	LIBUSB_LOG_CB_GLOBAL = 1 << 0,
+	LIBUSB_LOG_CB_CONTEXT = 1 << 1
+};
+
 struct libusb_pollfd {
 	int fd;
 	short events;
@@ -204,6 +209,8 @@ typedef enum {
 
 #define LIBUSB_HOTPLUG_MATCH_ANY -1
 
+typedef void (*libusb_log_cb)(libusb_context *ctx, enum libusb_log_level level, const char *str); // 1.0.23
+
 typedef int (*libusb_hotplug_callback_fn)(libusb_context *ctx, libusb_device *device, libusb_hotplug_event event, void *user_data);
 
 typedef void (*libusb_pollfd_added_callback)(int fd, short events, void *user_data);
@@ -212,6 +219,7 @@ typedef void (*libusb_pollfd_removed_callback)(int fd, void *user_data);
 typedef int (*libusb_init_t)(libusb_context **ctx);
 typedef void (*libusb_exit_t)(libusb_context *ctx);
 typedef void (*libusb_set_debug_t)(libusb_context *ctx, int level);
+typedef void (*libusb_set_log_cb_t)(libusb_context *ctx, libusb_log_cb cb, int mode); // 1.0.23
 typedef int (*libusb_has_capability_t)(uint32_t capability);
 
 typedef ssize_t (*libusb_get_device_list_t)(libusb_context *ctx, libusb_device ***list);
@@ -254,6 +262,7 @@ typedef void (*libusb_hotplug_deregister_callback_t)(libusb_context *ctx, libusb
 extern libusb_init_t libusb_init;
 extern libusb_exit_t libusb_exit;
 extern libusb_set_debug_t libusb_set_debug;
+extern libusb_set_log_cb_t libusb_set_log_cb; // 1.0.23
 extern libusb_has_capability_t libusb_has_capability;
 
 extern libusb_get_device_list_t libusb_get_device_list;

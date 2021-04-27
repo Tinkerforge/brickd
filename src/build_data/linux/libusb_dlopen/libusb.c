@@ -36,6 +36,7 @@ static void *_libusb_handle = NULL;
 libusb_init_t libusb_init;
 libusb_exit_t libusb_exit;
 libusb_set_debug_t libusb_set_debug;
+libusb_set_log_cb_t libusb_set_log_cb; // 1.0.23
 libusb_has_capability_t libusb_has_capability;
 
 libusb_get_device_list_t libusb_get_device_list;
@@ -112,6 +113,7 @@ int libusb_init_dlopen(void) {
 	LIBUSB_DLSYM(libusb_init);
 	LIBUSB_DLSYM(libusb_exit);
 	LIBUSB_DLSYM(libusb_set_debug);
+	LIBUSB_DLSYM(libusb_set_log_cb); // 1.0.23
 	LIBUSB_DLSYM(libusb_has_capability);
 
 	LIBUSB_DLSYM(libusb_get_device_list);

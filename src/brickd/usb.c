@@ -86,6 +86,42 @@ static void LIBUSB_CALL usb_forward_message(libusb_context *ctx,
 	}
 }
 
+#elif defined BRICKD_WITH_LIBUSB_DLOPEN || (!defined BRICKD_WITH_UNKNOWN_LIBUSB_API_VERSION && LIBUSB_API_VERSION >= 0x01000107) // libusb 1.0.23
+
+static void LIBUSB_CALL usb_forward_message(libusb_context *ctx,
+                                            enum libusb_log_level level_,
+                                            const char *message) {
+	LogLevel level;
+	LogDebugGroup debug_group;
+	uint32_t inclusion;
+	char buffer[1024] = "<unknown>";
+
+	(void)ctx;
+
+	switch (level_) {
+	case LIBUSB_LOG_LEVEL_ERROR:   level = LOG_LEVEL_ERROR; break;
+	case LIBUSB_LOG_LEVEL_WARNING: level = LOG_LEVEL_WARN;  break;
+	case LIBUSB_LOG_LEVEL_INFO:    level = LOG_LEVEL_INFO;  break;
+	case LIBUSB_LOG_LEVEL_DEBUG:   level = LOG_LEVEL_DEBUG; break;
+	default:                                                return;
+	}
+
+	if (level == LOG_LEVEL_DEBUG) {
+		debug_group = LOG_DEBUG_GROUP_LIBUSB;
+	} else {
+		debug_group = LOG_DEBUG_GROUP_NONE;
+	}
+
+	inclusion = log_check_inclusion(level, &_libusb_log_source, debug_group, -1);
+
+	if (inclusion != LOG_INCLUSION_NONE) {
+		string_copy(buffer, sizeof(buffer), message, strcspn(message, "\r\n"));
+
+		log_message(level, &_libusb_log_source, debug_group, inclusion, NULL,
+		            -1, "%s", buffer);
+	}
+}
+
 #endif
 
 static void usb_forward_hotplug(void *opaque) {
@@ -263,6 +299,12 @@ int usb_init(void) {
 
 #ifdef LIBUSB_BRICKD_PATCH
 	libusb_set_log_callback(usb_forward_message);
+#elif defined BRICKD_WITH_LIBUSB_DLOPEN
+	if (libusb_set_log_cb != NULL) {
+		libusb_set_log_cb(NULL, usb_forward_message, LIBUSB_LOG_CB_GLOBAL);
+	}
+#elif !defined BRICKD_WITH_UNKNOWN_LIBUSB_API_VERSION && LIBUSB_API_VERSION >= 0x01000107 // libusb 1.0.23
+	libusb_set_log_cb(NULL, usb_forward_message, LIBUSB_LOG_CB_GLOBAL);
 #endif
 
 	// create hotplug pipe
@@ -417,6 +459,12 @@ void usb_exit(void) {
 
 #ifdef LIBUSB_BRICKD_PATCH
 	libusb_set_log_callback(NULL);
+#elif defined BRICKD_WITH_LIBUSB_DLOPEN
+	if (libusb_set_log_cb != NULL) {
+		libusb_set_log_cb(NULL, NULL, LIBUSB_LOG_CB_GLOBAL);
+	}
+#elif !defined BRICKD_WITH_UNKNOWN_LIBUSB_API_VERSION && LIBUSB_API_VERSION >= 0x01000107 // libusb 1.0.23
+	libusb_set_log_cb(NULL, NULL, LIBUSB_LOG_CB_GLOBAL);
 #endif
 }
 
