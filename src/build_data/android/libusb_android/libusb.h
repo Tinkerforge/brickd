@@ -31,6 +31,8 @@
 extern "C" {
 #endif
 
+#define LIBUSB_BRICKD_PATCH 1
+
 #define LIBUSB_API_VERSION 0x01000104 // 1.0.20
 
 #define LIBUSB_ENDPOINT_DIR_MASK 0x80

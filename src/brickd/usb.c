@@ -48,7 +48,7 @@ extern int usb_init_platform(libusb_context *context);
 extern void usb_exit_platform(libusb_context *context);
 extern void usb_handle_events_platform(libusb_context *context);
 
-#if defined _WIN32 || defined __APPLE__ || defined __ANDROID__
+#ifdef LIBUSB_BRICKD_PATCH
 
 static void LIBUSB_CALL usb_forward_message(libusb_context *ctx,
                                             enum libusb_log_level level_,
@@ -261,7 +261,7 @@ int usb_init(void) {
 	_libusb_log_source.name = "libusb";
 	_libusb_log_source.libusb = true;
 
-#if defined _WIN32 || defined __APPLE__ || defined __ANDROID__
+#ifdef LIBUSB_BRICKD_PATCH
 	libusb_set_log_callback(usb_forward_message);
 #endif
 
@@ -415,7 +415,7 @@ void usb_exit(void) {
 	event_remove_source(_hotplug_pipe.base.read_handle, EVENT_SOURCE_TYPE_GENERIC);
 	pipe_destroy(&_hotplug_pipe);
 
-#if defined _WIN32 || defined __APPLE__ || defined __ANDROID__
+#ifdef LIBUSB_BRICKD_PATCH
 	libusb_set_log_callback(NULL);
 #endif
 }
