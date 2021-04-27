@@ -19,7 +19,7 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-#include <daemonlib\log.h>
+#include <daemonlib/log.h>
 
 static bool _debugger_present = false;
 

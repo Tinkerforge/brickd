@@ -31,13 +31,13 @@
 
 extern "C" {
 
-#include <daemonlib\config.h>
-#include <daemonlib\event.h>
-#include <daemonlib\file.h>
-#include <daemonlib\pipe.h>
-#include <daemonlib\socket.h>
-#include <daemonlib\utils.h>
-#include <daemonlib\utils_uwp.h>
+#include <daemonlib/config.h>
+#include <daemonlib/event.h>
+#include <daemonlib/file.h>
+#include <daemonlib/pipe.h>
+#include <daemonlib/socket.h>
+#include <daemonlib/utils.h>
+#include <daemonlib/utils_uwp.h>
 
 #include "app_service.h"
 #include "hardware.h"
