@@ -1,11 +1,13 @@
 #!/bin/sh -ex
 
 rm -f libusb.h
-rm -f libusb-1.0-brickd.a
+rm -f libusb-1.0-brickd-static.a
 
 pushd libusb-src
 
+./autogen.sh --disable-shared --disable-examples-build --disable-tests-build
 make clean
+#make CFLAGS="-Og -g -ggdb"
 make
 
 popd
