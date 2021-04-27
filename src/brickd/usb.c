@@ -79,8 +79,8 @@ static void LIBUSB_CALL usb_forward_message(libusb_context *ctx,
 	if (inclusion != LOG_INCLUSION_NONE) {
 		vsnprintf(buffer, sizeof(buffer), format, arguments);
 
-		log_message(level, &_libusb_log_source, debug_group, true, inclusion,
-		            function, -1, "%s", buffer);
+		log_message(level, &_libusb_log_source, debug_group, inclusion, function,
+		            -1, "%s", buffer);
 	}
 }
 
