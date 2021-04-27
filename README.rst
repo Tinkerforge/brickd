@@ -9,9 +9,9 @@ installers/packages for various platforms are provided here::
 Supported Platforms
 -------------------
 
-* Linux with libusb 1.0.6 or newer
-* Windows XP or newer
-* macOS 10.8 (Mountain Lion) or newer
+* Linux with libusb 1.0.20 or newer
+* Windows Vista or newer
+* macOS 10.9 (Mavericks) or newer
 
 Using the Tinkerforge APT Repository
 ------------------------------------
@@ -56,17 +56,16 @@ need the matching release of daemonlib (e.g. tagged brickd-2.3.0).
 Brick Daemon also depends on the following libraries:
 
 * libusb-1.0 (mandatory)
-* libudev (optional for USB hotplug, Linux only)
 * pm-utils (optional for suspend/resume handling, Linux without systemd only)
 
 On Debian based Linux distributions try::
 
- sudo apt-get install build-essential pkg-config libusb-1.0-0-dev libudev-dev pm-utils
+ sudo apt-get install build-essential pkg-config libusb-1.0-0-dev pm-utils
 
 On Fedora Linux try::
 
  sudo yum groupinstall "Development Tools"
- sudo yum install libusb1-devel libudev-devel pm-utils-devel
+ sudo yum install libusb1-devel pm-utils-devel
 
 For Windows and macOS a suitable pre-compiled libusb-1.0 binary is part of this
 repository.
@@ -75,7 +74,7 @@ Linux
 ^^^^^
 
 A Makefile is provided to compile the source code using GCC and install the
-result. The Makefile will autodetect the availability of libudev and pm-utils::
+result. The Makefile will autodetect the availability of pm-utils::
 
  cd src/brickd
  make
@@ -197,10 +196,8 @@ USB Hotplug Detection
 
 Brick Daemon can autodetect USB hotplug. Different systems are used for this:
 
-* libusb's own hotplug callbacks (if available)
-* device notifications on Windows
-* libudev on Linux
-* IOKit notifications on macOS
+* libusb hotplug callback on non-Windows systems
+* Win32 device notification on Windows systems
 
 On Linux brickd will also check for added or removed Bricks if the SIGUSR1
 signal is received. This is used on OpenWrt where the hotplug2 daemon is told
