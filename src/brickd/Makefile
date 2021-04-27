@@ -430,9 +430,9 @@ ifeq ($(WITH_LIBUSB_DLOPEN),yes)
 	LIBUSB_LIBS := -ldl
 else
 ifeq ($(WITH_LIBUSB_STATIC),yes)
-	LIBUSB_STATUS := $(shell grep version= ../build_data/linux/libusb_static/compile.sh | sed -e s/version=//) (static)
-	LIBUSB_CFLAGS := -I../build_data/linux/libusb_static
-	LIBUSB_LDFLAGS := -L../build_data/linux/libusb_static
+	LIBUSB_STATUS := $(shell grep version= ../build_data/linux/libusb/prepare.sh | sed -e s/version=//) (fork, static)
+	LIBUSB_CFLAGS := -I../build_data/linux/libusb
+	LIBUSB_LDFLAGS := -L../build_data/linux/libusb
 	LIBUSB_LIBS := -lusb-1.0-brickd-static
 else
 ifeq ($(shell pkg-config --exists 'libusb-1.0 >= 1.0.20' && echo okay),okay)

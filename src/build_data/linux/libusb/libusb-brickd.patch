@@ -1,0 +1,118 @@
+diff --git a/configure.ac b/configure.ac
+index 7c86598..b9ced08 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -16,7 +16,7 @@ LU_DEFINE_VERSION_ATOM([LIBUSB_MICRO])
+ LU_DEFINE_VERSION_RC_ATOM([LIBUSB_RC])
+ 
+ AC_PREREQ([2.69])
+-AC_INIT([libusb-1.0], [LIBUSB_MAJOR[.]LIBUSB_MINOR[.]LIBUSB_MICRO[]LIBUSB_RC], [libusb-devel@lists.sourceforge.net], [libusb-1.0], [http://libusb.info])
++AC_INIT([libusb-1.0-brickd], [LIBUSB_MAJOR[.]LIBUSB_MINOR[.]LIBUSB_MICRO[]LIBUSB_RC], [libusb-devel@lists.sourceforge.net], [libusb-1.0-brickd], [http://libusb.info])
+ AC_CONFIG_HEADERS([config.h])
+ AC_CONFIG_SRCDIR([libusb/core.c])
+ AC_CONFIG_MACRO_DIR([m4])
+diff --git a/libusb/Makefile.am b/libusb/Makefile.am
+index c78006e..f6018c4 100644
+--- a/libusb/Makefile.am
++++ b/libusb/Makefile.am
+@@ -3,7 +3,7 @@ AUTOMAKE_OPTIONS = subdir-objects
+ AM_CFLAGS += -fvisibility=hidden $(THREAD_CFLAGS)
+ AM_CXXFLAGS += -fvisibility=hidden $(THREAD_CFLAGS)
+ 
+-lib_LTLIBRARIES = libusb-1.0.la
++lib_LTLIBRARIES = libusb-1.0-brickd.la
+ 
+ POSIX_PLATFORM_SRC = os/events_posix.h os/events_posix.c \
+ 		     os/threads_posix.h os/threads_posix.c
+@@ -36,7 +36,7 @@ endif
+ if OS_HAIKU
+ noinst_LTLIBRARIES = libusb_haiku.la
+ libusb_haiku_la_SOURCES = $(OS_HAIKU_SRC)
+-libusb_1_0_la_LIBADD = libusb_haiku.la
++libusb_1_0_brickd_la_LIBADD = libusb_haiku.la
+ endif
+ 
+ if OS_LINUX
+@@ -80,8 +80,8 @@ all-local: .libs/libusb-1.0.dll.a
+ endif
+ endif
+ 
+-libusb_1_0_la_LDFLAGS = $(LT_LDFLAGS)
+-libusb_1_0_la_SOURCES = libusbi.h version.h version_nano.h \
++libusb_1_0_brickd_la_LDFLAGS = $(LT_LDFLAGS)
++libusb_1_0_brickd_la_SOURCES = libusbi.h version.h version_nano.h \
+ 	core.c descriptor.c hotplug.h hotplug.c io.c strerror.c sync.c \
+ 	$(PLATFORM_SRC) $(OS_SRC)
+ 
+diff --git a/libusb/core.c b/libusb/core.c
+index e04ec67..d16f475 100644
+--- a/libusb/core.c
++++ b/libusb/core.c
+@@ -2572,6 +2572,12 @@ static void log_str(enum libusb_log_level level, const char *str)
+ #endif /* USE_SYSTEM_LOGGING_FACILITY */
+ }
+ 
++static libusb_log_callback usbi_log_callback = NULL;
++
++void API_EXPORTED libusb_set_log_callback(libusb_log_callback callback) {
++	usbi_log_callback = callback;
++}
++
+ static void log_v(struct libusb_context *ctx, enum libusb_log_level level,
+ 	const char *function, const char *format, va_list args)
+ {
+@@ -2580,6 +2586,11 @@ static void log_v(struct libusb_context *ctx, enum libusb_log_level level,
+ 	int global_debug, header_len, text_len;
+ 	static int has_debug_header_been_displayed = 0;
+ 
++	if (usbi_log_callback != NULL) {
++		usbi_log_callback(ctx, level, function, format, args);
++		return;
++	}
++
+ #ifdef ENABLE_DEBUG_LOGGING
+ 	global_debug = 1;
+ 	UNUSED(ctx);
+diff --git a/libusb/libusb.h b/libusb/libusb.h
+index b0b5106..664d0a2 100644
+--- a/libusb/libusb.h
++++ b/libusb/libusb.h
+@@ -37,6 +37,7 @@ typedef SSIZE_T ssize_t;
+ 
+ #include <limits.h>
+ #include <stdint.h>
++#include <stdarg.h>
+ #include <sys/types.h>
+ #if !defined(_MSC_VER)
+ #include <sys/time.h>
+@@ -116,6 +117,8 @@ typedef SSIZE_T ssize_t;
+ #define LIBUSB_CALL
+ #endif /* _WIN32 || __CYGWIN__ */
+ 
++#define LIBUSB_BRICKD_PATCH 1
++
+ /** \def LIBUSB_API_VERSION
+  * \ingroup libusb_misc
+  * libusb's API version.
+@@ -1354,7 +1357,6 @@ typedef void (LIBUSB_CALL *libusb_log_cb)(libusb_context *ctx,
+ 
+ int LIBUSB_CALL libusb_init(libusb_context **ctx);
+ void LIBUSB_CALL libusb_exit(libusb_context *ctx);
+-LIBUSB_DEPRECATED_FOR(libusb_set_option)
+ void LIBUSB_CALL libusb_set_debug(libusb_context *ctx, int level);
+ void LIBUSB_CALL libusb_set_log_cb(libusb_context *ctx, libusb_log_cb cb, int mode);
+ const struct libusb_version * LIBUSB_CALL libusb_get_version(void);
+@@ -2112,6 +2114,13 @@ enum libusb_option {
+ 
+ int LIBUSB_CALL libusb_set_option(libusb_context *ctx, enum libusb_option option, ...);
+ 
++typedef void (LIBUSB_CALL *libusb_log_callback)(libusb_context *ctx,
++                                                enum libusb_log_level level,
++                                                const char *function,
++                                                const char *format,
++                                                va_list args);
++void LIBUSB_CALL libusb_set_log_callback(libusb_log_callback callback);
++
+ #if defined(__cplusplus)
+ }
+ #endif
