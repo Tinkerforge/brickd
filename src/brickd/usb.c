@@ -235,7 +235,7 @@ static void LIBUSB_CALL usb_add_pollfd(int fd, short events, void *opaque) {
 	// add EVENT_ERROR to events because libusb will use it to also detect
 	// device unplug, but doesn't register for it
 	event_add_source(fd, EVENT_SOURCE_TYPE_USB, "usb-poll", events | EVENT_ERROR,
-	                 usb_handle_events, context);
+	                 usb_handle_events, NULL);
 }
 
 static void LIBUSB_CALL usb_remove_pollfd(int fd, void *opaque) {
