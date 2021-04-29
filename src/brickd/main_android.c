@@ -39,6 +39,7 @@ static LogSource _log_source = LOG_SOURCE_INITIALIZER;
 
 extern JNIEnv *android_env;
 extern jobject android_service;
+extern bool android_debugger_connected;
 
 static void handle_event_cleanup(void) {
 	network_cleanup_clients_and_zombies();
@@ -46,13 +47,14 @@ static void handle_event_cleanup(void) {
 }
 
 JNIEXPORT void JNICALL
-Java_com_tinkerforge_brickd_MainService_main(JNIEnv *env, jobject this, jobject service) {
+Java_com_tinkerforge_brickd_MainService_main(JNIEnv *env, jobject this, jobject service, jboolean debugger_connected) {
 	int phase = 0;
 
 	(void)this;
 
 	android_env = env;
 	android_service = service;
+	android_debugger_connected = debugger_connected;
 
 	config_init(NULL);
 

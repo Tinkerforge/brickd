@@ -46,7 +46,7 @@ public class MainService extends Service {
         System.loadLibrary("brickd-android");
     }
 
-    public native void main(MainService service);
+    public native void main(MainService service, boolean debuggerConnected);
     public native void interrupt();
     public native void hotplug();
 
@@ -153,7 +153,7 @@ public class MainService extends Service {
         mThread = new Thread(new Runnable() {
             @Override
             public void run() {
-                main(MainService.this);
+                main(MainService.this, android.os.Debug.isDebuggerConnected());
             }
         });
 

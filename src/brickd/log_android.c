@@ -24,6 +24,8 @@
 
 #include <daemonlib/log.h>
 
+bool android_debugger_connected = false;
+
 void log_init_platform(IO *output) {
 	(void)output;
 }
@@ -47,7 +49,7 @@ uint32_t log_check_inclusion_platform(LogLevel level, LogSource *source,
 	(void)debug_group;
 	(void)line;
 
-	return LOG_INCLUSION_SECONDARY; // FIXME
+	return android_debugger_connected ? LOG_INCLUSION_SECONDARY : LOG_INCLUSION_NONE;
 }
 
 // NOTE: assumes that _output_mutex (in daemonlib/log.c) is locked
