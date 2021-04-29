@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2016-2019 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2016-2019, 2021 Matthias Bolte <matthias@tinkerforge.com>
  * Copyright (C) 2016-2017 Ishraq Ibne Ashraf <ishraq@tinkerforge.com>
  *
  * main_uwp.cpp: Brick Daemon starting point for Universal Windows Platform
@@ -76,7 +76,7 @@ static Pipe _app_service_accept_pipe;
 
 static void debugf(const char *format, ...) {
 	va_list arguments;
-	char buffer[1024];
+	char buffer[1024] = "<unknown>\r\n";
 
 	va_start(arguments, format);
 	vsnprintf(buffer, sizeof(buffer), format, arguments);
