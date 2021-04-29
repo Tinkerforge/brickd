@@ -44,7 +44,7 @@ static LogSource _log_source = LOG_SOURCE_INITIALIZER;
 
 static Pipe _notification_pipe;
 static Thread _poll_thread;
-static bool _running = false;
+static bool _running;
 static CFRunLoopRef _run_loop = NULL;
 
 static void iokit_forward_notifications(void *opaque) {
@@ -207,6 +207,8 @@ int iokit_init(void) {
 	phase = 2;
 
 	// create notification poll thread
+	_running = false;
+
 	semaphore_create(&handshake);
 
 	thread_create(&_poll_thread, iokit_poll_notifications, &handshake);

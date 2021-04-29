@@ -47,10 +47,10 @@
 static LogSource _log_source = LOG_SOURCE_INITIALIZER;
 
 static Pipe _transfer_pipe;
-static HWND _message_pump_hwnd = NULL;
+static HWND _message_pump_hwnd;
 static Thread _message_pump_thread;
-static bool _message_pump_running = false;
-static HDEVNOTIFY _notification_handle = NULL;
+static bool _message_pump_running;
+static HDEVNOTIFY _notification_handle;
 static bool _usb_event_running;
 static Thread _usb_event_thread;
 
@@ -263,6 +263,8 @@ static int usb_start_message_pump(void) {
 
 	log_debug("Starting message pump thread");
 
+	_message_pump_running = false;
+
 	semaphore_create(&handshake);
 
 	thread_create(&_message_pump_thread, usb_pump_messages, &handshake);
@@ -329,6 +331,8 @@ int usb_init_platform(libusb_context *context) {
 	int rc;
 	SERVICE_STATUS_HANDLE service_status_handle;
 	DEV_BROADCAST_DEVICEINTERFACE notification_filter;
+
+	_message_pump_running = false;
 
 	// create transfer pipe
 	if (pipe_create(&_transfer_pipe, PIPE_FLAG_NON_BLOCKING_READ) < 0) {

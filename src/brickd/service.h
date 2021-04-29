@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2012-2014, 2019 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2012-2014, 2019, 2021 Matthias Bolte <matthias@tinkerforge.com>
  *
  * service.h: Windows service specific functions
  *
@@ -25,6 +25,7 @@
 #include <stdbool.h>
 
 int service_init(LPHANDLER_FUNCTION_EX handler);
+void service_exit(void);
 int service_is_running(void);
 void service_set_status(DWORD status, DWORD exit_code);
 SERVICE_STATUS_HANDLE service_get_status_handle(void);

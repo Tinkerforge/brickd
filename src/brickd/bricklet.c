@@ -1,7 +1,7 @@
 /*
  * brickd
  * Copyright (C) 2018 Olaf Lüke <olaf@tinkerforge.com>
- * Copyright (C) 2019 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2019, 2021 Matthias Bolte <matthias@tinkerforge.com>
  *
  * bricklet.c: Bricklet support
  *
@@ -57,7 +57,7 @@ static LogSource _log_source = LOG_SOURCE_INITIALIZER;
 
 // We support up to two parallel SPI hardware units, each one of those needs a mutex.
 static Mutex _bricklet_spi_mutex[BRICKLET_SPI_MAX_NUM];
-static int _bricklet_stack_count = 0;
+static int _bricklet_stack_count;
 static BrickletStack _bricklet_stack[BRICKLET_SPI_MAX_NUM * BRICKLET_CS_MAX_NUM];
 
 // The "connected to uid" can be overwritten if the UID of the HAT itself is known.
@@ -382,6 +382,8 @@ int bricklet_init(void) {
 
 	mutex_create(&_bricklet_spi_mutex[0]);
 	mutex_create(&_bricklet_spi_mutex[1]);
+
+	_bricklet_stack_count = 0;
 
 	// First we try to find out if this brickd is installed on a RPi with Raspbian
 	// and a Tinkerforge HAT Brick is on top

@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2018-2019 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2018-2019, 2021 Matthias Bolte <matthias@tinkerforge.com>
  *
  * main_android.c: Brick Daemon starting point for Android
  *
@@ -56,7 +56,7 @@ Java_com_tinkerforge_brickd_MainService_main(JNIEnv *env, jobject this, jobject 
 	android_service = service;
 	android_debugger_connected = debugger_connected;
 
-	config_init(NULL);
+	config_init(NULL, false);
 
 #if 0 // FIXME: config cannot have errors, because not config file is loaded
 	phase = 1;

@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2012-2014, 2016, 2018-2019 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2012-2014, 2016, 2018-2019, 2021 Matthias Bolte <matthias@tinkerforge.com>
  *
  * service.c: Windows service specific functions
  *
@@ -32,7 +32,10 @@ static LogSource _log_source = LOG_SOURCE_INITIALIZER;
 static char *_service_name = "Brick Daemon";
 static char *_service_description = "Brick Daemon is a bridge between USB devices (Bricks) and TCP/IP sockets. It can be used to read out and control Bricks.";
 static SERVICE_STATUS _service_status;
-static SERVICE_STATUS_HANDLE _service_status_handle = 0;
+
+// has to be initialized here, to cover the service_get_status_handle
+// call in case of not running as service
+static SERVICE_STATUS_HANDLE _service_status_handle = NULL;
 
 int service_init(LPHANDLER_FUNCTION_EX handler) {
 	int rc;
@@ -48,7 +51,7 @@ int service_init(LPHANDLER_FUNCTION_EX handler) {
 	_service_status_handle = RegisterServiceCtrlHandlerExA(_service_name,
 	                                                       handler, NULL);
 
-	if (_service_status_handle == 0) {
+	if (_service_status_handle == NULL) {
 		rc = ERRNO_WINAPI_OFFSET + GetLastError();
 
 		log_error("Could not register service control handler: %s (%d)",
@@ -58,6 +61,10 @@ int service_init(LPHANDLER_FUNCTION_EX handler) {
 	}
 
 	return 0;
+}
+
+void service_exit(void) {
+	_service_status_handle = NULL;
 }
 
 int service_is_running(void) {

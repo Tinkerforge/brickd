@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2012-2020 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2012-2021 Matthias Bolte <matthias@tinkerforge.com>
  * Copyright (C) 2014, 2018 Olaf Lüke <olaf@tinkerforge.com>
  * Copyright (C) 2014, 2016-2017 Ishraq Ibne Ashraf <ishraq@tinkerforge.com>
  *
@@ -330,7 +330,7 @@ int main(int argc, char **argv) {
 		return config_check(_config_filename) < 0 ? EXIT_FAILURE : EXIT_SUCCESS;
 	}
 
-	config_init(_config_filename);
+	config_init(_config_filename, false);
 
 	phase = 1;
 

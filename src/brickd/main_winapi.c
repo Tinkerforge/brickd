@@ -605,6 +605,7 @@ exit:
 
 		// service is now stopped
 		service_set_status(SERVICE_STOPPED, service_exit_code);
+		service_exit();
 	} else {
 		if (_pause_before_exit) {
 			printf("Press any key to exit...\n");
@@ -839,7 +840,7 @@ int main(int argc, char **argv) {
 	} else {
 		printf("Starting...\n");
 
-		config_init(_config_filename);
+		config_init(_config_filename, false);
 
 		log_init();
 
