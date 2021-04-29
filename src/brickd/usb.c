@@ -40,7 +40,7 @@
 static LogSource _log_source = LOG_SOURCE_INITIALIZER;
 static LogSource _libusb_log_source = LOG_SOURCE_INITIALIZER;
 
-static libusb_context *_context = NULL;
+static libusb_context *_context;
 static Pipe _hotplug_pipe;
 static Array _usb_stacks;
 

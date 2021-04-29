@@ -50,7 +50,7 @@
 
 static LogSource _log_source = LOG_SOURCE_INITIALIZER;
 
-static bool _has_hotplug = false;
+static bool _has_hotplug;
 static libusb_hotplug_callback_handle _brick_hotplug_handle;
 static libusb_hotplug_callback_handle _red_brick_hotplug_handle;
 

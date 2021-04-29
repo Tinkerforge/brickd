@@ -41,9 +41,9 @@ typedef struct {
 	SOCKET sockets[0];
 } SocketSet;
 
-static SocketSet *_socket_read_set = NULL;
-static SocketSet *_socket_write_set = NULL;
-static SocketSet *_socket_error_set = NULL;
+static SocketSet *_socket_read_set;
+static SocketSet *_socket_write_set;
+static SocketSet *_socket_error_set;
 
 static int event_reserve_socket_set(SocketSet **socket_set, int reserve) {
 	SocketSet *bytes;
