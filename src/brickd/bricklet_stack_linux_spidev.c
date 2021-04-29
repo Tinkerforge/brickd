@@ -51,6 +51,7 @@ struct _BrickletStackPlatform {
 };
 
 static LogSource _log_source = LOG_SOURCE_INITIALIZER;
+
 static BrickletStackPlatform _platform[BRICKLET_SPI_MAX_NUM * BRICKLET_CS_MAX_NUM];
 
 int bricklet_stack_create_platform_spidev(BrickletStack *bricklet_stack) {

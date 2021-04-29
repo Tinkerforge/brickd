@@ -45,6 +45,7 @@ struct _BrickletStackPlatform {
 };
 
 static LogSource _log_source = LOG_SOURCE_INITIALIZER;
+
 static BrickletStackPlatform _platform[BRICKLET_SPI_MAX_NUM * BRICKLET_CS_MAX_NUM];
 
 // Keep track of the count of bricklet_stack_create_platform calls.
