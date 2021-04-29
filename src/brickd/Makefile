@@ -237,6 +237,7 @@ SOURCES_DAEMONLIB := $(call FIX_PATH,../daemonlib/array.c) \
                      $(call FIX_PATH,../daemonlib/conf_file.c) \
                      $(call FIX_PATH,../daemonlib/enum.c) \
                      $(call FIX_PATH,../daemonlib/event.c) \
+                     $(call FIX_PATH,../daemonlib/fifo.c) \
                      $(call FIX_PATH,../daemonlib/file.c) \
                      $(call FIX_PATH,../daemonlib/io.c) \
                      $(call FIX_PATH,../daemonlib/log.c) \

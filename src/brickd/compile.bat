@@ -32,6 +32,7 @@
  ..\daemonlib\conf_file.c^
  ..\daemonlib\enum.c^
  ..\daemonlib\event.c^
+ ..\daemonlib\fifo.c^
  ..\daemonlib\file.c^
  ..\daemonlib\io.c^
  ..\daemonlib\log.c^

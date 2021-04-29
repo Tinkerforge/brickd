@@ -39,6 +39,7 @@ BASE58_TEST_SOURCES := base58_test.c $(call FIX_PATH,../daemonlib/base58.c) $(ca
 NODE_TEST_SOURCES := node_test.c $(call FIX_PATH,../daemonlib/node.c)
 CONF_FILE_TEST_SOURCES := conf_file_test.c $(call FIX_PATH,../daemonlib/conf_file.c) $(call FIX_PATH,../daemonlib/array.c) $(call FIX_PATH,../daemonlib/base58.c) $(call FIX_PATH,../daemonlib/utils.c)
 STRING_TEST_SOURCES := string_test.c $(call FIX_PATH,../daemonlib/base58.c) $(call FIX_PATH,../daemonlib/utils.c)
+FIFO_TEST_SOURCES := fifo_test.c $(call FIX_PATH,../daemonlib/fifo.c) $(call FIX_PATH,../daemonlib/threads.c)
 
 SOURCES := $(ARRAY_TEST_SOURCES) \
            $(QUEUE_TEST_SOURCES) \
@@ -48,7 +49,8 @@ SOURCES := $(ARRAY_TEST_SOURCES) \
            $(BASE58_TEST_SOURCES) \
            $(NODE_TEST_SOURCES) \
            $(CONF_FILE_TEST_SOURCES) \
-           $(STRING_TEST_SOURCES)
+           $(STRING_TEST_SOURCES) \
+           $(FIFO_TEST_SOURCES)
 
 ifeq ($(PLATFORM),Windows)
 	ARRAY_TEST_SOURCES += $(call FIX_PATH,../brickd/fixes_mingw.c)
@@ -60,6 +62,7 @@ ifeq ($(PLATFORM),Windows)
 	NODE_TEST_SOURCES += $(call FIX_PATH,../brickd/fixes_mingw.c)
 	CONF_FILE_TEST_SOURCES += $(call FIX_PATH,../brickd/fixes_mingw.c)
 	STRING_TEST_SOURCES += $(call FIX_PATH,../brickd/fixes_mingw.c)
+	FIFO_TEST_SOURCES += $(call FIX_PATH,../brickd/fixes_mingw.c)
 endif
 
 ARRAY_TEST_OBJECTS := ${ARRAY_TEST_SOURCES:.c=.o}
@@ -71,6 +74,7 @@ BASE58_TEST_OBJECTS := ${BASE58_TEST_SOURCES:.c=.o}
 NODE_TEST_OBJECTS := ${NODE_TEST_SOURCES:.c=.o}
 CONF_FILE_TEST_OBJECTS := ${CONF_FILE_TEST_SOURCES:.c=.o}
 STRING_TEST_OBJECTS := ${STRING_TEST_SOURCES:.c=.o}
+FIFO_TEST_OBJECTS := ${FIFO_TEST_SOURCES:.c=.o}
 
 OBJECTS := $(ARRAY_TEST_OBJECTS) \
            $(QUEUE_TEST_OBJECTS) \
@@ -80,7 +84,8 @@ OBJECTS := $(ARRAY_TEST_OBJECTS) \
            $(BASE58_TEST_OBJECTS) \
            $(NODE_TEST_OBJECTS) \
            $(CONF_FILE_TEST_OBJECTS) \
-           $(STRING_TEST_OBJECTS)
+           $(STRING_TEST_OBJECTS) \
+           $(FIFO_TEST_OBJECTS)
 
 DEPENDS := ${ARRAY_TEST_SOURCES:.c=.p} \
            ${QUEUE_TEST_SOURCES:.c=.p} \
@@ -90,7 +95,8 @@ DEPENDS := ${ARRAY_TEST_SOURCES:.c=.p} \
            ${BASE58_TEST_SOURCES:.c=.p} \
            ${NODE_TEST_SOURCES:.c=.p} \
            ${CONF_FILE_TEST_SOURCES:.c=.p} \
-           ${STRING_TEST_SOURCES:.c=.p}
+           ${STRING_TEST_SOURCES:.c=.p} \
+           ${FIFO_TEST_SOURCES:.c=.p}
 
 ifeq ($(PLATFORM),Windows)
 	ARRAY_TEST_TARGET := array_test.exe
@@ -102,6 +108,7 @@ ifeq ($(PLATFORM),Windows)
 	NODE_TEST_TARGET := node_test.exe
 	CONF_FILE_TEST_TARGET := conf_file_test.exe
 	STRING_TEST_TARGET := string_test.exe
+	FIFO_TEST_TARGET := fifo_test.exe
 else
 	ARRAY_TEST_TARGET := array_test
 	QUEUE_TEST_TARGET := queue_test
@@ -112,6 +119,7 @@ else
 	NODE_TEST_TARGET := node_test
 	CONF_FILE_TEST_TARGET := conf_file_test
 	STRING_TEST_TARGET := string_test
+	FIFO_TEST_TARGET := fifo_test
 endif
 
 TARGETS := $(ARRAY_TEST_TARGET) \
@@ -122,13 +130,14 @@ TARGETS := $(ARRAY_TEST_TARGET) \
            $(BASE58_TEST_TARGET) \
            $(NODE_TEST_TARGET) \
            $(CONF_FILE_TEST_TARGET) \
-           $(STRING_TEST_TARGET)
+           $(STRING_TEST_TARGET) \
+           $(FIFO_TEST_TARGET)
 
 CFLAGS += -O2 -Wall -Wextra -I..
 #CFLAGS += -O0 -g -ggdb
 
 ifeq ($(PLATFORM),Windows)
-	CFLAGS += -DWINVER=0x0500 -D_WIN32_WINNT=0x0501 -mconsole -include ../brickd/fixes_mingw.h
+	CFLAGS += -DWINVER=0x0600 -D_WIN32_WINNT=0x0600 -mconsole -include ../brickd/fixes_mingw.h
 	LDFLAGS += -Wl,-subsystem,console
 	LIBS += -lws2_32 -ladvapi32
 else
@@ -177,6 +186,10 @@ $(CONF_FILE_TEST_TARGET): $(CONF_FILE_TEST_OBJECTS) Makefile
 $(STRING_TEST_TARGET): $(STRING_TEST_OBJECTS) Makefile
 	@echo LD $@
 	$(E)$(CC) -o $(STRING_TEST_TARGET) $(LDFLAGS) $(STRING_TEST_OBJECTS) $(LIBS)
+
+$(FIFO_TEST_TARGET): $(FIFO_TEST_OBJECTS) Makefile
+	@echo LD $@
+	$(E)$(CC) -o $(FIFO_TEST_TARGET) $(LDFLAGS) $(FIFO_TEST_OBJECTS) $(LIBS)
 
 %.o: %.c $(GENERATED) Makefile
 	@echo CC $@
