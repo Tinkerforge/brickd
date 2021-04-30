@@ -7,6 +7,7 @@ pushd libusb-src
 
 ./autogen.sh --disable-shared --disable-udev --disable-examples-build --disable-tests-build
 make clean
+#make CFLAGS="-Og -g -ggdb"
 make
 
 popd
