@@ -184,7 +184,7 @@ void usb_transfer_finish(struct libusb_transfer *handle) {
 	}
 }
 
-#ifdef _WIN32
+#if defined _WIN32 && !defined BRICKD_UWP_BUILD
 
 extern void LIBUSB_CALL usb_transfer_callback(struct libusb_transfer *handle);
 

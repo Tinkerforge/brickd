@@ -66,8 +66,6 @@ typedef struct {
 	Agile<AppServiceConnection ^> connection;
 } AppServiceAccept;
 
-extern "C" void LIBUSB_CALL usbi_init(void);
-
 static LogSource _log_source = LOG_SOURCE_INITIALIZER;
 
 static bool _main_running = false;
@@ -309,9 +307,7 @@ void brickd_uwp::MainTask::Run(IBackgroundTaskInstance ^taskInstance) {
 
 	fixes_init();
 
-	usbi_init();
-
-	config_init(nullptr);
+	config_init(nullptr, false);
 
 	phase = 1;
 

@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2016-2020 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2016-2021 Matthias Bolte <matthias@tinkerforge.com>
  *
  * libusb_uwp.cpp: Emulating libusb API for Universal Windows Platform
  *
@@ -27,8 +27,10 @@
 
 extern "C" {
 
+#include <daemonlib/event.h>
 #include <daemonlib/macros.h>
 #include <daemonlib/node.h>
+#include <daemonlib/pipe.h>
 #include <daemonlib/utils.h>
 #include <daemonlib/utils_uwp.h>
 
@@ -45,23 +47,6 @@ using namespace Windows::Storage::Streams;
 
 #include "libusb.h"
 
-// the fake FDs are only used to form fake pipes backed by a semaphore each.
-// the fake poll function uses the WaitForMultipleObjects function, that can
-// wait for up to MAXIMUM_WAIT_OBJECTS (64) semaphores at once. each context
-// object will have a single fake pipe for event notification. currently,
-// brickd uses a dedicated context for each device, has one dedicated context
-// for device enumeration and uses another fake pipe to interrupt the dedicated
-// libusb event handling thread. under normal conditions the fake poll function
-// will be called with all existing fake pipes each time, because all fake
-// pipes are potentially active all the time, leaving no inactive fake pipes.
-// therefore, setting the limit for fake FDs to 128 = 64 * 2 for a maximum of
-// 64 fake pipes. this allows for 62 USB device to be handled at the same time.
-#define USBI_MAX_FAKE_FDS (MAXIMUM_WAIT_OBJECTS * 2)
-
-#define USBI_POLLIN 0x0001
-#define USBI_POLLOUT 0x0004
-#define USBI_POLLERR 0x0008
-
 #define USBI_STRING_MANUFACTURER 1
 #define USBI_STRING_PRODUCT 2
 #define USBI_STRING_SERIAL_NUMBER 3
@@ -69,23 +54,6 @@ using namespace Windows::Storage::Streams;
 #define USBI_REQUEST_GET_DESCRIPTOR 0x06
 
 #define USBI_DESCRIPTOR_TYPE_STRING 0x03
-
-struct usbi_pollfd {
-	int fd;
-	short events;
-	short revents;
-};
-
-typedef struct {
-	int ref_count;
-	HANDLE semaphore;
-} usbi_fake_pipe;
-
-typedef struct {
-	int fd;
-	int event;
-	usbi_fake_pipe *fake_pipe;
-} usbi_fake_fd;
 
 typedef struct {
 	int ref_count;
@@ -118,7 +86,7 @@ struct _libusb_device {
 };
 
 struct _libusb_context {
-	int event_pipe[2];
+	Pipe event_pipe;
 	struct libusb_pollfd event_pollfd;
 	Node dev_handle_sentinel;
 };
@@ -133,7 +101,6 @@ struct _libusb_device_handle {
 
 static libusb_log_callback _log_callback;
 
-static usbi_fake_fd _fake_fds[USBI_MAX_FAKE_FDS];
 static std::unordered_map<std::wstring, uint16_t> _fake_device_addresses;
 static std::unordered_map<std::wstring, usbi_descriptor *> _cached_descriptors;
 static uint32_t _next_read_itransfer_sequence_number;
@@ -165,267 +132,6 @@ static void usbi_log_message(libusb_context *ctx, enum libusb_log_level level,
 #define usbi_log_warning(ctx, ...) usbi_log_message_checked(ctx, LIBUSB_LOG_LEVEL_WARNING, __VA_ARGS__)
 #define usbi_log_info(ctx, ...)    usbi_log_message_checked(ctx, LIBUSB_LOG_LEVEL_INFO, __VA_ARGS__)
 #define usbi_log_debug(ctx, ...)   usbi_log_message_checked(ctx, LIBUSB_LOG_LEVEL_DEBUG, __VA_ARGS__)
-
-// sets errno on error
-static usbi_fake_fd *usbi_create_fake_fd(int event, usbi_fake_pipe *fake_pipe) {
-	int i;
-	usbi_fake_fd *fake_fd = nullptr;
-
-	for (i = 0; i < USBI_MAX_FAKE_FDS; ++i) {
-		if (_fake_fds[i].fake_pipe == nullptr) {
-			fake_fd = &_fake_fds[i];
-			fake_fd->fd = i;
-
-			break;
-		}
-	}
-
-	if (fake_fd == nullptr) {
-		errno = EMFILE;
-
-		return nullptr;
-	}
-
-	fake_fd->event = event;
-	fake_fd->fake_pipe = fake_pipe;
-
-	return fake_fd;
-}
-
-static void usbi_free_fake_fd(usbi_fake_fd *fake_fd) {
-	fake_fd->fd = -1;
-	fake_fd->event = 0;
-	fake_fd->fake_pipe = nullptr;
-}
-
-static usbi_fake_fd *usbi_get_fake_fd(int fd) {
-	if (fd < 0 || fd >= USBI_MAX_FAKE_FDS || _fake_fds[fd].fd != fd) {
-		return nullptr;
-	}
-
-	return &_fake_fds[fd];
-}
-
-extern "C" void usbi_init(void) {
-	int i;
-
-	for (i = 0; i < USBI_MAX_FAKE_FDS; ++i) {
-		_fake_fds[i].fd = -1;
-	}
-}
-
-// sets errno on error
-extern "C" int usbi_pipe(int fd[2]) {
-	usbi_fake_pipe *fake_pipe;
-	int saved_errno;
-	usbi_fake_fd *fake_read_fd;
-	usbi_fake_fd *fake_write_fd;
-
-	fake_pipe = (usbi_fake_pipe *)calloc(1, sizeof(usbi_fake_pipe));
-
-	if (fake_pipe == nullptr) {
-		errno = ENOMEM;
-
-		return -1;
-	}
-
-	fake_pipe->ref_count = 2; // one ref for each end of the pipe
-	fake_pipe->semaphore = CreateSemaphore(nullptr, 0, INT32_MAX, nullptr);
-
-	if (fake_pipe->semaphore == nullptr) {
-		saved_errno = ERRNO_WINAPI_OFFSET + GetLastError();
-
-		free(fake_pipe);
-
-		errno = saved_errno;
-
-		return -1;
-	}
-
-	fake_read_fd = usbi_create_fake_fd(USBI_POLLIN, fake_pipe);
-
-	if (fake_read_fd == nullptr) {
-		saved_errno = errno;
-
-		CloseHandle(fake_pipe->semaphore);
-		free(fake_pipe);
-
-		errno = saved_errno;
-
-		return -1;
-	}
-
-	fake_write_fd = usbi_create_fake_fd(USBI_POLLOUT, fake_pipe);
-
-	if (fake_write_fd == nullptr) {
-		saved_errno = errno;
-
-		usbi_free_fake_fd(fake_read_fd);
-		CloseHandle(fake_pipe->semaphore);
-		free(fake_pipe);
-
-		errno = saved_errno;
-
-		return -1;
-	}
-
-	fd[0] = fake_read_fd->fd;
-	fd[1] = fake_write_fd->fd;
-
-	return 0;
-}
-
-// sets errno on error
-extern "C" int usbi_close(int fd) {
-	usbi_fake_fd *fake_fd;
-
-	fake_fd = usbi_get_fake_fd(fd);
-
-	if (fake_fd == nullptr) {
-		errno = EBADF;
-
-		return -1;
-	}
-
-	if (fake_fd->fake_pipe != nullptr) {
-		if (--fake_fd->fake_pipe->ref_count == 0) {
-			CloseHandle(fake_fd->fake_pipe->semaphore);
-			free(fake_fd->fake_pipe);
-		}
-	}
-
-	usbi_free_fake_fd(fake_fd);
-
-	return 0;
-}
-
-// sets errno on error
-extern "C" ssize_t usbi_read(int fd, void *buf, size_t count) {
-	usbi_fake_fd *fake_fd;
-
-	(void)buf;
-
-	if (count != sizeof(uint8_t)) {
-		errno = ERANGE;
-
-		return -1;
-	}
-
-	fake_fd = usbi_get_fake_fd(fd);
-
-	if (fake_fd == nullptr || fake_fd->event != USBI_POLLIN) {
-		errno = EBADF;
-
-		return -1;
-	}
-
-	if (WaitForSingleObject(fake_fd->fake_pipe->semaphore, INFINITE) != WAIT_OBJECT_0) {
-		errno = ERRNO_WINAPI_OFFSET + GetLastError();
-
-		return -1;
-	}
-
-	return sizeof(uint8_t);
-}
-
-// sets errno on error
-extern "C" ssize_t usbi_write(int fd, const void *buf, size_t count) {
-	usbi_fake_fd *fake_fd;
-
-	(void)buf;
-
-	if (count != sizeof(uint8_t)) {
-		errno = ERANGE;
-
-		return -1;
-	}
-
-	fake_fd = usbi_get_fake_fd(fd);
-
-	if (fake_fd == nullptr || fake_fd->event != USBI_POLLOUT) {
-		errno = EBADF;
-
-		return -1;
-	}
-
-	ReleaseSemaphore(fake_fd->fake_pipe->semaphore, 1, nullptr);
-
-	return sizeof(uint8_t);
-}
-
-// sets errno on error
-extern "C" int usbi_poll(struct usbi_pollfd *fds, unsigned int nfds, int timeout) {
-	HANDLE handles[MAXIMUM_WAIT_OBJECTS];
-	usbi_fake_fd *fake_fd;
-	int ready = 0;
-	unsigned int i;
-	DWORD rc;
-
-	assert(nfds <= USBI_MAX_FAKE_FDS);
-
-	if (nfds < 1) {
-		return 0;
-	}
-
-	if (timeout >= 0) {
-		errno = EINVAL;
-
-		return -1;
-	}
-
-	for (i = 0; i < nfds; ++i) {
-		fds[i].revents = 0;
-		fake_fd = usbi_get_fake_fd(fds[i].fd);
-
-		if (fake_fd == nullptr) {
-			fds[i].revents |= USBI_POLLERR;
-			errno = EBADF;
-
-			return -1;
-		}
-
-		if ((fds[i].events != USBI_POLLIN && fds[i].events != USBI_POLLOUT) ||
-		    (fds[i].events == USBI_POLLIN && fake_fd->event != USBI_POLLIN) ||
-		    (fds[i].events == USBI_POLLOUT && fake_fd->event != USBI_POLLOUT)) {
-			fds[i].revents |= USBI_POLLERR;
-			errno = EINVAL;
-
-			return -1;
-		}
-
-		if (fds[i].events == USBI_POLLIN) {
-			assert(i < MAXIMUM_WAIT_OBJECTS);
-
-			handles[i] = fake_fd->fake_pipe->semaphore;
-		} else { // USBI_POLLOUT
-			++ready;
-			fds[i].revents |= USBI_POLLOUT;
-		}
-	}
-
-	if (ready == 0) {
-		assert(nfds <= MAXIMUM_WAIT_OBJECTS);
-
-		rc = WaitForMultipleObjects(nfds, handles, FALSE, INFINITE);
-
-		if (rc < WAIT_OBJECT_0 || rc >= WAIT_OBJECT_0 + nfds) {
-			errno = EINTR;
-
-			return -1;
-		}
-
-		i = rc - WAIT_OBJECT_0;
-
-		// WaitForMultipleObjects decreases the counter of the semaphore. undo
-		// this to allow usbi_read to decrease it again
-		ReleaseSemaphore(handles[i], 1, nullptr);
-
-		fds[i].revents = USBI_POLLIN;
-		ready = 1;
-	}
-
-	return ready;
-}
 
 static void usbi_get_fake_device_address(String ^id, uint8_t *bus_number,
                                          uint8_t *device_address) {
@@ -812,8 +518,8 @@ int libusb_init(libusb_context **ctx_ptr) {
 
 	usbi_log_debug(ctx, "Creating context %p", ctx);
 
-	if (usbi_pipe(ctx->event_pipe) < 0) {
-		usbi_log_error(ctx, "Could not create transfer pipe for context %p: %s (%d)",
+	if (pipe_create(&ctx->event_pipe, PIPE_FLAG_NON_BLOCKING_READ) < 0) {
+		usbi_log_error(ctx, "Could not create event pipe for context %p: %s (%d)",
 		               ctx, get_errno_name(errno), errno);
 
 		free(ctx);
@@ -821,8 +527,8 @@ int libusb_init(libusb_context **ctx_ptr) {
 		return LIBUSB_ERROR_OTHER;
 	}
 
-	ctx->event_pollfd.fd = ctx->event_pipe[0];
-	ctx->event_pollfd.events = USBI_POLLIN;
+	ctx->event_pollfd.fd = ctx->event_pipe.base.read_handle;
+	ctx->event_pollfd.events = EVENT_READ;
 
 	node_reset(&ctx->dev_handle_sentinel);
 
@@ -839,8 +545,7 @@ void libusb_exit(libusb_context *ctx) {
 
 	usbi_log_debug(ctx, "Destroying context %p", ctx);
 
-	usbi_close(ctx->event_pipe[0]);
-	usbi_close(ctx->event_pipe[1]);
+	pipe_destroy(&ctx->event_pipe);
 
 	free(ctx);
 }
@@ -892,6 +597,7 @@ int libusb_handle_events_timeout(libusb_context *ctx, struct timeval *tv) {
 	Node *itransfer_node_next;
 	usbi_transfer *itransfer;
 	struct libusb_transfer *transfer;
+	uint8_t byte;
 
 	if (ctx == nullptr) {
 		return LIBUSB_ERROR_INVALID_PARAM; // FIXME: no default context support
@@ -922,8 +628,8 @@ int libusb_handle_events_timeout(libusb_context *ctx, struct timeval *tv) {
 					usbi_log_debug(ctx, "Reading from event pipe for read transfer %p [%u]",
 					               transfer, itransfer->sequence_number);
 
-					if (usbi_read(ctx->event_pipe[0], nullptr, 1) != 1) {
-						usbi_log_error(ctx, "usbi_read failed: %d", errno); // FIXME
+					if (pipe_read(&ctx->event_pipe, &byte, sizeof(byte)) < 0) {
+						usbi_log_error(ctx, "pipe_read failed: %d", errno); // FIXME
 					} else {
 						itransfer->triggered = false;
 					}
@@ -969,8 +675,8 @@ int libusb_handle_events_timeout(libusb_context *ctx, struct timeval *tv) {
 					usbi_log_debug(ctx, "Reading from event pipe for write transfer %p [%u]",
 					               transfer, itransfer->sequence_number);
 
-					if (usbi_read(ctx->event_pipe[0], nullptr, 1) != 1) {
-						usbi_log_error(ctx, "usbi_read failed: %d", errno); // FIXME
+					if (pipe_read(&ctx->event_pipe, &byte, sizeof(byte)) < 0) {
+						usbi_log_error(ctx, "pipe_read failed: %d", errno); // FIXME
 					} else {
 						itransfer->triggered = false;
 					}
@@ -1408,6 +1114,7 @@ int libusb_submit_transfer(struct libusb_transfer *transfer) {
 				[ctx, itransfer](IAsyncOperation<unsigned int> ^operation, AsyncStatus status) {
 					struct libusb_transfer *transfer = &itransfer->transfer;
 					Array<unsigned char> ^data;
+					uint8_t byte = 0;
 
 					usbi_set_transfer_status(transfer, operation, status);
 
@@ -1426,8 +1133,8 @@ int libusb_submit_transfer(struct libusb_transfer *transfer) {
 					               transfer, itransfer->sequence_number, transfer->status,
 					               transfer->length, transfer->actual_length);
 
-					if (usbi_write(ctx->event_pipe[1], nullptr, 1) != 1) {
-						usbi_log_error(ctx, "usbi_write failed: %d", errno); // FIXME
+					if (pipe_write(&ctx->event_pipe, &byte, sizeof(byte)) < 0) {
+						usbi_log_error(ctx, "pipe_write failed: %d", errno); // FIXME
 					}
 				});
 
@@ -1471,6 +1178,7 @@ int libusb_submit_transfer(struct libusb_transfer *transfer) {
 				itransfer->store_operation->Completed = ref new AsyncOperationCompletedHandler<unsigned int>(
 				[ctx, itransfer](IAsyncOperation<unsigned int> ^operation, AsyncStatus status) {
 					struct libusb_transfer *transfer = &itransfer->transfer;
+					uint8_t byte = 0;
 
 					usbi_set_transfer_status(transfer, operation, status);
 
@@ -1481,8 +1189,8 @@ int libusb_submit_transfer(struct libusb_transfer *transfer) {
 					               transfer, itransfer->sequence_number, transfer->status,
 					               transfer->length, transfer->actual_length);
 
-					if (usbi_write(ctx->event_pipe[1], nullptr, 1) != 1) {
-						usbi_log_error(ctx, "usbi_write failed: %d", errno); // FIXME
+					if (pipe_write(&ctx->event_pipe, &byte, sizeof(byte)) < 0) {
+						usbi_log_error(ctx, "pipe_write failed: %d", errno); // FIXME
 					}
 				});
 
