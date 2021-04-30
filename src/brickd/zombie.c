@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2014, 2016, 2018-2019 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2014, 2016, 2018-2019, 2021 Matthias Bolte <matthias@tinkerforge.com>
  *
  * zombie.c: Zombie client specific functions
  *
@@ -30,7 +30,7 @@
 
 static LogSource _log_source = LOG_SOURCE_INITIALIZER;
 
-static uint32_t _next_id = 0;
+static uint32_t _next_id = 0; // static initialized to ensure uniqueness
 
 static void zombie_handle_timeout(void *opaque) {
 	Zombie *zombie = opaque;

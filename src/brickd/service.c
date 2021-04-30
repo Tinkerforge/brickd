@@ -34,7 +34,7 @@ static char *_service_description = "Brick Daemon is a bridge between USB device
 static SERVICE_STATUS _service_status;
 
 // has to be initialized here, to cover the service_get_status_handle
-// call in case of not running as service
+// call in case of not running as service (as in not calling service_init)
 static SERVICE_STATUS_HANDLE _service_status_handle = NULL;
 
 int service_init(LPHANDLER_FUNCTION_EX handler) {

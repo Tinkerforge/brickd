@@ -53,7 +53,7 @@ static Array _clients;
 static Array _zombies;
 static Array _plain_server_sockets;
 static Array _websocket_server_sockets;
-static uint32_t _next_authentication_nonce = 0;
+static uint32_t _next_authentication_nonce = 0; // static initialized to ensure uniqueness
 static Node _pending_request_sentinel;
 
 static void network_handle_accept(void *opaque) {

@@ -66,11 +66,11 @@ typedef struct {
 #define FOREGROUND_YELLOW (FOREGROUND_RED | FOREGROUND_GREEN)
 #define FOREGROUND_WHITE (FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE)
 
-static bool _debugger_present = false;
-static IO *_output = NULL;
-static HANDLE _console = NULL;
-static WORD _default_attributes = 0;
-static bool _pipes_initialized = false;
+static bool _debugger_present;
+static IO *_output;
+static HANDLE _console;
+static WORD _default_attributes;
+static bool _pipes_initialized;
 static LogPipe _pipes[NAMED_PIPE_COUNT];
 
 static const char *_pipes_names[NAMED_PIPE_COUNT][2] = {
@@ -80,8 +80,8 @@ static const char *_pipes_names[NAMED_PIPE_COUNT][2] = {
 	{"debug", "\\\\.\\pipe\\tinkerforge-brick-daemon-debug-log"}
 };
 
-static HANDLE _pipes_write_event = NULL;
-static HANDLE _pipes_stop_event = NULL;
+static HANDLE _pipes_write_event;
+static HANDLE _pipes_stop_event;
 
 void log_set_output_platform(IO *output);
 
@@ -260,6 +260,12 @@ void log_init_platform(IO *output) {
 	int i;
 
 	_debugger_present = IsDebuggerPresent();
+	_output = NULL;
+	_console = NULL;
+	_default_attributes = 0;
+	_pipes_initialized = false;
+	_pipes_write_event = NULL;
+	_pipes_stop_event = NULL;
 
 	log_set_output_platform(output);
 

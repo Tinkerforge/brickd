@@ -21,7 +21,7 @@
 
 #include <daemonlib/log.h>
 
-static bool _debugger_present = false;
+static bool _debugger_present;
 
 void log_init_platform(IO *output) {
 	(void)output;

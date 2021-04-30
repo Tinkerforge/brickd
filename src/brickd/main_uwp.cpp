@@ -68,7 +68,7 @@ typedef struct {
 
 static LogSource _log_source = LOG_SOURCE_INITIALIZER;
 
-static bool _main_running = false;
+static bool _main_running = false; // must be initialized here, there is no init function to do it
 static Pipe _cancellation_pipe;
 static Pipe _app_service_accept_pipe;
 

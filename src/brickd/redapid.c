@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2014-2015, 2017-2019 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2014-2015, 2017-2019, 2021 Matthias Bolte <matthias@tinkerforge.com>
  *
  * redapid.c: RED Brick API Daemon interface
  *
@@ -57,9 +57,10 @@ typedef struct {
 
 static REDBrickAPIDaemon _redapid;
 static Timer _reconnect_timer;
-static bool _connected = false;
-static bool _connect_error_warning = false;
-uint8_t _redapid_version[3] = { 2, 0, 0 };
+static bool _connected;
+static bool _connect_error_warning;
+
+uint8_t _redapid_version[3] = {2, 0, 0};
 
 static void redapid_disconnect(bool reconnect) {
 	writer_destroy(&_redapid.request_writer);
@@ -389,6 +390,12 @@ int redapid_init(void) {
 	int phase = 0;
 
 	log_debug("Initializing RED Brick API subsystem");
+
+	_connected = false;
+	_connect_error_warning = false;
+	_redapid_version[0] = 2;
+	_redapid_version[1] = 0;
+	_redapid_version[2] = 0;
 
 	if (redapid_read_version() < 0) {
 		log_warn("Could not read redapid version number, using 2.0.0 instead");

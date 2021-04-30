@@ -77,13 +77,13 @@ static LogSource _log_source = LOG_SOURCE_INITIALIZER;
 
 static char _program_data_directory[MAX_PATH];
 static char _log_filename_default[MAX_PATH];
-static const char *_log_filename = NULL;
+static const char *_log_filename;
 static char _config_filename_default[MAX_PATH];
-static const char *_config_filename = NULL;
-static bool _run_as_service = true;
-static bool _pause_before_exit = false;
-static bool _running = false;
-static bool _console_ctrl_handler_active = false;
+static const char *_config_filename;
+static bool _run_as_service;
+static bool _pause_before_exit;
+static bool _running;
+static bool _console_ctrl_handler_active;
 
 typedef BOOL (WINAPI *QUERYFULLPROCESSIMAGENAMEA)(HANDLE, DWORD, char *, DWORD *);
 
@@ -726,6 +726,13 @@ int main(int argc, char **argv) {
 	const char *debug_filter = NULL;
 	HRESULT hrc;
 	int rc;
+
+	_log_filename = NULL;
+	_config_filename = NULL;
+	_run_as_service = true;
+	_pause_before_exit = false;
+	_running = false;
+	_console_ctrl_handler_active = false;
 
 	fixes_init();
 

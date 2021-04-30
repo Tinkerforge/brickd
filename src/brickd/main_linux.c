@@ -254,6 +254,10 @@ int main(int argc, char **argv) {
 	int pid_fd = -1;
 	struct utsname uts;
 
+#ifdef BRICKD_WITH_LIBUSB_HOTPLUG_MKNOD
+	usb_hotplug_mknod = false;
+#endif
+
 	for (i = 1; i < argc; ++i) {
 		if (strcmp(argv[i], "--help") == 0) {
 			help = true;
