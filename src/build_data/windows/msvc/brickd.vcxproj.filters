@@ -129,6 +129,9 @@
     <ClInclude Include="..\..\..\brickd\mesh_packet.h">
       <Filter>brickd</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\..\daemonlib\fifo.h">
+      <Filter>daemonlib</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\..\daemonlib\array.c">
@@ -256,6 +259,9 @@
     </ClCompile>
     <ClCompile Include="..\..\..\brickd\mesh_packet.c">
       <Filter>brickd</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\daemonlib\fifo.c">
+      <Filter>daemonlib</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

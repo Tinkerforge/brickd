@@ -148,6 +148,9 @@
     <ClCompile Include="..\..\..\daemonlib\pearson_hash.c">
       <Filter>daemonlib</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\..\daemonlib\fifo.c">
+      <Filter>daemonlib</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\daemonlib\base58.h">
@@ -286,6 +289,9 @@
       <Filter>daemonlib</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\daemonlib\pearson_hash.h">
+      <Filter>daemonlib</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\daemonlib\fifo.h">
       <Filter>daemonlib</Filter>
     </ClInclude>
   </ItemGroup>
