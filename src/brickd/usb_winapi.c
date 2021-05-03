@@ -87,6 +87,8 @@ void LIBUSB_CALL usb_transfer_callback(struct libusb_transfer *handle) {
 	if (pipe_write(&_transfer_pipe, &handle, sizeof(handle)) < 0) {
 		log_error("Could not append finished USB transfer (handle: %p) to USB transfer pipe: %s (%d)",
 		          handle, get_errno_name(errno), errno);
+
+		return;
 	}
 
 	log_debug("Append finished USB transfer (handle: %p) to USB transfer pipe", handle);
