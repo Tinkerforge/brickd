@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2018 Olaf Lüke <olaf@tinkerforge.com>
+ * Copyright (C) 2018, 2021 Olaf Lüke <olaf@tinkerforge.com>
  * Copyright (C) 2019, 2021 Matthias Bolte <matthias@tinkerforge.com>
  *
  * bricklet.c: Bricklet support
@@ -35,23 +35,27 @@
 
 #include "bricklet_stack.h"
 
-#define BRICKLET_CONFIG_STR_GROUP_POS      14
-#define BRICKLET_CONFIG_STR_CS_POS         (BRICKLET_CONFIG_STR_GROUP_POS + 4)
+#define BRICKLET_CONFIG_STR_GROUP_POS                     14
+#define BRICKLET_CONFIG_STR_CS_POS                        (BRICKLET_CONFIG_STR_GROUP_POS + 4)
 
 #ifdef BRICKD_UWP_BUILD
-	#define BRICKLET_RPI_HAT_SPIDEV        "SPI0"
-	#define BRICKLET_RPI_HAT_ZERO_SPIDEV   "SPI0"
+	#define BRICKLET_RPI_HAT_SPIDEV                       "SPI0"
+	#define BRICKLET_RPI_HAT_ZERO_SPIDEV                  "SPI0"
+	#define BRICKLET_RPI_HAT_WARP_ENERGY_MANAGER_SPIDEV   "SPI0"
 #else
-	#define BRICKLET_RPI_HAT_SPIDEV        "/dev/spidev0.%d"
-	#define BRICKLET_RPI_HAT_ZERO_SPIDEV   "/dev/spidev0.%d"
+	#define BRICKLET_RPI_HAT_SPIDEV                       "/dev/spidev0.%d"
+	#define BRICKLET_RPI_HAT_ZERO_SPIDEV                  "/dev/spidev0.%d"
+	#define BRICKLET_RPI_HAT_WARP_ENERGY_MANAGER_SPIDEV   "/dev/spidev0.%d"
 #endif
 
-#define BRICKLET_RPI_HAT_SPIDEV_INDEX      0
-#define BRICKLET_RPI_HAT_ZERO_SPIDEV_INDEX 0
+#define BRICKLET_RPI_HAT_SPIDEV_INDEX                     0
+#define BRICKLET_RPI_HAT_ZERO_SPIDEV_INDEX                0
+#define BRICKLET_RPI_HAT_WARP_ENERGY_MANAGER_SPIDEV_INDEX 0
 
-#define BRICKLET_RPI_PRODUCT_ID_LENGTH     6
-#define BRICKLET_RPI_HAT_PRODUCT_ID        "0x084e" // tf device id 2126
-#define BRICKLET_RPI_HAT_ZERO_PRODUCT_ID   "0x085d" // tf device id 2141
+#define BRICKLET_RPI_PRODUCT_ID_LENGTH                    6
+#define BRICKLET_RPI_HAT_PRODUCT_ID                       "0x084e" // tf device id 2126
+#define BRICKLET_RPI_HAT_ZERO_PRODUCT_ID                  "0x085d" // tf device id 2141
+#define BRICKLET_RPI_HAT_WARP_ENERGY_MANAGER_PRODUCT_ID   "0x0072" // tf device id 114
 
 static LogSource _log_source = LOG_SOURCE_INITIALIZER;
 
@@ -103,6 +107,12 @@ static const BrickletChipSelectConfig bricklet_stack_rpi_hat_zero_cs_config[] = 
 	{BRICKLET_CHIP_SELECT_DRIVER_GPIO, 24, false},
 	{BRICKLET_CHIP_SELECT_DRIVER_GPIO, 22, false},
 	{BRICKLET_CHIP_SELECT_DRIVER_GPIO, 25, true},
+	{-1, 0, false}
+};
+
+// Chip select config for HAT WARP Energy Manager Brick
+static const BrickletChipSelectConfig bricklet_stack_rpi_hat_warp_energy_manager_cs_config[] = {
+	{BRICKLET_CHIP_SELECT_DRIVER_GPIO, 7, true},
 	{-1, 0, false}
 };
 
@@ -176,6 +186,17 @@ bricklet.group0.cs4.num = 25
 
 */
 
+// The equivalent Linux HAT WARP Energy Manager configuration in brickd.conf looks as follows:
+/*
+
+bricklet.group0.spidev = /dev/spidev0.0
+
+bricklet.group0.cs0.driver = gpio
+bricklet.group0.cs0.name = gpio7
+bricklet.group0.cs0.num = 7
+
+*/
+
 // spidev1.x on RPi does not support CPHA:
 // https://www.raspberrypi.org/forums/viewtopic.php?t=186019
 // https://www.raspberrypi.org/forums/viewtopic.php?f=44&t=96069
@@ -213,7 +234,9 @@ int bricklet_init_rpi_hat(const char *product_id_test, const char *spidev,
 #ifdef BRICKD_UWP_BUILD
 	bool no_hat = false;
 
-	#if defined BRICKD_WITH_UWP_HAT_BRICK && defined BRICKD_WITH_UWP_HAT_ZERO_BRICK
+	#if defined BRICKD_WITH_UWP_HAT_WARP_ENERGY_MANAGER_BRICK
+		#error HAT WARP Ebergy Manager Brick is not supported with UWP build
+	#elif defined BRICKD_WITH_UWP_HAT_BRICK && defined BRICKD_WITH_UWP_HAT_ZERO_BRICK
 		#error HAT Brick and HAT Zero Brick support cannot be enabled at the same time
 	#elif defined BRICKD_WITH_UWP_HAT_BRICK
 	strcpy(product_id, BRICKLET_RPI_HAT_PRODUCT_ID);
@@ -411,6 +434,22 @@ int bricklet_init(void) {
 	                           BRICKLET_RPI_HAT_ZERO_SPIDEV_INDEX,
 	                           bricklet_stack_rpi_hat_zero_cs_config,
 	                           "HAT Zero",
+	                           false);
+
+	if (rc < 0) {
+		return -1;
+	}
+
+	if (rc == 0) {
+		return 0;
+	}
+
+	// or a Tinkerforge HAT WARP Energy Manager Brick is on top
+	rc = bricklet_init_rpi_hat(BRICKLET_RPI_HAT_WARP_ENERGY_MANAGER_PRODUCT_ID,
+	                           BRICKLET_RPI_HAT_WARP_ENERGY_MANAGER_SPIDEV,
+	                           BRICKLET_RPI_HAT_WARP_ENERGY_MANAGER_SPIDEV_INDEX,
+	                           bricklet_stack_rpi_hat_warp_energy_manager_cs_config,
+	                           "HAT WARP Energy Manager",
 	                           true);
 
 	if (rc < 0) {
