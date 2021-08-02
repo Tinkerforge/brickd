@@ -250,6 +250,12 @@ def build_macos_pkg():
 
     system('hdiutil create -fs HFS+ -volname "Brickd-{0}" -srcfolder dist/dmg {1}'.format(version, dmg_name))
 
+def signtool_sign(path):
+    system('signtool.exe sign /v /fd sha256 /tr http://rfc3161timestamp.globalsign.com/advanced /td sha256 /a /n "Tinkerforge GmbH" "{0}"'.format(path))
+
+def signtool_verify(path):
+    system('signtool.exe verify /v /pa "{0}"'.format(path))
+
 def build_windows_pkg():
     parser = argparse.ArgumentParser()
 
@@ -280,20 +286,20 @@ def build_windows_pkg():
 
     if not args.no_sign:
         print('signing brickd.exe')
-        system('signtool.exe sign /v /tr http://rfc3161timestamp.globalsign.com/advanced /td sha256 /n "Tinkerforge GmbH" /a dist\\brickd.exe')
+        signtool_sign('dist\\brickd.exe')
 
         print('verifying brickd.exe signature')
-        system('signtool.exe verify /v /pa dist\\brickd.exe')
+        signtool_verify('dist\\brickd.exe')
 
     print('compiling logviewer.exe')
     system('cd build_data\\windows\\logviewer && compile.bat {0}'.format(version_suffix))
 
     if not args.no_sign:
         print('signing logviewer.exe')
-        system('signtool.exe sign /v /tr http://rfc3161timestamp.globalsign.com/advanced /td sha256 /n "Tinkerforge GmbH" /a build_data\\windows\\logviewer\\logviewer.exe')
+        signtool_sign('build_data\\windows\\logviewer\\logviewer.exe')
 
         print('verifying logviewer.exe signature')
-        system('signtool.exe verify /v /pa build_data\\windows\\logviewer\\logviewer.exe')
+        signtool_verify('build_data\\windows\\logviewer\\logviewer.exe')
 
     print('creating NSIS script from template')
     version = check_output(['dist\\brickd.exe', '--version']).strip()
@@ -326,10 +332,10 @@ def build_windows_pkg():
 
     if not args.no_sign:
         print('signing NSIS installer')
-        system('signtool.exe sign /v /tr http://rfc3161timestamp.globalsign.com/advanced /td sha256 /n "Tinkerforge GmbH" /a ' + installer)
+        signtool_sign(installer)
 
         print('verifying NSIS installer signature')
-        system('signtool.exe verify /v /pa ' + installer)
+        signtool_verify(installer)
 
 def git_ls_files(path):
     if os.system('cd {0}; git rev-parse --is-inside-work-tree >/dev/null 2>&1'.format(path)) == 0:
