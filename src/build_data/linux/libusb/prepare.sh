@@ -1,4 +1,4 @@
-#!/bin/sh -ex
+#!/bin/bash -ex
 
 version=1.0.24.11609
 commit=1001cb5558cf6679af7bce3114bba1d3bb7b6f7f

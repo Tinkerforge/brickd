@@ -1,4 +1,4 @@
-#!/bin/sh -ex
+#!/bin/bash -ex
 
 rm -f libusb.h
 rm -f libusb-1.0-brickd.a
