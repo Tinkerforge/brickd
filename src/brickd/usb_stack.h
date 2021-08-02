@@ -48,7 +48,7 @@ typedef struct {
 	Array write_transfers;
 	int pending_transfers;
 	Queue write_queue;
-	uint32_t dropped_requests;
+	uint32_t dropped_writes;
 	bool connected;
 	bool red_brick;
 	bool expecting_short_Ax_response;

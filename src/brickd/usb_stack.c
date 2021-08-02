@@ -45,6 +45,7 @@ static LogSource _log_source = LOG_SOURCE_INITIALIZER;
 #define MAX_READ_TRANSFERS 10
 #define MAX_WRITE_TRANSFERS 10
 #define MAX_QUEUED_WRITES 32768
+#define QUEUED_WRITES_DROP_COUNT 512
 #define PENDING_ERROR_TIMER_DELAY 1000000 // 1 second in microseconds
 #define PENDING_TRANSFERS_TIMEOUT 1000 // milliseconds
 #define PENDING_TRANSFERS_CHECK_INTERVAL 10 // milliseconds
@@ -266,7 +267,7 @@ static int usb_stack_dispatch_request(Stack *stack, Packet *request,
 	USBTransfer *usb_transfer;
 	Packet *queued_request;
 	char packet_signature[PACKET_MAX_SIGNATURE_LENGTH];
-	uint32_t requests_to_drop;
+	uint32_t writes_to_drop;
 
 	(void)recipient;
 
@@ -302,16 +303,16 @@ static int usb_stack_dispatch_request(Stack *stack, Packet *request,
 	                 usb_stack->base.name, usb_stack->write_queue.count);
 
 	if (usb_stack->write_queue.count >= MAX_QUEUED_WRITES) {
-		requests_to_drop = usb_stack->write_queue.count - MAX_QUEUED_WRITES + 1;
+		writes_to_drop = usb_stack->write_queue.count - MAX_QUEUED_WRITES + QUEUED_WRITES_DROP_COUNT;
 
-		log_warn("Write queue for %s is full, dropping %u queued request(s), %u + %u dropped in total",
-		         usb_stack->base.name, requests_to_drop,
-		         usb_stack->dropped_requests, requests_to_drop);
+		log_warn("Write queue for %s is full, dropping %u queued write(s), %u + %u dropped in total",
+		         usb_stack->base.name, writes_to_drop, usb_stack->dropped_writes, writes_to_drop);
 
-		usb_stack->dropped_requests += requests_to_drop;
-
-		while (usb_stack->write_queue.count >= MAX_QUEUED_WRITES) {
+		while (writes_to_drop > 0) {
 			queue_pop(&usb_stack->write_queue, NULL);
+
+			--writes_to_drop;
+			++usb_stack->dropped_writes;
 		}
 	}
 
@@ -351,7 +352,7 @@ int usb_stack_create(USBStack *usb_stack, libusb_context *context, libusb_device
 
 	usb_stack->device_handle = NULL;
 	usb_stack->pending_transfers = 0;
-	usb_stack->dropped_requests = 0;
+	usb_stack->dropped_writes = 0;
 	usb_stack->connected = true;
 	usb_stack->red_brick = red_brick;
 	usb_stack->expecting_removal = false;

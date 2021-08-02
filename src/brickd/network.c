@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2012-2019 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2012-2019, 2021 Matthias Bolte <matthias@tinkerforge.com>
  * Copyright (C) 2014 Olaf Lüke <olaf@tinkerforge.com>
  * Copyright (C) 2016-2017 Ishraq Ibne Ashraf <ishraq@tinkerforge.com>
  *
@@ -366,20 +366,22 @@ void network_client_expects_response(Client *client, Packet *request) {
 	PendingRequest *pending_request;
 	char packet_signature[PACKET_MAX_SIGNATURE_LENGTH];
 
+	// FIXME: drop pending requests that are older than configurable maximum age
 	if (client->pending_request_count >= CLIENT_MAX_PENDING_REQUESTS) {
-		pending_requests_to_drop = client->pending_request_count - CLIENT_MAX_PENDING_REQUESTS + 1;
+		pending_requests_to_drop = client->pending_request_count - CLIENT_MAX_PENDING_REQUESTS + CLIENT_PENDING_REQUESTS_DROP_COUNT;
 
-		log_warn("Pending requests list for client ("CLIENT_SIGNATURE_FORMAT") is full, dropping %d pending request(s), %u +%u dropped in total",
+		log_warn("Pending requests list for client ("CLIENT_SIGNATURE_FORMAT") is full, dropping %d pending request(s), %u + %u dropped in total",
 		         client_expand_signature(client), pending_requests_to_drop,
 		         client->dropped_pending_requests, pending_requests_to_drop);
 
-		client->dropped_pending_requests += pending_requests_to_drop;
-
-		while (client->pending_request_count >= CLIENT_MAX_PENDING_REQUESTS) {
+		while (pending_requests_to_drop > 0) {
 			pending_request = containerof(client->pending_request_sentinel.next,
 			                              PendingRequest, client_node);
 
 			pending_request_remove_and_free(pending_request);
+
+			--pending_requests_to_drop;
+			++client->dropped_pending_requests;
 		}
 	}
 
