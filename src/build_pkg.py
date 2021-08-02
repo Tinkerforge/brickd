@@ -170,7 +170,13 @@ def build_macos_pkg():
         notarization_info = None
 
         while True:
-            output = subprocess.check_output(['xcrun', 'altool', '--notarization-info', request_uuid, '--username', 'olaf@tinkerforge.com', '--password', '@keychain:Notarization', '--output-format', 'xml'])
+            try:
+                output = subprocess.check_output(['xcrun', 'altool', '--notarization-info', request_uuid, '--username', 'olaf@tinkerforge.com', '--password', '@keychain:Notarization', '--output-format', 'xml'])
+            except subprocess.CalledProcessError as e:
+                print('warning: notarize query failed, retrying', e)
+                time.sleep(1)
+                continue
+
             notarization_info = plistlib.loads(output)['notarization-info']
 
             if notarization_info['Status'] != 'in progress':
