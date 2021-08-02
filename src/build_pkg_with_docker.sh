@@ -4,7 +4,7 @@ version=1.1.0
 
 rm -rf dist
 
-daemonlib_symlink=$(readlink daemonlib || true)
+daemonlib_symlink=$(readlink "$(pwd)/daemonlib" || true)
 
 if [ -n "${daemonlib_symlink}" ]; then
     daemonlib_path=$(realpath "${daemonlib_symlink}")
