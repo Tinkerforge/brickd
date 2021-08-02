@@ -1,4 +1,5 @@
 ARG ARCHITECTURE
+
 FROM ${ARCHITECTURE}/debian:stretch
 
 # apt
