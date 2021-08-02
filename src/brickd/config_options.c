@@ -2,7 +2,7 @@
  * brickd
  * Copyright (C) 2014, 2017-2020 Matthias Bolte <matthias@tinkerforge.com>
  * Copyright (C) 2016 Ishraq Ibne Ashraf <ishraq@tinkerforge.com>
- * Copyright (C) 2018 Olaf Lüke <olaf@tinkerforge.com>
+ * Copyright (C) 2018-2019 Olaf Lüke <olaf@tinkerforge.com>
  *
  * config_options.c: Config options
  *

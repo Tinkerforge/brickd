@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2019-2020 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2019-2021 Matthias Bolte <matthias@tinkerforge.com>
  *
  * bricklet_stack_uwp.cpp: Universal Windows Platform specific parts of SPI
  *                         Tinkerforge Protocol (SPITFP) implementation for

@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2017-2019 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2017-2020 Matthias Bolte <matthias@tinkerforge.com>
  *
  * app_service.cpp: AppService based I/O device for Universal Windows Platform
  *

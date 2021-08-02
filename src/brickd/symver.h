@@ -1,6 +1,7 @@
 /*
  * brickd
  * Copyright (C) 2020-2021 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2021 Andreas Schwab <schwab@suse.de>
  *
  * symver.h: force linking to older glibc symbols to lower glibc dependency
  *

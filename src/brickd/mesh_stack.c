@@ -1,7 +1,7 @@
 /*
  * brickd
  * Copyright (C) 2016-2017 Ishraq Ibne Ashraf <ishraq@tinkerforge.com>
- * Copyright (C) 2017-2019 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2017-2020 Matthias Bolte <matthias@tinkerforge.com>
  *
  * mesh_stack.c: Mesh stack specific functions
  *

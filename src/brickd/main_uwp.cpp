@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2016-2019, 2021 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2016-2021 Matthias Bolte <matthias@tinkerforge.com>
  * Copyright (C) 2016-2017 Ishraq Ibne Ashraf <ishraq@tinkerforge.com>
  *
  * main_uwp.cpp: Brick Daemon starting point for Universal Windows Platform

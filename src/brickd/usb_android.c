@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2018-2019, 2021 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2018-2021 Matthias Bolte <matthias@tinkerforge.com>
  *
  * usb_android.c: Android specific USB functions
  *

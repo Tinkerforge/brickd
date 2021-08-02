@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2012-2019 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2012-2020 Matthias Bolte <matthias@tinkerforge.com>
  * Copyright (C) 2014 Olaf Lüke <olaf@tinkerforge.com>
  *
  * client.c: Client specific functions

@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2017, 2021 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2017, 2020-2021 Matthias Bolte <matthias@tinkerforge.com>
  *
  * usb_windows.c: General USB code used for all flavors of Windows
  *
