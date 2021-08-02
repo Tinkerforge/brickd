@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2012-2014 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2012-2014, 2021 Matthias Bolte <matthias@tinkerforge.com>
  *
  * hardware.h: Hardware specific functions
  *
@@ -32,7 +32,7 @@ void hardware_exit(void);
 int hardware_add_stack(Stack *stack);
 int hardware_remove_stack(Stack *stack);
 
-void hardware_dispatch_request(Packet *request);
+bool hardware_dispatch_request(Packet *request);
 
 void hardware_announce_disconnect(void);
 

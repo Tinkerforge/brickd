@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2012-2014 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2012-2014, 2021 Matthias Bolte <matthias@tinkerforge.com>
  * Copyright (C) 2014 Olaf Lüke <olaf@tinkerforge.com>
  *
  * network.h: Network specific functions
@@ -35,7 +35,7 @@ int network_create_zombie(Client *client);
 
 void network_cleanup_clients_and_zombies(void);
 
-void network_client_expects_response(Client *client, Packet *request);
+PendingRequest *network_client_expects_response(Client *client, Packet *request);
 void network_dispatch_response(Packet *response);
 
 #ifdef BRICKD_WITH_RED_BRICK

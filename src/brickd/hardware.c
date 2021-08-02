@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2013-2018 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2013-2018, 2021 Matthias Bolte <matthias@tinkerforge.com>
  *
  * hardware.c: Hardware specific functions
  *
@@ -93,11 +93,10 @@ int hardware_remove_stack(Stack *stack) {
 	return -1;
 }
 
-void hardware_dispatch_request(Packet *request) {
+bool hardware_dispatch_request(Packet *request) {
 	char packet_signature[PACKET_MAX_SIGNATURE_LENGTH];
 	int i;
 	Stack *stack;
-	int rc;
 	bool dispatched = false;
 
 	packet_add_trace(request);
@@ -106,7 +105,7 @@ void hardware_dispatch_request(Packet *request) {
 		log_packet_debug("No stacks connected, dropping request (%s)",
 		                 packet_get_request_signature(packet_signature, request));
 
-		return;
+		return false;
 	}
 
 	if (request->header.uid == 0) {
@@ -120,7 +119,9 @@ void hardware_dispatch_request(Packet *request) {
 		for (i = 0; i < _stacks.count; ++i) {
 			stack = *(Stack **)array_get(&_stacks, i);
 
-			stack_dispatch_request(stack, request, true);
+			if (stack_dispatch_request(stack, request, true) > 0) {
+				dispatched = true;
+			}
 		}
 	} else {
 		log_packet_debug("Dispatching request (%s) to %d stack(s)",
@@ -138,30 +139,28 @@ void hardware_dispatch_request(Packet *request) {
 		for (i = 0; i < _stacks.count; ++i) {
 			stack = *(Stack **)array_get(&_stacks, i);
 
-			rc = stack_dispatch_request(stack, request, false);
-
-			if (rc < 0) {
-				continue;
-			} else if (rc > 0) {
+			if (stack_dispatch_request(stack, request, false) > 0) {
 				dispatched = true;
 			}
 		}
 
-		if (dispatched) {
-			return;
-		}
+		if (!dispatched) {
+			log_packet_debug("Broadcasting request because UID is currently unknown");
 
-		log_packet_debug("Broadcasting request because UID is currently unknown");
+			packet_add_trace(request);
 
-		packet_add_trace(request);
+			// broadcast to all stacks, as no stack claimed to know the UID
+			for (i = 0; i < _stacks.count; ++i) {
+				stack = *(Stack **)array_get(&_stacks, i);
 
-		// broadcast to all stacks, as no stack claimed to know the UID
-		for (i = 0; i < _stacks.count; ++i) {
-			stack = *(Stack **)array_get(&_stacks, i);
-
-			stack_dispatch_request(stack, request, true);
+				if (stack_dispatch_request(stack, request, true) > 0) {
+					dispatched = true;
+				}
+			}
 		}
 	}
+
+	return dispatched;
 }
 
 void hardware_announce_disconnect(void) {

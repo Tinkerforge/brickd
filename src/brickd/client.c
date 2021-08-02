@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2012-2020 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2012-2021 Matthias Bolte <matthias@tinkerforge.com>
  * Copyright (C) 2014 Olaf Lüke <olaf@tinkerforge.com>
  *
  * client.c: Client specific functions
@@ -171,6 +171,8 @@ static void client_handle_request(Client *client, Packet *request) {
 		EmptyResponse response;
 		Packet packet;
 	} u;
+	PendingRequest *pending_request;
+	bool dispatched;
 
 	packet_add_trace(request);
 
@@ -223,12 +225,21 @@ static void client_handle_request(Client *client, Packet *request) {
 	           client->authentication_state == CLIENT_AUTHENTICATION_STATE_DONE) {
 		// add as pending request if response is expected...
 		if (packet_header_get_response_expected(&request->header)) {
-			network_client_expects_response(client, request);
+			pending_request = network_client_expects_response(client, request);
+		} else {
+			pending_request = NULL;
 		}
 
 		// ...then dispatch it to the hardware
 		packet_add_trace(request);
-		hardware_dispatch_request(request);
+
+		dispatched = hardware_dispatch_request(request);
+
+		if (!dispatched && pending_request != NULL) {
+			// if the request could not be dispatched, then drop the now stale
+			// pending request again
+			pending_request_remove_and_free(pending_request);
+		}
 	} else {
 		log_packet_debug("Client ("CLIENT_SIGNATURE_FORMAT") is not authenticated, dropping request (%s)",
 		                 client_expand_signature(client),

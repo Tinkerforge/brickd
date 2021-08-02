@@ -361,7 +361,7 @@ void network_cleanup_clients_and_zombies(void) {
 	}
 }
 
-void network_client_expects_response(Client *client, Packet *request) {
+PendingRequest *network_client_expects_response(Client *client, Packet *request) {
 	uint32_t pending_requests_to_drop;
 	PendingRequest *pending_request;
 	char packet_signature[PACKET_MAX_SIGNATURE_LENGTH];
@@ -391,7 +391,7 @@ void network_client_expects_response(Client *client, Packet *request) {
 		log_error("Could not allocate pending request: %s (%d)",
 		          get_errno_name(ENOMEM), ENOMEM);
 
-		return;
+		return NULL;
 	}
 
 	node_insert_before(&_pending_request_sentinel, &pending_request->global_node);
@@ -407,6 +407,8 @@ void network_client_expects_response(Client *client, Packet *request) {
 	log_packet_debug("Added pending request (%s) for client ("CLIENT_SIGNATURE_FORMAT")",
 	                 packet_get_request_signature(packet_signature, request),
 	                 client_expand_signature(client));
+
+	return pending_request;
 }
 
 void network_dispatch_response(Packet *response) {
