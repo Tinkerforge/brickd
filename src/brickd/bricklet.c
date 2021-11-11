@@ -235,7 +235,7 @@ int bricklet_init_rpi_hat(const char *product_id_test, const char *spidev,
 	bool no_hat = false;
 
 	#if defined BRICKD_WITH_UWP_HAT_WARP_ENERGY_MANAGER_BRICK
-		#error HAT WARP Ebergy Manager Brick is not supported with UWP build
+		#error HAT WARP Energy Manager Brick is not supported with UWP build
 	#elif defined BRICKD_WITH_UWP_HAT_BRICK && defined BRICKD_WITH_UWP_HAT_ZERO_BRICK
 		#error HAT Brick and HAT Zero Brick support cannot be enabled at the same time
 	#elif defined BRICKD_WITH_UWP_HAT_BRICK
