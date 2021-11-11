@@ -49,7 +49,7 @@ using namespace Windows::Devices::Enumeration;
 using namespace Windows::Devices::Gpio;
 using namespace Windows::Devices::Spi;
 
-#define BRICKLET_STACK_SPI_CONFIG_MAX_SPEED_HZ   1400000
+#define BRICKLET_STACK_SPI_CONFIG_MAX_SPEED_HZ   1400000 // 400000 - 2000000
 #define BRICKLET_STACK_SPI_CONFIG_MODE           SpiMode::Mode3
 #define BRICKLET_STACK_SPI_CONFIG_BITS_PER_WORD  8
 
