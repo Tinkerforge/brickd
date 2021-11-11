@@ -3,7 +3,7 @@
  *
  * http://www.airspayce.com/mikem/bcm2835/index.html
  *
- * licensed unter GPLv3
+ * Licensed under GPLv3
  *
  * Patched to use daemonlib/log.h instead of writing to stderr
  */
@@ -17,6 +17,10 @@
 // Copyright (C) 2011-2013 Mike McCauley
 // $Id: bcm2835.c,v 1.28 2020/01/11 05:07:13 mikem Exp mikem $
 */
+
+// Needed to compile with gcc -std=c99, as reported by John Blaiklock.
+#define _POSIX_C_SOURCE 200809L
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <errno.h>
