@@ -148,30 +148,38 @@ int mesh_start_listening(void) {
 		return -1;
 	}
 
-	socket_open_server(&_server_sockets, address, port, dual_stack, socket_create_allocated);
+	if (port == 0) {
+		log_debug("Mesh gateway is disabled");
 
-	for (i = 0; i < _server_sockets.count; ++i) {
-		server_socket = array_get(&_server_sockets, i);
+		return 0;
+	} else {
+		log_debug("Mesh gateway is enabled");
 
-		if (event_add_source(server_socket->handle, EVENT_SOURCE_TYPE_GENERIC, "mesh-server",
-		                     EVENT_READ, mesh_handle_accept, server_socket) < 0) {
-			break;
-		}
-	}
-
-	if (i < _server_sockets.count) {
-		for (--i; i >= 0; --i) {
-			server_socket = array_get(&_server_sockets, i);
-
-			event_remove_source(server_socket->handle, EVENT_SOURCE_TYPE_GENERIC);
-		}
+		socket_open_server(&_server_sockets, address, port, dual_stack, socket_create_allocated);
 
 		for (i = 0; i < _server_sockets.count; ++i) {
-			array_remove(&_server_sockets, i, (ItemDestroyFunction)socket_destroy);
-		}
-	}
+			server_socket = array_get(&_server_sockets, i);
 
-	return _server_sockets.count > 0 ? 0 : -1;
+			if (event_add_source(server_socket->handle, EVENT_SOURCE_TYPE_GENERIC, "mesh-server",
+			                     EVENT_READ, mesh_handle_accept, server_socket) < 0) {
+				break;
+			}
+		}
+
+		if (i < _server_sockets.count) {
+			for (--i; i >= 0; --i) {
+				server_socket = array_get(&_server_sockets, i);
+
+				event_remove_source(server_socket->handle, EVENT_SOURCE_TYPE_GENERIC);
+			}
+
+			for (i = 0; i < _server_sockets.count; ++i) {
+				array_remove(&_server_sockets, i, (ItemDestroyFunction)socket_destroy);
+			}
+		}
+
+		return _server_sockets.count > 0 ? 0 : -1;
+	}
 }
 
 void mesh_cleanup_stacks(void) {
