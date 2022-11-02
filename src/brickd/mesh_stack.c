@@ -54,6 +54,7 @@ static void mesh_stack_recv_handler(void *opaque) {
 		return;
 	}
 
+	// FIXME: endian handling
 	length = socket_receive(mesh_stack->sock,
 	                        mesh_stack->response_buffer + mesh_stack->response_buffer_used,
 	                        sizeof(mesh_stack->response_buffer) - mesh_stack->response_buffer_used);
@@ -232,6 +233,7 @@ void timer_hb_do_ping_handler(void *opaque) {
 	          mesh_stack->name);
 
 	// TODO: Integrate buffered IO write.
+	// FIXME: endian handling
 	if (socket_send(mesh_stack->sock, &pkt_mesh_hb, pkt_mesh_hb.header.length) < 0) {
 		log_error("Failed to send ping to mesh root node, cleaning up mesh stack (N: %s)",
 		          mesh_stack->name);
@@ -545,6 +547,7 @@ void hb_ping_recv_handler(MeshStack *mesh_stack) {
 	pkt_mesh_hb_pong.header.type = MESH_PACKET_TYPE_HEART_BEAT_PONG;
 
 	// TODO: Integrate buffered IO write.
+	// FIXME: endian handling
 	if (socket_send(mesh_stack->sock, &pkt_mesh_hb_pong, pkt_mesh_hb_pong.header.length) < 0) {
 		log_error("Failed to send mesh pong packet");
 	} else {
@@ -612,6 +615,7 @@ void broadcast_reset_packet(MeshStack *mesh_stack) {
 	                          MESH_PACKET_TYPE_RESET);
 
 	// TODO: Integrate buffered IO write.
+	// FIXME: endian handling
 	if (socket_send(mesh_stack->sock, &pkt_mesh_reset, pkt_mesh_reset.header.length) < 0) {
 		log_error("Failed to send broadcast reset stack packet (packet: %s)",
 		          mesh_packet_get_dump(mesh_packet_dump, (uint8_t *)&pkt_mesh_reset, pkt_mesh_reset.header.length));
@@ -681,6 +685,7 @@ bool hello_root_recv_handler(MeshStack *mesh_stack) {
 			                          MESH_PACKET_TYPE_RESET);
 
 			// TODO: Integrate buffered IO write.
+			// FIXME: endian handling
 			if (socket_send(mesh_stack_from_list->sock, &pkt_mesh_reset, pkt_mesh_reset.header.length) < 0) {
 				log_error("Failed to send mesh stack reset packet (A: %02X-%02X-%02X-%02X-%02X-%02X)",
 				          mesh_stack_from_list->root_node_addr[0],
@@ -717,6 +722,7 @@ bool hello_root_recv_handler(MeshStack *mesh_stack) {
 			                          MESH_PACKET_TYPE_RESET);
 
 			// TODO: Integrate buffered IO write.
+			// FIXME: endian handling
 			if (socket_send(mesh_stack->sock, &pkt_mesh_reset, pkt_mesh_reset.header.length) < 0) {
 				log_error("Failed to send mesh stack reset packet (A: %02X-%02X-%02X-%02X-%02X-%02X)",
 				          hello_mesh_pkt->header.src_addr[0],
@@ -819,6 +825,7 @@ bool hello_root_recv_handler(MeshStack *mesh_stack) {
 	                          MESH_PACKET_TYPE_OLLEH);
 
 	// TODO: Integrate buffered IO write.
+	// FIXME: endian handling
 	if (socket_send(mesh_stack->sock, &olleh_mesh_pkt, olleh_mesh_pkt.header.length) < 0) {
 		log_error("Failed to send mesh olleh packet (A: %02X-%02X-%02X-%02X-%02X-%02X, packet: %s)",
 		          olleh_mesh_pkt.header.dst_addr[0],
@@ -922,6 +929,7 @@ int mesh_stack_dispatch_request(Stack *stack, Packet *request, Recipient *recipi
 	}
 
 	// TODO: Integrate buffered IO write.
+	// FIXME: endian handling
 	ret = socket_send(mesh_stack->sock, &tfp_mesh_pkt, tfp_mesh_pkt.header.length);
 
 	if (ret < 0) {
@@ -1011,6 +1019,7 @@ bool hello_non_root_recv_handler(MeshStack *mesh_stack) {
 	                          MESH_PACKET_TYPE_OLLEH);
 
 	// TODO: Integrate buffered IO write.
+	// FIXME: endian handling
 	if (socket_send(mesh_stack->sock, &olleh_mesh_pkt, olleh_mesh_pkt.header.length) < 0) {
 		log_error("Olleh packet send failed (A: %02X-%02X-%02X-%02X-%02X-%02X, packet: %s)",
 		          hello_mesh_pkt->header.src_addr[0],
