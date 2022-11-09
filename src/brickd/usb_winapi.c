@@ -68,6 +68,8 @@ static int usb_forward_transfer_internal(bool silent_errno_would_block) {
 		log_error("Could not read from USB transfer pipe: %s (%d)",
 		          get_errno_name(errno), errno);
 
+		// FIXME: recreate socket pair on error, especially WSAECONNABORTED and WSAECONNRESET
+
 		return -1;
 	}
 
@@ -87,6 +89,8 @@ void LIBUSB_CALL usb_transfer_callback(struct libusb_transfer *handle) {
 	if (pipe_write(&_transfer_pipe, &handle, sizeof(handle)) < 0) {
 		log_error("Could not append finished USB transfer (handle: %p) to USB transfer pipe: %s (%d)",
 		          handle, get_errno_name(errno), errno);
+
+		// FIXME: recreate socket pair on error, especially WSAECONNABORTED and WSAECONNRESET
 
 		return;
 	}

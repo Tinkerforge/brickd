@@ -134,6 +134,8 @@ static void usb_forward_hotplug(void *opaque) {
 		log_error("Could not read from USB hotplug pipe: %s (%d)",
 		          get_errno_name(errno), errno);
 
+		// FIXME: recreate socket pair on error, especially WSAECONNABORTED and WSAECONNRESET
+
 		return;
 	}
 
@@ -478,6 +480,8 @@ void usb_handle_hotplug(void) {
 	if (pipe_write(&_hotplug_pipe, &byte, sizeof(byte)) < 0) {
 		log_error("Could not write to USB hotplug pipe: %s (%d)",
 		          get_errno_name(errno), errno);
+
+		// FIXME: recreate socket pair on error, especially WSAECONNABORTED and WSAECONNRESET
 	}
 }
 
