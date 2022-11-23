@@ -345,8 +345,6 @@ int main(int argc, char **argv) {
 		goto cleanup;
 	}
 
-	log_init();
-
 	if (daemon) {
 		pid_fd = daemon_start(_log_filename, &_log_file, _pid_filename, true);
 	} else {
@@ -356,6 +354,8 @@ int main(int argc, char **argv) {
 			fprintf(stderr, "Already running according to '%s'\n", _pid_filename);
 		}
 	}
+
+	log_init();
 
 	phase = 2;
 
