@@ -515,7 +515,7 @@ def build_linux_pkg():
     binary_version = check_output(['{0}/debian/brickd/usr/bin/brickd'.format(source_path), '--version']).strip()
 
     if changelog_version != binary_version:
-        print('error: version mismatch: {0} != {1}'.format(changelog_version, binary_version))
+        print('error: version mismatch between changelog and binary: {0} != {1}'.format(changelog_version, binary_version))
         sys.exit(1)
 
     if architecture == 'arm64':
