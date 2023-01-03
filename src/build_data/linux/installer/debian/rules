@@ -43,3 +43,7 @@ override_dh_systemd_start:
 	dh_systemd_start brickd.service
 	# do not start brickd-resume service on install/upgrade
 	dh_systemd_start --no-restart-after-upgrade --no-stop-on-upgrade --no-start brickd-resume.service
+
+override_dh_builddeb:
+	# ensure to use xz instead of zstd for backward compatibility
+	dh_builddeb -- -Zxz
