@@ -367,6 +367,7 @@ static int red_stack_spi_transceive_message(REDStackRequest *packet_send, REDSta
 	if ((length != RED_STACK_SPI_PACKET_EMPTY_SIZE) &&
 	    ((length < (RED_STACK_SPI_PACKET_EMPTY_SIZE + sizeof(PacketHeader))) ||
 	     (length > RED_STACK_SPI_PACKET_SIZE))) {
+		// FIXME: log full packet content
 		log_error("Received packet with malformed length: %d", length);
 		retval = (retval & (~RED_STACK_TRANSCEIVE_RESULT_MASK_READ)) | RED_STACK_TRANSCEIVE_RESULT_READ_ERROR;
 
