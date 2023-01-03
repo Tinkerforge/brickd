@@ -1,5 +1,5 @@
 diff --git a/configure.ac b/configure.ac
-index 7c86598..5992e8d 100644
+index e05faf4..2dd87fd 100644
 --- a/configure.ac
 +++ b/configure.ac
 @@ -16,7 +16,7 @@ LU_DEFINE_VERSION_ATOM([LIBUSB_MICRO])
@@ -21,7 +21,7 @@ index 7c86598..5992e8d 100644
  m4_ifdef([AM_SILENT_RULES],[AM_SILENT_RULES([yes])])
  
 diff --git a/libusb/Makefile.am b/libusb/Makefile.am
-index c78006e..9d7976d 100644
+index 30d3547..074500b 100644
 --- a/libusb/Makefile.am
 +++ b/libusb/Makefile.am
 @@ -3,7 +3,7 @@ AUTOMAKE_OPTIONS = subdir-objects
@@ -33,7 +33,7 @@ index c78006e..9d7976d 100644
  
  POSIX_PLATFORM_SRC = os/events_posix.h os/events_posix.c \
  		     os/threads_posix.h os/threads_posix.c
-@@ -36,7 +36,7 @@ endif
+@@ -37,7 +37,7 @@ endif
  if OS_HAIKU
  noinst_LTLIBRARIES = libusb_haiku.la
  libusb_haiku_la_SOURCES = $(OS_HAIKU_SRC)
@@ -42,7 +42,7 @@ index c78006e..9d7976d 100644
  endif
  
  if OS_LINUX
-@@ -73,15 +73,15 @@ include Makefile.am.extra
+@@ -80,15 +80,15 @@ include Makefile.am.extra
  -include ./$(DEPDIR)/libusb-1.0.Plo
  
  if CREATE_IMPORT_LIB
@@ -56,18 +56,18 @@ index c78006e..9d7976d 100644
  endif
  endif
  
--libusb_1_0_la_LDFLAGS = $(LT_LDFLAGS)
+-libusb_1_0_la_LDFLAGS = $(LT_LDFLAGS) $(EXTRA_LDFLAGS)
 -libusb_1_0_la_SOURCES = libusbi.h version.h version_nano.h \
 +libusb_1_0_brickd_la_LDFLAGS = $(LT_LDFLAGS)
 +libusb_1_0_brickd_la_SOURCES = libusbi.h version.h version_nano.h \
- 	core.c descriptor.c hotplug.h hotplug.c io.c strerror.c sync.c \
+ 	core.c descriptor.c hotplug.c io.c strerror.c sync.c \
  	$(PLATFORM_SRC) $(OS_SRC)
  
 diff --git a/libusb/core.c b/libusb/core.c
-index e04ec67..d16f475 100644
+index 4f98ef9..a291c53 100644
 --- a/libusb/core.c
 +++ b/libusb/core.c
-@@ -2572,6 +2572,12 @@ static void log_str(enum libusb_log_level level, const char *str)
+@@ -2574,6 +2574,12 @@ static void log_str(enum libusb_log_level level, const char *str)
  #endif /* USE_SYSTEM_LOGGING_FACILITY */
  }
  
@@ -80,7 +80,7 @@ index e04ec67..d16f475 100644
  static void log_v(struct libusb_context *ctx, enum libusb_log_level level,
  	const char *function, const char *format, va_list args)
  {
-@@ -2580,6 +2586,11 @@ static void log_v(struct libusb_context *ctx, enum libusb_log_level level,
+@@ -2582,6 +2588,11 @@ static void log_v(struct libusb_context *ctx, enum libusb_log_level level,
  	int global_debug, header_len, text_len;
  	static int has_debug_header_been_displayed = 0;
  
@@ -93,7 +93,7 @@ index e04ec67..d16f475 100644
  	global_debug = 1;
  	UNUSED(ctx);
 diff --git a/libusb/libusb-1.0.def b/libusb/libusb-1.0.def
-index 700a8bc..d4fc9fd 100644
+index c8d1eb2..f7b4e44 100644
 --- a/libusb/libusb-1.0.def
 +++ b/libusb/libusb-1.0.def
 @@ -1,4 +1,4 @@
@@ -102,7 +102,7 @@ index 700a8bc..d4fc9fd 100644
  EXPORTS
    libusb_alloc_streams
    libusb_alloc_streams@16 = libusb_alloc_streams
-@@ -180,3 +180,5 @@ EXPORTS
+@@ -179,3 +179,5 @@ EXPORTS
    libusb_wait_for_event@8 = libusb_wait_for_event
    libusb_wrap_sys_device
    libusb_wrap_sys_device@12 = libusb_wrap_sys_device
@@ -120,15 +120,15 @@ index bcb10fa..859d179 100644
 +			VALUE "OriginalFilename", "libusb-1.0-brickd.dll\0"
  			VALUE "PrivateBuild", "\0"
 -			VALUE "ProductName", "libusb-1.0\0"
-+			VALUE "ProductName", "libusb-1.0-brickd-1001cb5558cf6679af7bce3114bba1d3bb7b6f7f-26\0"
++			VALUE "ProductName", "libusb-1.0-brickd-1c6e76a483238ba9f0511c77b02ea7607c30d897-27\0"
  			VALUE "ProductVersion", LIBUSB_VERSIONSTRING
  			VALUE "SpecialBuild", "\0"
  		END
 diff --git a/libusb/libusb.h b/libusb/libusb.h
-index b0b5106..598ba43 100644
+index bc7ef16..a34d490 100644
 --- a/libusb/libusb.h
 +++ b/libusb/libusb.h
-@@ -37,6 +37,7 @@ typedef SSIZE_T ssize_t;
+@@ -43,6 +43,7 @@ typedef SSIZE_T ssize_t;
  
  #include <limits.h>
  #include <stdint.h>
@@ -136,7 +136,7 @@ index b0b5106..598ba43 100644
  #include <sys/types.h>
  #if !defined(_MSC_VER)
  #include <sys/time.h>
-@@ -55,13 +56,13 @@ typedef SSIZE_T ssize_t;
+@@ -61,13 +62,13 @@ typedef SSIZE_T ssize_t;
   * As this can be problematic if you include windows.h after libusb.h
   * in your sources, we force windows.h to be included first. */
  #if defined(_WIN32) || defined(__CYGWIN__)
@@ -153,8 +153,8 @@ index b0b5106..598ba43 100644
  #endif /* _WIN32 || __CYGWIN__ */
  
  #if defined(__GNUC__) && (__GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 5))
-@@ -116,6 +117,8 @@ typedef SSIZE_T ssize_t;
- #define LIBUSB_CALL
+@@ -126,6 +127,8 @@ typedef SSIZE_T ssize_t;
+ #define LIBUSB_CALLV
  #endif /* _WIN32 || __CYGWIN__ */
  
 +#define LIBUSB_BRICKD_PATCH 1
@@ -162,7 +162,7 @@ index b0b5106..598ba43 100644
  /** \def LIBUSB_API_VERSION
   * \ingroup libusb_misc
   * libusb's API version.
-@@ -1354,7 +1357,6 @@ typedef void (LIBUSB_CALL *libusb_log_cb)(libusb_context *ctx,
+@@ -1366,7 +1369,6 @@ typedef void (LIBUSB_CALL *libusb_log_cb)(libusb_context *ctx,
  
  int LIBUSB_CALL libusb_init(libusb_context **ctx);
  void LIBUSB_CALL libusb_exit(libusb_context *ctx);
@@ -170,9 +170,9 @@ index b0b5106..598ba43 100644
  void LIBUSB_CALL libusb_set_debug(libusb_context *ctx, int level);
  void LIBUSB_CALL libusb_set_log_cb(libusb_context *ctx, libusb_log_cb cb, int mode);
  const struct libusb_version * LIBUSB_CALL libusb_get_version(void);
-@@ -2112,6 +2114,13 @@ enum libusb_option {
+@@ -2136,6 +2138,13 @@ enum libusb_option {
  
- int LIBUSB_CALL libusb_set_option(libusb_context *ctx, enum libusb_option option, ...);
+ int LIBUSB_CALLV libusb_set_option(libusb_context *ctx, enum libusb_option option, ...);
  
 +typedef void (LIBUSB_CALL *libusb_log_callback)(libusb_context *ctx,
 +                                                enum libusb_log_level level,
@@ -181,33 +181,33 @@ index b0b5106..598ba43 100644
 +                                                va_list args);
 +void LIBUSB_CALL libusb_set_log_callback(libusb_log_callback callback);
 +
- #if defined(__cplusplus)
- }
+ #ifdef _MSC_VER
+ #pragma warning(pop)
  #endif
 diff --git a/libusb/os/windows_common.c b/libusb/os/windows_common.c
-index 6e69317..fcb459d 100644
+index 32887fb..3959625 100644
 --- a/libusb/os/windows_common.c
 +++ b/libusb/os/windows_common.c
-@@ -802,7 +802,14 @@ static int windows_cancel_transfer(struct usbi_transfer *itransfer)
+@@ -792,7 +792,14 @@ static int windows_cancel_transfer(struct usbi_transfer *itransfer)
  
  static int windows_handle_transfer_completion(struct usbi_transfer *itransfer)
  {
 -	struct libusb_context *ctx = ITRANSFER_CTX(itransfer);
 +	struct libusb_transfer *transfer = USBI_TRANSFER_TO_LIBUSB_TRANSFER(itransfer);
++	struct libusb_context *ctx = TRANSFER_CTX(transfer);
 +
 +	if (transfer->dev_handle == NULL) {
-+		usbi_dbg("ignoring orphaned transfer %p completion", transfer);
++		usbi_dbg(ctx, "ignoring orphaned transfer %p completion", transfer);
 +		return 0;
 +	}
 +
-+	struct libusb_context *ctx = TRANSFER_CTX(transfer);
  	struct windows_context_priv *priv = usbi_get_context_priv(ctx);
  	const struct windows_backend *backend = priv->backend;
  	struct windows_transfer_priv *transfer_priv = usbi_get_transfer_priv(itransfer);
-@@ -815,7 +822,7 @@ static int windows_handle_transfer_completion(struct usbi_transfer *itransfer)
+@@ -805,7 +812,7 @@ static int windows_handle_transfer_completion(struct usbi_transfer *itransfer)
  		result = GetLastError();
  
- 	usbi_dbg("handling transfer %p completion with errcode %lu, length %lu",
+ 	usbi_dbg(ctx, "handling transfer %p completion with errcode %lu, length %lu",
 -		 USBI_TRANSFER_TO_LIBUSB_TRANSFER(itransfer), ULONG_CAST(result), ULONG_CAST(bytes_transferred));
 +	         transfer, ULONG_CAST(result), ULONG_CAST(bytes_transferred));
  
@@ -226,7 +226,7 @@ index 9f52b48..2b650e7 100644
  #include <stdio.h>
  
 diff --git a/libusb/os/windows_winusb.c b/libusb/os/windows_winusb.c
-index e4d194a..9c66a89 100644
+index 3e3f0b4..904983b 100644
 --- a/libusb/os/windows_winusb.c
 +++ b/libusb/os/windows_winusb.c
 @@ -25,6 +25,7 @@
@@ -237,7 +237,7 @@ index e4d194a..9c66a89 100644
  #include <windows.h>
  #include <setupapi.h>
  #include <ctype.h>
-@@ -1069,6 +1070,13 @@ static int init_device(struct libusb_device *dev, struct libusb_device *parent_d
+@@ -1088,6 +1089,13 @@ static int init_device(struct libusb_device *dev, struct libusb_device *parent_d
  			return LIBUSB_ERROR_NOT_FOUND;
  		}
  
@@ -246,12 +246,12 @@ index e4d194a..9c66a89 100644
 +			return LIBUSB_ERROR_NO_DEVICE;
 +		}
 +
-+		usbi_dbg("looking up port %d at %s for %s", port_number, parent_priv->path, priv->dev_id);
++		usbi_dbg(ctx, "looking up port %d at %s for %s", port_number, parent_priv->path, priv->dev_id);
 +
  		// Calculate depth and fetch bus number
  		bus_number = parent_dev->bus_number;
  		if (bus_number == 0) {
-@@ -1474,7 +1482,7 @@ static int winusb_get_device_list(struct libusb_context *ctx, struct discovered_
+@@ -1534,7 +1542,7 @@ static int winusb_get_device_list(struct libusb_context *ctx, struct discovered_
  	}
  
  	for (pass = 0; ((pass < nb_guids) && (r == LIBUSB_SUCCESS)); pass++) {
@@ -259,4 +259,4 @@ index e4d194a..9c66a89 100644
 +#define ENUM_DEBUG
  #if defined(ENABLE_LOGGING) && defined(ENUM_DEBUG)
  		const char * const passname[] = {"HUB", "DEV", "HCD", "GEN", "HID", "EXT"};
- 		usbi_dbg("#### PROCESSING %ss %s", passname[MIN(pass, EXT_PASS)], guid_to_string(guid_list[pass], guid_string));
+ 		usbi_dbg(ctx, "#### PROCESSING %ss %s", passname[MIN(pass, EXT_PASS)], guid_to_string(guid_list[pass], guid_string));

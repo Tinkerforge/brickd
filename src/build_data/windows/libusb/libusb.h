@@ -26,13 +26,19 @@
 #define LIBUSB_H
 
 #if defined(_MSC_VER)
+#pragma warning(push)
+/* Disable: warning C4200: nonstandard extension used : zero-sized array in struct/union */
+#pragma warning(disable:4200)
 /* on MS environments, the inline keyword is available in C++ only */
 #if !defined(__cplusplus)
 #define inline __inline
 #endif
 /* ssize_t is also not available */
+#ifndef _SSIZE_T_DEFINED
+#define _SSIZE_T_DEFINED
 #include <basetsd.h>
 typedef SSIZE_T ssize_t;
+#endif /* _SSIZE_T_DEFINED */
 #endif /* _MSC_VER */
 
 #include <limits.h>
@@ -69,6 +75,8 @@ typedef SSIZE_T ssize_t;
 #define LIBUSB_DEPRECATED_FOR(f) __attribute__ ((deprecated ("Use " #f " instead")))
 #elif defined(__GNUC__) && (__GNUC__ >= 3)
 #define LIBUSB_DEPRECATED_FOR(f) __attribute__ ((deprecated))
+#elif defined(_MSC_VER)
+#define LIBUSB_DEPRECATED_FOR(f) __declspec(deprecated("Use " #f " instead"))
 #else
 #define LIBUSB_DEPRECATED_FOR(f)
 #endif /* __GNUC__ */
@@ -113,8 +121,10 @@ typedef SSIZE_T ssize_t;
  */
 #if defined(_WIN32) || defined(__CYGWIN__)
 #define LIBUSB_CALL WINAPI
+#define LIBUSB_CALLV WINAPIV
 #else
 #define LIBUSB_CALL
+#define LIBUSB_CALLV
 #endif /* _WIN32 || __CYGWIN__ */
 
 #define LIBUSB_BRICKD_PATCH 1
@@ -139,7 +149,7 @@ typedef SSIZE_T ssize_t;
  * Internally, LIBUSB_API_VERSION is defined as follows:
  * (libusb major << 24) | (libusb minor << 16) | (16 bit incremental)
  */
-#define LIBUSB_API_VERSION 0x01000108
+#define LIBUSB_API_VERSION 0x01000109
 
 /* The following is kept for compatibility, but will be deprecated in the future */
 #define LIBUSBX_API_VERSION LIBUSB_API_VERSION
@@ -907,7 +917,7 @@ struct libusb_container_id_descriptor {
 
 /** \ingroup libusb_asyncio
  * Setup packet for control transfers. */
-#if defined(_MSC_VER)
+#if defined(_MSC_VER) || defined(__WATCOMC__)
 #pragma pack(push, 1)
 #endif
 struct libusb_control_setup {
@@ -935,7 +945,7 @@ struct libusb_control_setup {
 	/** Number of bytes to transfer */
 	uint16_t wLength;
 } LIBUSB_PACKED;
-#if defined(_MSC_VER)
+#if defined(_MSC_VER) || defined(__WATCOMC__)
 #pragma pack(pop)
 #endif
 
@@ -982,8 +992,9 @@ struct libusb_version {
  * Sessions are created by libusb_init() and destroyed through libusb_exit().
  * If your application is guaranteed to only ever include a single libusb
  * user (i.e. you), you do not have to worry about contexts: pass NULL in
- * every function call where a context is required. The default context
- * will be used.
+ * every function call where a context is required, and the default context
+ * will be used. Note that libusb_set_option(NULL, ...) is special, and adds
+ * an option to a list of default options for new contexts.
  *
  * For more information, see \ref libusb_contexts.
  */
@@ -992,7 +1003,7 @@ typedef struct libusb_context libusb_context;
 /** \ingroup libusb_dev
  * Structure representing a USB device detected on the system. This is an
  * opaque type for which you are only ever provided with a pointer, usually
- * originating from libusb_get_device_list().
+ * originating from libusb_get_device_list() or libusb_hotplug_register_callback().
  *
  * Certain operations can be performed on a device, but in order to do any
  * I/O you will have to first obtain a device handle using libusb_open().
@@ -1183,7 +1194,8 @@ enum libusb_transfer_flags {
 	 *
 	 * This flag is currently only supported on Linux.
 	 * On other systems, libusb_submit_transfer() will return
-	 * LIBUSB_ERROR_NOT_SUPPORTED for every transfer where this flag is set.
+	 * \ref LIBUSB_ERROR_NOT_SUPPORTED for every transfer where this
+	 * flag is set.
 	 *
 	 * Available since libusb-1.0.9.
 	 */
@@ -2031,7 +2043,7 @@ typedef int (LIBUSB_CALL *libusb_hotplug_callback_fn)(libusb_context *ctx,
  * \param[in] cb_fn the function to be invoked on a matching event/device
  * \param[in] user_data user data to pass to the callback function
  * \param[out] callback_handle pointer to store the handle of the allocated callback (can be NULL)
- * \returns LIBUSB_SUCCESS on success LIBUSB_ERROR code on failure
+ * \returns \ref LIBUSB_SUCCESS on success LIBUSB_ERROR code on failure
  */
 int LIBUSB_CALL libusb_hotplug_register_callback(libusb_context *ctx,
 	int events, int flags,
@@ -2100,19 +2112,31 @@ enum libusb_option {
 	 */
 	LIBUSB_OPTION_USE_USBDK = 1,
 
-	/** Set libusb has weak authority. With this option, libusb will skip
-	 * scan devices in libusb_init.
+	/** Do not scan for devices
 	 *
-	 * This option should be set before calling libusb_init(), otherwise
-	 * libusb_init will failed. Normally libusb_wrap_sys_device need set
-	 * this option.
+	 * With this option set, libusb will skip scanning devices in
+	 * libusb_init(). Must be set before calling libusb_init().
 	 *
-	 * Only valid on Linux-based operating system, such as Android.
+	 * Hotplug functionality will also be deactivated.
+	 *
+	 * The option is useful in combination with libusb_wrap_sys_device(),
+	 * which can access a device directly without prior device scanning.
+	 *
+	 * This is typically needed on Android, where access to USB devices
+	 * is limited.
+	 *
+	 * For LIBUSB_API_VERSION 0x01000108 it was called LIBUSB_OPTION_WEAK_AUTHORITY
+	 *
+	 * Only valid on Linux.
 	 */
-	LIBUSB_OPTION_WEAK_AUTHORITY = 2
+	LIBUSB_OPTION_NO_DEVICE_DISCOVERY = 2,
+
+#define LIBUSB_OPTION_WEAK_AUTHORITY LIBUSB_OPTION_NO_DEVICE_DISCOVERY
+
+	LIBUSB_OPTION_MAX = 3
 };
 
-int LIBUSB_CALL libusb_set_option(libusb_context *ctx, enum libusb_option option, ...);
+int LIBUSB_CALLV libusb_set_option(libusb_context *ctx, enum libusb_option option, ...);
 
 typedef void (LIBUSB_CALL *libusb_log_callback)(libusb_context *ctx,
                                                 enum libusb_log_level level,
@@ -2120,6 +2144,10 @@ typedef void (LIBUSB_CALL *libusb_log_callback)(libusb_context *ctx,
                                                 const char *format,
                                                 va_list args);
 void LIBUSB_CALL libusb_set_log_callback(libusb_log_callback callback);
+
+#ifdef _MSC_VER
+#pragma warning(pop)
+#endif
 
 #if defined(__cplusplus)
 }
