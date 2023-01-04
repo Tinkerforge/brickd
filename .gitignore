@@ -16,6 +16,8 @@ src/build_data/android/brickd/app/.externalNativeBuild
 src/build_data/android/brickd/app/build
 src/build_data/linux/libusb/libusb-*.zip
 src/build_data/linux/libusb/libusb-src
+src/build_data/linux/libusb/libusb.h
+src/build_data/linux/libusb/libusb-1.0-brickd-static.a
 src/build_data/macos/libusb/libusb-*.zip
 src/build_data/macos/libusb/libusb-src
 src/build_data/windows/libusb/libusb-*.zip
