@@ -3,9 +3,10 @@
 # apt install gcc-mingw-w64-i686 g++-mingw-w64-i686 binutils-mingw-w64-i686
 
 rm -f libusb.h
+rm -f libusb-1.0-brickd.def
 rm -f libusb-1.0-brickd.dll
 rm -f libusb-1.0-brickd.dll.a
-rm -f libusb-1.0-brickd.a
+rm -f libusb-1.0-brickd-static.a
 
 pushd libusb-src
 
