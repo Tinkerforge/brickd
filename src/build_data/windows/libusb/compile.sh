@@ -22,5 +22,6 @@ cp libusb-src/libusb/libusb-1.0.def libusb-1.0-brickd.def
 cp libusb-src/libusb/.libs/libusb-1.0-brickd.dll libusb-1.0-brickd.dll
 cp libusb-src/libusb/.libs/libusb-1.0-brickd.dll.a libusb-1.0-brickd.dll.a
 cp libusb-src/libusb/.libs/libusb-1.0-brickd.a libusb-1.0-brickd-static.a
+i686-w64-mingw32-strip libusb-1.0-brickd.dll
 
 echo done
