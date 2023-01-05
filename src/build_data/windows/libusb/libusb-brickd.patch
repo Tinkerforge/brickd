@@ -21,7 +21,7 @@ index e05faf4..2dd87fd 100644
  m4_ifdef([AM_SILENT_RULES],[AM_SILENT_RULES([yes])])
  
 diff --git a/libusb/Makefile.am b/libusb/Makefile.am
-index 30d3547..074500b 100644
+index 30d3547..70c2cb3 100644
 --- a/libusb/Makefile.am
 +++ b/libusb/Makefile.am
 @@ -3,7 +3,7 @@ AUTOMAKE_OPTIONS = subdir-objects
@@ -42,6 +42,15 @@ index 30d3547..074500b 100644
  endif
  
  if OS_LINUX
+@@ -52,7 +52,7 @@ endif
+ if OS_EMSCRIPTEN
+ noinst_LTLIBRARIES = libusb_emscripten.la
+ libusb_emscripten_la_SOURCES = $(OS_EMSCRIPTEN_SRC)
+-libusb_1_0_la_LIBADD = libusb_emscripten.la
++libusb_1_0_brickd_la_LIBADD = libusb_emscripten.la
+ endif
+ 
+ if OS_NETBSD
 @@ -80,15 +80,15 @@ include Makefile.am.extra
  -include ./$(DEPDIR)/libusb-1.0.Plo
  
@@ -109,7 +118,7 @@ index c8d1eb2..f7b4e44 100644
 +  libusb_set_log_callback
 +  libusb_set_log_callback@4 = libusb_set_log_callback
 diff --git a/libusb/libusb-1.0.rc b/libusb/libusb-1.0.rc
-index bcb10fa..859d179 100644
+index bcb10fa..bb5b549 100644
 --- a/libusb/libusb-1.0.rc
 +++ b/libusb/libusb-1.0.rc
 @@ -39,9 +39,9 @@ BEGIN
@@ -185,7 +194,7 @@ index bc7ef16..a34d490 100644
  #pragma warning(pop)
  #endif
 diff --git a/libusb/os/windows_common.c b/libusb/os/windows_common.c
-index 32887fb..3959625 100644
+index 32887fb..0c13428 100644
 --- a/libusb/os/windows_common.c
 +++ b/libusb/os/windows_common.c
 @@ -792,7 +792,14 @@ static int windows_cancel_transfer(struct usbi_transfer *itransfer)
@@ -226,7 +235,7 @@ index 9f52b48..2b650e7 100644
  #include <stdio.h>
  
 diff --git a/libusb/os/windows_winusb.c b/libusb/os/windows_winusb.c
-index 3e3f0b4..904983b 100644
+index 3e3f0b4..141a374 100644
 --- a/libusb/os/windows_winusb.c
 +++ b/libusb/os/windows_winusb.c
 @@ -25,6 +25,7 @@
