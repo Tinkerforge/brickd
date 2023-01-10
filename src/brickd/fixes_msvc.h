@@ -2,7 +2,7 @@
  * brickd
  * Copyright (C) 2012-2014, 2016-2018, 2021 Matthias Bolte <matthias@tinkerforge.com>
  *
- * fixes_msvc.h: Fixes for problems with the MSVC/WDK headers and libs
+ * fixes_msvc.h: Fixes for problems with the MSVC headers and libs
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by

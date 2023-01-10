@@ -2,26 +2,12 @@
 
 @set CC=cl /nologo /c /MD /O2 /W4 /wd4200 /wd4201 /wd4214^
  /DWINVER=0x0600 /D_WIN32_WINNT=0x0600 /DWIN32_LEAN_AND_MEAN /DNDEBUG^
- /DDAEMONLIB_WITH_LOGGING /DBRICKD_VERSION_SUFFIX="\"%1\""
-@set MC=mc
+ /D_CRT_SECURE_NO_WARNINGS /D_CRT_NONSTDC_NO_DEPRECATE /DDAEMONLIB_WITH_LOGGING^
+ /DBRICKD_VERSION_SUFFIX="\"%1\"" /I..\build_data\windows^
+ /I..\build_data\windows\libusb /I..
 @set RC=rc /dWIN32 /r
-@set LD=link /nologo /debug /opt:ref /opt:icf
-@set AR=link /lib /nologo
+@set LD=link /nologo /opt:ref /opt:icf /libpath:..\build_data\windows\libusb
 @set MT=mt /nologo
-
-@if defined DDKBUILDENV (
- set CC=%CC% /I%CRT_INC_PATH% /DBRICKD_WDK_BUILD
- set LD=%LD% /libpath:%SDK_LIB_PATH:~0,-2%\i386^
-  /libpath:%CRT_LIB_PATH:~0,-2%\i386 %SDK_LIB_PATH:~0,-2%\i386\msvcrt_*.obj
- set RC=%RC% /i%CRT_INC_PATH%
- echo WDK build
-) else (
- set CC=%CC% /D_CRT_SECURE_NO_WARNINGS /D_CRT_NONSTDC_NO_DEPRECATE
- echo non-WDK build
-)
-
-@set CC=%CC% /I..\build_data\windows /I..\build_data\windows\libusb /I..
-@set LD=%LD% /libpath:..\build_data\windows\libusb
 
 @del *.obj *.res *.bin *.exp *.manifest *.pdb *.exe
 

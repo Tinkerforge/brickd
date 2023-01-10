@@ -32,29 +32,7 @@
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <shlobj.h>
-
-#ifndef BRICKD_WDK_BUILD
-	#include <tlhelp32.h>
-#else
-typedef struct {
-	DWORD dwSize;
-	DWORD cntUsage;
-	DWORD th32ProcessID;
-	ULONG_PTR th32DefaultHeapID;
-	DWORD th32ModuleID;
-	DWORD cntThreads;
-	DWORD th32ParentProcessID;
-	LONG pcPriClassBase;
-	DWORD dwFlags;
-	TCHAR szExeFile[MAX_PATH];
-} PROCESSENTRY32;
-
-#define TH32CS_SNAPPROCESS 0x00000002
-
-HANDLE WINAPI CreateToolhelp32Snapshot(DWORD dwFlags, DWORD th32ProcessID);
-BOOL WINAPI Process32First(HANDLE hSnapshot, PROCESSENTRY32 *lppe);
-BOOL WINAPI Process32Next(HANDLE hSnapshot, PROCESSENTRY32 *lppe);
-#endif
+#include <tlhelp32.h>
 
 #include <daemonlib/config.h>
 #include <daemonlib/event.h>

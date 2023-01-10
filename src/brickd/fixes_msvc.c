@@ -2,7 +2,7 @@
  * brickd
  * Copyright (C) 2012-2014, 2016, 2020 Matthias Bolte <matthias@tinkerforge.com>
  *
- * fixes_msvc.c: Fixes for problems with the MSVC/WDK headers and libs
+ * fixes_msvc.c: Fixes for problems with the MSVC headers and libs
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -73,27 +73,6 @@ void fixes_init(void) {
 #endif
 }
 
-#ifdef BRICKD_WDK_BUILD
-
-// implement localtime_r based on localtime, WDK is missing localtime_s
-struct tm *localtime_r(const time_t *timep, struct tm *result) {
-	struct tm *temp;
-
-	// localtime is thread-safe, it uses thread local storage for its
-	// return value on Windows
-	temp = localtime(timep);
-
-	if (temp == NULL) {
-		return NULL;
-	}
-
-	memcpy(result, temp, sizeof(*result));
-
-	return result;
-}
-
-#else // BRICKD_WDK_BUILD
-
 // implement localtime_r based on localtime_s
 struct tm *localtime_r(const time_t *timep, struct tm *result) {
 	// localtime_s is thread-safe, it uses thread local storage for its
@@ -104,8 +83,6 @@ struct tm *localtime_r(const time_t *timep, struct tm *result) {
 		return NULL;
 	}
 }
-
-#endif // BRICKD_WDK_BUILD
 
 // difference between Unix epoch and January 1, 1601 in 100-nanoseconds
 #define DELTA_EPOCH 116444736000000000ULL
