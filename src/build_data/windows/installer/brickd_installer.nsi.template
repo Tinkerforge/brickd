@@ -170,8 +170,6 @@ Section "Install Brick Daemon ${BRICKD_VERSION}"
 
   DetailPrint "Install Brick Daemon..."
 
-  SetOutPath "$INSTDIR"
-
   FileOpen $0 "$INSTDIR\uninstall.log" w
 
 <<BRICKD_INSTALL_COMMANDS>>

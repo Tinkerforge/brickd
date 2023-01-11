@@ -315,10 +315,19 @@ def build_windows_pkg():
     installer_path = os.path.join(dist_path, 'installer', 'brickd_installer.nsi')
     os.makedirs(os.path.join(dist_path, 'installer'))
 
+    print('copying build data')
+    drivers_path = os.path.join(build_data_path, 'drivers')
+    dist_drivers_path = os.path.join(dist_path, 'drivers')
+    shutil.copytree(drivers_path, dist_drivers_path)
+    shutil.copy(os.path.join(build_data_path, 'readme.txt'), dist_path)
+    shutil.copy(os.path.join(build_data_path, 'brickd-default.ini'), dist_path)
+    shutil.copy(os.path.join(build_data_path, 'logviewer', 'logviewer.exe'), dist_path)
+
+    print('create install commands')
     install_commands = []
 
     for root, dirs, files in os.walk(dist_path, topdown=False):
-        if root == 'installer':
+        if os.path.split(root)[-1] == 'installer':
             continue
 
         install_commands.append('  SetOutPath "{0}"'.format(os.path.normpath(os.path.join('$INSTDIR', os.path.relpath(root, dist_path)))))
@@ -338,14 +347,6 @@ def build_windows_pkg():
                         {'<<BRICKD_VERSION>>': version,
                          '<<BRICKD_UNDERSCORE_VERSION>>': underscore_version,
                          '<<BRICKD_INSTALL_COMMANDS>>': '\n'.join(install_commands)})
-
-    print('copying build data')
-    drivers_path = os.path.join(build_data_path, 'drivers')
-    dist_drivers_path = os.path.join(dist_path, 'drivers')
-    shutil.copytree(drivers_path, dist_drivers_path)
-    shutil.copy(os.path.join(build_data_path, 'readme.txt'), dist_path)
-    shutil.copy(os.path.join(build_data_path, 'brickd-default.ini'), dist_path)
-    shutil.copy(os.path.join(build_data_path, 'logviewer', 'logviewer.exe'), dist_path)
 
     print('building NSIS installer')
     system('"C:\\Program Files (x86)\\NSIS\\makensis.exe" dist\\installer\\brickd_installer.nsi')
