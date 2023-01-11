@@ -1,7 +1,7 @@
 @setlocal
 
 @set CC=cl /nologo /c /MD /O2 /W4 /wd4200 /wd4214 /DWIN32_LEAN_AND_MEAN /DNDEBUG^
- /D_CRT_SECURE_NO_WARNINGS /D_CRT_NONSTDC_NO_DEPRECATE /DBRICKD_VERSION_SUFFIX="\"%1\"" /I..
+ /D_CRT_SECURE_NO_WARNINGS /D_CRT_NONSTDC_NO_DEPRECATE /DBRICKD_VERSION_SUFFIX="\"%1\""
 @set RC=rc /dWIN32 /r
 @set LD=link /nologo /subsystem:windows /opt:ref /opt:icf
 
