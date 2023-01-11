@@ -133,7 +133,7 @@ static const char *_pipe_names[] = {
 };
 
 static void string_copy(char *target, int target_length,
-                 const char *source, int source_length) {
+                        const char *source, int source_length) {
 	int copy_length;
 
 	if (target_length <= 0) {
@@ -285,7 +285,7 @@ static void set_live_log_menu_item_state(UINT item, UINT state) {
 }
 
 static void update_status_bar() {
-	const char *log_name = "Unknown";
+	const char *log_name;
 	int message_count = ListView_GetItemCount(_live_log_view);
 	unsigned int dropped;
 	char buffer[128];
@@ -295,6 +295,7 @@ static void update_status_bar() {
 	case LOG_LEVEL_WARN:  log_name = "Live Warn Log";  break;
 	case LOG_LEVEL_INFO:  log_name = "Live Info Log";  break;
 	case LOG_LEVEL_DEBUG: log_name = "Live Debug Log"; break;
+	default:              log_name = "Unknown";        break;
 	}
 
 	_snprintf(buffer, sizeof(buffer), _live_log_saving ? "%s [Saving]" : (_live_log_paused ? "%s [Paused]" : "%s"), log_name);
@@ -328,6 +329,7 @@ static void set_live_log_level(LogLevel level) {
 	case LOG_LEVEL_WARN:  set_live_log_menu_item_state(ID_LIVE_LOG_WARN_LEVEL, MFS_CHECKED);  break;
 	case LOG_LEVEL_INFO:  set_live_log_menu_item_state(ID_LIVE_LOG_INFO_LEVEL, MFS_CHECKED);  break;
 	case LOG_LEVEL_DEBUG: set_live_log_menu_item_state(ID_LIVE_LOG_DEBUG_LEVEL, MFS_CHECKED); break;
+	default:              break;
 	}
 
 	update_status_bar();
@@ -1066,6 +1068,8 @@ static LRESULT CALLBACK window_proc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM l
 			}
 		}
 
+		// fall through
+
 	default:
 		return DefWindowProc(hwnd, msg, wparam, lparam);
 	}
@@ -1113,8 +1117,8 @@ int CALLBACK WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
 	}
 
 	ptr_GetSystemTimePreciseAsFileTime =
-	  (GETSYSTEMTIMEPRECISEASFILETIME)GetProcAddress(GetModuleHandleA("kernel32"),
-	                                                 "GetSystemTimePreciseAsFileTime");
+	  (GETSYSTEMTIMEPRECISEASFILETIME)(void *)GetProcAddress(GetModuleHandleA("kernel32"),
+	                                                         "GetSystemTimePreciseAsFileTime");
 
 	_hinstance = hInstance;
 
