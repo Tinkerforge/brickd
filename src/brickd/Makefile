@@ -164,9 +164,9 @@ endif
 
 ifneq ($(WITH_RED_BRICK),no)
 ifeq ($(WITH_VERSION_SUFFIX),no)
-	override WITH_VERSION_SUFFIX := redbrick
+	override WITH_VERSION_SUFFIX := +redbrick
 else
-	override WITH_VERSION_SUFFIX := redbrick+$(WITH_VERSION_SUFFIX)
+	override WITH_VERSION_SUFFIX := +redbrick$(WITH_VERSION_SUFFIX)
 endif
 endif
 
@@ -537,7 +537,7 @@ ifeq ($(WITH_LIBUSB_HOTPLUG_MKNOD),yes)
 endif
 
 ifneq ($(WITH_VERSION_SUFFIX),no)
-	override CFLAGS += -DBRICKD_VERSION_SUFFIX="\"+${WITH_VERSION_SUFFIX}\""
+	override CFLAGS += -DBRICKD_VERSION_SUFFIX="\"${WITH_VERSION_SUFFIX}\""
 endif
 
 ifneq ($(MAKECMDGOALS),clean)

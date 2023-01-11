@@ -127,7 +127,7 @@ else
 endif
 
 ifneq ($(WITH_VERSION_SUFFIX),no)
-	override CFLAGS += -DBRICKD_VERSION_SUFFIX="\"+${WITH_VERSION_SUFFIX}\""
+	override CFLAGS += -DBRICKD_VERSION_SUFFIX="\"${WITH_VERSION_SUFFIX}\""
 endif
 
 ifneq ($(MAKECMDGOALS),clean)

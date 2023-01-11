@@ -9,7 +9,7 @@ else
 endif
 
 ifeq ($(findstring +,$(subst +redbrick,,$(VERSION))),+)
-	VERSION_SUFFIX := $(lastword $(subst +, ,$(VERSION)))
+	VERSION_SUFFIX := +$(lastword $(subst +, ,$(VERSION)))
 else
 	VERSION_SUFFIX := no
 endif

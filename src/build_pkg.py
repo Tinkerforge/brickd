@@ -112,7 +112,7 @@ def build_macos_pkg():
     args = parser.parse_args()
 
     if args.snapshot:
-        version_suffix = 'snapshot~' + git_commit_id()
+        version_suffix = '+snapshot~' + git_commit_id()
     else:
         version_suffix = 'no'
 
