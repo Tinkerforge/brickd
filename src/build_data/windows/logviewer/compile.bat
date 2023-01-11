@@ -7,7 +7,7 @@
 
 @del *.obj *.res *.bin *.exp *.pdb *.exe
 
-%CC% logviewer.c
+%CC% main.c
 
 %RC% /fologviewer.res logviewer.rc
 
