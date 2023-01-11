@@ -327,7 +327,7 @@ def build_windows_pkg():
     install_commands = []
 
     for root, dirs, files in os.walk(dist_path, topdown=False):
-        if os.path.split(root)[-1] == 'installer':
+        if os.path.normpath(os.path.relpath(root, dist_path)) == 'installer':
             continue
 
         install_commands.append('  SetOutPath "{0}"'.format(os.path.normpath(os.path.join('$INSTDIR', os.path.relpath(root, dist_path)))))
@@ -340,6 +340,9 @@ def build_windows_pkg():
 
         for dir_ in dirs:
             path = os.path.normpath(os.path.relpath(os.path.join(root, dir_), dist_path))
+
+            if path == 'installer':
+                continue
 
             install_commands.append('  FileWrite $0 "$INSTDIR\\{0}$\\r$\\n"'.format(path))
 
