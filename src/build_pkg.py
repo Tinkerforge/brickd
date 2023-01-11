@@ -325,7 +325,6 @@ def build_windows_pkg():
     shutil.copy(os.path.join(build_data_path, 'readme.txt'), dist_path)
     shutil.copy(os.path.join(build_data_path, 'brickd-default.ini'), dist_path)
     shutil.copy(os.path.join(build_data_path, 'logviewer', 'logviewer.exe'), dist_path)
-    shutil.copy(os.path.join(build_data_path, 'logviewer', 'logviewer.pdb'), dist_path)
 
     print('building NSIS installer')
     system('"C:\\Program Files (x86)\\NSIS\\makensis.exe" dist\\installer\\brickd_installer.nsi')
