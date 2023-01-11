@@ -314,9 +314,30 @@ def build_windows_pkg():
     installer_template_path = os.path.join(build_data_path, 'installer', 'brickd_installer.nsi.template')
     installer_path = os.path.join(dist_path, 'installer', 'brickd_installer.nsi')
     os.makedirs(os.path.join(dist_path, 'installer'))
+
+    install_commands = []
+
+    for root, dirs, files in os.walk(dist_path, topdown=False):
+        if root == 'installer':
+            continue
+
+        install_commands.append('  SetOutPath "{0}"'.format(os.path.normpath(os.path.join('$INSTDIR', os.path.relpath(root, dist_path)))))
+
+        for file_ in files:
+            path = os.path.normpath(os.path.relpath(os.path.join(root, file_), dist_path))
+
+            install_commands.append('  File "..\\{0}"'.format(path))
+            install_commands.append('  FileWrite $0 "$INSTDIR\\{0}$\\r$\\n"'.format(path))
+
+        for dir_ in dirs:
+            path = os.path.normpath(os.path.relpath(os.path.join(root, dir_), dist_path))
+
+            install_commands.append('  FileWrite $0 "$INSTDIR\\{0}$\\r$\\n"'.format(path))
+
     specialize_template(installer_template_path, installer_path,
                         {'<<BRICKD_VERSION>>': version,
-                         '<<BRICKD_UNDERSCORE_VERSION>>': underscore_version})
+                         '<<BRICKD_UNDERSCORE_VERSION>>': underscore_version,
+                         '<<BRICKD_INSTALL_COMMANDS>>': '\n'.join(install_commands)})
 
     print('copying build data')
     drivers_path = os.path.join(build_data_path, 'drivers')

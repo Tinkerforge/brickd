@@ -80,7 +80,52 @@ v2:
 unregister_done:
   DetailPrint "Uninstall Brick Daemon..."
 
+  IfFileExists "$INSTDIR\*.*" 0 end
+  IfFileExists "$INSTDIR\uninstall.log" use_uninstall_log
+
+  ; no uninstall.log
+  ; FIXME: add brickd version check to only use wildcard removal for
+  ;        brickd <= 2.4.3, that didn't create a uninstall.log yet
+  DetailPrint "Using wildcard removal"
   RMDir /R "$INSTDIR"
+  Goto common
+
+use_uninstall_log:
+
+  DetailPrint "Using $INSTDIR\uninstall.log"
+  FileOpen $0 "$INSTDIR\uninstall.log" r
+
+next:
+
+  ClearErrors
+  FileRead $0 $1
+
+  IfErrors 0 +2
+    Goto done
+
+  StrCpy $1 $1 -2
+
+  IfFileExists "$1\*.*" 0 +3
+    RMDir $1
+    Goto next
+
+  IfFileExists $1 0 +2
+    Delete $1
+
+  Goto next
+
+done:
+
+  FileClose $0
+
+  ; Remove uninstaller
+  Delete "$INSTDIR\uninstall.exe"
+  Delete "$INSTDIR\uninstall.log"
+
+  ; Remove now empty install directory
+  RMDir "$INSTDIR"
+
+common:
 
   ; Remove current user (for backward compatibility) and all users menu shortcuts
   SetShellVarContext current
@@ -95,6 +140,8 @@ unregister_done:
   DeleteRegKey HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Tinkerforge" ; Remove old key too
   DeleteRegKey HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\Tinkerforge Brickd"
   DeleteRegKey HKLM "Software\Tinkerforge\Brickd"
+
+end:
 
 !macroend
 
@@ -124,7 +171,12 @@ Section "Install Brick Daemon ${BRICKD_VERSION}"
   DetailPrint "Install Brick Daemon..."
 
   SetOutPath "$INSTDIR"
-  File /r /x installer ..\*
+
+  FileOpen $0 "$INSTDIR\uninstall.log" w
+
+<<BRICKD_INSTALL_COMMANDS>>
+
+  FileClose $0
 
   SetShellVarContext all
   CreateDirectory "$APPDATA\Tinkerforge\Brickd"
