@@ -23,8 +23,9 @@ changelog_date=$(date -R)
 brickd_path=$(realpath "$(pwd)/..")
 brickd_volume="-v ${brickd_path}:${brickd_path}"
 
-for architecture in amd64 i386 arm32v6 arm64v8; do
-    docker run --rm -it ${brickd_volume} ${daemonlib_volume} -u $(id -u):$(id -g) tinkerforge/builder-brickd-debian-${architecture}:${version} bash -c "cd ${brickd_path}/src; python3 -u build_pkg.py --changelog-date '${changelog_date}' $1"
+for config in amd64,linux/amd64 i386,linux/386 arm32v6,linux/arm arm64v8,linux/arm64; do
+    IFS=',' read architecture platform <<< "${config}"
+    docker run --rm -it --platform ${platform} ${brickd_volume} ${daemonlib_volume} -u $(id -u):$(id -g) tinkerforge/builder-brickd-debian-${architecture}:${version} bash -c "cd ${brickd_path}/src; python3 -u build_pkg.py --changelog-date '${changelog_date}' $1"
 done
 
-docker run --rm -it ${brickd_volume} ${daemonlib_volume} -u $(id -u):$(id -g) tinkerforge/builder-brickd-debian-arm32v7:${version} bash -c "cd ${brickd_path}/src; python3 -u build_pkg.py --changelog-date '${changelog_date}' --with-red-brick $1"
+docker run --rm -it --platform linux/arm ${brickd_volume} ${daemonlib_volume} -u $(id -u):$(id -g) tinkerforge/builder-brickd-debian-arm32v7:${version} bash -c "cd ${brickd_path}/src; python3 -u build_pkg.py --changelog-date '${changelog_date}' --with-red-brick $1"
