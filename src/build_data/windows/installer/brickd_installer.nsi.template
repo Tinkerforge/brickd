@@ -277,24 +277,11 @@ SectionEnd
 
 Section /o "-Install/Update Brick Driver" SEC_INSTALL_BRICK_DRIVER
 
-${If} ${AtMostWinXP}
-
   Push "Brick"
   Push "$INSTDIR\drivers\brick"
-  Push "$INSTDIR\drivers\brick\winxp\brick.inf"
+  Push "$INSTDIR\drivers\brick\brick.inf"
   Push "USB\VID_16D0&PID_063D"
   Call InstallUpgradeDriver
-
-${Else}
-
-  Push "Brick"
-  Push "$INSTDIR\drivers\brick"
-  Push "$INSTDIR\drivers\brick\win7\brick.inf"
-  Push "USB\VID_16D0&PID_063D"
-  Call InstallUpgradeDriver
-
-${EndIf}
-
 
 SectionEnd
 
@@ -302,23 +289,11 @@ SectionEnd
 
 Section /o "-Install/Update RED Brick Driver" SEC_INSTALL_RED_BRICK_DRIVER
 
-${If} ${AtMostWinXP}
-
   Push "RED Brick"
   Push "$INSTDIR\drivers\brick"
-  Push "$INSTDIR\drivers\brick\winxp\red_brick.inf"
+  Push "$INSTDIR\drivers\brick\red_brick.inf"
   Push "USB\VID_16D0&PID_09E5&MI_00"
   Call InstallUpgradeDriver
-
-${Else}
-
-  Push "RED Brick"
-  Push "$INSTDIR\drivers\brick"
-  Push "$INSTDIR\drivers\brick\win7\red_brick.inf"
-  Push "USB\VID_16D0&PID_09E5&MI_00"
-  Call InstallUpgradeDriver
-
-${EndIf}
 
 SectionEnd
 
