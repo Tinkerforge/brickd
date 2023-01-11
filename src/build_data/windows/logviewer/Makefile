@@ -10,6 +10,7 @@ WINDRES ?= windres
 WITH_HOST ?= check
 WITH_TARGET ?= check
 WITH_DEBUG ?= no
+WITH_VERSION_SUFFIX ?= no
 
 ## RULES ######################################################################
 
@@ -125,16 +126,21 @@ else
 	override LDFLAGS += -pthread
 endif
 
+ifneq ($(WITH_VERSION_SUFFIX),no)
+	override CFLAGS += -DBRICKD_VERSION_SUFFIX="\"+${WITH_VERSION_SUFFIX}\""
+endif
+
 ifneq ($(MAKECMDGOALS),clean)
 $(info platform:)
-$(info - host:     $(WITH_HOST))
-$(info - target:   $(WITH_TARGET))
+$(info - host:            $(WITH_HOST))
+$(info - target:          $(WITH_TARGET))
 $(info features:)
-$(info - debug:    $(WITH_DEBUG))
+$(info - debug:           $(WITH_DEBUG))
+$(info - version-suffix:  $(WITH_VERSION_SUFFIX))
 $(info options:)
-$(info - CFLAGS:   $(CFLAGS))
-$(info - LDFLAGS:  $(LDFLAGS))
-$(info - LIBS:     $(LIBS))
+$(info - CFLAGS:          $(CFLAGS))
+$(info - LDFLAGS:         $(LDFLAGS))
+$(info - LIBS:            $(LIBS))
 endif
 
 .PHONY: all clean install
