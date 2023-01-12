@@ -257,10 +257,10 @@ def build_macos_pkg():
     system('hdiutil create -fs HFS+ -volname "Brickd-{0}" -srcfolder dist/dmg {1}'.format(version, dmg_name))
 
 def signtool_sign(path):
-    system('signtool.exe sign /v /fd sha256 /tr http://rfc3161timestamp.globalsign.com/advanced /td sha256 /a /n "Tinkerforge GmbH" "{0}"'.format(path))
+    system('"C:\\Program Files (x86)\\Windows Kits\\10\\bin\\x86\\signtool.exe" sign /v /fd sha256 /tr http://rfc3161timestamp.globalsign.com/advanced /td sha256 /a /n "Tinkerforge GmbH" "{0}"'.format(path))
 
 def signtool_verify(path):
-    system('signtool.exe verify /v /pa "{0}"'.format(path))
+    system('"C:\\Program Files (x86)\\Windows Kits\\10\\bin\\x86\\signtool.exe" verify /v /pa "{0}"'.format(path))
 
 def build_windows_pkg():
     parser = argparse.ArgumentParser()
@@ -273,7 +273,7 @@ def build_windows_pkg():
     if args.snapshot:
         version_suffix = '+snapshot~' + git_commit_id()
     else:
-        version_suffix = ''
+        version_suffix = 'no'
 
     print('building brickd NSIS installer')
     root_path = os.getcwd()
@@ -288,7 +288,7 @@ def build_windows_pkg():
     os.makedirs(dist_path)
 
     print('compiling brickd.exe')
-    system('cd brickd && compile.bat {0}'.format(version_suffix))
+    system('cd brickd && mingw32-make clean && mingw32-make CC=gcc WITH_VERSION_SUFFIX={0}'.format(version_suffix))
 
     if not args.no_sign:
         print('signing brickd.exe')
@@ -298,7 +298,7 @@ def build_windows_pkg():
         signtool_verify('dist\\brickd.exe')
 
     print('compiling logviewer.exe')
-    system('cd build_data\\windows\\logviewer && compile.bat {0}'.format(version_suffix))
+    system('cd build_data\\windows\\logviewer && mingw32-make clean && mingw32-make CC=gcc WITH_VERSION_SUFFIX={0}'.format(version_suffix))
 
     if not args.no_sign:
         print('signing logviewer.exe')
