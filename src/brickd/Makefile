@@ -407,12 +407,13 @@ HOTPLUG := no
 
 ifeq ($(WITH_TARGET),Windows)
 	HOTPLUG := WinAPI
+	LIBUSB_VERSION = $(shell python -c "print([x.strip().split('=')[-1] for x in open('../build_data/windows/libusb/prepare.sh', 'r').readlines() if x.startswith('version=')][0])")
 
 ifeq ($(WITH_LIBUSB_STATIC),yes)
-	LIBUSB_STATUS := 1.0.24.11609 (fork, static)
+	LIBUSB_STATUS := $(LIBUSB_VERSION) (fork, static)
 	LIBUSB_LIBS := -lusb-1.0-brickd-static
 else
-	LIBUSB_STATUS := 1.0.24.11609 (fork)
+	LIBUSB_STATUS := $(LIBUSB_VERSION) (fork)
 	LIBUSB_LIBS := -lusb-1.0-brickd
 endif
 
@@ -430,7 +431,7 @@ ifeq ($(WITH_LIBUSB_DLOPEN),yes)
 	LIBUSB_LIBS := -ldl
 else
 ifeq ($(WITH_LIBUSB_STATIC),yes)
-	LIBUSB_STATUS := $(shell grep version= ../build_data/linux/libusb/prepare.sh | sed -e s/version=//) (fork, static)
+	LIBUSB_STATUS := $(shell python -c "print([x.strip().split('=')[-1] for x in open('../build_data/linux/libusb/prepare.sh', 'r').readlines() if x.startswith('version=')][0])") (fork, static)
 	LIBUSB_CFLAGS := -I../build_data/linux/libusb
 	LIBUSB_LDFLAGS := -L../build_data/linux/libusb
 	LIBUSB_LIBS := -lusb-1.0-brickd-static
@@ -451,7 +452,7 @@ endif
 
 ifeq ($(WITH_TARGET),Darwin)
 	HOTPLUG := libusb
-	LIBUSB_STATUS := $(shell grep version= ../build_data/macos/libusb/prepare.sh | sed -e s/version=//) (fork, static)
+	LIBUSB_STATUS := $(shell python -c "print([x.strip().split('=')[-1] for x in open('../build_data/macos/libusb/prepare.sh', 'r').readlines() if x.startswith('version=')][0])") (fork, static)
 	LIBUSB_CFLAGS := -I../build_data/macos/libusb
 	LIBUSB_LDFLAGS := -L../build_data/macos/libusb
 	LIBUSB_LIBS := -lusb-1.0-brickd-static
