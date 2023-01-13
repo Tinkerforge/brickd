@@ -486,7 +486,7 @@ endif
 
 ifeq ($(WITH_TARGET),Darwin)
 	override CFLAGS += -mmacosx-version-min=10.9
-	override LIBS += -Wl,-framework,IOKit -Wl,-framework,CoreFoundation -lobjc
+	override LIBS += -Wl,-framework,IOKit -Wl,-framework,CoreFoundation -Wl,-framework,Security -lobjc
 endif
 
 ifeq ($(WITH_LOGGING),yes)
