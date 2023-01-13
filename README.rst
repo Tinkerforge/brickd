@@ -97,8 +97,7 @@ Windows
 ^^^^^^^
 
 A batch file ``compile.bat`` is provided to compile the source code using
-the Visual Studio (MSVC) or Windows Driver Kit (WDK) compiler. Open a MSVC or
-WDK command prompt::
+the Visual Studio (MSVC) compiler. Open a MSVC command prompt::
 
  cd src\brickd
  compile.bat
