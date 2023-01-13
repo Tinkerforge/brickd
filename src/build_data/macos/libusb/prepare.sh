@@ -1,7 +1,7 @@
 #!/bin/sh -ex
 
-version=1.0.24.11609
-commit=1001cb5558cf6679af7bce3114bba1d3bb7b6f7f
+version=1.0.26.11755
+commit=1c6e76a483238ba9f0511c77b02ea7607c30d897
 
 rm -rf libusb-src
 rm -f libusb-${commit}.zip

@@ -1,5 +1,5 @@
 diff --git a/configure.ac b/configure.ac
-index 7c86598..b9ced08 100644
+index e05faf4..8a3e88e 100644
 --- a/configure.ac
 +++ b/configure.ac
 @@ -16,7 +16,7 @@ LU_DEFINE_VERSION_ATOM([LIBUSB_MICRO])
@@ -12,7 +12,7 @@ index 7c86598..b9ced08 100644
  AC_CONFIG_SRCDIR([libusb/core.c])
  AC_CONFIG_MACRO_DIR([m4])
 diff --git a/libusb/Makefile.am b/libusb/Makefile.am
-index c78006e..b8193b0 100644
+index 30d3547..4dc4c2c 100644
 --- a/libusb/Makefile.am
 +++ b/libusb/Makefile.am
 @@ -3,7 +3,7 @@ AUTOMAKE_OPTIONS = subdir-objects
@@ -24,7 +24,7 @@ index c78006e..b8193b0 100644
  
  POSIX_PLATFORM_SRC = os/events_posix.h os/events_posix.c \
  		     os/threads_posix.h os/threads_posix.c
-@@ -31,12 +31,13 @@ OS_WINDOWS_SRC = libusb-1.0.def libusb-1.0.rc \
+@@ -32,12 +32,13 @@ OS_WINDOWS_SRC = libusb-1.0.def libusb-1.0.rc \
  
  if OS_DARWIN
  OS_SRC = $(OS_DARWIN_SRC)
@@ -39,22 +39,31 @@ index c78006e..b8193b0 100644
  endif
  
  if OS_LINUX
-@@ -80,8 +81,8 @@ all-local: .libs/libusb-1.0.dll.a
+@@ -52,7 +53,7 @@ endif
+ if OS_EMSCRIPTEN
+ noinst_LTLIBRARIES = libusb_emscripten.la
+ libusb_emscripten_la_SOURCES = $(OS_EMSCRIPTEN_SRC)
+-libusb_1_0_la_LIBADD = libusb_emscripten.la
++libusb_1_0_brickd_la_LIBADD = libusb_emscripten.la
+ endif
+ 
+ if OS_NETBSD
+@@ -87,8 +88,8 @@ all-local: .libs/libusb-1.0.dll.a
  endif
  endif
  
--libusb_1_0_la_LDFLAGS = $(LT_LDFLAGS)
+-libusb_1_0_la_LDFLAGS = $(LT_LDFLAGS) $(EXTRA_LDFLAGS)
 -libusb_1_0_la_SOURCES = libusbi.h version.h version_nano.h \
-+libusb_1_0_brickd_la_LDFLAGS = $(LT_LDFLAGS)
++libusb_1_0_brickd_la_LDFLAGS = $(LT_LDFLAGS) $(EXTRA_LDFLAGS)
 +libusb_1_0_brickd_la_SOURCES = libusbi.h version.h version_nano.h \
- 	core.c descriptor.c hotplug.h hotplug.c io.c strerror.c sync.c \
+ 	core.c descriptor.c hotplug.c io.c strerror.c sync.c \
  	$(PLATFORM_SRC) $(OS_SRC)
  
 diff --git a/libusb/core.c b/libusb/core.c
-index e04ec67..d16f475 100644
+index 4f98ef9..a291c53 100644
 --- a/libusb/core.c
 +++ b/libusb/core.c
-@@ -2572,6 +2572,12 @@ static void log_str(enum libusb_log_level level, const char *str)
+@@ -2574,6 +2574,12 @@ static void log_str(enum libusb_log_level level, const char *str)
  #endif /* USE_SYSTEM_LOGGING_FACILITY */
  }
  
@@ -67,7 +76,7 @@ index e04ec67..d16f475 100644
  static void log_v(struct libusb_context *ctx, enum libusb_log_level level,
  	const char *function, const char *format, va_list args)
  {
-@@ -2580,6 +2586,11 @@ static void log_v(struct libusb_context *ctx, enum libusb_log_level level,
+@@ -2582,6 +2588,11 @@ static void log_v(struct libusb_context *ctx, enum libusb_log_level level,
  	int global_debug, header_len, text_len;
  	static int has_debug_header_been_displayed = 0;
  
@@ -80,10 +89,10 @@ index e04ec67..d16f475 100644
  	global_debug = 1;
  	UNUSED(ctx);
 diff --git a/libusb/libusb.h b/libusb/libusb.h
-index b0b5106..664d0a2 100644
+index bc7ef16..b68f3a4 100644
 --- a/libusb/libusb.h
 +++ b/libusb/libusb.h
-@@ -37,6 +37,7 @@ typedef SSIZE_T ssize_t;
+@@ -43,6 +43,7 @@ typedef SSIZE_T ssize_t;
  
  #include <limits.h>
  #include <stdint.h>
@@ -91,8 +100,8 @@ index b0b5106..664d0a2 100644
  #include <sys/types.h>
  #if !defined(_MSC_VER)
  #include <sys/time.h>
-@@ -116,6 +117,8 @@ typedef SSIZE_T ssize_t;
- #define LIBUSB_CALL
+@@ -126,6 +127,8 @@ typedef SSIZE_T ssize_t;
+ #define LIBUSB_CALLV
  #endif /* _WIN32 || __CYGWIN__ */
  
 +#define LIBUSB_BRICKD_PATCH 1
@@ -100,7 +109,7 @@ index b0b5106..664d0a2 100644
  /** \def LIBUSB_API_VERSION
   * \ingroup libusb_misc
   * libusb's API version.
-@@ -1354,7 +1357,6 @@ typedef void (LIBUSB_CALL *libusb_log_cb)(libusb_context *ctx,
+@@ -1366,7 +1369,6 @@ typedef void (LIBUSB_CALL *libusb_log_cb)(libusb_context *ctx,
  
  int LIBUSB_CALL libusb_init(libusb_context **ctx);
  void LIBUSB_CALL libusb_exit(libusb_context *ctx);
@@ -108,9 +117,9 @@ index b0b5106..664d0a2 100644
  void LIBUSB_CALL libusb_set_debug(libusb_context *ctx, int level);
  void LIBUSB_CALL libusb_set_log_cb(libusb_context *ctx, libusb_log_cb cb, int mode);
  const struct libusb_version * LIBUSB_CALL libusb_get_version(void);
-@@ -2112,6 +2114,13 @@ enum libusb_option {
+@@ -2136,6 +2138,13 @@ enum libusb_option {
  
- int LIBUSB_CALL libusb_set_option(libusb_context *ctx, enum libusb_option option, ...);
+ int LIBUSB_CALLV libusb_set_option(libusb_context *ctx, enum libusb_option option, ...);
  
 +typedef void (LIBUSB_CALL *libusb_log_callback)(libusb_context *ctx,
 +                                                enum libusb_log_level level,
@@ -119,14 +128,14 @@ index b0b5106..664d0a2 100644
 +                                                va_list args);
 +void LIBUSB_CALL libusb_set_log_callback(libusb_log_callback callback);
 +
- #if defined(__cplusplus)
- }
+ #ifdef _MSC_VER
+ #pragma warning(pop)
  #endif
 diff --git a/libusb/os/darwin_usb.c b/libusb/os/darwin_usb.c
-index 337dc92..9ebce52 100644
+index ecf5d58..b48ed79 100644
 --- a/libusb/os/darwin_usb.c
 +++ b/libusb/os/darwin_usb.c
-@@ -831,7 +831,13 @@ static enum libusb_error darwin_cache_device_descriptor (struct darwin_cached_de
+@@ -834,7 +834,13 @@ static enum libusb_error darwin_cache_device_descriptor (struct libusb_context *
    /* According to Apple's documentation the device must be open for DeviceRequest but we may not be able to open some
     * devices and Apple's USB Prober doesn't bother to open the device before issuing a descriptor request.  Still,
     * to follow the spec as closely as possible, try opening the device */
@@ -141,7 +150,7 @@ index 337dc92..9ebce52 100644
  
    do {
      /**** retrieve device descriptor ****/
-@@ -1278,7 +1284,10 @@ static void darwin_close (struct libusb_device_handle *dev_handle) {
+@@ -1297,7 +1303,10 @@ static void darwin_close (struct libusb_device_handle *dev_handle) {
        if (kresult != kIOReturnSuccess) {
          /* Log the fact that we had a problem closing the file, however failing a
           * close isn't really an error, so return success anyway */
@@ -149,28 +158,28 @@ index 337dc92..9ebce52 100644
 +        if (kresult != kIOReturnNoDevice)
 +          usbi_warn (HANDLE_CTX (dev_handle), "USBDeviceClose: %s", darwin_error_str(kresult));
 +        else
-+          usbi_dbg ("USBDeviceClose: %s", darwin_error_str(kresult));
++          usbi_dbg (HANDLE_CTX (dev_handle), "USBDeviceClose: %s", darwin_error_str(kresult));
        }
      }
    }
-@@ -1435,7 +1444,7 @@ static int darwin_claim_interface(struct libusb_device_handle *dev_handle, uint8
+@@ -1489,7 +1498,7 @@ static int darwin_claim_interface(struct libusb_device_handle *dev_handle, uint8
  
    /* make sure we have an interface */
    if (!usbInterface && dpriv->first_config != 0) {
--    usbi_info (HANDLE_CTX (dev_handle), "no interface found; setting configuration: %d", dpriv->first_config);
-+    usbi_dbg ("no interface found; setting configuration: %d", dpriv->first_config);
+-    usbi_info (ctx, "no interface found; setting configuration: %d", dpriv->first_config);
++    usbi_dbg (ctx, "no interface found; setting configuration: %d", dpriv->first_config);
  
      /* set the configuration */
      ret = darwin_set_configuration (dev_handle, (int) dpriv->first_config);
-@@ -1452,7 +1461,6 @@ static int darwin_claim_interface(struct libusb_device_handle *dev_handle, uint8
+@@ -1506,7 +1515,6 @@ static int darwin_claim_interface(struct libusb_device_handle *dev_handle, uint8
    }
  
    if (!usbInterface) {
--    usbi_err (HANDLE_CTX (dev_handle), "interface not found");
+-    usbi_info (ctx, "interface not found");
      return LIBUSB_ERROR_NOT_FOUND;
    }
  
-@@ -1543,8 +1551,12 @@ static int darwin_release_interface(struct libusb_device_handle *dev_handle, uin
+@@ -1598,8 +1606,12 @@ static int darwin_release_interface(struct libusb_device_handle *dev_handle, uin
    }
  
    kresult = (*(cInterface->interface))->USBInterfaceClose(cInterface->interface);
@@ -180,27 +189,27 @@ index 337dc92..9ebce52 100644
 +    if (kresult != kIOReturnNoDevice)
 +      usbi_warn (HANDLE_CTX (dev_handle), "USBInterfaceClose: %s", darwin_error_str(kresult));
 +    else
-+      usbi_dbg ("USBInterfaceClose: %s", darwin_error_str(kresult));
++      usbi_dbg (HANDLE_CTX (dev_handle), "USBInterfaceClose: %s", darwin_error_str(kresult));
 +  }
  
    kresult = (*(cInterface->interface))->Release(cInterface->interface);
    if (kresult != kIOReturnSuccess)
-@@ -2066,7 +2078,7 @@ static int darwin_abort_transfers (struct usbi_transfer *itransfer) {
+@@ -2273,7 +2285,7 @@ static int darwin_abort_transfers (struct usbi_transfer *itransfer) {
    if (!dpriv->device)
      return LIBUSB_ERROR_NO_DEVICE;
  
--  usbi_warn (ITRANSFER_CTX (itransfer), "aborting all transactions on interface %d pipe %d", iface, pipeRef);
-+  usbi_dbg ("aborting all transactions on interface %d pipe %d", iface, pipeRef);
+-  usbi_warn (ctx, "aborting all transactions on interface %d pipe %d", iface, pipeRef);
++  usbi_dbg (ctx, "aborting all transactions on interface %d pipe %d", iface, pipeRef);
  
    /* abort transactions */
  #if InterfaceVersion >= 550
-@@ -2144,6 +2156,9 @@ static enum libusb_transfer_status darwin_transfer_status (struct usbi_transfer
-     usbi_warn (ITRANSFER_CTX (itransfer), "transfer error: timed out");
+@@ -2353,6 +2365,9 @@ static enum libusb_transfer_status darwin_transfer_status (struct usbi_transfer
+     usbi_warn (ctx, "transfer error: timed out");
      itransfer->timeout_flags |= USBI_TRANSFER_TIMED_OUT;
      return LIBUSB_TRANSFER_TIMED_OUT;
 +  case kIOReturnNotResponding:
-+    usbi_dbg ("transfer error: not responding, faking stall");
++    usbi_dbg (ctx, "transfer error: not responding, faking stall");
 +    return LIBUSB_TRANSFER_STALL;
    default:
-     usbi_warn (ITRANSFER_CTX (itransfer), "transfer error: %s (value = 0x%08x)", darwin_error_str (result), result);
+     usbi_warn (ctx, "transfer error: %s (value = 0x%08x)", darwin_error_str (result), result);
      return LIBUSB_TRANSFER_ERROR;
