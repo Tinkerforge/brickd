@@ -147,7 +147,7 @@ def build_macos_pkg():
     specialize_template(plist_path, plist_path, {'<<VERSION>>': version.split('+')[0]}) # macOS only allows for <major>.<minor>.<patch> here
 
     if not args.no_sign:
-        print('signing libusb and brickd binaries')
+        print('signing brickd binary')
         system('security unlock-keychain /Users/$USER/Library/Keychains/login.keychain')
         codesign_command = 'codesign --force --verify --verbose=1 -o runtime --sign "Developer ID Application: Tinkerforge GmbH (K39N76HTZ4)" {0}'
         system(codesign_command.format(app_path))
