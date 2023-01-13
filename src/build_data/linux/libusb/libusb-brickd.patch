@@ -12,7 +12,7 @@ index e05faf4..8a3e88e 100644
  AC_CONFIG_SRCDIR([libusb/core.c])
  AC_CONFIG_MACRO_DIR([m4])
 diff --git a/libusb/Makefile.am b/libusb/Makefile.am
-index 30d3547..fd362ca 100644
+index 30d3547..2558fe6 100644
 --- a/libusb/Makefile.am
 +++ b/libusb/Makefile.am
 @@ -3,7 +3,7 @@ AUTOMAKE_OPTIONS = subdir-objects
@@ -33,6 +33,15 @@ index 30d3547..fd362ca 100644
  endif
  
  if OS_LINUX
+@@ -52,7 +52,7 @@ endif
+ if OS_EMSCRIPTEN
+ noinst_LTLIBRARIES = libusb_emscripten.la
+ libusb_emscripten_la_SOURCES = $(OS_EMSCRIPTEN_SRC)
+-libusb_1_0_la_LIBADD = libusb_emscripten.la
++libusb_1_0_brickd_la_LIBADD = libusb_emscripten.la
+ endif
+ 
+ if OS_NETBSD
 @@ -87,8 +87,8 @@ all-local: .libs/libusb-1.0.dll.a
  endif
  endif
