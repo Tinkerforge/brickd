@@ -259,7 +259,7 @@
 - Fix SPI clock for HAT (Zero) Brick on Linux, if core_freq differs from 250 MHz
 - Add config option to override SPI backend detection
 
-2023-01-13: 2.4.4 (<unknown>)
+2023-01-16: 2.4.4 (889c425)
 - Add menu entry to clear Live Log in Windows Log Viewer
 - Abort delayed USB stall recovery if device was removed in the meantime
 - Add rate limit for Bricklet error messages
