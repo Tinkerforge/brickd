@@ -355,12 +355,14 @@ int main(int argc, char **argv) {
 		}
 	}
 
-	log_init();
-
 	phase = 2;
 
 	if (pid_fd < 0) {
 		goto cleanup;
+	}
+
+	if (!daemon) {
+		log_init(); // daemon_start calls log_init
 	}
 
 	log_info("Brick Daemon %s started (pid: %u, daemonized: %d)",
@@ -555,6 +557,7 @@ cleanup:
 
 	case 3:
 		log_info("Brick Daemon %s stopped", VERSION_STRING);
+		log_exit();
 		// fall through
 
 	case 2:
@@ -562,7 +565,6 @@ cleanup:
 			pid_file_release(_pid_filename, pid_fd);
 		}
 
-		log_exit();
 		// fall through
 
 	case 1:
