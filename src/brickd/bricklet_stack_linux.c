@@ -71,7 +71,7 @@ static wait_t _wait = NULL;
 static spi_transceive_t _spi_transceive = NULL;
 
 int bricklet_stack_create_platform(BrickletStack *bricklet_stack) {
-	bool bmc2835;
+	bool bcm2835;
 	int spi_driver;
 #if defined __arm__ || defined __aarch64__
 	char spidev_reason[256] = "<unknown>";
@@ -127,10 +127,10 @@ int bricklet_stack_create_platform(BrickletStack *bricklet_stack) {
 		if (spi_driver == BRICKLET_SPI_DRIVER_AUTO) {
 			if (_raspberry_pi) {
 				log_info("Using BCM2835 backend for Bricklets (Raspberry Pi detected)");
-				bmc2835 = true;
+				bcm2835 = true;
 			} else {
 				log_info("Using spidev backend for Bricklets (%s)", spidev_reason);
-				bmc2835 = false;
+				bcm2835 = false;
 			}
 		} else if (spi_driver == BRICKLET_SPI_DRIVER_BCM2835) {
 			if (_raspberry_pi) {
@@ -139,13 +139,13 @@ int bricklet_stack_create_platform(BrickletStack *bricklet_stack) {
 				log_info("Using BCM2835 backend for Bricklets (forced by config, but %s)", spidev_reason);
 			}
 
-			bmc2835 = true;
+			bcm2835 = true;
 		} else { // BRICKLET_SPI_DRIVER_SPIDEV
 			log_info("Using spidev backend for Bricklets (forced by config)");
-			bmc2835 = false;
+			bcm2835 = false;
 		}
 
-		if (bmc2835) {
+		if (bcm2835) {
 			_create_platform = bricklet_stack_create_platform_bcm2835;
 			_destroy_platform = bricklet_stack_destroy_platform_bcm2835;
 			_chip_select_gpio = bricklet_stack_chip_select_gpio_bcm2835;
