@@ -40,6 +40,8 @@
 
 #include "bricklet.h"
 
+#include "raspberry_pi.h"
+
 #define BRICKLET_STACK_SPI_CONFIG_MODE           SPI_MODE_3
 #define BRICKLET_STACK_SPI_CONFIG_LSB_FIRST      0
 #define BRICKLET_STACK_SPI_CONFIG_BITS_PER_WORD  8
@@ -56,7 +58,9 @@ static BrickletStackPlatform _platform[BRICKLET_SPI_MAX_NUM * BRICKLET_CS_MAX_NU
 
 int bricklet_stack_create_platform_spidev(BrickletStack *bricklet_stack) {
 	// Use HW chip select if it is done by SPI hardware unit, otherwise set SPI_NO_CS flag.
-	const int mode = BRICKLET_STACK_SPI_CONFIG_MODE | (bricklet_stack->config.chip_select_driver == BRICKLET_CHIP_SELECT_DRIVER_HARDWARE ? 0 : SPI_NO_CS);
+	// Raspberry Pi 5 does not support setting this flag, even though we disable all HW chip select pins.
+	const int no_cs_flag = ((raspberry_pi_detect(NULL, 0) == RASPBERRY_PI_5_DETECTED) || bricklet_stack->config.chip_select_driver == BRICKLET_CHIP_SELECT_DRIVER_HARDWARE) ? 0 : SPI_NO_CS;
+	const int mode = BRICKLET_STACK_SPI_CONFIG_MODE | no_cs_flag;
 	const int lsb_first = BRICKLET_STACK_SPI_CONFIG_LSB_FIRST;
 	const int bits_per_word = BRICKLET_STACK_SPI_CONFIG_BITS_PER_WORD;
 	const int max_speed_hz = BRICKLET_STACK_SPI_CONFIG_MAX_SPEED_HZ;
