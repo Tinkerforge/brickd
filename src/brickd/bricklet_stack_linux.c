@@ -35,6 +35,7 @@
 
 #include "bricklet.h"
 #include "bricklet_stack.h"
+#include "raspberry_pi.h"
 
 static LogSource _log_source = LOG_SOURCE_INITIALIZER;
 
@@ -62,7 +63,6 @@ typedef int (*wait_t)(BrickletStack *bricklet_stack);
 typedef int (*spi_transceive_t)(BrickletStack *bricklet_stack, uint8_t *write_buffer,
                                 uint8_t *read_buffer, int length);
 
-static int _raspberry_pi = -1;
 static create_platform_t _create_platform = NULL;
 static destroy_platform_t _destroy_platform = NULL;
 static chip_select_gpio_t _chip_select_gpio = NULL;
@@ -73,53 +73,8 @@ static spi_transceive_t _spi_transceive = NULL;
 int bricklet_stack_create_platform(BrickletStack *bricklet_stack) {
 	bool bcm2835;
 	int spi_driver;
-#if defined __arm__ || defined __aarch64__
-	char spidev_reason[256] = "<unknown>";
-	const char *model_path = "/proc/device-tree/model";
-	char buffer[256];
-	int length;
-	const char *model_perfix = "Raspberry Pi";
-	int fd;
-
-	if (_raspberry_pi < 0) {
-		fd = open(model_path, O_RDONLY);
-
-		if (fd < 0) {
-			if (errno == ENOENT) {
-				snprintf(spidev_reason, sizeof(spidev_reason), "%s not found", model_path);
-			} else {
-				snprintf(spidev_reason, sizeof(spidev_reason), "could not open %s for reading: %s (%d)",
-				         model_path, get_errno_name(errno), errno);
-			}
-		} else {
-			length = robust_read(fd, buffer, sizeof(buffer) - 1);
-
-			if (length < 0) {
-				snprintf(spidev_reason, sizeof(spidev_reason), "could not read from %s: %s (%d)",
-				         model_path, get_errno_name(errno), errno);
-			} else {
-				buffer[length] = '\0';
-
-				if (strncmp(buffer, model_perfix, strlen(model_perfix)) != 0) {
-					snprintf(spidev_reason, sizeof(spidev_reason), "no 'Raspberry Pi' prefix in %s",
-					         model_path);
-				} else {
-					_raspberry_pi = 1;
-				}
-			}
-
-			close(fd);
-		}
-
-		if (_raspberry_pi < 0) {
-			_raspberry_pi = 0;
-		}
-	}
-#else
-	const char *spidev_reason =  "non-ARM architecture";
-
-	_raspberry_pi = 0;
-#endif
+	char spidev_reason[256];
+	int _raspberry_pi = raspberry_pi_detect(spidev_reason, sizeof(spidev_reason)/sizeof(spidev_reason[0])) == RASPBERRY_PI_DETECTED;
 
 	if (_create_platform == NULL) {
 		spi_driver = config_get_option_value("bricklet.spi.driver")->symbol;

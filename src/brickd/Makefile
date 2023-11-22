@@ -261,6 +261,7 @@ SOURCES_BRICKD := base64.c \
                   mesh_packet.c \
                   mesh_stack.c \
                   network.c \
+                  raspberry_pi.c \
                   sha1.c \
                   stack.c \
                   usb.c \
