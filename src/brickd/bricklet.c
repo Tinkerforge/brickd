@@ -366,13 +366,19 @@ int bricklet_init_hctosys(void) {
 	FILE *fp;
 	char buffer[256] = "";
 	int rc;
+	const char *cmd = "/sbin/hwclock --hctosys";
 
 	errno = ENOMEM; // popen does not set errno if memory allocation fails
-	fp = popen("/sbin/hwclock --hctosys", "r");
+
+	if (raspberry_pi_detect(NULL, 0) == RASPBERRY_PI_5_DETECTED) {
+		cmd = "/sbin/hwclock -f /dev/rtc1 --hctosys";
+	}
+
+	fp = popen(cmd, "r");
 
 	if (fp == NULL) {
-		log_warn("Could not execute '/sbin/hwclock --hctosys', system time will not be updated: %s (%d)",
-		         get_errno_name(errno), errno);
+		log_warn("Could not execute '%s', system time will not be updated: %s (%d)",
+		         cmd, get_errno_name(errno), errno);
 
 		return -1;
 	}
@@ -383,20 +389,20 @@ int bricklet_init_hctosys(void) {
 		rc = pclose(fp);
 
 		if (rc < 0) {
-			log_warn("Could not read '/sbin/hwclock --hctosys' exit code: %s (%d)",
-			         get_errno_name(errno), errno);
+			log_warn("Could not read '%s' exit code: %s (%d)",
+			         cmd, get_errno_name(errno), errno);
 
 			return -1;
 		}
 
-		log_info("Updated system time from RTC time using '/sbin/hwclock --hctosys'");
+		log_info("Updated system time from RTC time using '%s'", cmd);
 
 		return 0;
 	}
 
 	rc = pclose(fp);
 
-	log_warn("Unexpected output from '/sbin/hwclock --hctosys' (exit-code: %d): %s", rc, buffer);
+	log_warn("Unexpected output from '%s' (exit-code: %d): %s", cmd, rc, buffer);
 
 	return -1;
 #endif
