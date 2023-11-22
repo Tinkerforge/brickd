@@ -35,6 +35,8 @@
 
 #include "bricklet_stack.h"
 
+#include "raspberry_pi.h"
+
 #define BRICKLET_CONFIG_STR_GROUP_POS                     14
 #define BRICKLET_CONFIG_STR_CS_POS                        (BRICKLET_CONFIG_STR_GROUP_POS + 4)
 
@@ -96,6 +98,26 @@ static const BrickletChipSelectConfig bricklet_stack_rpi_hat_cs_config[] = {
 	{-1, 0, false}
 };
 
+// Chip select config for HAT Brick on Raspberry Pi 5
+static const BrickletChipSelectConfig bricklet_stack_rpi5_hat_cs_config[] = {
+	{BRICKLET_CHIP_SELECT_DRIVER_GPIO, 422, false},
+	{BRICKLET_CHIP_SELECT_DRIVER_GPIO, 421, false},
+	{BRICKLET_CHIP_SELECT_DRIVER_GPIO, 424, false},
+	{BRICKLET_CHIP_SELECT_DRIVER_GPIO, 425, false},
+	{BRICKLET_CHIP_SELECT_DRIVER_GPIO, 426, false},
+	{BRICKLET_CHIP_SELECT_DRIVER_GPIO, 423, false},
+#ifdef BRICKD_UWP_BUILD
+	// UWP in contrast to Linux doesn't allow to control the dedicated
+	// hardware chip-select pins as GPIO pins while the SPI device is active
+	{BRICKLET_CHIP_SELECT_DRIVER_HARDWARE, 1, false},
+#else
+	{BRICKLET_CHIP_SELECT_DRIVER_GPIO, 406, false},
+#endif
+	{BRICKLET_CHIP_SELECT_DRIVER_GPIO, 405, false},
+	{BRICKLET_CHIP_SELECT_DRIVER_GPIO, 404, true},
+	{-1, 0, false}
+};
+
 // Chip select config for HAT Zero Brick
 static const BrickletChipSelectConfig bricklet_stack_rpi_hat_zero_cs_config[] = {
 	{BRICKLET_CHIP_SELECT_DRIVER_GPIO, 27, false},
@@ -103,6 +125,16 @@ static const BrickletChipSelectConfig bricklet_stack_rpi_hat_zero_cs_config[] = 
 	{BRICKLET_CHIP_SELECT_DRIVER_GPIO, 24, false},
 	{BRICKLET_CHIP_SELECT_DRIVER_GPIO, 22, false},
 	{BRICKLET_CHIP_SELECT_DRIVER_GPIO, 25, true},
+	{-1, 0, false}
+};
+
+// Chip select config for HAT Zero Brick on Raspberry Pi 5
+static const BrickletChipSelectConfig bricklet_stack_rpi5_hat_zero_cs_config[] = {
+	{BRICKLET_CHIP_SELECT_DRIVER_GPIO, 426, false},
+	{BRICKLET_CHIP_SELECT_DRIVER_GPIO, 422, false},
+	{BRICKLET_CHIP_SELECT_DRIVER_GPIO, 423, false},
+	{BRICKLET_CHIP_SELECT_DRIVER_GPIO, 421, false},
+	{BRICKLET_CHIP_SELECT_DRIVER_GPIO, 424, true},
 	{-1, 0, false}
 };
 
@@ -381,18 +413,21 @@ int bricklet_init(void) {
 	char str_sleep_between_reads[] = "bricklet.portX.sleep_between_reads";
 	BrickletStackConfig config;
 	bool first = true;
+	bool pi_5 = false;
 
 	mutex_create(&_bricklet_spi_mutex[0]);
 	mutex_create(&_bricklet_spi_mutex[1]);
 
 	_bricklet_stack_count = 0;
 
+	pi_5 = raspberry_pi_detect(NULL, 0) == RASPBERRY_PI_5_DETECTED;
+
 	// First we try to find out if this brickd is installed on a RPi with Raspbian
 	// and a Tinkerforge HAT Brick is on top
 	rc = bricklet_init_rpi_hat(BRICKLET_RPI_HAT_PRODUCT_ID,
 	                           BRICKLET_RPI_HAT_SPIDEV,
 	                           BRICKLET_RPI_HAT_SPIDEV_INDEX,
-	                           bricklet_stack_rpi_hat_cs_config,
+	                           pi_5 ? bricklet_stack_rpi5_hat_cs_config : bricklet_stack_rpi_hat_cs_config,
 	                           "HAT",
 	                           false);
 
@@ -411,7 +446,7 @@ int bricklet_init(void) {
 	rc = bricklet_init_rpi_hat(BRICKLET_RPI_HAT_ZERO_PRODUCT_ID,
 	                           BRICKLET_RPI_HAT_ZERO_SPIDEV,
 	                           BRICKLET_RPI_HAT_ZERO_SPIDEV_INDEX,
-	                           bricklet_stack_rpi_hat_zero_cs_config,
+	                           pi_5 ? bricklet_stack_rpi5_hat_zero_cs_config : bricklet_stack_rpi_hat_zero_cs_config,
 	                           "HAT Zero",
 	                           false);
 
