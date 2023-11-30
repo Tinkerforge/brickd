@@ -273,6 +273,10 @@ int main(int argc, char **argv) {
 
 	phase = 10;
 
+	if (usb_rescan() < 0) {
+		goto cleanup;
+	}
+
 	if (event_run(handle_event_cleanup) < 0) {
 		goto cleanup;
 	}

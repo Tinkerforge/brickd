@@ -461,6 +461,12 @@ void brickd_uwp::MainTask::Run(IBackgroundTaskInstance ^taskInstance) {
 	phase = 14;
 #endif
 
+	log_debug("Starting initial USB device scan");
+
+	if (usb_rescan() < 0) {
+		goto cleanup;
+	}
+
 	accept_app_service(taskInstance);
 
 	if (event_run(handle_event_cleanup) < 0) {

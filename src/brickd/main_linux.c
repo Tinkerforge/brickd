@@ -472,15 +472,19 @@ int main(int argc, char **argv) {
 	red_led_set_trigger(RED_LED_GREEN, config_get_option_value("led_trigger.green")->symbol);
 	red_led_set_trigger(RED_LED_RED, config_get_option_value("led_trigger.red")->symbol);
 #endif
-
 #ifdef BRICKD_WITH_BRICKLET
-
 	if (bricklet_init() < 0) {
 		goto cleanup;
 	}
 
 	phase = 16;
 #endif
+
+	log_debug("Starting initial USB device scan");
+
+	if (usb_rescan() < 0) {
+		goto cleanup;
+	}
 
 	if (event_run(handle_event_cleanup) < 0) {
 		goto cleanup;

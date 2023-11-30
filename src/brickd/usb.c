@@ -410,20 +410,8 @@ int usb_init(void) {
 
 	phase = 5;
 
-	log_debug("Starting initial USB device scan");
-
-	if (usb_rescan() < 0) {
-		goto cleanup;
-	}
-
-	phase = 6;
-
 cleanup:
 	switch (phase) { // no breaks, all cases fall through intentionally
-	case 5:
-		array_destroy(&_usb_stacks, (ItemDestroyFunction)usb_stack_destroy);
-		// fall through
-
 	case 4:
 		usb_exit_platform(_context);
 		// fall through
@@ -444,7 +432,7 @@ cleanup:
 		break;
 	}
 
-	return phase == 6 ? 0 : -1;
+	return phase == 5 ? 0 : -1;
 }
 
 void usb_exit(void) {

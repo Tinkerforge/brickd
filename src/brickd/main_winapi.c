@@ -512,6 +512,13 @@ init:
 
 	phase = 5;
 
+	log_debug("Starting initial USB device scan");
+
+	if (usb_rescan() < 0) {
+		// FIXME: set service_exit_code
+		goto cleanup;
+	}
+
 	// running
 	if (_run_as_service) {
 		service_set_status(SERVICE_RUNNING, NO_ERROR);
