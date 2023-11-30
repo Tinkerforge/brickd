@@ -28,13 +28,14 @@
 
   Works on all versions up to and including RPI 4.
   Works with all versions of Debian up to and including Debian Buster 10.
+  Reported to be working on Bullseye (Raspbian v11)
 
   It is C++ compatible, and installs as a header file and non-shared library on
   any Linux-based distro (but clearly is no use except on Raspberry Pi or another board with
   BCM 2835).
 
   The version of the package that this documentation refers to can be downloaded
-  from http://www.airspayce.com/mikem/bcm2835/bcm2835-1.71.tar.gz
+  from http://www.airspayce.com/mikem/bcm2835/bcm2835-1.73.tar.gz
   You can find the latest version at http://www.airspayce.com/mikem/bcm2835
 
   Several example programs are provided.
@@ -620,12 +621,22 @@
   Patch to ensure compilation with gcc -std=c99, as reported by John Blaiklock.
   Fix some inconsistencies in version numbers
 
-  version 1.71
+  \version 1.71
   Added SMI bus support, courtesy of Benoit Bouchez, including new functions:
   bcm2835_smi_begin(),  bcm2835_smi_end(),
   bcm2835_smi_set_timing(),  bcm2835_smi_write(), bcm2835_smi_read().
 
-  \author  Mike McCauley (mikem@airspayce.com) DO NOT CONTACT THE AUTHOR DIRECTLY: USE THE LISTS
+  \version 1.72
+  Added examples/smi/smi.c showing how to use new SMI bus support, courtesy Benoit Bouchez.
+  Added support for disabling documentation genetration with "./configure --with-docs=no", courtesy of
+    Christian Zuckschwerdt.
+
+  \version 1.73
+  Fixed some inconsistent indenting in bcm2835.c that triggers warnings for some people.
+  Added Timeout checks to bcm2835_i2c_write() in case of IO problems. New reason cade BCM2835_I2C_REASON_ERROR_TIMEOUT
+  added. Patch courtesy Simon Peacock.
+
+  \author  Mike McCauley DO NOT CONTACT THE AUTHOR DIRECTLY: USE THE LISTS
 */
 
 
@@ -640,7 +651,7 @@
 /* Needed to compile with gcc -std=c99, as reported by John Blaiklock.*/
 #include <fcntl.h>
 
-#define BCM2835_VERSION 10071 /* Version 1.71 */
+#define BCM2835_VERSION 10073 /* Version 1.73 */
 
 // Define this if you want to use libcap2 to determine if you have the cap_sys_rawio capability
 // and therefore the capability of opening /dev/mem, even if you are not root.
@@ -1232,7 +1243,9 @@ typedef enum
     BCM2835_I2C_REASON_OK   	     = 0x00,      /*!< Success */
     BCM2835_I2C_REASON_ERROR_NACK    = 0x01,      /*!< Received a NACK */
     BCM2835_I2C_REASON_ERROR_CLKT    = 0x02,      /*!< Received Clock Stretch Timeout */
-    BCM2835_I2C_REASON_ERROR_DATA    = 0x04       /*!< Not all data is sent / received */
+    BCM2835_I2C_REASON_ERROR_DATA    = 0x04,      /*!< Not all data is sent / received */
+    BCM2835_I2C_REASON_ERROR_TIMEOUT = 0x08       /*!< Time out occurred during sending */
+
 } bcm2835I2CReasonCodes;
 
 /* Registers offets from BCM2835_SMI_BASE */
@@ -2193,4 +2206,8 @@ Broadcom bcm2835. Contributed by Shahrooz Shahparnia.
 /*! example spimem_test.c
   Shows how to use the included little library (spiram.c and spiram.h)
   to read and write SPI RAM chips such as 23K256-I/P
+*/
+
+/*! example smi.c
+  Shows how to use the SMI bus calls. Courtesy Benoit Bouchez.
 */
