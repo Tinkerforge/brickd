@@ -267,3 +267,7 @@
 - Allow to disable mesh gateway
 - Update bundled libusb to 1.0.26.11755 on Windows (Windows Vista or newer
   required) and macOS
+
+2023-11-30: 2.4.5 (<unknown>)
+- Add Raspberry Pi 5 support for HAT (Zero) Brick
+- Fix rare crash in initial USB device scan
