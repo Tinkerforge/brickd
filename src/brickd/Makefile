@@ -463,6 +463,29 @@ override CFLAGS += $(LIBUSB_CFLAGS)
 override LDFLAGS += $(LIBUSB_LDFLAGS)
 override LIBS += $(LIBUSB_LIBS)
 
+LIBGPIOD_STATUS := no
+
+ifeq ($(WITH_TARGET),Linux)
+ifeq ($(WITH_BRICKLET),yes)
+
+ifeq ($(shell pkg-config --exists 'libgpiod >= 1.2' && pkg-config --exists 'libgpiod < 2.0' && echo okay),okay)
+	LIBGPIOD_STATUS := $(shell pkg-config --modversion libgpiod)
+	LIBGPIOD_CFLAGS := $(shell pkg-config --cflags libgpiod)
+	LIBGPIOD_LDFLAGS := $(shell pkg-config --libs-only-other --libs-only-L libgpiod)
+	LIBGPIOD_LIBS := $(shell pkg-config --libs-only-l libgpiod)
+else
+ifneq ($(MAKECMDGOALS),clean)
+$(error Could not find libgpiod >= 1.2 < 2.0)
+endif
+endif
+
+override CFLAGS += $(LIBGPIOD_CFLAGS)
+override LDFLAGS += $(LIBGPIOD_LDFLAGS)
+override LIBS += $(LIBGPIOD_LIBS)
+
+endif
+endif
+
 ifeq ($(WITH_PM_UTILS),yes)
 	PM_UTILS_EXISTS := $(shell pkg-config --exists pm-utils && echo yes || echo no)
 
@@ -548,6 +571,7 @@ $(info - host:                       $(WITH_HOST))
 $(info - target:                     $(WITH_TARGET))
 $(info libraries/tools:)
 $(info - libusb:                     $(LIBUSB_STATUS))
+$(info - libgpiod:                   $(LIBGPIOD_STATUS))
 $(info - pm-utils:                   $(PM_UTILS_STATUS))
 $(info - systemd:                    $(SYSTEMD_STATUS))
 $(info features:)

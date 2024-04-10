@@ -32,7 +32,6 @@
 #include <linux/spi/spidev.h>
 #include <unistd.h>
 
-#include <daemonlib/gpio_sysfs.h>
 #include <daemonlib/log.h>
 #include <daemonlib/utils.h>
 
@@ -42,6 +41,8 @@
 
 #include "raspberry_pi.h"
 
+#include <gpiod.h>
+
 #define BRICKLET_STACK_SPI_CONFIG_MODE           SPI_MODE_3
 #define BRICKLET_STACK_SPI_CONFIG_LSB_FIRST      0
 #define BRICKLET_STACK_SPI_CONFIG_BITS_PER_WORD  8
@@ -49,7 +50,8 @@
 
 struct _BrickletStackPlatform {
 	int spi_fd;
-	int chip_select_gpio_fd;
+	struct gpiod_chip *chip;
+	struct gpiod_line *line;
 };
 
 static LogSource _log_source = LOG_SOURCE_INITIALIZER;
@@ -65,46 +67,49 @@ int bricklet_stack_create_platform_spidev(BrickletStack *bricklet_stack) {
 	const int bits_per_word = BRICKLET_STACK_SPI_CONFIG_BITS_PER_WORD;
 	const int max_speed_hz = BRICKLET_STACK_SPI_CONFIG_MAX_SPEED_HZ;
 	BrickletStackPlatform *platform = &_platform[bricklet_stack->config.index];
-	char buffer[256];
 
 	memset(platform, 0, sizeof(BrickletStackPlatform));
+	platform->spi_fd = -1;
 
 	bricklet_stack->platform = platform;
 
 	// configure GPIO chip select
 	if (bricklet_stack->config.chip_select_driver == BRICKLET_CHIP_SELECT_DRIVER_GPIO) {
-		if (gpio_sysfs_export(&bricklet_stack->config.chip_select_gpio_sysfs) < 0) {
-			log_error("Could not export %s: %s (%d)",
-			          bricklet_stack->config.chip_select_gpio_sysfs.name, get_errno_name(errno), errno);
-
-			return -1;
+		// Find chip and line of the requested GPIO
+		char chip_name[32];
+		memset(chip_name, 0, sizeof(chip_name));
+		unsigned int offset;
+		int result = gpiod_ctxless_find_line(bricklet_stack->config.chip_select_name, chip_name, sizeof(chip_name), &offset);
+		if (result == -1) {
+			log_error("Failed to find line %s: %s (%d)", bricklet_stack->config.chip_select_name, get_errno_name(errno), errno);
+			goto cleanup;
+		} else if (result == 0) {
+			log_error("Could not find line %s", bricklet_stack->config.chip_select_name);
+			goto cleanup;
 		}
 
-		// FIXME: this will configure the pin as output-low, change this to directly configure as output-high
-		if (gpio_sysfs_set_direction(&bricklet_stack->config.chip_select_gpio_sysfs, GPIO_SYSFS_DIRECTION_OUTPUT) < 0) {
-			log_error("Could not set direction for %s: %s (%d)",
-			          bricklet_stack->config.chip_select_gpio_sysfs.name, get_errno_name(errno), errno);
+		// Open chip
+		platform->chip = gpiod_chip_open_by_name(chip_name);
 
-			return -1; // FIXME: unexport gpio cs pin
+		if (platform->chip == NULL) {
+			log_error("Could not open chip %s: %s (%d)", chip_name, get_errno_name(errno), errno);
+			goto cleanup;
 		}
 
-		if (gpio_sysfs_set_output(&bricklet_stack->config.chip_select_gpio_sysfs, GPIO_SYSFS_VALUE_HIGH) < 0) {
-			log_error("Could not set output for %s: %s (%d)",
-			          bricklet_stack->config.chip_select_gpio_sysfs.name, get_errno_name(errno), errno);
+		// Open line and request output
+		platform->line = gpiod_chip_get_line(platform->chip, offset);
 
-			return -1; // FIXME: unexport gpio cs pin
+		if (platform->line == NULL) {
+			log_error("Could not get line %s %d: %s (%d)", chip_name, offset, get_errno_name(errno), errno);
+			goto cleanup;
 		}
 
-		snprintf(buffer, sizeof(buffer), "/sys/class/gpio/%s/value", bricklet_stack->config.chip_select_name);
-		bricklet_stack->platform->chip_select_gpio_fd = open(buffer, O_WRONLY);
-
-		if (bricklet_stack->platform->chip_select_gpio_fd < 0) {
-			log_error("Could not open %s: %s (%d)",
-			          buffer, get_errno_name(errno), errno);
-
-			return -1; // FIXME: unexport gpio cs pin
+		if (gpiod_line_request_output(platform->line, "Tinkerforge Brick Daemon", 1) == -1) {
+			log_error("Could not reserve line for ouput %s %d: %s (%d)", chip_name, offset, get_errno_name(errno), errno);
+			goto cleanup;
 		}
 	}
+
 
 	// Open spidev
 	bricklet_stack->platform->spi_fd = open(bricklet_stack->config.spidev, O_RDWR);
@@ -113,52 +118,58 @@ int bricklet_stack_create_platform_spidev(BrickletStack *bricklet_stack) {
 		log_error("Could not open %s: %s (%d)",
 		          bricklet_stack->config.spidev, get_errno_name(errno), errno);
 
-		return -1; // FIXME: close gpio_fd and unexport gpio cs pin
+		goto cleanup;
 	}
 
 	if (ioctl(bricklet_stack->platform->spi_fd, SPI_IOC_WR_MODE, &mode) < 0) {
 		log_error("Could not configure SPI mode: %s (%d)",
 		          get_errno_name(errno), errno);
 
-		return -1; // FIXME: close spi_fd, close gpio_fd and unexport gpio cs pin
+		goto cleanup;
 	}
 
 	if (ioctl(bricklet_stack->platform->spi_fd, SPI_IOC_WR_MAX_SPEED_HZ, &max_speed_hz) < 0) {
 		log_error("Could not configure SPI max speed: %s (%d)",
 		          get_errno_name(errno), errno);
 
-		return -1; // FIXME: close spi_fd, close gpio_fd and unexport gpio cs pin
+		goto cleanup;
 	}
 
 	if (ioctl(bricklet_stack->platform->spi_fd, SPI_IOC_WR_BITS_PER_WORD, &bits_per_word) < 0) {
 		log_error("Could not configure SPI bits per word: %s (%d)",
 		          get_errno_name(errno), errno);
 
-		return -1; // FIXME: close spi_fd, close gpio_fd and unexport gpio cs pin
+		goto cleanup;
 	}
 
 	if (ioctl(bricklet_stack->platform->spi_fd, SPI_IOC_WR_LSB_FIRST, &lsb_first) < 0) {
 		log_error("Could not configure SPI LSB first: %s (%d)",
 		          get_errno_name(errno), errno);
 
-		return -1; // FIXME: close spi_fd, close gpio_fd and unexport gpio cs pin
+		goto cleanup;
 	}
 
 	return 0;
+
+cleanup:
+	robust_close(bricklet_stack->platform->spi_fd);
+	gpiod_line_release(platform->line);
+	gpiod_chip_close(platform->chip);
+
+	return -1;
 }
 
 void bricklet_stack_destroy_platform_spidev(BrickletStack *bricklet_stack) {
 	robust_close(bricklet_stack->platform->spi_fd);
-	robust_close(bricklet_stack->platform->chip_select_gpio_fd);
 
 	if (bricklet_stack->config.chip_select_driver == BRICKLET_CHIP_SELECT_DRIVER_GPIO) {
-		gpio_sysfs_unexport(&bricklet_stack->config.chip_select_gpio_sysfs);
+		gpiod_line_release(bricklet_stack->platform->line);
+		gpiod_chip_close(bricklet_stack->platform->chip);
 	}
 }
 
 int bricklet_stack_chip_select_gpio_spidev(BrickletStack *bricklet_stack, bool enable) {
-	// Use direct write call instead of gpio_sysfs_set_output on buffered fd to save some CPU time
-	return write(bricklet_stack->platform->chip_select_gpio_fd, enable ? "0" : "1", 1);
+	return gpiod_line_set_value(bricklet_stack->platform->line, enable ? 0 : 1);
 }
 
 int bricklet_stack_notify_spidev(BrickletStack *bricklet_stack) {

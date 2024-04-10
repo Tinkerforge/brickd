@@ -36,8 +36,6 @@ extern "C" {
 #include <daemonlib/ringbuffer.h>
 #ifdef BRICKD_UWP_BUILD
 	#include <daemonlib/pipe.h>
-#else
-	#include <daemonlib/gpio_sysfs.h>
 #endif
 
 #include "stack.h"
@@ -80,9 +78,6 @@ typedef struct {
 			// for the hardware CS driver this is the spidev CS number
 			int chip_select_num;
 		};
-#ifdef __linux__
-		GPIOSYSFS chip_select_gpio_sysfs;
-#endif
 	};
 
 	// TODO: Add WiringPi structure
