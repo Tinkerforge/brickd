@@ -5,7 +5,7 @@
 # the general armhf release as arm32v6 to be compatible with all Raspberry Pi
 # models
 
-version=1.1.0
+version=1.2.0
 
 rm -rf dist
 

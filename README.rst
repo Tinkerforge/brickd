@@ -57,10 +57,11 @@ Brick Daemon also depends on the following libraries:
 
 * libusb-1.0 (mandatory)
 * pm-utils (optional for suspend/resume handling, Linux without systemd only)
+* libgpiod (mandatory, Linux only)
 
 On Debian based Linux distributions try::
 
- sudo apt-get install build-essential pkg-config libusb-1.0-0-dev pm-utils
+ sudo apt-get install build-essential pkg-config libusb-1.0-0-dev pm-utils libgpiod-dev
 
 On Fedora Linux try::
 

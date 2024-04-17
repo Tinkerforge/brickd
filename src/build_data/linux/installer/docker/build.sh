@@ -10,7 +10,7 @@
 # the general armhf release as arm32v6 to be compatible with all Raspberry Pi
 # models
 
-version=1.1.0
+version=1.2.0
 
 for architecture in amd64 i386 arm32v7 arm64v8; do
     docker build --no-cache --build-arg ARCHITECTURE=${architecture} -t tinkerforge/builder-brickd-debian-${architecture}:${version} .
