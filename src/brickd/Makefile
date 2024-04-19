@@ -468,14 +468,20 @@ LIBGPIOD_STATUS := no
 ifeq ($(WITH_TARGET),Linux)
 ifeq ($(WITH_BRICKLET),yes)
 
-ifeq ($(shell pkg-config --exists 'libgpiod >= 1.2' && pkg-config --exists 'libgpiod < 2.0' && echo okay),okay)
+ifeq ($(shell pkg-config --exists 'libgpiod >= 1.2' && echo okay),okay)
 	LIBGPIOD_STATUS := $(shell pkg-config --modversion libgpiod)
 	LIBGPIOD_CFLAGS := $(shell pkg-config --cflags libgpiod)
 	LIBGPIOD_LDFLAGS := $(shell pkg-config --libs-only-other --libs-only-L libgpiod)
 	LIBGPIOD_LIBS := $(shell pkg-config --libs-only-l libgpiod)
+
+	ifeq ($(shell pkg-config --exists 'libgpiod >= 2' && echo okay),okay)
+		LIBGPIOD_CFLAGS += -DBRICKD_LIBGPIOD2_V2
+	else
+		LIBGPIOD_CFLAGS += -DBRICKD_LIBGPIOD2_V1
+	endif
 else
 ifneq ($(MAKECMDGOALS),clean)
-$(error Could not find libgpiod >= 1.2 < 2.0)
+$(error Could not find libgpiod >= 1.2)
 endif
 endif
 
