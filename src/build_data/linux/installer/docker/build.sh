@@ -8,7 +8,9 @@
 # distinguish between arm32v7 and arm32v6. historically brickd was build on
 # target. the RED Brick is arm32v7 and the Raspberry Pi Zero is arm32v6. build
 # the general armhf release as arm32v6 to be compatible with all Raspberry Pi
-# models
+# models. but there is no ready made Raspberry Pi docker image available.
+# therefore, we take an arm32v7 Debian image and install the toolchain from
+# Raspbian to be able to target arm32v6
 
 version=1.2.0
 

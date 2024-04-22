@@ -35,9 +35,11 @@
 // do nothing, because riscv requires glibc >= 2.27 anyway
 #elif defined __arm__
 __asm__(".symver memcpy,memcpy@GLIBC_2.4");
+__asm__(".symver fcntl,fcntl@GLIBC_2.4");
 #elif defined __i386__
 __asm__(".symver clock_gettime,clock_gettime@GLIBC_2.2");
 __asm__(".symver clock_nanosleep,clock_nanosleep@GLIBC_2.2");
+__asm__(".symver fcntl,fcntl@GLIBC_2.0");
 #else
 __asm__(".symver memcpy,memcpy@GLIBC_2.2.5");
 __asm__(".symver clock_gettime,clock_gettime@GLIBC_2.2.5");
