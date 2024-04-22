@@ -271,3 +271,6 @@
 2023-11-30: 2.4.5 (f841c6b)
 - Add Raspberry Pi 5 support for HAT (Zero) Brick
 - Fix rare crash in initial USB device scan
+
+<unknown>: 2.4.6 (<unknown>)
+- Adapt to Raspberry Pi 5 GPIO pin numbering changes
