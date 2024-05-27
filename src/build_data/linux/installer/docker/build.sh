@@ -12,7 +12,7 @@
 # therefore, we take an arm32v7 Debian image and install the toolchain from
 # Raspbian to be able to target arm32v6
 
-version=1.2.0
+version=1.2.1
 
 for architecture in amd64 i386 arm32v7 arm64v8; do
     docker build --no-cache --build-arg ARCHITECTURE=${architecture} -t tinkerforge/builder-brickd-debian-${architecture}:${version} .

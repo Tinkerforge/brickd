@@ -17,7 +17,7 @@ ENV LANGUAGE en_US:en
 ENV LC_ALL en_US.UTF-8
 
 # brickd
-RUN DEBIAN_FRONTEND=noninteractive apt-get install -y --allow-downgrades build-essential git debhelper dh-systemd lintian pkg-config libusb-1.0-0-dev libudev1=241-7~deb10u9+rpi1 libudev-dev python3 libsystemd0=241-7~deb10u9+rpi1 systemd libgpiod-dev
+RUN DEBIAN_FRONTEND=noninteractive apt-get install -y --allow-downgrades build-essential git debhelper dh-systemd lintian pkg-config libusb-1.0-0-dev python3 libsystemd0=241-7~deb10u9+rpi1 systemd libgpiod-dev
 
 # user
 RUN adduser --disabled-password --gecos '' foobar
