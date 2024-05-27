@@ -87,14 +87,14 @@ endif
 ifndef datadir
 	datadir := $(prefix)/share
 endif
+
+ifndef libdir
+	libdir := $(prefix)/lib
+endif
 endif
 
 ifeq ($(WITH_TARGET),check)
 	override WITH_TARGET := $(WITH_HOST)
-endif
-
-ifndef libdir
-	libdir := $(prefix)/lib
 endif
 
 ifneq ($(findstring $(MAKEFLAGS),s),s)
