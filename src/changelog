@@ -274,3 +274,4 @@
 
 <unknown>: 2.4.6 (<unknown>)
 - Adapt to Raspberry Pi 5 GPIO pin numbering changes
+- Change runstatedir default from /var/run to /run on Linux

@@ -2,7 +2,7 @@
 
 command="/usr/sbin/brickd"
 command_args="--daemon"
-pidfile="/var/run/brickd.pid"
+pidfile="/run/brickd.pid"
 
 depend() {
 	need localmount

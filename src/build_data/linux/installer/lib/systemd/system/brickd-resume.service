@@ -6,7 +6,7 @@ Requisite=brickd.service
 [Service]
 User=root
 Type=oneshot
-ExecStart=/usr/bin/pkill -F /var/run/brickd.pid -L -USR1
+ExecStart=/usr/bin/pkill -F /run/brickd.pid -L -USR1
 TimeoutSec=0
 StandardOutput=syslog
 

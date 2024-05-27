@@ -6,7 +6,7 @@ case $1 in
   true)
     ;;
   false)
-    pkill -F /var/run/brickd.pid -L -USR1 brickd || pkill -USR1 brickd || true
+    pkill -F /run/brickd.pid -L -USR1 brickd || pkill -USR1 brickd || true
     ;;
   *)
     ;;

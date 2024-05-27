@@ -39,8 +39,9 @@
 
 static LogSource _log_source = LOG_SOURCE_INITIALIZER;
 
+static const char *_socket_filename = RUNSTATEDIR"/redapid-brickd.socket"
+
 #define RECONNECT_INTERVAL 2000000 // 2 seconds in microseconds
-#define SOCKET_FILENAME "/var/run/redapid-brickd.socket"
 
 typedef struct {
 	Stack base;
@@ -264,12 +265,12 @@ static void redapid_handle_reconnect(void *opaque) {
 
 	// connect socket
 	address.sun_family = AF_UNIX;
-	strcpy(address.sun_path, SOCKET_FILENAME);
+	strcpy(address.sun_path, _socket_filename);
 
 	if (socket_connect(&_redapid.socket, (struct sockaddr *)&address, sizeof(address)) < 0) {
 		if (!_connect_error_warning) {
 			log_warn("Could not connect to UNIX domain socket '%s', retrying with 2 second interval: %s (%d)",
-			         SOCKET_FILENAME, get_errno_name(errno), errno);
+			         _socket_filename, get_errno_name(errno), errno);
 		}
 
 		_connect_error_warning = true;

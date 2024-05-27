@@ -48,7 +48,7 @@
 static LogSource _log_source = LOG_SOURCE_INITIALIZER;
 
 static const char *_config_filename = SYSCONFDIR"/brickd.conf";
-static const char *_pid_filename = LOCALSTATEDIR"/run/brickd.pid";
+static const char *_pid_filename = RUNSTATEDIR"/brickd.pid";
 static const char *_log_filename = LOCALSTATEDIR"/log/brickd.log";
 static File _log_file;
 

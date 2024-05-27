@@ -33,7 +33,7 @@
 PATH=/bin:/usr/bin:/sbin:/usr/sbin
 DAEMON=/usr/bin/brickd
 OPTIONS=--daemon
-PIDFILE=/var/run/brickd.pid
+PIDFILE=/run/brickd.pid
 
 test -x $DAEMON || exit 0
 

@@ -64,7 +64,7 @@ static LogSource _log_source = LOG_SOURCE_INITIALIZER;
 
 static char _config_filename_default[1024] = SYSCONFDIR"/brickd.conf";
 static const char *_config_filename = _config_filename_default;
-static char _pid_filename_default[1024] = LOCALSTATEDIR"/run/brickd.pid";
+static char _pid_filename_default[1024] = RUNSTATEDIR"/brickd.pid";
 static const char *_pid_filename = _pid_filename_default;
 static char _log_filename_default[1024] = LOCALSTATEDIR"/log/brickd.log";
 static const char *_log_filename = _log_filename_default;

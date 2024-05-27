@@ -76,11 +76,31 @@ else
 endif
 endif
 
+	localstatedir_default := /var
+
 ifndef localstatedir
 ifeq ($(prefix),/usr)
 	localstatedir := /var
 else
 	localstatedir := $(prefix)/var
+endif
+endif
+
+ifeq ($(WITH_HOST),Linux)
+	runstatedir_default := /run
+
+ifndef runstatedir
+ifeq ($(prefix),/usr)
+	runstatedir := /run
+else
+	runstatedir := $(prefix)/run
+endif
+endif
+else
+	runstatedir_default := /var/run
+
+ifndef runstatedir
+	runstatedir := $(localstatedir)/run
 endif
 endif
 
@@ -392,7 +412,7 @@ ifeq ($(WITH_TARGET),Windows)
 	override LDFLAGS += -Wl,-subsystem,console
 	override LIBS += -lws2_32
 else
-	override CFLAGS += -DSYSCONFDIR="\"$(sysconfdir)\"" -DLOCALSTATEDIR="\"$(localstatedir)\""
+	override CFLAGS += -DSYSCONFDIR="\"$(sysconfdir)\"" -DLOCALSTATEDIR="\"$(localstatedir)\"" -DRUNSTATEDIR="\"$(runstatedir)\""
 	override LDFLAGS += -pthread
 endif
 
@@ -643,12 +663,14 @@ endif
 	@echo MD $(sysconfdir)/logrotate.d
 	$(E)$(INSTALL) -d -m 755 $(DESTDIR)$(sysconfdir)/logrotate.d
 
-ifneq ($(localstatedir),/var)
+ifneq ($(localstatedir),$(localstatedir_default))
 	@echo MD $(localstatedir)/log
 	$(E)$(INSTALL) -d -m 755 $(DESTDIR)$(localstatedir)/log
+endif
 
-	@echo MD $(localstatedir)/run
-	$(E)$(INSTALL) -d -m 755 $(DESTDIR)$(localstatedir)/run
+ifneq ($(runstatedir),$(runstatedir_default))
+	@echo MD $(runstatedir)
+	$(E)$(INSTALL) -d -m 755 $(DESTDIR)$(runstatedir)
 endif
 
 	@echo MD $(datadir)

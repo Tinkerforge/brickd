@@ -5,7 +5,7 @@ After=network.target
 [Service]
 Type=forking
 ExecStart=/usr/bin/brickd --daemon
-PIDFile=/var/run/brickd.pid
+PIDFile=/run/brickd.pid
 
 [Install]
 WantedBy=multi-user.target
