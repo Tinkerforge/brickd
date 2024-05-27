@@ -39,7 +39,7 @@
 
 static LogSource _log_source = LOG_SOURCE_INITIALIZER;
 
-static const char *_socket_filename = RUNSTATEDIR"/redapid-brickd.socket"
+static const char *_socket_filename = RUNSTATEDIR"/redapid-brickd.socket";
 
 #define RECONNECT_INTERVAL 2000000 // 2 seconds in microseconds
 
