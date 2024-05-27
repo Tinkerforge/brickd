@@ -473,7 +473,7 @@ endif
 
 ifeq ($(WITH_TARGET),Darwin)
 	HOTPLUG := libusb
-	LIBUSB_STATUS := $(word 1,$(file < ../build_data/macos/libusb/version.txt)) (fork, static)
+	LIBUSB_STATUS := $(shell head -n 1 ../build_data/macos/libusb/version.txt) (fork, static)
 	LIBUSB_CFLAGS := -I../build_data/macos/libusb
 	LIBUSB_LDFLAGS := -L../build_data/macos/libusb
 	LIBUSB_LIBS := -lusb-1.0-brickd-static
