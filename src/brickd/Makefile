@@ -467,28 +467,26 @@ LIBGPIOD_STATUS := no
 
 ifeq ($(WITH_TARGET),Linux)
 ifeq ($(WITH_BRICKLET),yes)
-
 ifeq ($(shell pkg-config --exists 'libgpiod >= 1.2' && echo okay),okay)
 	LIBGPIOD_STATUS := $(shell pkg-config --modversion libgpiod)
 	LIBGPIOD_CFLAGS := $(shell pkg-config --cflags libgpiod)
 	LIBGPIOD_LDFLAGS := $(shell pkg-config --libs-only-other --libs-only-L libgpiod)
 	LIBGPIOD_LIBS := $(shell pkg-config --libs-only-l libgpiod)
 
-	ifeq ($(shell pkg-config --exists 'libgpiod >= 2' && echo okay),okay)
-		LIBGPIOD_CFLAGS += -DBRICKD_LIBGPIOD2_V2
-	else
-		LIBGPIOD_CFLAGS += -DBRICKD_LIBGPIOD2_V1
-	endif
+ifeq ($(shell pkg-config --exists 'libgpiod >= 2' && echo okay),okay)
+	LIBGPIOD_CFLAGS += -DBRICKD_LIBGPIOD2_V2
+else
+	LIBGPIOD_CFLAGS += -DBRICKD_LIBGPIOD2_V1
+endif
 else
 ifneq ($(MAKECMDGOALS),clean)
 $(error Could not find libgpiod >= 1.2)
 endif
 endif
 
-override CFLAGS += $(LIBGPIOD_CFLAGS)
-override LDFLAGS += $(LIBGPIOD_LDFLAGS)
-override LIBS += $(LIBGPIOD_LIBS)
-
+	override CFLAGS += $(LIBGPIOD_CFLAGS)
+	override LDFLAGS += $(LIBGPIOD_LDFLAGS)
+	override LIBS += $(LIBGPIOD_LIBS)
 endif
 endif
 
