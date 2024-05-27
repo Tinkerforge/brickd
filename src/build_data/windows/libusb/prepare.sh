@@ -1,7 +1,7 @@
 #!/bin/bash -ex
 
-version=1.0.26.11755
-commit=1c6e76a483238ba9f0511c77b02ea7607c30d897
+version=$(head -n 1 version.txt)
+commit=$(tail -n +2 version.txt | head -n 1)
 
 rm -rf libusb-src
 rm -f libusb-${commit}.zip
