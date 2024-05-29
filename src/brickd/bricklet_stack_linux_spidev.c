@@ -232,7 +232,6 @@ close_chip:
 
 #endif
 
-
 int bricklet_stack_create_platform_spidev(BrickletStack *bricklet_stack) {
 	// Use HW chip select if it is done by SPI hardware unit, otherwise set SPI_NO_CS flag.
 	// Raspberry Pi 5 does not support setting this flag, even though we disable all HW chip select pins.
@@ -354,11 +353,19 @@ cleanup:
 	robust_close(bricklet_stack->platform->spi_fd);
 
 #if defined(BRICKD_LIBGPIOD2_V1)
-	gpiod_line_release(platform->line);
-	gpiod_chip_close(platform->chip);
+	if (platform->line != NULL) {
+		gpiod_line_release(platform->line);
+	}
+
+	if (platform->chip != NULL) {
+		gpiod_chip_close(platform->chip);
+	}
 #elif defined(BRICKD_LIBGPIOD2_V2)
-	gpiod_line_request_release(platform->request);
+	if (platform->request != NULL) {
+		gpiod_line_request_release(platform->request);
+	}
 #endif
+
 	return -1;
 }
 
