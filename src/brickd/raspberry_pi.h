@@ -22,6 +22,7 @@
 #include <stddef.h>
 
 #define RASPBERRY_PI_NOT_DETECTED 0
-#define RASPBERRY_PI_DETECTED 1
+#define RASPBERRY_PI_BCM2835_DETECTED 1
 #define RASPBERRY_PI_5_DETECTED 2
+
 int raspberry_pi_detect(char *spidev_reason, size_t spidev_reason_len);

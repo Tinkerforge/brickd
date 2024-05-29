@@ -74,29 +74,29 @@ int bricklet_stack_create_platform(BrickletStack *bricklet_stack) {
 	bool bcm2835;
 	int spi_driver;
 	char spidev_reason[256];
-	int _raspberry_pi = raspberry_pi_detect(spidev_reason, sizeof(spidev_reason)/sizeof(spidev_reason[0])) == RASPBERRY_PI_DETECTED;
+	bool raspberry_pi_bcm2835 = raspberry_pi_detect(spidev_reason, sizeof(spidev_reason)) == RASPBERRY_PI_BCM2835_DETECTED;
 
 	if (_create_platform == NULL) {
 		spi_driver = config_get_option_value("bricklet.spi.driver")->symbol;
 
 		if (spi_driver == BRICKLET_SPI_DRIVER_AUTO) {
-			if (_raspberry_pi) {
-				log_info("Using BCM2835 backend for Bricklets (Raspberry Pi detected)");
+			if (raspberry_pi_bcm2835) {
+				log_info("Using BCM2835 backend for Bricklets, because Raspberry Pi with BCM2835 detected");
 				bcm2835 = true;
 			} else {
-				log_info("Using spidev backend for Bricklets (%s)", spidev_reason);
+				log_info("Using spidev backend for Bricklets, because %s", spidev_reason);
 				bcm2835 = false;
 			}
 		} else if (spi_driver == BRICKLET_SPI_DRIVER_BCM2835) {
-			if (_raspberry_pi) {
-				log_info("Using BCM2835 backend for Bricklets (forced by config)");
+			if (raspberry_pi_bcm2835) {
+				log_info("Using BCM2835 backend for Bricklets as forced by config");
 			} else {
-				log_info("Using BCM2835 backend for Bricklets (forced by config, but %s)", spidev_reason);
+				log_info("Using BCM2835 backend for Bricklets as forced by config, but %s", spidev_reason);
 			}
 
 			bcm2835 = true;
 		} else { // BRICKLET_SPI_DRIVER_SPIDEV
-			log_info("Using spidev backend for Bricklets (forced by config)");
+			log_info("Using spidev backend for Bricklets as forced by config");
 			bcm2835 = false;
 		}
 

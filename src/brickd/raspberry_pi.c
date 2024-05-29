@@ -38,56 +38,61 @@ int raspberry_pi_detect(char *spidev_reason, size_t spidev_reason_len) {
 	int length;
 	const char *model_prefix = "Raspberry Pi ";
 	int model_prefix_len = strlen(model_prefix);
-	const char * unsupported_model_suffixes[] = {"5"};
+	struct {
+		const char *suffix;
+		int result;
+	} non_bcm2835_models[] = {
+		{"5", RASPBERRY_PI_5_DETECTED},
+	};
 	int fd;
 	size_t i;
 	int result = RASPBERRY_PI_NOT_DETECTED;
 
 	if (last_result >= 0) {
 		if (spidev_reason != NULL) {
-			memcpy(spidev_reason, last_spidev_reason, MIN(sizeof(last_spidev_reason) / sizeof(last_spidev_reason)[0], spidev_reason_len));
+			memcpy(spidev_reason, last_spidev_reason, MIN(sizeof(last_spidev_reason), spidev_reason_len));
 			spidev_reason[spidev_reason_len - 1] = 0;
 		}
 		return last_result;
 	}
 
-	snprintf(last_spidev_reason, sizeof(last_spidev_reason)/sizeof(last_spidev_reason[0]), "<unknown>");
+	snprintf(last_spidev_reason, sizeof(last_spidev_reason), "%s", "<unknown>");
 
 	fd = open(model_path, O_RDONLY);
 
 	if (fd < 0) {
 		if (errno == ENOENT) {
-			snprintf(last_spidev_reason, sizeof(last_spidev_reason)/sizeof(last_spidev_reason[0]), "%s not found", model_path);
+			snprintf(last_spidev_reason, sizeof(last_spidev_reason), "%s not found", model_path);
 			goto close_fd;
 		}
-		snprintf(last_spidev_reason, sizeof(last_spidev_reason)/sizeof(last_spidev_reason[0]), "could not open %s for reading: %s (%d)",
-		            model_path, get_errno_name(errno), errno);
+
+		snprintf(last_spidev_reason, sizeof(last_spidev_reason), "could not open %s for reading: %s (%d)",
+		         model_path, get_errno_name(errno), errno);
+
 		goto close_fd;
 	}
 
 	length = robust_read(fd, buffer, sizeof(buffer) - 1);
 
 	if (length < 0) {
-		snprintf(last_spidev_reason, sizeof(last_spidev_reason)/sizeof(last_spidev_reason[0]), "could not read from %s: %s (%d)",
-		            model_path, get_errno_name(errno), errno);
+		snprintf(last_spidev_reason, sizeof(last_spidev_reason), "could not read from %s: %s (%d)", model_path, get_errno_name(errno), errno);
 		goto close_fd;
 	}
 
 	buffer[length] = '\0';
 
 	if (strncmp(buffer, model_prefix, model_prefix_len) != 0) {
-		snprintf(last_spidev_reason, sizeof(last_spidev_reason)/sizeof(last_spidev_reason[0]), "no 'Raspberry Pi' prefix in %s",
-		            model_path);
+		snprintf(last_spidev_reason, sizeof(last_spidev_reason), "no 'Raspberry Pi' prefix in %s", model_path);
 		goto close_fd;
 	}
 
-	result = RASPBERRY_PI_DETECTED;
+	result = RASPBERRY_PI_BCM2835_DETECTED;
 
 	if (length > model_prefix_len) {
-		for(i = 0; i < sizeof(unsupported_model_suffixes)/sizeof(unsupported_model_suffixes[0]); ++i) {
-			if (strncmp(buffer + model_prefix_len, unsupported_model_suffixes[i], strlen(unsupported_model_suffixes[i])) == 0) {
-				snprintf(last_spidev_reason, sizeof(last_spidev_reason)/sizeof(last_spidev_reason[0]), "unsupported suffix %s after 'Raspberry Pi' in %s", unsupported_model_suffixes[i], model_path);
-				result = RASPBERRY_PI_5_DETECTED;
+		for (i = 0; i < sizeof(non_bcm2835_models); ++i) {
+			if (strncmp(buffer + model_prefix_len, non_bcm2835_models[i].suffix, strlen(non_bcm2835_models[i].suffix)) == 0) {
+				snprintf(last_spidev_reason, sizeof(last_spidev_reason), "%s", "Raspberry Pi without BCM2835 detected");
+				result = non_bcm2835_models[i].result;
 				goto close_fd;
 			}
 		}
@@ -95,17 +100,19 @@ int raspberry_pi_detect(char *spidev_reason, size_t spidev_reason_len) {
 
 close_fd:
 	close(fd);
+
 	if (spidev_reason != NULL) {
-		memcpy(spidev_reason, last_spidev_reason, MIN(sizeof(last_spidev_reason) / sizeof(last_spidev_reason)[0], spidev_reason_len));
+		memcpy(spidev_reason, last_spidev_reason, MIN(sizeof(last_spidev_reason), spidev_reason_len));
 		spidev_reason[spidev_reason_len - 1] = 0;
 	}
+
 	return result;
 
 #else
 	if (spidev_reason != NULL) {
-		snprintf(spidev_reason, spidev_reason_len, "non-ARM architecture");
+		snprintf(spidev_reason, spidev_reason_len, "%s", "non-ARM architecture detected");
 	}
 
-	return 0;
+	return RASPBERRY_PI_NOT_DETECTED;
 #endif
 }
