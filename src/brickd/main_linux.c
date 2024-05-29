@@ -70,6 +70,22 @@ static char _log_filename_default[1024] = LOCALSTATEDIR"/log/brickd.log";
 static const char *_log_filename = _log_filename_default;
 static File _log_file;
 
+#if defined __amd64__
+static const char *_architecture = "amd64";
+#elif defined __i386__
+static const char *_architecture = "i386";
+#elif defined __arm__
+static const char *_architecture = "arm";
+#elif defined __aarch64__
+static const char *_architecture = "arm64";
+#elif defined __riscv && __riscv_xlen == 32
+static const char *_architecture = "riscv32";
+#elif defined __riscv && __riscv_xlen == 64
+static const char *_architecture = "riscv64";
+#else
+static const char *_architecture = "unknown";
+#endif
+
 #ifdef BRICKD_WITH_LIBUSB_HOTPLUG_MKNOD
 extern bool usb_hotplug_mknod;
 #endif
@@ -365,8 +381,8 @@ int main(int argc, char **argv) {
 		log_init(); // daemon_start calls log_init
 	}
 
-	log_info("Brick Daemon %s started (pid: %u, daemonized: %d)",
-	         VERSION_STRING, getpid(), daemon ? 1 : 0);
+	log_info("Brick Daemon %s started (architecture: %s, pid: %u, daemonized: %d)",
+	         VERSION_STRING, _architecture, getpid(), daemon ? 1 : 0);
 
 	if (uname(&uts) < 0) {
 		log_warn("Could not get Linux system information: %s (%d)", get_errno_name(errno), errno);
