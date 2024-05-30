@@ -10,8 +10,8 @@ WORKDIR /brickd/src/build_data/linux/libusb/
 RUN ./prepare.sh
 RUN ./compile.sh
 WORKDIR /brickd/src/brickd/
-RUN make WITH_STATIC=yes WITH_LIBUSB_HOTPLUG_MKNOD=yes clean
-RUN make WITH_STATIC=yes WITH_LIBUSB_HOTPLUG_MKNOD=yes
+RUN make WITH_STATIC=yes WITH_LIBUSB_HOTPLUG_MKNOD=yes WITH_BRICKLET=no clean
+RUN make WITH_STATIC=yes WITH_LIBUSB_HOTPLUG_MKNOD=yes WITH_BRICKLET=no
 
 FROM scratch
 COPY --from=builder /brickd/src/brickd/brickd /
