@@ -20,6 +20,7 @@ WITH_HOST ?= check
 WITH_TARGET ?= check
 WITH_LIBUSB_DLOPEN ?= no
 WITH_LIBUSB_STATIC ?= no
+WITH_LIBGPIOD_STATIC ?= no
 WITH_LOGGING ?= yes
 WITH_EPOLL ?= check
 WITH_PACKET_TRACE ?= no
@@ -135,6 +136,7 @@ endif
 
 ifeq ($(WITH_STATIC),yes)
 	override WITH_LIBUSB_STATIC := yes
+	override WITH_LIBGPIOD_STATIC := yes
 endif
 
 ifneq ($(WITH_TARGET),Linux)
@@ -487,6 +489,12 @@ LIBGPIOD_STATUS := no
 
 ifeq ($(WITH_TARGET),Linux)
 ifeq ($(WITH_BRICKLET),yes)
+ifeq ($(WITH_LIBGPIOD_STATIC),yes)
+	LIBGPIOD_STATUS := $(word 1,$(file < ../build_data/linux/libgpiod/version.txt)) (fork, static)
+	LIBGPIOD_CFLAGS := -I../build_data/linux/libgpiod -DBRICKD_LIBGPIOD2_V1
+	LIBGPIOD_LDFLAGS := -L../build_data/linux/libgpiod
+	LIBGPIOD_LIBS := -lgpiod-brickd-static
+else
 ifeq ($(shell pkg-config --exists 'libgpiod >= 1.2' && echo okay),okay)
 	LIBGPIOD_STATUS := $(shell pkg-config --modversion libgpiod)
 	LIBGPIOD_CFLAGS := $(shell pkg-config --cflags libgpiod)
@@ -501,6 +509,7 @@ endif
 else
 ifneq ($(MAKECMDGOALS),clean)
 $(error Could not find libgpiod >= 1.2)
+endif
 endif
 endif
 

@@ -1,0 +1,36 @@
+diff --git a/configure.ac b/configure.ac
+index 31681c2..daa3d0c 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -8,7 +8,7 @@
+ 
+ AC_PREREQ(2.61)
+ 
+-AC_INIT([libgpiod], 1.6.4)
++AC_INIT([libgpiod-brickd], 1.6.4)
+ AC_SUBST(EXTRA_VERSION, [])
+ 
+ AC_DEFINE_UNQUOTED([GPIOD_VERSION_STR],
+diff --git a/lib/Makefile.am b/lib/Makefile.am
+index 53ef771..6627947 100644
+--- a/lib/Makefile.am
++++ b/lib/Makefile.am
+@@ -6,12 +6,12 @@
+ # Copyright (C) 2017-2018 Bartosz Golaszewski <bartekgola@gmail.com>
+ #
+ 
+-lib_LTLIBRARIES = libgpiod.la
+-libgpiod_la_SOURCES = core.c ctxless.c helpers.c iter.c misc.c
+-libgpiod_la_CFLAGS = -Wall -Wextra -g -std=gnu89
+-libgpiod_la_CFLAGS += -fvisibility=hidden -I$(top_srcdir)/include/
+-libgpiod_la_CFLAGS += -include $(top_builddir)/config.h
+-libgpiod_la_LDFLAGS = -version-info $(subst .,:,$(ABI_VERSION))
++lib_LTLIBRARIES = libgpiod-brickd.la
++libgpiod_brickd_la_SOURCES = core.c ctxless.c helpers.c iter.c misc.c
++libgpiod_brickd_la_CFLAGS = -Wall -Wextra -g -std=gnu89
++libgpiod_brickd_la_CFLAGS += -fvisibility=hidden -I$(top_srcdir)/include/
++libgpiod_brickd_la_CFLAGS += -include $(top_builddir)/config.h
++libgpiod_brickd_la_LDFLAGS = -version-info $(subst .,:,$(ABI_VERSION))
+ 
+ pkgconfigdir = $(libdir)/pkgconfig
+ pkgconfig_DATA = libgpiod.pc

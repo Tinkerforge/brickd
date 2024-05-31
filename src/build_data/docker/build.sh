@@ -8,9 +8,10 @@ pushd ../../..
 src_zip=src/build_data/docker/src.zip
 
 rm -f ${src_zip}
-zip ${src_zip} src/brickd/*
-zip ${src_zip} src/daemonlib/*
-zip ${src_zip} src/build_data/linux/libusb/*
+zip -q ${src_zip} src/brickd/*
+zip -q ${src_zip} src/daemonlib/*
+zip -q ${src_zip} src/build_data/linux/libusb/*
+zip -q ${src_zip} src/build_data/linux/libgpiod/*
 
 popd
 
