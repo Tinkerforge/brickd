@@ -281,7 +281,7 @@ int bricklet_stack_create_platform_spidev(BrickletStack *bricklet_stack) {
 		}
 
 		if (gpiod_line_request_output(platform->line, "Tinkerforge Brick Daemon", 1) == -1) {
-			log_error("Could not reserve line for ouput %s %d: %s (%d)", chip_name, offset, get_errno_name(errno), errno);
+			log_error("Could not reserve line for output %s %d: %s (%d)", chip_name, offset, get_errno_name(errno), errno);
 			goto cleanup;
 		}
 #elif defined(BRICKD_LIBGPIOD2_V2)
