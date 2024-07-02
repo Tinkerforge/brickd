@@ -272,7 +272,7 @@
 - Add Raspberry Pi 5 support for HAT (Zero) Brick
 - Fix rare crash in initial USB device scan
 
-2024-07-01: 2.4.6 (<unknown>)
+2024-07-02: 2.4.6 (<unknown>)
 - Adapt to Raspberry Pi 5 GPIO pin numbering changes
 - Use libgpiod for GPIO pin access on Linux
 - Change runstatedir default from /var/run to /run on Linux
