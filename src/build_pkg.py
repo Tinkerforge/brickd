@@ -30,6 +30,11 @@ Boston, MA 02111-1307, USA.
 
 
 import sys
+
+if sys.hexversion < 0x3040000:
+    print('Python >= 3.4 required')
+    sys.exit(1)
+
 import os
 import shutil
 import subprocess
@@ -38,28 +43,6 @@ import time
 import re
 import argparse
 import pprint
-
-def system(command):
-    if os.system(command) != 0:
-        sys.exit(1)
-
-def check_output(*args, **kwargs):
-    if 'stdout' in kwargs:
-        raise ValueError('stdout argument not allowed, it will be overridden')
-
-    process = subprocess.Popen(stdout=subprocess.PIPE, *args, **kwargs)
-    output, error = process.communicate()
-    exit_code = process.poll()
-
-    if exit_code != 0:
-        command = kwargs.get('args')
-
-        if command == None:
-            command = args[0]
-
-        raise subprocess.CalledProcessError(exit_code, command, output=output)
-
-    return output.decode('utf-8')
 
 def specialize_template(template_filename, destination_filename, replacements, remove_template=False):
     lines = []
@@ -93,7 +76,7 @@ def specialize_template(template_filename, destination_filename, replacements, r
 
 def git_commit_id():
     try:
-        commit_id = check_output(['git', 'rev-parse', 'HEAD'])[:7]
+        commit_id = subprocess.check_output(['git', 'rev-parse', 'HEAD']).decode('utf-8')[:7]
     except Exception:
         commit_id = 'unknown'
 
@@ -126,7 +109,7 @@ def build_macos_pkg():
         shutil.rmtree(dist_path)
 
     print('compiling')
-    system('cd brickd; make clean; make CC=gcc WITH_VERSION_SUFFIX={0}'.format(version_suffix))
+    subprocess.check_call('cd brickd; make clean; make CC=gcc WITH_VERSION_SUFFIX={0}'.format(version_suffix), shell=True)
 
     print('copying installer root')
     installer_root_path = os.path.join(root_path, 'build_data', 'macos', 'installer', 'root')
@@ -141,21 +124,20 @@ def build_macos_pkg():
     shutil.copy('brickd/brickd', macos_path)
 
     print('creating Info.plist from template')
-    version = check_output(['./brickd/brickd', '--version']).strip()
+    version = subprocess.check_output(['./brickd/brickd', '--version']).decode('utf-8').strip()
     underscore_version = version.replace('.', '_').replace('+', '_').replace('~', '_')
     plist_path = os.path.join(contents_path, 'Info.plist')
     specialize_template(plist_path, plist_path, {'<<VERSION>>': version.split('+')[0]}) # macOS only allows for <major>.<minor>.<patch> here
 
     if not args.no_sign:
         print('signing brickd binary')
-        system('security unlock-keychain /Users/$USER/Library/Keychains/login.keychain')
-        codesign_command = 'codesign --force --verify --verbose=1 -o runtime --sign "Developer ID Application: Tinkerforge GmbH (K39N76HTZ4)" {0}'
-        system(codesign_command.format(app_path))
+        subprocess.check_call('security unlock-keychain /Users/$USER/Library/Keychains/login.keychain', shell=True)
+        subprocess.check_call(['codesign', '--force', '--verify', '--verbose=1', '-o', 'runtime', '--sign', 'Developer ID Application: Tinkerforge GmbH (K39N76HTZ4)', app_path])
 
         print('notarize app')
         zip_path = os.path.join(dist_path, 'brickd.app.zip')
-        system('ditto -c -k --keepParent "{0}" "{1}"'.format(app_path, zip_path))
-        output = subprocess.check_output(['xcrun', 'notarytool', 'submit', zip_path, '--output-format', 'json', '--keychain-profile', 'notary-tinkerforge'])
+        subprocess.check_call(['ditto', '-c', '-k', '--keepParent', app_path, zip_path])
+        output = subprocess.check_output(['xcrun', 'notarytool', 'submit', zip_path, '--output-format', 'json', '--keychain-profile', 'notary-tinkerforge']).decode('utf-8')
         notarization_submit = json.loads(output)
 
         try:
@@ -172,7 +154,7 @@ def build_macos_pkg():
 
         while True:
             try:
-                output = subprocess.check_output(['xcrun', 'notarytool', 'info', request_id, '--output-format', 'json', '--keychain-profile', 'notary-tinkerforge'])
+                output = subprocess.check_output(['xcrun', 'notarytool', 'info', request_id, '--output-format', 'json', '--keychain-profile', 'notary-tinkerforge']).decode('utf-8')
             except subprocess.CalledProcessError as e:
                 print('warning: notarize query failed, retrying', e)
                 time.sleep(1)
@@ -201,18 +183,34 @@ def build_macos_pkg():
             sys.exit(1)
 
         print('staple notarization ticket to app')
-        system('xcrun stapler staple "{0}"'.format(app_path))
+        subprocess.check_call(['xcrun', 'stapler', 'staple', app_path])
 
     print('building pkg')
     scripts_path = os.path.join(root_path, 'build_data', 'macos', 'installer', 'scripts')
     component_path = os.path.join(root_path, 'build_data', 'macos', 'installer', 'component.plist')
 
-    if not args.no_sign:
-        sign = ' --sign "Developer ID Installer: Tinkerforge GmbH (K39N76HTZ4)"'
-    else:
-        sign = ''
+    pkgbuild_args = ['pkgbuild']
 
-    system('pkgbuild{0} --root dist/root --identifier com.tinkerforge.brickd --version {1} --scripts {2} --install-location / --component-plist {3} dist/brickd.pkg'.format(sign, version, scripts_path, component_path))
+    if not args.no_sign:
+        pkgbuild_args += ['--sign', 'Developer ID Installer: Tinkerforge GmbH (K39N76HTZ4)']
+
+    pkgbuild_args += [
+        '--root',
+        'dist/root',
+        '--identifier',
+        'com.tinkerforge.brickd',
+        '--version',
+        version,
+        '--scripts',
+        scripts_path,
+        '--install-location',
+        '/',
+        '--component-plist',
+        component_path,
+        'dist/brickd.pkg',
+    ]
+
+    subprocess.check_call(pkgbuild_args)
 
     distribution_path = os.path.join(root_path, 'build_data', 'macos', 'installer', 'distribution.xml')
     shutil.copy(distribution_path, dist_path)
@@ -220,11 +218,26 @@ def build_macos_pkg():
     specialize_template(distribution_path, distribution_path, {'<<VERSION>>': version})
     os.makedirs('dist/dmg')
     pkg_path = 'dist/dmg/Brickd-{0}.pkg'.format(version)
-    system('productbuild{0} --distribution {1} --package-path {2} --version {3} {4}'.format(sign, distribution_path, dist_path, version, pkg_path))
+    productbuild_args = ['productbuild']
+
+    if not args.no_sign:
+        productbuild_args += ['--sign', 'Developer ID Installer: Tinkerforge GmbH (K39N76HTZ4)']
+
+    productbuild_args += [
+        '--distribution',
+        distribution_path,
+        '--package-path',
+        dist_path,
+        '--version',
+        version,
+        pkg_path,
+    ]
+
+    subprocess.check_call(productbuild_args)
 
     if not args.no_sign:
         print('notarize pkg')
-        output = subprocess.check_output(['xcrun', 'notarytool', 'submit', pkg_path, '--output-format', 'json', '--keychain-profile', 'notary-tinkerforge'])
+        output = subprocess.check_output(['xcrun', 'notarytool', 'submit', pkg_path, '--output-format', 'json', '--keychain-profile', 'notary-tinkerforge']).decode('utf-8')
         notarization_submit = json.loads(output)
 
         try:
@@ -241,7 +254,7 @@ def build_macos_pkg():
 
         while True:
             try:
-                output = subprocess.check_output(['xcrun', 'notarytool', 'info', request_id, '--output-format', 'json', '--keychain-profile', 'notary-tinkerforge'])
+                output = subprocess.check_output(['xcrun', 'notarytool', 'info', request_id, '--output-format', 'json', '--keychain-profile', 'notary-tinkerforge']).decode('utf-8')
             except subprocess.CalledProcessError as e:
                 print('warning: notarize query failed, retrying', e)
                 time.sleep(1)
@@ -270,7 +283,7 @@ def build_macos_pkg():
             sys.exit(1)
 
         print('staple notarization ticket to pkg')
-        system('xcrun stapler staple "{0}"'.format(pkg_path))
+        subprocess.check_call(['xcrun', 'stapler', 'staple', pkg_path])
 
     print('building disk image')
     dmg_name = 'brickd_macos_{0}.dmg'.format(underscore_version)
@@ -278,13 +291,13 @@ def build_macos_pkg():
     if os.path.exists(dmg_name):
         os.remove(dmg_name)
 
-    system('hdiutil create -fs HFS+ -volname "Brickd-{0}" -srcfolder dist/dmg {1}'.format(version, dmg_name))
+    subprocess.check_call(['hdiutil', 'create', '-fs', 'HFS+', '-volname', 'Brickd-{0}'.format(version), '-srcfolder', 'dist/dmg', dmg_name])
 
 def signtool_sign(path):
-    system('"C:\\Program Files (x86)\\Windows Kits\\10\\bin\\x86\\signtool.exe" sign /v /fd sha256 /tr http://rfc3161timestamp.globalsign.com/advanced /td sha256 /a /n "Tinkerforge GmbH" "{0}"'.format(path))
+    subprocess.check_call(['C:\\Program Files (x86)\\Windows Kits\\10\\bin\\x86\\signtool.exe', 'sign', '/v', '/fd', 'sha256', '/tr', 'http://rfc3161timestamp.globalsign.com/advanced', '/td', 'sha256', '/a', '/n', 'Tinkerforge GmbH', path])
 
 def signtool_verify(path):
-    system('"C:\\Program Files (x86)\\Windows Kits\\10\\bin\\x86\\signtool.exe" verify /v /pa "{0}"'.format(path))
+    subprocess.check_call(['C:\\Program Files (x86)\\Windows Kits\\10\\bin\\x86\\signtool.exe', 'verify', '/v', '/pa', path])
 
 def build_windows_pkg():
     parser = argparse.ArgumentParser()
@@ -312,7 +325,7 @@ def build_windows_pkg():
     os.makedirs(dist_path)
 
     print('compiling brickd.exe')
-    system('cd brickd && mingw32-make clean && mingw32-make CC=gcc WITH_VERSION_SUFFIX={0}'.format(version_suffix))
+    subprocess.check_call('cd brickd && mingw32-make clean && mingw32-make CC=gcc WITH_VERSION_SUFFIX={0}'.format(version_suffix), shell=True)
 
     if not args.no_sign:
         print('signing brickd.exe')
@@ -322,7 +335,7 @@ def build_windows_pkg():
         signtool_verify('dist\\brickd.exe')
 
     print('compiling logviewer.exe')
-    system('cd build_data\\windows\\logviewer && mingw32-make clean && mingw32-make CC=gcc WITH_VERSION_SUFFIX={0}'.format(version_suffix))
+    subprocess.check_call('cd build_data\\windows\\logviewer && mingw32-make clean && mingw32-make CC=gcc WITH_VERSION_SUFFIX={0}'.format(version_suffix), shell=True)
 
     if not args.no_sign:
         print('signing logviewer.exe')
@@ -332,7 +345,7 @@ def build_windows_pkg():
         signtool_verify('build_data\\windows\\logviewer\\logviewer.exe')
 
     print('creating NSIS script from template')
-    version = check_output(['dist\\brickd.exe', '--version']).strip()
+    version = subprocess.check_output(['dist\\brickd.exe', '--version']).decode('utf-8').strip()
     underscore_version = version.replace('.', '_').replace('+', '_').replace('~', '_')
     build_data_path = os.path.join(root_path, 'build_data', 'windows')
     installer_template_path = os.path.join(build_data_path, 'installer', 'brickd_installer.nsi.template')
@@ -376,7 +389,7 @@ def build_windows_pkg():
                          '<<BRICKD_INSTALL_COMMANDS>>': '\n'.join(install_commands)})
 
     print('building NSIS installer')
-    system('"C:\\Program Files (x86)\\NSIS\\makensis.exe" dist\\installer\\brickd_installer.nsi')
+    subprocess.check_call(['C:\\Program Files (x86)\\NSIS\\makensis.exe', 'dist\\installer\\brickd_installer.nsi'])
     installer = 'brickd_windows_{0}.exe'.format(underscore_version)
 
     if os.path.exists(installer):
@@ -392,10 +405,10 @@ def build_windows_pkg():
         signtool_verify(installer)
 
 def git_ls_files(path):
-    if os.system('cd {0}; git rev-parse --is-inside-work-tree >/dev/null 2>&1'.format(path)) == 0:
-        return check_output(['git', 'ls-files'], cwd=path).strip().split('\n')
+    if subprocess.call('cd {0}; git rev-parse --is-inside-work-tree >/dev/null 2>&1'.format(path), shell=True) == 0:
+        return subprocess.check_output(['git', 'ls-files'], cwd=path).decode('utf-8').strip().split('\n')
 
-    if os.system('git help >/dev/null 2>&1'.format(path)) == 0:
+    if subprocess.call('git help >/dev/null 2>&1'.format(path), shell=True) == 0:
         warning = 'warning: {0} is not in a git repository, using raw directory listing instead'.format(path)
     else:
         warning = 'warning: git is not installed, using raw directory listing instead'
@@ -489,7 +502,7 @@ def build_linux_pkg():
         version_suffix += ''
 
     changelog_version = parse_changelog('changelog') + version_suffix
-    architecture = check_output(['dpkg', '--print-architecture']).strip()
+    architecture = subprocess.check_output(['dpkg', '--print-architecture']).decode('utf-8').strip()
 
     print('building brickd Debian package for {0}'.format(architecture))
     root_path = os.getcwd()
@@ -548,7 +561,7 @@ def build_linux_pkg():
     if args.changelog_date != None:
         changelog_date = args.changelog_date
     else:
-        changelog_date = check_output(['date', '-R']).strip()
+        changelog_date = subprocess.check_output(['date', '-R']).decode('utf-8').strip()
 
     print('changelog date:', changelog_date)
 
@@ -558,9 +571,9 @@ def build_linux_pkg():
                          '<<DATE>>': changelog_date},
                         remove_template=True)
 
-    system('cd {0}; dpkg-buildpackage -us -uc'.format(source_path))
+    subprocess.check_call('cd {0}; dpkg-buildpackage -us -uc'.format(source_path), shell=True)
 
-    binary_version = check_output(['{0}/debian/brickd/usr/bin/brickd'.format(source_path), '--version']).strip()
+    binary_version = subprocess.check_output([os.path.join(source_path, 'debian/brickd/usr/bin/brickd'), '--version']).decode('utf-8').strip()
 
     if changelog_version != binary_version:
         print('error: version mismatch between changelog and binary: {0} != {1}'.format(changelog_version, binary_version))
@@ -575,7 +588,7 @@ def build_linux_pkg():
     glibc_version = (0, 0, 0)
     glibc_symbols = []
 
-    for line in subprocess.check_output(['objdump', '-T', '{0}/debian/brickd/usr/bin/brickd'.format(source_path)]).decode('utf-8').split('\n'):
+    for line in subprocess.check_output(['objdump', '-T', os.path.join(source_path, 'debian/brickd/usr/bin/brickd')]).decode('utf-8').split('\n'):
         m = re.search(r'(GLIBC_([0-9\.]+).*)', line.strip())
 
         if m == None:
@@ -608,7 +621,7 @@ def build_linux_pkg():
 
     if os.path.exists('/usr/bin/lintian'):
         print('checking Debian package')
-        system('lintian --verbose --pedantic --no-tag-display-limit {0}/brickd_{1}_{2}.deb'.format(dist_path, changelog_version, architecture))
+        subprocess.check_call(['lintian', '--verbose', '--pedantic', '--no-tag-display-limit', '{0}/brickd_{1}_{2}.deb'.format(dist_path, changelog_version, architecture)])
     else:
         print('skipping lintian check')
 
