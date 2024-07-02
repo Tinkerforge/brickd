@@ -7,3 +7,8 @@ Changes:
 - Add libusb_set_log_callback function to intercept all log output.
 - Rename libusb-1.0.a to libusb-1.0-brickd-static.a to avoid a potential name
   collisions with a system-wide installed libusb-1.0.a.
+
+To compile libusb-1.0-brickd-static.a run ./prepare.sh and ./compile.sh.
+
+To modify the libusb-brickd.patch run ./prepare.sh then modify the source in
+the libusb-src directory and run ./capture.sh to update libusb-brickd.patch.
