@@ -89,7 +89,7 @@ int raspberry_pi_detect(char *spidev_reason, size_t spidev_reason_len) {
 	result = RASPBERRY_PI_BCM2835_DETECTED;
 
 	if (length > model_prefix_len) {
-		for (i = 0; i < sizeof(non_bcm2835_models); ++i) {
+		for (i = 0; i < sizeof(non_bcm2835_models) / sizeof(non_bcm2835_models[0]); ++i) {
 			if (strncmp(buffer + model_prefix_len, non_bcm2835_models[i].suffix, strlen(non_bcm2835_models[i].suffix)) == 0) {
 				snprintf(last_spidev_reason, sizeof(last_spidev_reason), "%s", "Raspberry Pi without BCM2835 detected");
 				result = non_bcm2835_models[i].result;

@@ -276,3 +276,6 @@
 - Adapt to Raspberry Pi 5 GPIO pin numbering changes
 - Use libgpiod for GPIO pin access on Linux
 - Change runstatedir default from /var/run to /run on Linux
+
+<unknown>: 2.4.7 (<unknown>)
+- Fix Raspberry Pi 1-4 SPI backend detection
