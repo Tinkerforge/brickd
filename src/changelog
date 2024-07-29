@@ -277,5 +277,5 @@
 - Use libgpiod for GPIO pin access on Linux
 - Change runstatedir default from /var/run to /run on Linux
 
-<unknown>: 2.4.7 (<unknown>)
+2024-07-29: 2.4.7 (<unknown>)
 - Fix Raspberry Pi 1-4 SPI backend detection
