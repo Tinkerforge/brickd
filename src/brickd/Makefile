@@ -491,7 +491,7 @@ ifeq ($(WITH_TARGET),Linux)
 ifeq ($(WITH_BRICKLET),yes)
 ifeq ($(WITH_LIBGPIOD_STATIC),yes)
 	LIBGPIOD_STATUS := $(word 1,$(file < ../build_data/linux/libgpiod/version.txt)) (fork, static)
-	LIBGPIOD_CFLAGS := -I../build_data/linux/libgpiod -DBRICKD_LIBGPIOD2_V1
+	LIBGPIOD_CFLAGS := -I../build_data/linux/libgpiod -DBRICKD_LIBGPIOD_V1
 	LIBGPIOD_LDFLAGS := -L../build_data/linux/libgpiod
 	LIBGPIOD_LIBS := -lgpiod-brickd-static
 else
@@ -502,9 +502,9 @@ ifeq ($(shell pkg-config --exists 'libgpiod >= 1.2' && echo okay),okay)
 	LIBGPIOD_LIBS := $(shell pkg-config --libs-only-l libgpiod)
 
 ifeq ($(shell pkg-config --exists 'libgpiod >= 2' && echo okay),okay)
-	LIBGPIOD_CFLAGS += -DBRICKD_LIBGPIOD2_V2
+	LIBGPIOD_CFLAGS += -DBRICKD_LIBGPIOD_V2
 else
-	LIBGPIOD_CFLAGS += -DBRICKD_LIBGPIOD2_V1
+	LIBGPIOD_CFLAGS += -DBRICKD_LIBGPIOD_V1
 endif
 else
 ifneq ($(MAKECMDGOALS),clean)

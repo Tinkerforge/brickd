@@ -32,7 +32,7 @@
 #include <linux/spi/spidev.h>
 #include <unistd.h>
 
-#if defined(BRICKD_LIBGPIOD2_V2)
+#if defined(BRICKD_LIBGPIOD_V2)
 #include <dirent.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -55,16 +55,16 @@
 #define BRICKLET_STACK_SPI_CONFIG_BITS_PER_WORD  8
 #define BRICKLET_STACK_SPI_CONFIG_MAX_SPEED_HZ   1400000 // 400000 - 2000000
 
-#if !defined(BRICKD_LIBGPIOD2_V1) && !defined(BRICKD_LIBGPIOD2_V2)
+#if !defined(BRICKD_LIBGPIOD_V1) && !defined(BRICKD_LIBGPIOD_V2)
 #error "Unknown libgpiod API version!"
 #endif
 
 struct _BrickletStackPlatform {
 	int spi_fd;
-#if defined(BRICKD_LIBGPIOD2_V1)
+#if defined(BRICKD_LIBGPIOD_V1)
 	struct gpiod_chip *chip;
 	struct gpiod_line *line;
-#elif defined(BRICKD_LIBGPIOD2_V2)
+#elif defined(BRICKD_LIBGPIOD_V2)
 	struct gpiod_line_request *request;
 	unsigned int offset;
 #endif
@@ -74,7 +74,7 @@ static LogSource _log_source = LOG_SOURCE_INITIALIZER;
 
 static BrickletStackPlatform _platform[BRICKLET_SPI_MAX_NUM * BRICKLET_CS_MAX_NUM];
 
-#if defined(BRICKD_LIBGPIOD2_V2)
+#if defined(BRICKD_LIBGPIOD_V2)
 
 // This is a modified version of libgpiod-2.1.1's find_line_by_name example.
 
@@ -249,7 +249,7 @@ int bricklet_stack_create_platform_spidev(BrickletStack *bricklet_stack) {
 
 	// configure GPIO chip select
 	if (bricklet_stack->config.chip_select_driver == BRICKLET_CHIP_SELECT_DRIVER_GPIO) {
-#if defined(BRICKD_LIBGPIOD2_V1)
+#if defined(BRICKD_LIBGPIOD_V1)
 		char chip_name[32];
 		memset(chip_name, 0, sizeof(chip_name));
 		unsigned int offset;
@@ -284,7 +284,7 @@ int bricklet_stack_create_platform_spidev(BrickletStack *bricklet_stack) {
 			log_error("Could not reserve line for output %s %d: %s (%d)", chip_name, offset, get_errno_name(errno), errno);
 			goto cleanup;
 		}
-#elif defined(BRICKD_LIBGPIOD2_V2)
+#elif defined(BRICKD_LIBGPIOD_V2)
 		struct gpiod_chip *chip;
 		int result;
 
@@ -352,7 +352,7 @@ int bricklet_stack_create_platform_spidev(BrickletStack *bricklet_stack) {
 cleanup:
 	robust_close(bricklet_stack->platform->spi_fd);
 
-#if defined(BRICKD_LIBGPIOD2_V1)
+#if defined(BRICKD_LIBGPIOD_V1)
 	if (platform->line != NULL) {
 		gpiod_line_release(platform->line);
 	}
@@ -360,7 +360,7 @@ cleanup:
 	if (platform->chip != NULL) {
 		gpiod_chip_close(platform->chip);
 	}
-#elif defined(BRICKD_LIBGPIOD2_V2)
+#elif defined(BRICKD_LIBGPIOD_V2)
 	if (platform->request != NULL) {
 		gpiod_line_request_release(platform->request);
 	}
@@ -373,19 +373,19 @@ void bricklet_stack_destroy_platform_spidev(BrickletStack *bricklet_stack) {
 	robust_close(bricklet_stack->platform->spi_fd);
 
 	if (bricklet_stack->config.chip_select_driver == BRICKLET_CHIP_SELECT_DRIVER_GPIO) {
-#if defined(BRICKD_LIBGPIOD2_V1)
+#if defined(BRICKD_LIBGPIOD_V1)
 		gpiod_line_release(bricklet_stack->platform->line);
 		gpiod_chip_close(bricklet_stack->platform->chip);
-#elif defined(BRICKD_LIBGPIOD2_V2)
+#elif defined(BRICKD_LIBGPIOD_V2)
 		gpiod_line_request_release(bricklet_stack->platform->request);
 #endif
 	}
 }
 
 int bricklet_stack_chip_select_gpio_spidev(BrickletStack *bricklet_stack, bool enable) {
-#if defined(BRICKD_LIBGPIOD2_V1)
+#if defined(BRICKD_LIBGPIOD_V1)
 	return gpiod_line_set_value(bricklet_stack->platform->line, enable ? 0 : 1);
-#elif defined(BRICKD_LIBGPIOD2_V2)
+#elif defined(BRICKD_LIBGPIOD_V2)
 	return gpiod_line_request_set_value(bricklet_stack->platform->request, bricklet_stack->platform->offset, enable ? GPIOD_LINE_VALUE_INACTIVE : GPIOD_LINE_VALUE_ACTIVE);
 #endif
 }
