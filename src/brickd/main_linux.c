@@ -32,6 +32,9 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <sys/utsname.h>
+#ifdef BRICKD_WITH_LIBGPIOD_DLOPEN
+	#include <gpiod.h>
+#endif
 
 #include <daemonlib/config.h>
 #include <daemonlib/daemon.h>
@@ -411,79 +414,87 @@ int main(int argc, char **argv) {
 	}
 
 #ifdef BRICKD_WITH_LIBUSB_DLOPEN
-	if (libusb_init_dlopen() < 0) {
+	if (libusb_dlopen() < 0) {
 		goto cleanup;
 	}
 
 	phase = 4;
 #endif
 
-	if (event_init() < 0) {
+#ifdef BRICKD_WITH_LIBGPIOD_DLOPEN
+	if (libgpiod_dlopen() < 0) {
 		goto cleanup;
 	}
 
 	phase = 5;
+#endif
 
-	if (signal_init(handle_sighup, handle_sigusr1) < 0) {
+	if (event_init() < 0) {
 		goto cleanup;
 	}
 
 	phase = 6;
 
-	if (hardware_init() < 0) {
+	if (signal_init(handle_sighup, handle_sigusr1) < 0) {
 		goto cleanup;
 	}
 
 	phase = 7;
 
-	if (usb_init() < 0) {
+	if (hardware_init() < 0) {
 		goto cleanup;
 	}
 
 	phase = 8;
 
-	if (network_init() < 0) {
+	if (usb_init() < 0) {
 		goto cleanup;
 	}
 
 	phase = 9;
 
-	if (mesh_init() < 0) {
+	if (network_init() < 0) {
 		goto cleanup;
 	}
 
 	phase = 10;
+
+	if (mesh_init() < 0) {
+		goto cleanup;
+	}
+
+	phase = 11;
 
 #ifdef BRICKD_WITH_RED_BRICK
 	if (gpio_red_init() < 0) {
 		goto cleanup;
 	}
 
-	phase = 11;
+	phase = 12;
 
 	if (redapid_init() < 0) {
 		goto cleanup;
 	}
 
-	phase = 12;
+	phase = 13;
 
 	if (red_stack_init() < 0) {
 		goto cleanup;
 	}
 
-	phase = 13;
+	phase = 14;
 
 	if (red_extension_init() < 0) {
 		goto cleanup;
 	}
 
-	phase = 14;
+	phase = 15;
 
 	if (red_usb_gadget_init() < 0) {
 		goto cleanup;
 	}
 
-	phase = 15;
+	phase = 16;
 
 	red_led_set_trigger(RED_LED_GREEN, config_get_option_value("led_trigger.green")->symbol);
 	red_led_set_trigger(RED_LED_RED, config_get_option_value("led_trigger.red")->symbol);
@@ -493,7 +504,7 @@ int main(int argc, char **argv) {
 		goto cleanup;
 	}
 
-	phase = 16;
+	phase = 17;
 #endif
 
 	log_debug("Starting initial USB device scan");
@@ -517,61 +528,68 @@ int main(int argc, char **argv) {
 cleanup:
 	switch (phase) { // no breaks, all cases fall through intentionally
 #ifdef BRICKD_WITH_BRICKLET
-	case 16:
+	case 17:
 		bricklet_exit();
 #endif
 #ifdef BRICKD_WITH_RED_BRICK
 		// fall through
 
-	case 15:
+	case 16:
 		red_usb_gadget_exit();
 		// fall through
 
-	case 14:
+	case 15:
 		red_extension_exit();
 		// fall through
 
-	case 13:
+	case 14:
 		red_stack_exit();
 		// fall through
 
-	case 12:
+	case 13:
 		redapid_exit();
 		// fall through
 
-	case 11:
+	case 12:
 		//gpio_red_exit();
 #endif
 		// fall through
 
-	case 10:
+	case 11:
 		mesh_exit();
 		// fall through
 
-	case 9:
+	case 10:
 		network_exit();
 		// fall through
 
-	case 8:
+	case 9:
 		usb_exit();
 		// fall through
 
-	case 7:
+	case 8:
 		hardware_exit();
 		// fall through
 
-	case 6:
+	case 7:
 		signal_exit();
 		// fall through
 
-	case 5:
+	case 6:
 		event_exit();
+
+#ifdef BRICKD_WITH_LIBGPIOD_DLOPEN
+		// fall through
+
+	case 5:
+		libgpiod_dlclose();
+#endif
 
 #ifdef BRICKD_WITH_LIBUSB_DLOPEN
 		// fall through
 
 	case 4:
-		libusb_exit_dlopen();
+		libusb_dlclose();
 #endif
 		// fall through
 

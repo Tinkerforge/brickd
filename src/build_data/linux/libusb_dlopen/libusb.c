@@ -99,7 +99,7 @@ libusb_hotplug_deregister_callback_t libusb_hotplug_deregister_callback;
 
 #endif
 
-int libusb_init_dlopen(void) {
+int libusb_dlopen(void) {
 	_libusb_handle = dlopen(_libusb, RTLD_LAZY);
 
 	if (_libusb_handle == NULL) {
@@ -156,7 +156,7 @@ int libusb_init_dlopen(void) {
 	return 0;
 }
 
-void libusb_exit_dlopen(void) {
+void libusb_dlclose(void) {
 	log_debug("Unloading %s", _libusb);
 
 	dlclose(_libusb_handle);

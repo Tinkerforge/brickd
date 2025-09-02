@@ -319,7 +319,7 @@ extern libusb_set_pollfd_notifiers_t libusb_set_pollfd_notifiers;
 extern libusb_hotplug_register_callback_t libusb_hotplug_register_callback;
 extern libusb_hotplug_deregister_callback_t libusb_hotplug_deregister_callback;
 
-int libusb_init_dlopen(void);
-void libusb_exit_dlopen(void);
+int libusb_dlopen(void);
+void libusb_dlclose(void);
 
 #endif // BRICKD_LIBUSB_H

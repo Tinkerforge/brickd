@@ -20,6 +20,7 @@ WITH_HOST ?= check
 WITH_TARGET ?= check
 WITH_LIBUSB_DLOPEN ?= no
 WITH_LIBUSB_STATIC ?= no
+WITH_LIBGPIOD_DLOPEN ?= no
 WITH_LIBGPIOD_STATIC ?= no
 WITH_LOGGING ?= yes
 WITH_EPOLL ?= check
@@ -152,6 +153,18 @@ endif
 ifeq ($(WITH_LIBUSB_DLOPEN),yes)
 ifeq ($(WITH_LIBUSB_STATIC),yes)
 $(error Cannot dlopen and static link libusb at the same time)
+endif
+endif
+
+ifneq ($(WITH_TARGET),Linux)
+ifeq ($(WITH_LIBGPIOD_DLOPEN),yes)
+$(error WITH_LIBGPIOD_DLOPEN is not supported for $(WITH_TARGET))
+endif
+endif
+
+ifeq ($(WITH_LIBGPIOD_DLOPEN),yes)
+ifeq ($(WITH_LIBGPIOD_STATIC),yes)
+$(error Cannot dlopen and static link libgpiod at the same time)
 endif
 endif
 
@@ -342,6 +355,7 @@ ifeq ($(WITH_TARGET),Linux)
 	                  bricklet_stack_linux_bcm2835.c \
 	                  bricklet_stack_linux_spidev.c \
 	                  bcm2835.c \
+	                  libgpiod2.c \
 	                  vcgencmd.c
 endif
 endif
@@ -361,6 +375,10 @@ endif
 
 ifeq ($(WITH_LIBUSB_DLOPEN),yes)
 	SOURCES_BRICKD += ../build_data/linux/libusb_dlopen/libusb.c
+endif
+
+ifeq ($(WITH_LIBGPIOD_DLOPEN),yes)
+	SOURCES_BRICKD += ../build_data/linux/libgpiod_dlopen/gpiod.c
 endif
 
 SOURCES := $(SOURCES_DAEMONLIB) $(SOURCES_BRICKD)
@@ -489,9 +507,15 @@ LIBGPIOD_STATUS := no
 
 ifeq ($(WITH_TARGET),Linux)
 ifeq ($(WITH_BRICKLET),yes)
+ifeq ($(WITH_LIBGPIOD_DLOPEN),yes)
+	LIBGPIOD_STATUS := >= 1.2 (dlopen)
+	LIBGPIOD_CFLAGS := -I../build_data/linux/libgpiod_dlopen
+	LIBGPIOD_LDFLAGS :=
+	LIBGPIOD_LIBS := -ldl
+else
 ifeq ($(WITH_LIBGPIOD_STATIC),yes)
 	LIBGPIOD_STATUS := $(word 1,$(file < ../build_data/linux/libgpiod/version.txt)) (fork, static)
-	LIBGPIOD_CFLAGS := -I../build_data/linux/libgpiod -DBRICKD_LIBGPIOD_V1
+	LIBGPIOD_CFLAGS := -I../build_data/linux/libgpiod -DBRICKD_LIBGPIOD_ABI_$(word 1,$(file < ../build_data/linux/libgpiod/abi.txt))
 	LIBGPIOD_LDFLAGS := -L../build_data/linux/libgpiod
 	LIBGPIOD_LIBS := -lgpiod-brickd-static
 else
@@ -502,13 +526,14 @@ ifeq ($(shell pkg-config --exists 'libgpiod >= 1.2' && echo okay),okay)
 	LIBGPIOD_LIBS := $(shell pkg-config --libs-only-l libgpiod)
 
 ifeq ($(shell pkg-config --exists 'libgpiod >= 2' && echo okay),okay)
-	LIBGPIOD_CFLAGS += -DBRICKD_LIBGPIOD_V2
+	LIBGPIOD_CFLAGS += -DBRICKD_LIBGPIOD_ABI_3
 else
-	LIBGPIOD_CFLAGS += -DBRICKD_LIBGPIOD_V1
+	LIBGPIOD_CFLAGS += -DBRICKD_LIBGPIOD_ABI_2
 endif
 else
 ifneq ($(MAKECMDGOALS),clean)
 $(error Could not find libgpiod >= 1.2)
+endif
 endif
 endif
 endif
@@ -568,6 +593,10 @@ endif
 
 ifeq ($(WITH_LIBUSB_DLOPEN),yes)
 	override CFLAGS += -DBRICKD_WITH_LIBUSB_DLOPEN
+endif
+
+ifeq ($(WITH_LIBGPIOD_DLOPEN),yes)
+	override CFLAGS += -DBRICKD_WITH_LIBGPIOD_DLOPEN
 endif
 
 ifeq ($(WITH_USB_REOPEN_ON_SIGUSR1),yes)

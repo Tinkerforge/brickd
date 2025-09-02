@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+#!/usr/bin/env -S python -u
 """
 brickd (Brick Daemon)
 Copyright (C) 2012-2016 Matthias Bolte <matthias@tinkerforge.com>
@@ -540,21 +540,33 @@ def build_linux_pkg():
         path = os.path.join(daemonlib_path, daemonlib_file)
 
         os.makedirs(os.path.dirname(path), exist_ok=True)
-        shutil.copy(os.path.join('daemonlib', daemonlib_file), os.path.join(daemonlib_path, daemonlib_file))
+        shutil.copy(os.path.join('daemonlib', daemonlib_file), path)
 
-    print('collecting build_data')
-    build_data_files = git_ls_files('build_data/linux/installer')
-    build_data_path = os.path.join(source_path, 'build_data/linux/installer')
+    print('collecting installer build_data')
+    installer_build_data_files = git_ls_files('build_data/linux/installer')
+    installer_build_data_path = os.path.join(source_path, 'build_data/linux/installer')
 
-    os.makedirs(build_data_path)
+    os.makedirs(installer_build_data_path)
 
-    for build_data_file in build_data_files:
-        path = os.path.join(build_data_path, build_data_file)
+    for installer_build_data_file in installer_build_data_files:
+        path = os.path.join(installer_build_data_path, installer_build_data_file)
 
         os.makedirs(os.path.dirname(path), exist_ok=True)
-        shutil.copy(os.path.join('build_data/linux/installer', build_data_file), path)
+        shutil.copy(os.path.join('build_data/linux/installer', installer_build_data_file), path)
 
-    shutil.move(os.path.join(build_data_path, 'debian'), os.path.join(source_path, 'debian'))
+    shutil.move(os.path.join(installer_build_data_path, 'debian'), os.path.join(source_path, 'debian'))
+
+    print('collecting libgpiod_dlopen build_data')
+    libgpiod_dlopen_build_data_files = git_ls_files('build_data/linux/libgpiod_dlopen')
+    libgpiod_dlopen_build_data_path = os.path.join(source_path, 'build_data/linux/libgpiod_dlopen')
+
+    os.makedirs(libgpiod_dlopen_build_data_path)
+
+    for libgpiod_dlopen_build_data_file in libgpiod_dlopen_build_data_files:
+        path = os.path.join(libgpiod_dlopen_build_data_path, libgpiod_dlopen_build_data_file)
+
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        shutil.copy(os.path.join('build_data/linux/libgpiod_dlopen', libgpiod_dlopen_build_data_file), path)
 
     print('building Debian package')
 

@@ -20,6 +20,7 @@ CONFIG := CC=gcc \
           WITH_SYSTEMD=yes \
           WITH_RED_BRICK=$(WITH_RED_BRICK) \
           WITH_BRICKLET=yes \
+          WITH_LIBGPIOD_DLOPEN=yes \
           WITH_UNKNOWN_LIBUSB_API_VERSION=yes \
           WITH_VERSION_SUFFIX=$(VERSION_SUFFIX)
 
