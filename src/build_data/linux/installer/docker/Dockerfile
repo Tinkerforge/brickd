@@ -1,6 +1,6 @@
-ARG ARCHITECTURE
+ARG ARCHITECTURE=amd64
 
-FROM ${ARCHITECTURE}/debian:buster
+FROM ${ARCHITECTURE}/debian:trixie-slim
 
 # apt
 RUN DEBIAN_FRONTEND=noninteractive apt-get clean
@@ -12,12 +12,12 @@ RUN debconf-set-selections < debconf.conf
 # locales
 RUN DEBIAN_FRONTEND=noninteractive apt-get install -y locales locales-all
 RUN sed -i '/en_US.UTF-8/s/^# //g' /etc/locale.gen && locale-gen
-ENV LANG en_US.UTF-8
-ENV LANGUAGE en_US:en
-ENV LC_ALL en_US.UTF-8
+ENV LANG=en_US.UTF-8
+ENV LANGUAGE=en_US:en
+ENV LC_ALL=en_US.UTF-8
 
 # brickd
-RUN DEBIAN_FRONTEND=noninteractive apt-get install -y build-essential git debhelper dh-systemd lintian pkg-config libusb-1.0-0-dev python3 systemd libgpiod-dev
+RUN DEBIAN_FRONTEND=noninteractive apt-get install -y build-essential git debhelper lintian pkg-config libusb-1.0-0-dev python3 systemd systemd-dev libgpiod-dev
 
 # user
 RUN adduser --disabled-password --gecos '' foobar
