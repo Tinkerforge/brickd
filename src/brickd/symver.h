@@ -1,6 +1,6 @@
 /*
  * brickd
- * Copyright (C) 2020-2021 Matthias Bolte <matthias@tinkerforge.com>
+ * Copyright (C) 2020-2021, 2025 Matthias Bolte <matthias@tinkerforge.com>
  * Copyright (C) 2021 Andreas Schwab <schwab@suse.de>
  *
  * symver.h: force linking to older glibc symbols to lower glibc dependency
@@ -29,21 +29,29 @@
 
 #ifdef __GLIBC__
 
-#if defined __aarch64__
-// do nothing, because arm64 requires glibc >= 2.17 anyway
-#elif defined __riscv
-// do nothing, because riscv requires glibc >= 2.27 anyway
-#elif defined __arm__
-__asm__(".symver fcntl,fcntl@GLIBC_2.4");
-__asm__(".symver memcpy,memcpy@GLIBC_2.4");
-#elif defined __i386__
-__asm__(".symver clock_gettime,clock_gettime@GLIBC_2.2");
-__asm__(".symver clock_nanosleep,clock_nanosleep@GLIBC_2.2");
-__asm__(".symver fcntl,fcntl@GLIBC_2.0");
-#else
-__asm__(".symver clock_gettime,clock_gettime@GLIBC_2.2.5");
-__asm__(".symver clock_nanosleep,clock_nanosleep@GLIBC_2.2.5");
-__asm__(".symver memcpy,memcpy@GLIBC_2.2.5");
+// building the brickd Debian packages on Debian Trixie requires to raise
+// the maximum glibc symbol version to 2.34. Debian Trixie ships glibc 2.42
+// resulting in brickd linking against the versioned __libc_start_main symbol
+// that got versioned in glibc 2.34 due to a backwards incompatible change in
+// glibc. this means that a brickd linked against glibc >= 2.34 cannot run
+// against glibc < 2.34 anymore.
+//
+// https://sourceware.org/git/?p=glibc.git;a=commit;h=035c012e32c11e84d64905efaf55e74f704d3668
+//
+// as of now brickd doesn't link against any glibc symbol newer than glibc
+// 2.34. so there is currently no need to pin symbol versions using symver as
+// this pinning is only done to allow building the brickd Debian packages on
+// a newer Debian release while still allowing it to run the resulting binary
+// on an older Debian release.
+//
+// building on Debian Trixie means that the resulting Debian package contains
+// a brickd binary that requires glibc >= 2.34, but there is no general
+// requirement for glibc >= 2.34 now. building brickd with any glibc version
+// works. this is all just about the portability of the Debian packages that
+// are build on Debian Trixie to older Debian releases.
+
+#if 0
+__asm__(".symver symbol,symbol@GLIBC_x.y.z"); // an example how symver is used
 #endif
 
 #endif // __GLIBC__

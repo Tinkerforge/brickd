@@ -591,17 +591,12 @@ def build_linux_pkg():
         print('error: version mismatch between changelog and binary: {0} != {1}'.format(changelog_version, binary_version))
         sys.exit(1)
 
-    if architecture == 'arm64':
-        # arm64 support was added to glibc in version 2.17
-        maximum_glibc_version = (2, 17, 0)
-    else:
-        maximum_glibc_version = (2, 9, 0)
-
+    maximum_glibc_version = (2, 34, 0)
     glibc_version = (0, 0, 0)
     glibc_symbols = []
 
     for line in subprocess.check_output(['objdump', '-T', os.path.join(source_path, 'debian/brickd/usr/bin/brickd')]).decode('utf-8').split('\n'):
-        m = re.search(r'(GLIBC_([0-9\.]+).*)', line.strip())
+        m = re.search(r'(\(?GLIBC_([0-9\.]+).*)', line.strip())
 
         if m == None:
             continue
@@ -633,7 +628,7 @@ def build_linux_pkg():
 
     if os.path.exists('/usr/bin/lintian'):
         print('checking Debian package')
-        subprocess.check_call(['lintian', '--verbose', '--pedantic', '--no-tag-display-limit', '{0}/brickd_{1}_{2}.deb'.format(dist_path, changelog_version, architecture)])
+        subprocess.check_call(['lintian', '--verbose', '--pedantic', '--tag-display-limit', '0', '{0}/brickd_{1}_{2}.deb'.format(dist_path, changelog_version, architecture)])
     else:
         print('skipping lintian check')
 
