@@ -66,7 +66,7 @@ On Debian based Linux distributions try::
 On Fedora Linux try::
 
  sudo yum groupinstall "Development Tools"
- sudo yum install libusb1-devel pm-utils-devel
+ sudo yum install libusb1-devel pm-utils-devel libgpiod-devel
 
 For Windows and macOS a suitable pre-compiled libusb-1.0 binary is part of this
 repository.
