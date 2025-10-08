@@ -8,7 +8,7 @@ User=root
 Type=oneshot
 ExecStart=/usr/bin/pkill -F /run/brickd.pid -L -USR1
 TimeoutSec=0
-StandardOutput=syslog
+StandardOutput=journal
 
 [Install]
 WantedBy=suspend.target

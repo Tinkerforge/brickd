@@ -8,7 +8,7 @@ Homepage: https://www.tinkerforge.com/
 
 Package: brickd
 Architecture: any
-Depends: libc6, lsb-base, procps, libusb-1.0-0 (>= 1.0.20), libgpiod2 (>= 1.2) | libgpiod3, systemd, ${shlibs:Depends}, ${misc:Depends}
+Depends: libc6, procps, libusb-1.0-0 (>= 1.0.20), libgpiod2 (>= 1.2) | libgpiod3, systemd, ${shlibs:Depends}, ${misc:Depends}
 Recommends: logrotate
 Description: Tinkerforge Brick Daemon
  The Brick Daemon program is part of the Tinkerforge software infrastructure.
