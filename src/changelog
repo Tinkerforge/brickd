@@ -279,3 +279,6 @@
 
 2024-07-29: 2.4.7 (5be7729)
 - Fix Raspberry Pi 1-4 SPI backend detection
+
+<unknown>: 2.4.8 (<unknown>)
+- Add support for libgpiod3 package in Debian Trixie
