@@ -371,8 +371,11 @@ int bricklet_init_hctosys(void) {
 	}
 
 	rc = pclose(fp);
-
-	log_warn("Unexpected output from '%s' (exit-code: %d): %s", cmd, rc, buffer);
+	if (rc < 0) {
+		log_warn("Unexpected output from '%s' (pclose failed with exit-code %d): %s", cmd, rc, buffer);
+	} else {
+		log_warn("Unexpected output from '%s' (exit-code: %d): %s", cmd, rc >> 8, buffer);
+	}
 
 	return -1;
 #endif
