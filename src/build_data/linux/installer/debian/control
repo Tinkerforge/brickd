@@ -9,7 +9,7 @@ Homepage: https://www.tinkerforge.com/
 Package: brickd
 Architecture: any
 Depends: libc6, procps, libusb-1.0-0 (>= 1.0.20), libgpiod2 (>= 1.2) | libgpiod3, systemd, ${shlibs:Depends}, ${misc:Depends}
-Recommends: logrotate
+Recommends: logrotate, util-linux-extra
 Description: Tinkerforge Brick Daemon
  The Brick Daemon program is part of the Tinkerforge software infrastructure.
  It routes Tinkerforge Protocol (TFP) messages between Tinkerforge USB devices
