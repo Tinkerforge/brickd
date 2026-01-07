@@ -43,6 +43,7 @@ int raspberry_pi_detect(char *spidev_reason, size_t spidev_reason_len) {
 		int result;
 	} non_bcm2835_models[] = {
 		{"5", RASPBERRY_PI_5_DETECTED},
+		{"Compute Module 5", RASPBERRY_PI_5_DETECTED},
 	};
 	int fd;
 	size_t i;
