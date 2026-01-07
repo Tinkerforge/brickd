@@ -336,12 +336,12 @@ int bricklet_init_hctosys(void) {
 	FILE *fp;
 	char buffer[256] = "";
 	int rc;
-	const char *cmd = "/sbin/hwclock --hctosys";
+	const char *cmd = "/sbin/hwclock --hctosys 2>&1";
 
 	errno = ENOMEM; // popen does not set errno if memory allocation fails
 
 	if (raspberry_pi_detect(NULL, 0) == RASPBERRY_PI_5_DETECTED) {
-		cmd = "/sbin/hwclock -f /dev/rtc1 --hctosys";
+		cmd = "/sbin/hwclock -f /dev/rtc1 --hctosys 2>&1";
 	}
 
 	fp = popen(cmd, "r");
