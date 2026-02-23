@@ -283,6 +283,6 @@
 2025-10-09: 2.4.8 (a19fcf0)
 - Add support for libgpiod3 package in Debian Trixie
 
-2026-02-23: 2.4.9 (<unknown>)
+2026-02-23: 2.4.9 (373f6b2)
 - Fix crash on Raspberry Pi Compute Module 5
 - Adapt to changed packaging for hwclock in Debian Trixie
