@@ -189,7 +189,7 @@ uint32_t* bcm2835_regbase(uint8_t regbase)
 	case BCM2835_REGBASE_BSC0:
 	    return (uint32_t *)bcm2835_bsc0;
 	case BCM2835_REGBASE_BSC1:
-	    return (uint32_t *)bcm2835_st;
+	    return (uint32_t *)bcm2835_bsc1;
 	case BCM2835_REGBASE_AUX:
 	    return (uint32_t *)bcm2835_aux;
 	case BCM2835_REGBASE_SPI1:
@@ -1125,7 +1125,8 @@ void bcm2835_aux_spi_transfernb(const char *tbuf, char *rbuf, uint32_t len) {
 
 	while ((tx_len > 0) || (rx_len > 0)) {
 
-		while (!(bcm2835_peri_read(stat) & BCM2835_AUX_SPI_STAT_TX_FULL) && (tx_len > 0)) {
+	    while (!(bcm2835_peri_read(stat) & BCM2835_AUX_SPI_STAT_TX_FULL) && (tx_len > 0) && (tx_len + BCM2835_AUX_SPI_FIFO_SIZE * 3 > rx_len))
+	    {
 			count = MIN(tx_len, 3);
 			data = 0;
 
@@ -1145,7 +1146,8 @@ void bcm2835_aux_spi_transfernb(const char *tbuf, char *rbuf, uint32_t len) {
 
 		}
 
-		while (!(bcm2835_peri_read(stat) & BCM2835_AUX_SPI_STAT_RX_EMPTY) && (rx_len > 0)) {
+		while (!(bcm2835_peri_read(stat) & BCM2835_AUX_SPI_STAT_RX_EMPTY) && (rx_len > 0))
+		{
 			count = MIN(rx_len, 3);
 			data = bcm2835_peri_read(io);
 
@@ -1167,7 +1169,8 @@ void bcm2835_aux_spi_transfernb(const char *tbuf, char *rbuf, uint32_t len) {
 			rx_len -= count;
 		}
 
-		while (!(bcm2835_peri_read(stat) & BCM2835_AUX_SPI_STAT_BUSY) && (rx_len > 0)) {
+		while (!(bcm2835_peri_read(stat) & BCM2835_AUX_SPI_STAT_BUSY) && (rx_len > 0) && (tx_len == 0))
+		{
 			count = MIN(rx_len, 3);
 			data = bcm2835_peri_read(io);
 
@@ -1331,7 +1334,7 @@ uint8_t bcm2835_i2c_write(const char * buf, uint32_t len)
     uint32_t      remaining = len;
     uint32_t      i = 0;
     uint8_t       reason = BCM2835_I2C_REASON_OK;
-    unsigned long Failsafe = len * 1000;
+    unsigned long Failsafe = len * 10000;
     int           Timeout = 0;
 
     /* Clear FIFO */
@@ -1397,7 +1400,8 @@ uint8_t bcm2835_i2c_write(const char * buf, uint32_t len)
 	reason = BCM2835_I2C_REASON_ERROR_DATA;
     }
 
-    bcm2835_peri_set_bits(control, BCM2835_BSC_S_DONE , BCM2835_BSC_S_DONE);
+    bcm2835_peri_set_bits(status, BCM2835_BSC_S_DONE , BCM2835_BSC_S_DONE);
+    bcm2835_peri_write(control, 0); // reset BSC control register after transfer
 
     return reason;
 }
@@ -1471,6 +1475,7 @@ uint8_t bcm2835_i2c_read(char* buf, uint32_t len)
     }
 
     bcm2835_peri_set_bits(status, BCM2835_BSC_S_DONE , BCM2835_BSC_S_DONE);
+    bcm2835_peri_write(control, 0); // reset BSC control register after transfer
 
     return reason;
 }
@@ -1561,7 +1566,8 @@ uint8_t bcm2835_i2c_read_register_rs(char* regaddr, char* buf, uint32_t len)
 	reason = BCM2835_I2C_REASON_ERROR_DATA;
     }
 
-    bcm2835_peri_set_bits(control, BCM2835_BSC_S_DONE , BCM2835_BSC_S_DONE);
+    bcm2835_peri_set_bits(status, BCM2835_BSC_S_DONE , BCM2835_BSC_S_DONE);
+    bcm2835_peri_write(control, 0); // reset BSC control register after transfer
 
     return reason;
 }
@@ -1665,7 +1671,8 @@ uint8_t bcm2835_i2c_write_read_rs(char* cmds, uint32_t cmds_len, char* buf, uint
 	reason = BCM2835_I2C_REASON_ERROR_DATA;
     }
 
-    bcm2835_peri_set_bits(control, BCM2835_BSC_S_DONE , BCM2835_BSC_S_DONE);
+    bcm2835_peri_set_bits(status, BCM2835_BSC_S_DONE , BCM2835_BSC_S_DONE);
+    bcm2835_peri_write(control, 0); // reset BSC control register after transfer
 
     return reason;
 }
