@@ -21,7 +21,9 @@
 */
 
 // Needed to compile with gcc -std=c99, as reported by John Blaiklock.
-#define _POSIX_C_SOURCE 200809L
+// No need to define _POSIX_C_SOURCE here as brickd is compiled with
+// -std=gnu99 which already defines _POSIX_C_SOURCE as 200809L or higher
+//#define _POSIX_C_SOURCE 200809L
 
 #include <stdlib.h>
 #include <stdio.h>
